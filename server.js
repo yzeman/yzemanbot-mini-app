@@ -1,92 +1,320 @@
+require('dotenv').config();
 const express = require('express');
-const bodyParser = require('body-parser');
+const TelegramBot = require('node-telegram-bot-api');
+const sqlite3 = require('sqlite3').verbose();
+const crypto = require('crypto');
 const app = express();
+const port = process.env.PORT || 3000;
 
-app.use(bodyParser.json());
+// Telegram Bot Configuration
+const botToken = '6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0';
+const webAppUrl = 'https://yzemanbot-mini-app.onrender.com/';
+const adminChatId = '1828689837'; // Your user ID
+const bot = new TelegramBot(botToken, { polling: true });
 
-// In-memory database (replace with real DB in production)
-const users = {};
-const referrals = {};
-
-// Referral endpoint
-app.get('/api/referral', (req, res) => {
-    const refCode = req.query.ref;
-    const userId = req.query.user;
-    
-    if (!refCode || !userId) {
-        return res.status(400).json({ error: 'Invalid parameters' });
-    }
-    
-    // Prevent self-referral
-    if (referrals[refCode] === userId) {
-        return res.json({ success: false, message: 'Self-referral not allowed' });
-    }
-    
-    // First-time referral
-    if (!referrals[refCode]) {
-        referrals[refCode] = {
-            referred: [userId],
-            count: 1
-        };
-        
-        // Add reward to referrer
-        const referrer = Object.keys(users).find(id => users[id].referralCode === refCode);
-        if (referrer) {
-            users[referrer].points += 1000;
-            users[referrer].referrals++;
-        }
-        
-        return res.json({ 
-            success: true, 
-            reward: 1000,
-            message: 'Referral recorded' 
-        });
-    }
-    
-    // Existing referral
-    if (!referrals[refCode].referred.includes(userId)) {
-        referrals[refCode].referred.push(userId);
-        referrals[refCode].count++;
-        
-        // Add reward to referrer
-        const referrer = Object.keys(users).find(id => users[id].referralCode === refCode);
-        if (referrer) {
-            users[referrer].points += 1000;
-            users[referrer].referrals++;
-        }
-        
-        return res.json({ 
-            success: true, 
-            reward: 1000,
-            message: 'Referral recorded' 
-        });
-    }
-    
-    return res.json({ success: false, message: 'Already referred' });
+// Database Setup
+const db = new sqlite3.Database('yzemanbot.db', (err) => {
+    if (err) console.error('Database error:', err);
+    else createTables();
 });
 
-// User registration endpoint
-app.post('/api/register', (req, res) => {
-    const { userId, referralCode } = req.body;
-    
-    if (!userId) {
-        return res.status(400).json({ error: 'User ID required' });
-    }
-    
-    users[userId] = {
-        points: 0,
-        referrals: 0,
-        referralCode: referralCode || generateReferralCode(),
-        createdAt: new Date()
-    };
-    
-    res.json(users[userId]);
-});
+function createTables() {
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_id INTEGER UNIQUE,
+        username TEXT,
+        first_name TEXT,
+        last_name TEXT,
+        points INTEGER DEFAULT 0,
+        tier TEXT DEFAULT 'Fresher',
+        referrals INTEGER DEFAULT 0,
+        wallet_address TEXT,
+        referral_code TEXT UNIQUE,
+        referred_by INTEGER,
+        social_completions TEXT DEFAULT '{}',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-function generateReferralCode() {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    db.run(`CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        type TEXT,
+        amount INTEGER,
+        details TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS withdrawals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        amount REAL,
+        wallet_address TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )`);
 }
 
-app.listen(3000, () => {
-    console.log('Server running on port 3000');
+function generateReferralCode() {
+    return crypto.randomBytes(4).toString('hex').toUpperCase();
+}
+
+const tiers = {
+    'Fresher': { refsRequired: 0, multiplier: 1, referralReward: 1000 },
+    'Brute': { refsRequired: 15, multiplier: 1.2, referralReward: 1500 },
+    'Silver': { refsRequired: 35, multiplier: 1.5, referralReward: 2000 },
+    'Gold': { refsRequired: 70, multiplier: 2, referralReward: 3000 },
+    'Platinum': { refsRequired: 150, multiplier: 3, referralReward: 5000 }
+};
+
+// Telegram Bot Commands
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    const refCode = msg.text.split(' ')[1] || null;
+    
+    db.get('SELECT * FROM users WHERE telegram_id = ?', [userId], (err, user) => {
+        if (err) return bot.sendMessage(chatId, '❌ Database error');
+        
+        if (!user) {
+            const referralCode = generateReferralCode();
+            db.run(`INSERT INTO users (telegram_id, username, first_name, last_name, referral_code) 
+                    VALUES (?, ?, ?, ?, ?)`,
+                [userId, msg.from.username, msg.from.first_name, msg.from.last_name, referralCode],
+                function(err) {
+                    if (err) return bot.sendMessage(chatId, '❌ Account creation failed');
+                    
+                    const newUserId = this.lastID;
+                    
+                    if (refCode && refCode.startsWith('ref-')) {
+                        const refUserId = refCode.substring(4);
+                        db.get('SELECT id FROM users WHERE referral_code = ?', [refUserId], (err, referrer) => {
+                            if (referrer) {
+                                db.run('UPDATE users SET referrals = referrals + 1 WHERE id = ?', [referrer.id]);
+                                const tier = tiers['Fresher'];
+                                const reward = tier.referralReward;
+                                db.run('UPDATE users SET points = points + ? WHERE id = ?', [reward, referrer.id]);
+                                db.run('INSERT INTO transactions (user_id, type, amount, details) VALUES (?, ?, ?, ?)',
+                                    [referrer.id, 'referral', reward, `Referred: ${userId}`]);
+                                db.run('UPDATE users SET referred_by = ? WHERE id = ?', [referrer.id, newUserId]);
+                            }
+                        });
+                    }
+                    
+                    const welcomeMsg = `👋 Welcome to YzemanBot!\n\n` +
+                        `🚀 Start earning: ${webAppUrl}\n\n` +
+                        `🔗 Your referral code: ${referralCode}\n` +
+                        `📤 Share: https://t.me/YzemanBot?start=ref-${referralCode}`;
+                    bot.sendMessage(chatId, welcomeMsg);
+                }
+            );
+        } else {
+            const welcomeMsg = `👋 Welcome back, ${user.first_name || ''}!\n\n` +
+                `💎 Points: ${user.points}\n` +
+                `🔗 Referral code: ${user.referral_code}\n\n` +
+                `🚀 Continue earning: ${webAppUrl}`;
+            bot.sendMessage(chatId, welcomeMsg);
+        }
+    });
+});
+
+bot.onText(/\/withdraw/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    db.get('SELECT points, wallet_address FROM users WHERE telegram_id = ?', [userId], (err, user) => {
+        if (err || !user) return bot.sendMessage(chatId, '❌ User not found');
+        
+        const usdValue = user.points / 100000;
+        if (usdValue < 1000) {
+            bot.sendMessage(chatId, `❌ Need $1000 to withdraw\n💰 Your balance: $${usdValue.toFixed(2)}`);
+            return;
+        }
+        
+        if (!user.wallet_address) {
+            bot.sendMessage(chatId, '❌ Set wallet address in web app first');
+            return;
+        }
+        
+        bot.sendMessage(chatId, "📬 Message @yzemanreal on Telegram to complete withdrawal");
+    });
+});
+
+bot.onText(/\/balance/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    db.get('SELECT points, tier, referrals FROM users WHERE telegram_id = ?', [userId], (err, user) => {
+        if (err || !user) return bot.sendMessage(chatId, '❌ User not found');
+        
+        const usdValue = user.points / 100000;
+        const tierInfo = tiers[user.tier] || tiers['Fresher'];
+        const balanceMsg = `💰 *Your Balance*\n\n` +
+            `💎 Points: ${user.points.toLocaleString()}\n` +
+            `💵 USD: $${usdValue.toFixed(2)}\n` +
+            `🏆 Tier: ${user.tier} (${tierInfo.multiplier}x)\n` +
+            `👥 Referrals: ${user.referrals}\n\n` +
+            `🚀 Earn more: ${webAppUrl}`;
+        
+        bot.sendMessage(chatId, balanceMsg, { parse_mode: 'Markdown' });
+    });
+});
+
+bot.onText(/\/referral/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    
+    db.get('SELECT referral_code FROM users WHERE telegram_id = ?', [userId], (err, user) => {
+        if (err || !user) return bot.sendMessage(chatId, '❌ User not found');
+        
+        const refLink = `${webAppUrl}?start=ref-${user.referral_code}`;
+        const refMsg = `📤 *Your Referral Link*\n\n🔗 ${refLink}\n\n` +
+            `👥 Share to earn ${tiers['Fresher'].referralReward} points per referral!`;
+        bot.sendMessage(chatId, refMsg, { parse_mode: 'Markdown' });
+    });
+});
+
+// API Endpoints
+app.use(express.json());
+
+app.get('/api/user/:telegramId', (req, res) => {
+    const telegramId = req.params.telegramId;
+    
+    db.get(`SELECT u.*, 
+            (SELECT COUNT(*) FROM users WHERE referred_by = u.id) AS referrals
+            FROM users u WHERE telegram_id = ?`, [telegramId], (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
+        
+        const usdValue = user.points / 100000;
+        const tierInfo = tiers[user.tier] || tiers['Fresher'];
+        
+        // Parse social completions
+        let socialCompletions = {};
+        try {
+            socialCompletions = JSON.parse(user.social_completions || '{}');
+        } catch (e) {
+            socialCompletions = {};
+        }
+        
+        res.json({
+            points: user.points,
+            pointsUSD: usdValue.toFixed(2),
+            tier: user.tier,
+            referrals: user.referrals,
+            multiplier: tierInfo.multiplier,
+            nextTierRefs: tierInfo.refsRequired - user.referrals,
+            referralCode: user.referral_code,
+            walletAddress: user.wallet_address,
+            referralReward: tierInfo.referralReward,
+            socialCompletions: socialCompletions
+        });
+    });
+});
+
+app.post('/api/update-points', (req, res) => {
+    const { telegramId, points, type, details } = req.body;
+    if (!telegramId || !points) return res.status(400).json({ error: 'Missing parameters' });
+    
+    db.get('SELECT id, tier FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
+        
+        const tierInfo = tiers[user.tier] || tiers['Fresher'];
+        const actualPoints = Math.floor(points * tierInfo.multiplier);
+        
+        db.run('UPDATE users SET points = points + ? WHERE id = ?', [actualPoints, user.id], (err) => {
+            if (err) return res.status(500).json({ error: 'Database error' });
+            
+            db.run('INSERT INTO transactions (user_id, type, amount, details) VALUES (?, ?, ?, ?)',
+                [user.id, type, actualPoints, details || '']);
+            
+            res.json({ success: true, points: actualPoints });
+        });
+    });
+});
+
+app.post('/api/complete-social', (req, res) => {
+    const { telegramId, taskId } = req.body;
+    if (!telegramId || !taskId) return res.status(400).json({ error: 'Missing parameters' });
+    
+    db.get('SELECT id, social_completions FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
+        
+        let socialCompletions = {};
+        try {
+            socialCompletions = JSON.parse(user.social_completions || '{}');
+        } catch (e) {
+            socialCompletions = {};
+        }
+        
+        if (socialCompletions[taskId]) {
+            return res.status(400).json({ error: 'Task already completed' });
+        }
+        
+        // Add $50 (5,000,000 points)
+        socialCompletions[taskId] = true;
+        const pointsToAdd = 5000000;
+        
+        db.run('UPDATE users SET points = points + ?, social_completions = ? WHERE id = ?', 
+            [pointsToAdd, JSON.stringify(socialCompletions), user.id], 
+            (err) => {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                
+                res.json({ success: true, points: pointsToAdd });
+            }
+        );
+    });
+});
+
+app.post('/api/set-wallet', (req, res) => {
+    const { telegramId, walletAddress } = req.body;
+    if (!telegramId || !walletAddress) return res.status(400).json({ error: 'Missing parameters' });
+    
+    db.run('UPDATE users SET wallet_address = ? WHERE telegram_id = ?', [walletAddress, telegramId], (err) => {
+        if (err) return res.status(500).json({ error: 'Database error' });
+        res.json({ success: true });
+    });
+});
+
+app.post('/api/request-withdrawal', (req, res) => {
+    const { telegramId } = req.body;
+    
+    db.get('SELECT id, points, wallet_address FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'User not found' });
+        
+        const usdValue = user.points / 100000;
+        if (usdValue < 1000) return res.status(400).json({ error: 'Insufficient balance' });
+        if (!user.wallet_address) return res.status(400).json({ error: 'Wallet not set' });
+        
+        db.run('INSERT INTO withdrawals (user_id, amount, wallet_address) VALUES (?, ?, ?)',
+            [user.id, usdValue, user.wallet_address],
+            function(err) {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                
+                const adminMsg = `⚠️ *New Withdrawal Request*\n\n` +
+                    `👤 User: #user${user.id}\n` +
+                    `💵 Amount: $${usdValue.toFixed(2)}\n` +
+                    `🔑 Wallet: ${user.wallet_address}\n` +
+                    `🆔 Request ID: ${this.lastID}`;
+                
+                bot.sendMessage(adminChatId, adminMsg, { parse_mode: 'Markdown' });
+                
+                db.run('UPDATE users SET points = 0 WHERE id = ?', [user.id]);
+                res.json({ success: true });
+            }
+        );
+    });
+});
+
+// Serve frontend
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/public/index.html');
+});
+
+app.use(express.static('public'));
+
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    console.log(`WebApp URL: ${webAppUrl}`);
+    console.log(`Bot: https://t.me/YzemanBot`);
 });
