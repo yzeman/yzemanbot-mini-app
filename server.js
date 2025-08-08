@@ -7,9 +7,9 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Telegram Bot Configuration
-const botToken = '6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0';
-const webAppUrl = 'https://yzemanbot-mini-app.onrender.com/';
-const adminChatId = '1828689837'; // Your user ID
+const botToken = process.env.BOT_TOKEN || '6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0';
+const webAppUrl = process.env.WEBAPP_URL || 'https://yzemanbot-mini-app.onrender.com/';
+const adminChatId = process.env.ADMIN_ID || '1828689837';
 const bot = new TelegramBot(botToken, { polling: true });
 
 // Database Setup
@@ -191,8 +191,67 @@ bot.onText(/\/referral/, (msg) => {
     });
 });
 
-// API Endpoints
+// CORS Middleware
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    next();
+});
+
 app.use(express.json());
+
+// API Endpoints
+app.post('/api/init-user', async (req, res) => {
+    const { telegramId, username, firstName, lastName } = req.body;
+    
+    try {
+        let user = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE telegram_id = ?', [telegramId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        if (!user) {
+            const referralCode = generateReferralCode();
+            const newUserId = await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO users (telegram_id, username, first_name, last_name, referral_code) 
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [telegramId, username, firstName, lastName, referralCode],
+                    function(err) {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    }
+                );
+            });
+            
+            user = await new Promise((resolve, reject) => {
+                db.get('SELECT * FROM users WHERE id = ?', [newUserId], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
+        }
+        
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                points: user.points_since_last_dollar,
+                dollarsEarned: user.dollars_earned,
+                referrals: user.referrals,
+                tier: user.tier,
+                referralCode: user.referral_code,
+                walletAddress: user.wallet_address,
+                socialCompletions: JSON.parse(user.social_completions || '{}')
+            }
+        });
+    } catch (error) {
+        console.error('User init error:', error);
+        res.status(500).json({ error: 'Failed to initialize user' });
+    }
+});
 
 app.get('/api/user/:telegramId', (req, res) => {
     const telegramId = req.params.telegramId;
@@ -229,7 +288,7 @@ app.get('/api/user/:telegramId', (req, res) => {
 });
 
 app.post('/api/update-points', (req, res) => {
-    const { telegramId, points, type, details } = req.body;
+    const { telegramId, points, type } = req.body;
     if (!telegramId || !points) return res.status(400).json({ error: 'Missing parameters' });
     
     db.get('SELECT id, tier FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
@@ -266,8 +325,8 @@ app.post('/api/update-points', (req, res) => {
                                 if (err) return res.status(500).json({ error: 'Database error' });
                                 
                                 // Record transaction
-                                db.run('INSERT INTO transactions (user_id, type, amount, details) VALUES (?, ?, ?, ?)',
-                                    [user.id, type, actualPoints, details || '']);
+                                db.run('INSERT INTO transactions (user_id, type, amount) VALUES (?, ?, ?)',
+                                    [user.id, type, actualPoints]);
                                 
                                 res.json({ 
                                     success: true, 
