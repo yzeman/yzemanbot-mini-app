@@ -3,13 +3,20 @@ const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 const crypto = require('crypto');
+const cors = require('cors');
+
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
 // Telegram Bot Configuration
 const botToken = '6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0';
 const webAppUrl = 'https://yzemanbot-mini-app.onrender.com/';
-const adminChatId = '1828689837'; // Your user ID
+const adminChatId = '1828689837';
 const bot = new TelegramBot(botToken, { polling: true });
 
 // Database Setup
@@ -18,6 +25,16 @@ const db = new sqlite3.Database('yzemanbot.db', (err) => {
     else createTables();
 });
 
+// Tier System
+const tiers = {
+    'Fresher': { refsRequired: 0, multiplier: 1, referralReward: 1000 },
+    'Brute': { refsRequired: 15, multiplier: 1.2, referralReward: 1500 },
+    'Silver': { refsRequired: 35, multiplier: 1.5, referralReward: 2000 },
+    'Gold': { refsRequired: 70, multiplier: 2, referralReward: 3000 },
+    'Platinum': { refsRequired: 150, multiplier: 3, referralReward: 5000 }
+};
+
+// Database Functions
 function createTables() {
     db.run(`CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,14 +93,6 @@ function createTables() {
 function generateReferralCode() {
     return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
-
-const tiers = {
-    'Fresher': { refsRequired: 0, multiplier: 1, referralReward: 1000 },
-    'Brute': { refsRequired: 15, multiplier: 1.2, referralReward: 1500 },
-    'Silver': { refsRequired: 35, multiplier: 1.5, referralReward: 2000 },
-    'Gold': { refsRequired: 70, multiplier: 2, referralReward: 3000 },
-    'Platinum': { refsRequired: 150, multiplier: 3, referralReward: 5000 }
-};
 
 // Telegram Bot Commands
 bot.onText(/\/start/, (msg) => {
@@ -192,8 +201,6 @@ bot.onText(/\/referral/, (msg) => {
 });
 
 // API Endpoints
-app.use(express.json());
-
 app.get('/api/user/:telegramId', (req, res) => {
     const telegramId = req.params.telegramId;
     
@@ -213,9 +220,8 @@ app.get('/api/user/:telegramId', (req, res) => {
         }
         
         res.json({
-            points: user.points_since_last_dollar,
-            dollarsEarned: user.dollars_earned,
             pointsSinceLastDollar: user.points_since_last_dollar,
+            dollarsEarned: user.dollars_earned,
             tier: user.tier,
             referrals: user.referrals,
             multiplier: tierInfo.multiplier,
@@ -393,8 +399,7 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-app.use(express.static('public'));
-
+// Start server
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
     console.log(`WebApp URL: ${webAppUrl}`);
