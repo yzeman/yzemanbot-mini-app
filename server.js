@@ -32,6 +32,8 @@ function createTables() {
         referral_code TEXT UNIQUE,
         referred_by INTEGER,
         social_completions TEXT DEFAULT '{}',
+        dollars_earned REAL DEFAULT 0,
+        points_since_last_dollar INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
@@ -54,6 +56,21 @@ function createTables() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(user_id) REFERENCES users(id)
     )`);
+    
+    // Add new columns if they don't exist
+    db.run("PRAGMA table_info(users)", (err, columns) => {
+        if (err) return;
+        
+        const hasDollarsEarned = columns.some(col => col.name === 'dollars_earned');
+        if (!hasDollarsEarned) {
+            db.run("ALTER TABLE users ADD COLUMN dollars_earned REAL DEFAULT 0");
+        }
+        
+        const hasPointsSince = columns.some(col => col.name === 'points_since_last_dollar');
+        if (!hasPointsSince) {
+            db.run("ALTER TABLE users ADD COLUMN points_since_last_dollar INTEGER DEFAULT 0");
+        }
+    });
 }
 
 function generateReferralCode() {
@@ -94,7 +111,7 @@ bot.onText(/\/start/, (msg) => {
                                 db.run('UPDATE users SET referrals = referrals + 1 WHERE id = ?', [referrer.id]);
                                 const tier = tiers['Fresher'];
                                 const reward = tier.referralReward;
-                                db.run('UPDATE users SET points = points + ? WHERE id = ?', [reward, referrer.id]);
+                                db.run('UPDATE users SET points_since_last_dollar = points_since_last_dollar + ? WHERE id = ?', [reward, referrer.id]);
                                 db.run('INSERT INTO transactions (user_id, type, amount, details) VALUES (?, ?, ?, ?)',
                                     [referrer.id, 'referral', reward, `Referred: ${userId}`]);
                                 db.run('UPDATE users SET referred_by = ? WHERE id = ?', [referrer.id, newUserId]);
@@ -111,7 +128,8 @@ bot.onText(/\/start/, (msg) => {
             );
         } else {
             const welcomeMsg = `👋 Welcome back, ${user.first_name || ''}!\n\n` +
-                `💎 Points: ${user.points}\n` +
+                `💎 Points: ${user.points_since_last_dollar}\n` +
+                `💰 Dollars Earned: $${user.dollars_earned.toFixed(2)}\n` +
                 `🔗 Referral code: ${user.referral_code}\n\n` +
                 `🚀 Continue earning: ${webAppUrl}`;
             bot.sendMessage(chatId, welcomeMsg);
@@ -123,12 +141,11 @@ bot.onText(/\/withdraw/, (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
     
-    db.get('SELECT points, wallet_address FROM users WHERE telegram_id = ?', [userId], (err, user) => {
+    db.get('SELECT dollars_earned, wallet_address FROM users WHERE telegram_id = ?', [userId], (err, user) => {
         if (err || !user) return bot.sendMessage(chatId, '❌ User not found');
         
-        const usdValue = user.points / 100000;
-        if (usdValue < 1000) {
-            bot.sendMessage(chatId, `❌ Need $1000 to withdraw\n💰 Your balance: $${usdValue.toFixed(2)}`);
+        if (user.dollars_earned < 1000) {
+            bot.sendMessage(chatId, `❌ Need $1000 to withdraw\n💰 Your balance: $${user.dollars_earned.toFixed(2)}`);
             return;
         }
         
@@ -145,14 +162,13 @@ bot.onText(/\/balance/, (msg) => {
     const chatId = msg.chat.id;
     const userId = msg.from.id;
     
-    db.get('SELECT points, tier, referrals FROM users WHERE telegram_id = ?', [userId], (err, user) => {
+    db.get('SELECT points_since_last_dollar, dollars_earned, tier, referrals FROM users WHERE telegram_id = ?', [userId], (err, user) => {
         if (err || !user) return bot.sendMessage(chatId, '❌ User not found');
         
-        const usdValue = user.points / 100000;
         const tierInfo = tiers[user.tier] || tiers['Fresher'];
         const balanceMsg = `💰 *Your Balance*\n\n` +
-            `💎 Points: ${user.points.toLocaleString()}\n` +
-            `💵 USD: $${usdValue.toFixed(2)}\n` +
+            `💎 Points: ${user.points_since_last_dollar.toLocaleString()}\n` +
+            `💵 Dollars Earned: $${user.dollars_earned.toFixed(2)}\n` +
             `🏆 Tier: ${user.tier} (${tierInfo.multiplier}x)\n` +
             `👥 Referrals: ${user.referrals}\n\n` +
             `🚀 Earn more: ${webAppUrl}`;
@@ -186,7 +202,6 @@ app.get('/api/user/:telegramId', (req, res) => {
             FROM users u WHERE telegram_id = ?`, [telegramId], (err, user) => {
         if (err || !user) return res.status(404).json({ error: 'User not found' });
         
-        const usdValue = user.points / 100000;
         const tierInfo = tiers[user.tier] || tiers['Fresher'];
         
         // Parse social completions
@@ -198,8 +213,9 @@ app.get('/api/user/:telegramId', (req, res) => {
         }
         
         res.json({
-            points: user.points,
-            pointsUSD: usdValue.toFixed(2),
+            points: user.points_since_last_dollar,
+            dollarsEarned: user.dollars_earned,
+            pointsSinceLastDollar: user.points_since_last_dollar,
             tier: user.tier,
             referrals: user.referrals,
             multiplier: tierInfo.multiplier,
@@ -222,14 +238,49 @@ app.post('/api/update-points', (req, res) => {
         const tierInfo = tiers[user.tier] || tiers['Fresher'];
         const actualPoints = Math.floor(points * tierInfo.multiplier);
         
-        db.run('UPDATE users SET points = points + ? WHERE id = ?', [actualPoints, user.id], (err) => {
-            if (err) return res.status(500).json({ error: 'Database error' });
-            
-            db.run('INSERT INTO transactions (user_id, type, amount, details) VALUES (?, ?, ?, ?)',
-                [user.id, type, actualPoints, details || '']);
-            
-            res.json({ success: true, points: actualPoints });
-        });
+        // Update points and check for dollar conversion
+        db.run('UPDATE users SET points_since_last_dollar = points_since_last_dollar + ? WHERE id = ?', 
+            [actualPoints, user.id], 
+            (err) => {
+                if (err) return res.status(500).json({ error: 'Database error' });
+                
+                // Check if we can convert points to dollars
+                db.get('SELECT points_since_last_dollar, dollars_earned FROM users WHERE id = ?', 
+                    [user.id], 
+                    (err, updatedUser) => {
+                        if (err) return res.status(500).json({ error: 'Database error' });
+                        
+                        let pointsRemaining = updatedUser.points_since_last_dollar;
+                        let dollarsEarned = updatedUser.dollars_earned;
+                        
+                        // Convert points to dollars (100,000 points = $1)
+                        while (pointsRemaining >= 100000) {
+                            dollarsEarned += 1;
+                            pointsRemaining -= 100000;
+                        }
+                        
+                        // Update dollars and remaining points
+                        db.run('UPDATE users SET dollars_earned = ?, points_since_last_dollar = ? WHERE id = ?', 
+                            [dollarsEarned, pointsRemaining, user.id],
+                            (err) => {
+                                if (err) return res.status(500).json({ error: 'Database error' });
+                                
+                                // Record transaction
+                                db.run('INSERT INTO transactions (user_id, type, amount, details) VALUES (?, ?, ?, ?)',
+                                    [user.id, type, actualPoints, details || '']);
+                                
+                                res.json({ 
+                                    success: true, 
+                                    points: actualPoints,
+                                    dollarsEarned: dollarsEarned,
+                                    pointsSinceLastDollar: pointsRemaining
+                                });
+                            }
+                        );
+                    }
+                );
+            }
+        );
     });
 });
 
@@ -237,7 +288,7 @@ app.post('/api/complete-social', (req, res) => {
     const { telegramId, taskId } = req.body;
     if (!telegramId || !taskId) return res.status(400).json({ error: 'Missing parameters' });
     
-    db.get('SELECT id, social_completions FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
+    db.get('SELECT id, social_completions, points_since_last_dollar, dollars_earned FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
         if (err || !user) return res.status(404).json({ error: 'User not found' });
         
         let socialCompletions = {};
@@ -255,12 +306,43 @@ app.post('/api/complete-social', (req, res) => {
         socialCompletions[taskId] = true;
         const pointsToAdd = 5000000;
         
-        db.run('UPDATE users SET points = points + ?, social_completions = ? WHERE id = ?', 
-            [pointsToAdd, JSON.stringify(socialCompletions), user.id], 
+        // First update points
+        db.run('UPDATE users SET points_since_last_dollar = points_since_last_dollar + ? WHERE id = ?', 
+            [pointsToAdd, user.id], 
             (err) => {
                 if (err) return res.status(500).json({ error: 'Database error' });
                 
-                res.json({ success: true, points: pointsToAdd });
+                // Now check for dollar conversion
+                db.get('SELECT points_since_last_dollar, dollars_earned FROM users WHERE id = ?', 
+                    [user.id], 
+                    (err, updatedUser) => {
+                        if (err) return res.status(500).json({ error: 'Database error' });
+                        
+                        let pointsRemaining = updatedUser.points_since_last_dollar;
+                        let dollarsEarned = updatedUser.dollars_earned;
+                        
+                        // Convert points to dollars (100,000 points = $1)
+                        while (pointsRemaining >= 100000) {
+                            dollarsEarned += 1;
+                            pointsRemaining -= 100000;
+                        }
+                        
+                        // Update dollars, remaining points, and social completions
+                        db.run('UPDATE users SET dollars_earned = ?, points_since_last_dollar = ?, social_completions = ? WHERE id = ?', 
+                            [dollarsEarned, pointsRemaining, JSON.stringify(socialCompletions), user.id],
+                            (err) => {
+                                if (err) return res.status(500).json({ error: 'Database error' });
+                                
+                                res.json({ 
+                                    success: true, 
+                                    points: pointsToAdd,
+                                    dollarsEarned: dollarsEarned,
+                                    pointsSinceLastDollar: pointsRemaining
+                                });
+                            }
+                        );
+                    }
+                );
             }
         );
     });
@@ -279,27 +361,27 @@ app.post('/api/set-wallet', (req, res) => {
 app.post('/api/request-withdrawal', (req, res) => {
     const { telegramId } = req.body;
     
-    db.get('SELECT id, points, wallet_address FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
+    db.get('SELECT id, dollars_earned, wallet_address FROM users WHERE telegram_id = ?', [telegramId], (err, user) => {
         if (err || !user) return res.status(404).json({ error: 'User not found' });
         
-        const usdValue = user.points / 100000;
-        if (usdValue < 1000) return res.status(400).json({ error: 'Insufficient balance' });
+        if (user.dollars_earned < 1000) return res.status(400).json({ error: 'Insufficient balance' });
         if (!user.wallet_address) return res.status(400).json({ error: 'Wallet not set' });
         
         db.run('INSERT INTO withdrawals (user_id, amount, wallet_address) VALUES (?, ?, ?)',
-            [user.id, usdValue, user.wallet_address],
+            [user.id, user.dollars_earned, user.wallet_address],
             function(err) {
                 if (err) return res.status(500).json({ error: 'Database error' });
                 
                 const adminMsg = `⚠️ *New Withdrawal Request*\n\n` +
                     `👤 User: #user${user.id}\n` +
-                    `💵 Amount: $${usdValue.toFixed(2)}\n` +
+                    `💵 Amount: $${user.dollars_earned.toFixed(2)}\n` +
                     `🔑 Wallet: ${user.wallet_address}\n` +
                     `🆔 Request ID: ${this.lastID}`;
                 
                 bot.sendMessage(adminChatId, adminMsg, { parse_mode: 'Markdown' });
                 
-                db.run('UPDATE users SET points = 0 WHERE id = ?', [user.id]);
+                // Reset user's balance after withdrawal
+                db.run('UPDATE users SET dollars_earned = 0, points_since_last_dollar = 0 WHERE id = ?', [user.id]);
                 res.json({ success: true });
             }
         );

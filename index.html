@@ -1160,7 +1160,9 @@
                 facebook: false,
                 instagram: false,
                 twitter: false
-            }
+            },
+            dollarsEarned: 0, // Track dollars earned
+            pointsSinceLastDollar: 0 // Track points since last $1
         };
         
         // Tier system
@@ -1222,6 +1224,8 @@
                 userData.nextTierRefs = data.nextTierRefs;
                 userData.walletAddress = data.walletAddress;
                 userData.referralCode = data.referralCode || '';
+                userData.dollarsEarned = data.dollarsEarned || 0;
+                userData.pointsSinceLastDollar = data.pointsSinceLastDollar || 0;
                 
                 if (data.socialCompletions) {
                     userData.socialCompletions = data.socialCompletions;
@@ -1230,7 +1234,7 @@
                 updateUI();
             } catch (error) {
                 console.error('Failed to fetch user data:', error);
-                showNotification('Network error', 'error');
+                showNotification('Network error. Please try again later.', 'error');
             }
         }
         
@@ -1293,14 +1297,16 @@
         }
         
         function updateUI() {
-            pointsElement.textContent = `${userData.points.toLocaleString()} pts`;
-            const usdValue = userData.points / 100000;
-            pointsUSDElement.textContent = usdValue.toFixed(2);
+            pointsElement.textContent = `${userData.pointsSinceLastDollar.toLocaleString()} pts`;
+            pointsUSDElement.textContent = userData.dollarsEarned.toFixed(2);
             
-            const progressPercent = Math.min(100, (usdValue / 1000) * 100);
+            // Calculate total value for withdrawal progress
+            const totalValue = userData.dollarsEarned + (userData.pointsSinceLastDollar / 100000);
+            const progressPercent = Math.min(100, (totalValue / 1000) * 100);
+            
             progressBar.style.width = `${progressPercent}%`;
-            progressAmount.textContent = usdValue.toFixed(2);
-            withdrawProgress.textContent = usdValue.toFixed(2);
+            progressAmount.textContent = totalValue.toFixed(2);
+            withdrawProgress.textContent = totalValue.toFixed(2);
             withdrawBar.style.width = `${progressPercent}%`;
             
             userTierElement.textContent = userData.tier;
@@ -1328,7 +1334,7 @@
             const tierProgress = (userData.referrals / currentTier.refsRequired) * 100;
             document.getElementById('tierProgressBar').style.width = `${Math.min(100, tierProgress)}%`;
             
-            withdrawBtn.disabled = usdValue < 1000 || !userData.walletAddress;
+            withdrawBtn.disabled = totalValue < 1000 || !userData.walletAddress;
             
             if (userData.walletAddress) {
                 walletAddressInput.value = userData.walletAddress;
@@ -1496,8 +1502,10 @@
                 
                 const data = await response.json();
                 if (data.success) {
-                    userData.points += pointsToAdd;
+                    // Update locally for immediate UI feedback
                     userData.socialCompletions[platform] = true;
+                    userData.pointsSinceLastDollar += pointsToAdd;
+                    checkForDollarConversion();
                     updateUI();
                     showNotification(`+$50 added to your account!`);
                 } else {
@@ -1505,7 +1513,15 @@
                 }
             } catch (error) {
                 console.error('Failed to complete social task:', error);
-                showNotification('Network error', 'error');
+                showNotification('Network error. Please try again later.', 'error');
+            }
+        }
+        
+        // Check if points reached 100,000 and convert to $1
+        function checkForDollarConversion() {
+            while (userData.pointsSinceLastDollar >= 100000) {
+                userData.dollarsEarned += 1;
+                userData.pointsSinceLastDollar -= 100000;
             }
         }
         
@@ -1527,11 +1543,14 @@
                 
                 const data = await response.json();
                 if (data.success) {
-                    userData.points += data.points;
+                    // Update locally for immediate UI feedback
+                    userData.pointsSinceLastDollar += data.points;
+                    checkForDollarConversion();
                     updateUI();
                 }
             } catch (error) {
                 console.error('Failed to update points:', error);
+                showNotification('Network error. Please try again later.', 'error');
             }
         }
         
@@ -1563,7 +1582,7 @@
                 }
             } catch (error) {
                 console.error('Failed to save wallet:', error);
-                showNotification('Failed to save wallet', 'error');
+                showNotification('Network error. Please try again later.', 'error');
             }
         }
         
@@ -1580,7 +1599,9 @@
                 
                 const data = await response.json();
                 if (data.success) {
-                    userData.points = 0;
+                    // Reset points and dollars after withdrawal
+                    userData.dollarsEarned = 0;
+                    userData.pointsSinceLastDollar = 0;
                     updateUI();
                     showNotification('Withdrawal request sent!');
                     tg.showAlert("Message @yzemanreal on Telegram to complete your withdrawal");
@@ -1589,7 +1610,7 @@
                 }
             } catch (error) {
                 console.error('Withdrawal error:', error);
-                showNotification('Network error', 'error');
+                showNotification('Network error. Please try again later.', 'error');
             }
         }
         
