@@ -1,22 +1,6 @@
-bot.onText(/\/start ref-(.+)/, async (msg, match) => {
-  try {
-    const chatId = msg.chat.id;
-    const referralCode = match[1];
-    
-    const response = await fetch(`${process.env.BACKEND_URL}/api/referral`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        referrerId: await getUserIdFromCode(referralCode),
-        referredId: msg.from.id
-      })
-    });
-    
-    if (!response.ok) throw new Error('Failed to register referral');
-    
-    bot.sendMessage(chatId, '✅ Referral registered successfully!');
-  } catch (error) {
-    bot.sendMessage(chatId, '⚠️ Failed to register referral. Please try again.');
-    console.error('Referral error:', error);
-  }
-});
+// In your bot.js file
+const WEBAPP_URL = 'https://yzemanbot-app-server.onrender.com';
+const BOT_TOKEN = '6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0';
+
+// Set webhook if needed
+bot.setWebHook(`${WEBAPP_URL}/bot${BOT_TOKEN}`);
