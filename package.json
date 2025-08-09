@@ -1,0 +1,5 @@
+"scripts": {
+  "start": "node server.js",
+  "bot": "node bot.js",
+  "dev": "concurrently \"npm run start\" \"npm run bot\""
+}

@@ -54,6 +54,38 @@
             position: relative;
         }
 
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .user-info {
+            text-align: left;
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .user-id {
+            font-size: 12px;
+            color: var(--gray);
+        }
+
         .logo {
             width: 80px;
             height: 80px;
@@ -79,56 +111,6 @@
         .subtitle {
             color: var(--gray);
             font-size: 16px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 15px;
-            padding: 12px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 16px;
-            justify-content: center;
-        }
-        
-        .user-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background-size: cover;
-            background-position: center;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--card-bg);
-            font-size: 20px;
-        }
-        
-        .telegram-group {
-            text-align: center;
-            margin: 20px 0;
-            padding: 15px;
-            background: linear-gradient(45deg, #1a237e, #4a148c);
-            border-radius: 16px;
-            border: 1px solid var(--card-border);
-        }
-        
-        .group-btn {
-            display: inline-block;
-            background: #0088cc;
-            color: white;
-            padding: 12px 25px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            margin-top: 10px;
-            transition: all 0.3s ease;
-        }
-        
-        .group-btn:hover {
-            background: #006699;
-            transform: scale(1.05);
         }
 
         .tabs {
@@ -666,9 +648,6 @@
             font-size: 14px;
             color: var(--gray);
             margin: 10px 0;
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 12px;
         }
         
         .ad-controls {
@@ -775,6 +754,52 @@
             margin-top: 20px;
             font-size: 18px;
         }
+
+        .channel-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .channel-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #ff512f, #f09819);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .channel-info {
+            flex: 1;
+        }
+
+        .channel-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .channel-description {
+            font-size: 14px;
+            color: var(--gray);
+        }
+
+        .channel-join {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 8px 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -796,26 +821,19 @@
 
     <div class="container">
         <header>
+            <div class="user-profile">
+                <img id="userAvatar" class="user-avatar" src="" alt="Profile">
+                <div class="user-info">
+                    <div class="user-name" id="userName">Loading...</div>
+                    <div class="user-id" id="userId">ID: loading</div>
+                </div>
+            </div>
+            
             <div class="logo">
                 <i class="fas fa-coins"></i>
             </div>
             <h1>YzemanBot</h1>
             <p class="subtitle">Earn Rewards with Free Server Integration</p>
-            
-            <div class="user-info" id="userInfo">
-                <div class="user-avatar" id="userAvatar">
-                    <i class="fas fa-user"></i>
-                </div>
-                <div class="user-name" id="userName">Loading...</div>
-            </div>
-            
-            <div class="telegram-group">
-                <h3>Join Our Telegram Channel</h3>
-                <p>Get updates, announcements and exclusive rewards</p>
-                <a href="https://t.me/YzemanEarnBotChannel" class="group-btn" target="_blank">
-                    <i class="fab fa-telegram"></i> Join Channel
-                </a>
-            </div>
         </header>
 
         <div class="tabs">
@@ -826,8 +844,8 @@
         </div>
 
         <div class="tab-content active" id="earnTab">
-            <div class="daily-reset">
-                <i class="fas fa-sync-alt"></i> Daily tasks reset in <span id="resetTimer">24:00:00</span>
+            <div class="daily-reset" style="background: linear-gradient(135deg, var(--darker), var(--dark));">
+                <i class="fas fa-sync-alt"></i> Daily tasks reset in <span id="resetTimer"></span>
             </div>
             
             <div class="stats-container">
@@ -949,12 +967,12 @@
         <div class="tab-content" id="referTab">
             <div class="referral-section">
                 <h2 class="referral-title">Refer Friends & Earn</h2>
-                <p>Share your referral code and earn 1000 points per friend</p>
-                <div class="referral-code" id="referralCode">Loading...</div>
+                <p>Share your referral code with friends and earn 1000 points for each friend who signs up</p>
+                <div class="referral-code" id="referralCode">YZEMAN-<span id="userCode">X7B9F2</span></div>
                 <button class="copy-btn" id="copyCodeBtn">
                     <i class="fas fa-copy"></i> Copy Referral Code
                 </button>
-                <p class="referral-link" id="referralLink">Loading...</p>
+                <p class="referral-link" id="referralLink">https://t.me/YzemanBot?start=ref-X7B9F2</p>
             </div>
 
             <div class="task-list">
@@ -994,6 +1012,17 @@
         </div>
 
         <div class="tab-content" id="socialTab">
+            <div class="channel-card">
+                <div class="channel-icon">
+                    <i class="fab fa-telegram"></i>
+                </div>
+                <div class="channel-info">
+                    <div class="channel-name">Official Telegram Channel</div>
+                    <div class="channel-description">Join for updates and bonus rewards</div>
+                </div>
+                <button class="channel-join" id="joinChannelBtn">Join</button>
+            </div>
+
             <div class="task-list">
                 <div class="task-card">
                     <div class="task-icon">
@@ -1084,8 +1113,8 @@
             <div class="withdraw-container">
                 <div class="withdraw-info">
                     <p>Minimum withdrawal: $1000 (100,000,000 points)</p>
-                    <p>Withdrawals via USDT (TRC-20)</p>
-                    <p>Message @yzemanreal on Telegram to complete</p>
+                    <p>Withdrawals are processed via USDT (TRC-20)</p>
+                    <p>Message @YzemanBot on Telegram to complete withdrawal</p>
                 </div>
                 
                 <input type="text" class="wallet-input" id="walletAddress" placeholder="Enter USDT (TRC-20) Wallet Address">
@@ -1096,9 +1125,9 @@
         </div>
 
         <div class="social-proof">
-            <div class="social-title">Connect With Us</div>
+            <div class="social-title">Join Our Community</div>
             <div class="social-icons">
-                <a href="https://t.me/YzemanEarnBotChannel" target="_blank"><i class="fab fa-telegram"></i></a>
+                <a href="https://t.me/YzemanBot" target="_blank"><i class="fab fa-telegram"></i></a>
                 <a href="https://youtube.com/@yzeupdates" target="_blank"><i class="fab fa-youtube"></i></a>
                 <a href="https://www.facebook.com/share/1ADZJ1DVyn/?mibextid=wwXIfr" target="_blank"><i class="fab fa-facebook"></i></a>
                 <a href="https://www.instagram.com/yzeupdates?igsh=MTR6dHdmODVhcDVzaw%3D%3D&utm_source=qr" target="_blank"><i class="fab fa-instagram"></i></a>
@@ -1108,550 +1137,595 @@
     </div>
 
     <script>
-    // Initialize Telegram Web App
-    const tg = window.Telegram.WebApp;
-    const API_BASE = 'https://yzemanbot-mini-app.onrender.com/api';
-    
-    // DOM Elements
-    const pointsElement = document.getElementById('points');
-    const pointsUSDElement = document.getElementById('pointsUSD');
-    const progressBar = document.getElementById('progressBar');
-    const progressAmount = document.getElementById('progressAmount');
-    const userTierElement = document.getElementById('userTier');
-    const referralCountElement = document.getElementById('referralCount');
-    const currentTierElement = document.getElementById('currentTier');
-    const tierMultiplierElement = document.getElementById('tierMultiplier');
-    const nextTierRefElement = document.getElementById('nextTierRef');
-    const referralCodeElement = document.getElementById('referralCode');
-    const referralLinkElement = document.getElementById('referralLink');
-    const withdrawBtn = document.getElementById('withdrawBtn');
-    const withdrawProgress = document.getElementById('withdrawProgress');
-    const withdrawBar = document.getElementById('withdrawBar');
-    const notification = document.getElementById('notification');
-    const iframeContainer = document.getElementById('iframeContainer');
-    const taskIframe = document.getElementById('taskIframe');
-    const closeIframe = document.getElementById('closeIframe');
-    const timerElement = document.getElementById('timer');
-    const walletAddressInput = document.getElementById('walletAddress');
-    const submitWalletBtn = document.getElementById('submitWalletBtn');
-    const resetTimerElement = document.getElementById('resetTimer');
-    const adCounterElement = document.getElementById('adCounter');
-    const premiumAdCounterElement = document.getElementById('premiumAdCounter');
-    const referralRewardElement = document.getElementById('referralReward');
-    const adLoading = document.getElementById('adLoading');
-    const adStatus = document.getElementById('adStatus');
-    const userNameElement = document.getElementById('userName');
-    const userAvatarElement = document.getElementById('userAvatar');
-    
-    // User data
-    let userData = {
-        pointsSinceLastDollar: 0,
-        dollarsEarned: 0,
-        referrals: 0,
-        tier: "Fresher",
-        multiplier: 1,
-        nextTierRefs: 15,
-        walletAddress: "",
-        referralCode: "",
-        socialCompletions: {
-            youtube1: false,
-            youtube2: false,
-            youtube3: false,
-            facebook: false,
-            instagram: false,
-            twitter: false
-        },
-        dailyReset: new Date().setHours(24, 0, 0, 0)
-    };
-    
-    // Tier system
-    const tiers = {
-        'Fresher': { refsRequired: 0, multiplier: 1, referralReward: 1000, adReward: 51 },
-        'Brute': { refsRequired: 15, multiplier: 1.2, referralReward: 1500, adReward: 74 },
-        'Silver': { refsRequired: 35, multiplier: 1.5, referralReward: 2000, adReward: 105 },
-        'Gold': { refsRequired: 70, multiplier: 2, referralReward: 3000, adReward: 140 },
-        'Platinum': { refsRequired: 150, multiplier: 3, referralReward: 5000, adReward: 210 }
-    };
-    
-    // Initialize app
-    function initApp() {
-        tg.expand();
-        tg.enableClosingConfirmation();
-        document.body.classList.toggle('dark-theme', tg.colorScheme === 'dark');
-        tg.onEvent('themeChanged', () => {
-            document.body.classList.toggle('dark-theme', tg.colorScheme === 'dark');
-        });
+        // Initialize Telegram Web App
+        const tg = window.Telegram.WebApp;
         
-        displayUserInfo();
-        setupEventListeners();
-        fetchUserData();
-        startResetTimer();
-    }
-    
-    function displayUserInfo() {
-        const user = tg.initDataUnsafe?.user;
-        if (user) {
-            userNameElement.textContent = 
-                `${user.first_name || ''} ${user.last_name || ''}`.trim() || `@${user.username}`;
-            
-            if (user.photo_url) {
-                userAvatarElement.style.backgroundImage = `url(${user.photo_url})`;
-                userAvatarElement.innerHTML = '';
-            }
-        } else {
-            userNameElement.textContent = 'Guest User';
-        }
-    }
-    
-    async function fetchUserData() {
-        const user = tg.initDataUnsafe?.user;
-        if (!user) return;
+        // DOM Elements
+        const pointsElement = document.getElementById('points');
+        const pointsUSDElement = document.getElementById('pointsUSD');
+        const progressBar = document.getElementById('progressBar');
+        const progressAmount = document.getElementById('progressAmount');
+        const userTierElement = document.getElementById('userTier');
+        const referralCountElement = document.getElementById('referralCount');
+        const currentTierElement = document.getElementById('currentTier');
+        const tierMultiplierElement = document.getElementById('tierMultiplier');
+        const nextTierRefElement = document.getElementById('nextTierRef');
+        const referralCodeElement = document.getElementById('userCode');
+        const referralLinkElement = document.getElementById('referralLink');
+        const withdrawBtn = document.getElementById('withdrawBtn');
+        const withdrawProgress = document.getElementById('withdrawProgress');
+        const withdrawBar = document.getElementById('withdrawBar');
+        const notification = document.getElementById('notification');
+        const iframeContainer = document.getElementById('iframeContainer');
+        const taskIframe = document.getElementById('taskIframe');
+        const closeIframe = document.getElementById('closeIframe');
+        const timerElement = document.getElementById('timer');
+        const walletAddressInput = document.getElementById('walletAddress');
+        const submitWalletBtn = document.getElementById('submitWalletBtn');
+        const resetTimerElement = document.getElementById('resetTimer');
+        const adCounterElement = document.getElementById('adCounter');
+        const premiumAdCounterElement = document.getElementById('premiumAdCounter');
+        const referralRewardElement = document.getElementById('referralReward');
+        const adLoading = document.getElementById('adLoading');
+        const adStatus = document.getElementById('adStatus');
+        const userNameElement = document.getElementById('userName');
+        const userIdElement = document.getElementById('userId');
+        const userAvatarElement = document.getElementById('userAvatar');
+        const joinChannelBtn = document.getElementById('joinChannelBtn');
         
-        try {
-            // Initialize user first
-            const initResponse = await fetch(`${API_BASE}/init-user`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    telegramId: user.id,
-                    username: user.username,
-                    firstName: user.first_name,
-                    lastName: user.last_name
-                })
-            });
-            
-            const initData = await initResponse.json();
-            if (!initData.success) {
-                showNotification('User initialization failed', 'error');
-                return;
-            }
-            
-            // Now fetch user data
-            const response = await fetch(`${API_BASE}/user/${user.id}`);
-            const data = await response.json();
-            
-            if (data.error) {
-                showNotification('User data not found', 'error');
-                return;
-            }
-            
-            // Update user data
-            userData.pointsSinceLastDollar = data.pointsSinceLastDollar;
-            userData.dollarsEarned = data.dollarsEarned;
-            userData.referrals = data.referrals;
-            userData.tier = data.tier;
-            userData.multiplier = data.multiplier;
-            userData.nextTierRefs = data.nextTierRefs;
-            userData.walletAddress = data.walletAddress;
-            userData.referralCode = data.referralCode || '';
-            
-            if (data.socialCompletions) {
-                userData.socialCompletions = data.socialCompletions;
-            }
-            
-            updateUI();
-        } catch (error) {
-            console.error('Failed to fetch user data:', error);
-            showNotification('Network error. Please try again later.', 'error');
-        }
-    }
-    
-    function startResetTimer() {
-        const updateTimer = () => {
-            const now = new Date();
-            const resetTime = new Date(userData.dailyReset);
-            const diff = resetTime - now;
-            
-            if (diff <= 0) {
-                userData.dailyReset = new Date().setHours(24, 0, 0, 0);
-                showNotification("Daily tasks reset!");
-            }
-            
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            resetTimerElement.textContent = 
-                `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        // User data
+        let userData = {
+            points: 0,
+            referrals: 0,
+            tier: "Fresher",
+            multiplier: 1,
+            nextTierRefs: 15,
+            completedSocial: {
+                youtube1: false,
+                youtube2: false,
+                youtube3: false,
+                facebook: false,
+                instagram: false,
+                twitter: false,
+                telegram: false
+            },
+            completedTasks: {
+                website: 0,
+                youtubeWatch: 0,
+                adWatch: 0,
+                premiumAd: 0
+            },
+            socialDollars: 0,
+            walletAddress: "",
+            adCount: 0,
+            premiumAdCount: 0,
+            dailyReset: new Date().setHours(24, 0, 0, 0)
         };
         
-        updateTimer();
-        setInterval(updateTimer, 1000);
-    }
-    
-    function setupEventListeners() {
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
-            });
-        });
+        // Tier system
+        const tiers = [
+            { name: "Fresher", refsRequired: 0, multiplier: 1, adReward: 51, referralReward: 1000 },
+            { name: "Brute", refsRequired: 15, multiplier: 1.2, adReward: 74, referralReward: 1500 },
+            { name: "Silver", refsRequired: 35, multiplier: 1.5, adReward: 105, referralReward: 2000 },
+            { name: "Gold", refsRequired: 70, multiplier: 2, adReward: 140, referralReward: 3000 },
+            { name: "Platinum", refsRequired: 150, multiplier: 3, adReward: 210, referralReward: 5000 }
+        ];
         
-        document.getElementById('watchAdBtn').addEventListener('click', startAdWatch);
-        document.getElementById('premiumAdBtn').addEventListener('click', startPremiumAd);
-        document.getElementById('changeAdBtn').addEventListener('click', changePremiumAd);
-        document.getElementById('referBtn').addEventListener('click', () => {
-            document.querySelectorAll('.tab')[1].classList.add('active');
-            document.getElementById('earnTab').classList.remove('active');
-            document.getElementById('referTab').classList.add('active');
-        });
-        document.getElementById('visitWebsiteBtn').addEventListener('click', startWebsiteTask);
-        document.getElementById('watchYoutubeBtn').addEventListener('click', startYoutubeTask);
-        document.getElementById('youtubeBtn1').addEventListener('click', () => completeSocialTask('youtube1', 'https://youtube.com/@yzeupdates'));
-        document.getElementById('youtubeBtn2').addEventListener('click', () => completeSocialTask('youtube2', 'https://youtube.com/@codingappwithhtml'));
-        document.getElementById('youtubeBtn3').addEventListener('click', () => completeSocialTask('youtube3', 'https://youtube.com/@yzemanhacker8831'));
-        document.getElementById('facebookBtn').addEventListener('click', () => completeSocialTask('facebook', 'https://www.facebook.com/share/1ADZJ1DVyn/?mibextid=wwXIfr'));
-        document.getElementById('instagramBtn').addEventListener('click', () => completeSocialTask('instagram', 'https://www.instagram.com/yzeupdates?igsh=MTR6dHdmODVhcDVzaw%3D%3D&utm_source=qr'));
-        document.getElementById('twitterBtn').addEventListener('click', () => completeSocialTask('twitter', 'https://x.com/oisreal80231?s=21'));
-        document.getElementById('copyCodeBtn').addEventListener('click', copyReferralCode);
-        withdrawBtn.addEventListener('click', startWithdrawal);
-        closeIframe.addEventListener('click', () => {
-            iframeContainer.style.display = 'none';
-            timerElement.style.display = 'none';
-        });
-        submitWalletBtn.addEventListener('click', saveWalletAddress);
-    }
-    
-    function updateUI() {
-        pointsElement.textContent = `${userData.pointsSinceLastDollar.toLocaleString()} pts`;
-        pointsUSDElement.textContent = userData.dollarsEarned.toFixed(2);
+        // Premium ad videos
+        const premiumAds = [
+            "https://www.youtube.com/embed/GDSGsDUFM_s",
+            "https://www.youtube.com/embed/2Io3pACX9K4",
+            "https://www.youtube.com/embed/xYUckvsZ8Dw"
+        ];
+        let currentPremiumAd = 0;
         
-        // Calculate total value for withdrawal progress
-        const totalValue = userData.dollarsEarned + (userData.pointsSinceLastDollar / 100000);
-        const progressPercent = Math.min(100, (totalValue / 1000) * 100);
-        
-        progressBar.style.width = `${progressPercent}%`;
-        progressAmount.textContent = totalValue.toFixed(2);
-        withdrawProgress.textContent = totalValue.toFixed(2);
-        withdrawBar.style.width = `${progressPercent}%`;
-        
-        userTierElement.textContent = userData.tier;
-        referralCountElement.textContent = `${userData.referrals} referral${userData.referrals !== 1 ? 's' : ''}`;
-        currentTierElement.textContent = userData.tier;
-        tierMultiplierElement.textContent = `${userData.multiplier}x`;
-        nextTierRefElement.textContent = userData.nextTierRefs;
-        
-        const currentTier = tiers[userData.tier] || tiers['Fresher'];
-        referralRewardElement.textContent = currentTier.referralReward;
-        
-        // Update referral code display
-        if (userData.referralCode) {
-            referralCodeElement.textContent = `YZEMAN-${userData.referralCode}`;
-            referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userData.referralCode}`;
-        } else {
-            referralCodeElement.textContent = "Loading...";
-            referralLinkElement.textContent = "Loading...";
-        }
-        
-        document.getElementById('currentRefCount').textContent = userData.referrals;
-        document.getElementById('currentRefs').textContent = userData.referrals;
-        document.getElementById('nextTierReq').textContent = currentTier.refsRequired;
-        
-        const tierProgress = (userData.referrals / currentTier.refsRequired) * 100;
-        document.getElementById('tierProgressBar').style.width = `${Math.min(100, tierProgress)}%`;
-        
-        withdrawBtn.disabled = totalValue < 1000 || !userData.walletAddress;
-        
-        if (userData.walletAddress) {
-            walletAddressInput.value = userData.walletAddress;
-        }
-        
-        // Update social task buttons
-        updateTaskButtons();
-    }
-    
-    function updateTaskButtons() {
-        // Social tasks
-        document.getElementById('youtubeBtn1').disabled = userData.socialCompletions.youtube1;
-        document.getElementById('youtubeBtn2').disabled = userData.socialCompletions.youtube2;
-        document.getElementById('youtubeBtn3').disabled = userData.socialCompletions.youtube3;
-        document.getElementById('facebookBtn').disabled = userData.socialCompletions.facebook;
-        document.getElementById('instagramBtn').disabled = userData.socialCompletions.instagram;
-        document.getElementById('twitterBtn').disabled = userData.socialCompletions.twitter;
-    }
-    
-    function copyReferralCode() {
-        if (!userData.referralCode) {
-            showNotification('Referral code not available', 'error');
-            return;
-        }
-        
-        const code = `ref-${userData.referralCode}`;
-        navigator.clipboard.writeText(code);
-        showNotification('Referral code copied!');
-    }
-    
-    async function startAdWatch() {
-        const currentTier = tiers[userData.tier] || tiers['Fresher'];
-        const reward = currentTier.adReward;
-        
-        adStatus.textContent = "Loading ad...";
-        adLoading.style.display = 'flex';
-        
-        if (typeof show_9683863 === 'function') {
-            show_9683863().then(async () => {
-                const success = await updatePoints(reward, 'ad');
-                if (success) {
-                    showNotification(`+${reward} points earned!`);
-                }
-            }).catch(() => {
-                showNotification('Ad failed', 'error');
-            }).finally(() => {
-                adLoading.style.display = 'none';
-            });
-        } else {
-            // Fallback for testing
-            setTimeout(async () => {
-                const success = await updatePoints(reward, 'ad');
-                if (success) {
-                    showNotification(`+${reward} points earned!`);
-                }
-                adLoading.style.display = 'none';
-            }, 2000);
-        }
-    }
-    
-    async function updatePoints(points, type) {
-        const user = tg.initDataUnsafe?.user;
-        if (!user) return false;
-        
-        try {
-            const response = await fetch(`${API_BASE}/update-points`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    telegramId: user.id,
-                    points: points,
-                    type: type
-                })
-            });
+        // Initialize app
+        function initApp() {
+            tg.expand();
+            tg.enableClosingConfirmation();
             
-            const data = await response.json();
-            if (data.success) {
-                // Update locally for immediate UI feedback
-                userData.pointsSinceLastDollar = data.pointsSinceLastDollar;
-                userData.dollarsEarned = data.dollarsEarned;
-                updateUI();
-                return true;
+            // Set up user profile
+            const user = tg.initDataUnsafe.user;
+            if (user) {
+                userNameElement.textContent = `${user.first_name} ${user.last_name || ''}`.trim();
+                userIdElement.textContent = `ID: ${user.id}`;
+                
+                if (user.photo_url) {
+                    userAvatarElement.src = user.photo_url;
+                } else {
+                    userAvatarElement.src = 'https://via.placeholder.com/50';
+                }
             }
-            return false;
-        } catch (error) {
-            console.error('Failed to update points:', error);
-            showNotification('Network error. Please try again later.', 'error');
-            return false;
-        }
-    }
-    
-    async function completeSocialTask(platform, url) {
-        const user = tg.initDataUnsafe?.user;
-        if (!user) return;
-        
-        // Check if already completed
-        if (userData.socialCompletions[platform]) {
-            showNotification('You already completed this task!', 'error');
-            return;
-        }
-        
-        // Open in new tab
-        window.open(url, '_blank');
-        
-        try {
-            const response = await fetch(`${API_BASE}/complete-social`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    telegramId: user.id,
-                    taskId: platform
-                })
-            });
             
-            const data = await response.json();
-            if (data.success) {
-                // Update locally
-                userData.socialCompletions[platform] = true;
-                userData.pointsSinceLastDollar = data.pointsSinceLastDollar;
-                userData.dollarsEarned = data.dollarsEarned;
-                updateUI();
-                showNotification(`+$50 added to your account!`);
-            } else {
-                showNotification(data.error || 'Failed to add points', 'error');
+            // Load user data
+            loadUserData();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Update UI
+            updateUI();
+            
+            // Start daily reset timer
+            startResetTimer();
+        }
+        
+        // Load user data from localStorage
+        function loadUserData() {
+            const savedData = localStorage.getItem('yzemanUserData');
+            if (savedData) {
+                const parsed = JSON.parse(savedData);
+                // Convert timestamps to numbers
+                if (parsed.completedTasks) {
+                    for (const key in parsed.completedTasks) {
+                        parsed.completedTasks[key] = Number(parsed.completedTasks[key]);
+                    }
+                }
+                userData = parsed;
             }
-        } catch (error) {
-            console.error('Failed to complete social task:', error);
-            showNotification('Network error. Please try again later.', 'error');
         }
-    }
-    
-    function startPremiumAd() {
-        const reward = 1000;
-        adStatus.textContent = "Loading premium ad...";
-        adLoading.style.display = 'flex';
         
-        if (typeof show_9683863 === 'function') {
-            show_9683863('pop').then(async () => {
-                const success = await updatePoints(reward, 'premium_ad');
-                if (success) {
-                    showNotification(`Premium ad completed! +${reward} points`);
-                }
-            }).catch(() => {
-                showNotification('Premium ad failed', 'error');
-            }).finally(() => {
-                adLoading.style.display = 'none';
-            });
-        } else {
-            // Fallback for testing
-            setTimeout(async () => {
-                const success = await updatePoints(reward, 'premium_ad');
-                if (success) {
-                    showNotification(`Premium ad completed! +${reward} points`);
-                }
-                adLoading.style.display = 'none';
-            }, 2000);
+        // Save user data to localStorage
+        function saveUserData() {
+            localStorage.setItem('yzemanUserData', JSON.stringify(userData));
         }
-    }
-    
-    function changePremiumAd() {
-        showNotification('Premium ad changed!');
-    }
-    
-    function updateTimer(seconds) {
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-    
-    function startWebsiteTask() {
-        taskIframe.src = 'https://yzeupdates.lat/articles.html';
-        iframeContainer.style.display = 'flex';
-        timerElement.style.display = 'block';
         
-        let timeSpent = 0;
-        const requiredTime = 120;
-        updateTimer(requiredTime);
-        
-        const timer = setInterval(() => {
-            timeSpent++;
-            const timeLeft = requiredTime - timeSpent;
-            updateTimer(timeLeft);
+        // Start the daily reset timer
+        function startResetTimer() {
+            const updateTimer = () => {
+                const now = new Date();
+                const resetTime = new Date(userData.dailyReset);
+                const diff = resetTime - now;
+                
+                if (diff <= 0) {
+                    // Reset daily tasks
+                    userData.completedTasks.website = 0;
+                    userData.completedTasks.youtubeWatch = 0;
+                    userData.completedTasks.adWatch = 0;
+                    userData.completedTasks.premiumAd = 0;
+                    userData.adCount = 0;
+                    userData.premiumAdCount = 0;
+                    
+                    // Set next reset time (midnight)
+                    const nextMidnight = new Date();
+                    nextMidnight.setHours(24, 0, 0, 0);
+                    userData.dailyReset = nextMidnight.getTime();
+                    
+                    saveUserData();
+                    updateUI();
+                    showNotification("Daily tasks have been reset!");
+                }
+                
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                
+                resetTimerElement.textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            };
             
-            if (timeSpent >= requiredTime) {
-                clearInterval(timer);
+            updateTimer();
+            setInterval(updateTimer, 1000);
+        }
+        
+        // Check if task can be done today
+        function canDoTaskToday(taskName) {
+            const lastCompleted = userData.completedTasks[taskName];
+            if (!lastCompleted) return true;
+            
+            const lastDate = new Date(lastCompleted);
+            const today = new Date();
+            
+            return lastDate.getDate() !== today.getDate() || 
+                   lastDate.getMonth() !== today.getMonth() ||
+                   lastDate.getFullYear() !== today.getFullYear();
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            // Tab navigation
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    tab.classList.add('active');
+                    document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
+                });
+            });
+            
+            // Watch ad button
+            document.getElementById('watchAdBtn').addEventListener('click', startAdWatch);
+            
+            // Premium ad button
+            document.getElementById('premiumAdBtn').addEventListener('click', startPremiumAd);
+            
+            // Change premium ad button
+            document.getElementById('changeAdBtn').addEventListener('click', changePremiumAd);
+            
+            // Refer button
+            document.getElementById('referBtn').addEventListener('click', () => {
+                document.querySelector('.tab').classList.remove('active');
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('earnTab').classList.remove('active');
+                document.getElementById('referTab').classList.add('active');
+            });
+            
+            // Visit website button
+            document.getElementById('visitWebsiteBtn').addEventListener('click', () => {
+                startWebsiteTask();
+            });
+            
+            // Watch YouTube button
+            document.getElementById('watchYoutubeBtn').addEventListener('click', () => {
+                startYoutubeTask();
+            });
+            
+            // Social follow buttons
+            document.getElementById('youtubeBtn1').addEventListener('click', () => completeSocialTask('youtube1', 'https://youtube.com/@yzeupdates'));
+            document.getElementById('youtubeBtn2').addEventListener('click', () => completeSocialTask('youtube2', 'https://youtube.com/@codingappwithhtml'));
+            document.getElementById('youtubeBtn3').addEventListener('click', () => completeSocialTask('youtube3', 'https://youtube.com/@yzemanhacker8831'));
+            document.getElementById('facebookBtn').addEventListener('click', () => completeSocialTask('facebook', 'https://www.facebook.com/share/1ADZJ1DVyn/?mibextid=wwXIfr'));
+            document.getElementById('instagramBtn').addEventListener('click', () => completeSocialTask('instagram', 'https://www.instagram.com/yzeupdates?igsh=MTR6dHdmODVhcDVzaw%3D%3D&utm_source=qr'));
+            document.getElementById('twitterBtn').addEventListener('click', () => completeSocialTask('twitter', 'https://x.com/oisreal80231?s=21'));
+            joinChannelBtn.addEventListener('click', () => completeSocialTask('telegram', 'https://t.me/YzemanBot'));
+            
+            // Copy referral code
+            document.getElementById('copyCodeBtn').addEventListener('click', copyReferralCode);
+            
+            // Withdraw button
+            withdrawBtn.addEventListener('click', startWithdrawal);
+            
+            // Close iframe
+            closeIframe.addEventListener('click', () => {
                 iframeContainer.style.display = 'none';
                 timerElement.style.display = 'none';
-                updatePoints(500, 'website').then(success => {
-                    if (success) {
-                        showNotification(`Website task completed! +500 points`);
-                    }
-                });
-            }
-        }, 1000);
-    }
-    
-    function startYoutubeTask() {
-        taskIframe.src = 'https://www.youtube.com/embed/FFiEFCCAM4c?autoplay=1';
-        iframeContainer.style.display = 'flex';
-        timerElement.style.display = 'block';
-        
-        let timeSpent = 0;
-        const requiredTime = 300;
-        updateTimer(requiredTime);
-        
-        const timer = setInterval(() => {
-            timeSpent++;
-            const timeLeft = requiredTime - timeSpent;
-            updateTimer(timeLeft);
+            });
             
-            if (iframeContainer.style.display === 'none') {
-                clearInterval(timer);
-                timerElement.style.display = 'none';
+            // Submit wallet address
+            submitWalletBtn.addEventListener('click', saveWalletAddress);
+        }
+        
+        // Update UI with current data
+        function updateUI() {
+            // Points and USD
+            pointsElement.textContent = `${userData.points.toLocaleString()} pts`;
+            const usdValue = userData.points / 100000;
+            pointsUSDElement.textContent = usdValue.toFixed(2);
+            
+            // Withdrawal progress
+            const totalBalance = usdValue + userData.socialDollars;
+            const progressPercent = Math.min(100, (totalBalance / 1000) * 100);
+            progressBar.style.width = `${progressPercent}%`;
+            progressAmount.textContent = totalBalance.toFixed(2);
+            withdrawProgress.textContent = totalBalance.toFixed(2);
+            withdrawBar.style.width = `${progressPercent}%`;
+            
+            // Tier info
+            const currentTier = tiers.find(t => t.name === userData.tier);
+            userTierElement.textContent = userData.tier;
+            referralCountElement.textContent = `${userData.referrals} referral${userData.referrals !== 1 ? 's' : ''}`;
+            currentTierElement.textContent = userData.tier;
+            tierMultiplierElement.textContent = `${userData.multiplier}x`;
+            nextTierRefElement.textContent = userData.nextTierRefs;
+            referralRewardElement.textContent = currentTier?.referralReward || 1000;
+            
+            // Update referral code
+            if (!localStorage.getItem('referralCode')) {
+                const code = generateReferralCode();
+                localStorage.setItem('referralCode', code);
+            }
+            const userCode = localStorage.getItem('referralCode');
+            referralCodeElement.textContent = userCode;
+            referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
+            
+            // Update referral stats
+            document.getElementById('currentRefCount').textContent = userData.referrals;
+            document.getElementById('currentRefs').textContent = userData.referrals;
+            
+            // Tier progress
+            const nextTier = tiers[tiers.indexOf(currentTier) + 1];
+            if (nextTier) {
+                document.getElementById('nextTierReq').textContent = nextTier.refsRequired;
+                const tierProgress = (userData.referrals / nextTier.refsRequired) * 100;
+                document.getElementById('tierProgressBar').style.width = `${Math.min(100, tierProgress)}%`;
+            }
+            
+            // Withdraw button
+            withdrawBtn.disabled = totalBalance < 1000 || !userData.walletAddress;
+            
+            // Update task buttons based on completion
+            updateTaskButtons();
+            
+            // Wallet address
+            if (userData.walletAddress) {
+                walletAddressInput.value = userData.walletAddress;
+            }
+            
+            // Ad counters
+            adCounterElement.textContent = `${userData.adCount}/∞`;
+            premiumAdCounterElement.textContent = `${userData.premiumAdCount}/1`;
+        }
+        
+        // Generate a referral code
+        function generateReferralCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+        
+        // Copy referral code to clipboard
+        function copyReferralCode() {
+            const code = document.getElementById('referralCode').textContent;
+            navigator.clipboard.writeText(code);
+            showNotification('Referral code copied to clipboard!');
+        }
+        
+        // Start watching an ad using SDK
+        function startAdWatch() {
+            const currentTier = tiers.find(t => t.name === userData.tier);
+            const reward = currentTier?.adReward || 70;
+            const actualReward = Math.floor(reward * userData.multiplier);
+            
+            // Show loading indicator
+            adStatus.textContent = "Loading ad...";
+            adLoading.style.display = 'flex';
+            
+            // Use SDK to show ad
+            if (typeof show_9683863 === 'function') {
+                show_9683863().then(() => {
+                    // User completed the ad
+                    userData.points += actualReward;
+                    userData.adCount++;
+                    userData.completedTasks.adWatch = Date.now();
+                    saveUserData();
+                    updateUI();
+                    showNotification(`+${actualReward.toLocaleString()} points earned!`);
+                }).catch((error) => {
+                    showNotification('Ad not completed or failed to load', 'error');
+                }).finally(() => {
+                    adLoading.style.display = 'none';
+                });
+            } else {
+                showNotification('Ad service not available', 'error');
+                adLoading.style.display = 'none';
+            }
+        }
+        
+        // Start premium ad using SDK
+        function startPremiumAd() {
+            if (userData.premiumAdCount >= 1) {
+                showNotification('You can only complete one premium ad per day!');
                 return;
             }
             
-            if (timeSpent >= requiredTime) {
-                clearInterval(timer);
-                iframeContainer.style.display = 'none';
-                timerElement.style.display = 'none';
-                updatePoints(2000, 'youtube').then(success => {
-                    if (success) {
-                        showNotification(`YouTube task completed! +2000 points`);
-                    }
+            // Show loading indicator
+            adStatus.textContent = "Loading premium ad...";
+            adLoading.style.display = 'flex';
+            
+            // Use SDK to show ad
+            if (typeof show_9683863 === 'function') {
+                show_9683863('pop').then(() => {
+                    // User completed the ad
+                    const reward = 1000 * userData.multiplier;
+                    userData.points += reward;
+                    userData.premiumAdCount++;
+                    userData.completedTasks.premiumAd = Date.now();
+                    saveUserData();
+                    updateUI();
+                    showNotification(`Premium ad completed! +${reward.toLocaleString()} points`);
+                }).catch((error) => {
+                    showNotification('Premium ad not completed or failed to load', 'error');
+                }).finally(() => {
+                    adLoading.style.display = 'none';
                 });
-            }
-        }, 1000);
-    }
-    
-    async function saveWalletAddress() {
-        const address = walletAddressInput.value.trim();
-        if (!address) {
-            showNotification('Enter valid wallet address', 'error');
-            return;
-        }
-        
-        const user = tg.initDataUnsafe?.user;
-        if (!user) return;
-        
-        try {
-            const response = await fetch(`${API_BASE}/set-wallet`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    telegramId: user.id,
-                    walletAddress: address
-                })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                userData.walletAddress = address;
-                updateUI();
-                showNotification('Wallet address saved!');
-            }
-        } catch (error) {
-            console.error('Failed to save wallet:', error);
-            showNotification('Network error. Please try again later.', 'error');
-        }
-    }
-    
-    async function startWithdrawal() {
-        const user = tg.initDataUnsafe?.user;
-        if (!user) return;
-        
-        try {
-            const response = await fetch(`${API_BASE}/request-withdrawal`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ telegramId: user.id })
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                // Reset points and dollars after withdrawal
-                userData.dollarsEarned = 0;
-                userData.pointsSinceLastDollar = 0;
-                updateUI();
-                showNotification('Withdrawal request sent!');
-                tg.showAlert("Message @yzemanreal on Telegram to complete your withdrawal");
             } else {
-                showNotification(data.error || 'Withdrawal failed', 'error');
+                showNotification('Ad service not available', 'error');
+                adLoading.style.display = 'none';
             }
-        } catch (error) {
-            console.error('Withdrawal error:', error);
-            showNotification('Network error. Please try again later.', 'error');
         }
-    }
-    
-    function showNotification(message, type = 'success') {
-        notification.textContent = message;
-        notification.style.background = type === 'error' ? 'var(--danger)' : 'var(--success)';
-        notification.style.display = 'block';
-        setTimeout(() => notification.style.display = 'none', 3000);
-    }
-    
-    // Initialize app
-    tg.ready();
-    initApp();
-</script>
+        
+        // Change premium ad
+        function changePremiumAd() {
+            currentPremiumAd = (currentPremiumAd + 1) % premiumAds.length;
+            showNotification('Premium ad changed!');
+        }
+        
+        // Update timer display
+        function updateTimer(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+        
+        // Start website visit task
+        function startWebsiteTask() {
+            if (!canDoTaskToday('website')) {
+                showNotification('You have already completed this task today!');
+                return;
+            }
+            
+            // Show iframe with website
+            taskIframe.src = 'https://yzeupdates.lat/articles.html';
+            iframeContainer.style.display = 'flex';
+            timerElement.style.display = 'block';
+            
+            // Start timer
+            let timeSpent = 0;
+            const requiredTime = 120; // 2 minute in seconds
+            updateTimer(requiredTime);
+            
+            const timer = setInterval(() => {
+                timeSpent++;
+                const timeLeft = requiredTime - timeSpent;
+                updateTimer(timeLeft);
+                
+                if (timeSpent >= requiredTime) {
+                    clearInterval(timer);
+                    iframeContainer.style.display = 'none';
+                    timerElement.style.display = 'none';
+                    
+                    // Reward user
+                    const reward = 500 * userData.multiplier;
+                    userData.points += reward;
+                    userData.completedTasks.website = Date.now();
+                    saveUserData();
+                    updateUI();
+                    showNotification(`Website task completed! +${reward.toLocaleString()} points`);
+                }
+            }, 1000);
+        }
+        
+        // Start YouTube watch task
+        function startYoutubeTask() {
+            if (!canDoTaskToday('youtubeWatch')) {
+                showNotification('You have already completed this task today!');
+                return;
+            }
+            
+            // Show iframe with YouTube video
+            taskIframe.src = 'https://www.youtube.com/embed/FFiEFCCAM4c?autoplay=1';
+            iframeContainer.style.display = 'flex';
+            timerElement.style.display = 'block';
+            
+            // Start timer
+            let timeSpent = 0;
+            const requiredTime = 5 * 60; // 5 minutes in seconds
+            updateTimer(requiredTime);
+            
+            const timer = setInterval(() => {
+                timeSpent++;
+                const timeLeft = requiredTime - timeSpent;
+                updateTimer(timeLeft);
+                
+                if (iframeContainer.style.display === 'none') {
+                    clearInterval(timer);
+                    timerElement.style.display = 'none';
+                    return;
+                }
+                
+                if (timeSpent >= requiredTime) {
+                    clearInterval(timer);
+                    iframeContainer.style.display = 'none';
+                    timerElement.style.display = 'none';
+                    
+                    // Reward user
+                    const reward = 2000 * userData.multiplier;
+                    userData.points += reward;
+                    userData.completedTasks.youtubeWatch = Date.now();
+                    saveUserData();
+                    updateUI();
+                    showNotification(`YouTube task completed! +${reward.toLocaleString()} points`);
+                }
+            }, 1000);
+        }
+        
+        // Complete social media follow task
+        function completeSocialTask(platform, url) {
+            if (userData.completedSocial[platform]) {
+                const platformName = platform.startsWith('youtube') ? 'YouTube' : 
+                                   platform === 'telegram' ? 'Telegram' : 
+                                   platform.charAt(0).toUpperCase() + platform.slice(1);
+                showNotification(`You already followed us on ${platformName}!`);
+                return;
+            }
+            
+            // Open platform in new tab/window
+            window.open(url, '_blank');
+            
+            // Mark as completed and reward
+            userData.completedSocial[platform] = true;
+            userData.socialDollars += 50;
+            saveUserData();
+            updateUI();
+            showNotification(`+$50 bonus! Thank you for following!`);
+        }
+        
+        // Check for tier upgrade
+        function checkTierUpgrade() {
+            const currentTierIndex = tiers.findIndex(t => t.name === userData.tier);
+            if (currentTierIndex < tiers.length - 1) {
+                const nextTier = tiers[currentTierIndex + 1];
+                if (userData.referrals >= nextTier.refsRequired) {
+                    userData.tier = nextTier.name;
+                    userData.multiplier = nextTier.multiplier;
+                    userData.nextTierRefs = currentTierIndex < tiers.length - 2 ? 
+                        tiers[currentTierIndex + 2].refsRequired - userData.referrals : 0;
+                    
+                    saveUserData();
+                    updateUI();
+                    showNotification(`Congratulations! You've been upgraded to ${nextTier.name} tier!`);
+                }
+            }
+        }
+        
+        // Start withdrawal process
+        function startWithdrawal() {
+            if (userData.walletAddress) {
+                // In a real app, this would send the withdrawal request to your backend
+                tg.showPopup({
+                    title: 'Withdrawal Request',
+                    message: 'Message @YzemanBot on Telegram to confirm your withdrawal request.',
+                    buttons: [{ type: 'ok' }]
+                });
+                
+                // Show instructions
+                tg.showAlert("Please message @YzemanBot on Telegram with your USDT address to complete the withdrawal");
+            } else {
+                showNotification('Please enter your USDT wallet address first', 'error');
+            }
+        }
+        
+        // Save wallet address
+        function saveWalletAddress() {
+            const address = walletAddressInput.value.trim();
+            if (address) {
+                userData.walletAddress = address;
+                saveUserData();
+                updateUI();
+                showNotification('Wallet address saved successfully!');
+            } else {
+                showNotification('Please enter a valid wallet address', 'error');
+            }
+        }
+        
+        // Update task buttons based on completion
+        function updateTaskButtons() {
+            // Daily tasks
+            document.getElementById('visitWebsiteBtn').disabled = !canDoTaskToday('website');
+            document.getElementById('watchYoutubeBtn').disabled = !canDoTaskToday('youtubeWatch');
+            document.getElementById('watchAdBtn').disabled = false; // Can be done infinitely
+            
+            // Premium ad
+            document.getElementById('premiumAdBtn').disabled = userData.premiumAdCount >= 1;
+            
+            // Social tasks
+            document.getElementById('youtubeBtn1').disabled = userData.completedSocial.youtube1;
+            document.getElementById('youtubeBtn2').disabled = userData.completedSocial.youtube2;
+            document.getElementById('youtubeBtn3').disabled = userData.completedSocial.youtube3;
+            document.getElementById('facebookBtn').disabled = userData.completedSocial.facebook;
+            document.getElementById('instagramBtn').disabled = userData.completedSocial.instagram;
+            document.getElementById('twitterBtn').disabled = userData.completedSocial.twitter;
+            joinChannelBtn.disabled = userData.completedSocial.telegram;
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'success') {
+            notification.textContent = message;
+            notification.style.background = type === 'error' ? 'var(--danger)' : 'var(--success)';
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Initialize app when ready
+        tg.ready();
+        initApp();
+    </script>
 </body>
 </html>
