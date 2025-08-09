@@ -13,7 +13,11 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Create tables if they don't exist
+// Telegram bot setup
+const botToken = process.env.BOT_TOKEN;
+const adminChatId = process.env.ADMIN_CHAT_ID;
+
+// Initialize database function
 const initializeDatabase = async () => {
   try {
     // Create users table
@@ -31,6 +35,8 @@ const initializeDatabase = async () => {
         next_tier_refs INTEGER DEFAULT 50,
         social_dollars FLOAT DEFAULT 0,
         wallet_address VARCHAR(255),
+        referral_code VARCHAR(20) UNIQUE,
+        used_referral_code BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -59,7 +65,18 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // Create tiers table with updated requirements
+    // Create social tasks table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS social_tasks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        platform VARCHAR(50) NOT NULL,
+        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, platform)
+      );
+    `);
+
+    // Create tiers table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS tiers (
         name VARCHAR(50) PRIMARY KEY,
@@ -70,7 +87,28 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // Insert/update tiers with new requirements
+    // Create bonus codes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS bonus_codes (
+        code VARCHAR(20) PRIMARY KEY,
+        points INTEGER DEFAULT 0,
+        dollars FLOAT DEFAULT 0,
+        daily BOOLEAN DEFAULT TRUE
+      );
+    `);
+
+    // Create user bonus redemptions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_bonus_redemptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        bonus_code VARCHAR(20),
+        date DATE NOT NULL,
+        UNIQUE(user_id, bonus_code, date)
+      );
+    `);
+
+    // Insert/update tiers
     await pool.query(`
       INSERT INTO tiers (name, refs_required, multiplier, ad_reward, referral_reward)
       VALUES 
@@ -86,17 +124,34 @@ const initializeDatabase = async () => {
         referral_reward = EXCLUDED.referral_reward;
     `);
 
-    console.log('Database tables initialized with new tier requirements');
+    // Insert bonus codes
+    const bonusCodes = [
+      { code: 'BASER', points: 2000, dollars: 0, daily: true },
+      { code: 'BOTYZEMAN', points: 100000, dollars: 0, daily: true },
+      { code: 'EARNSBOTT', points: 0, dollars: 15, daily: true },
+      { code: 'BONUSBOTTER', points: 0, dollars: 100, daily: true },
+      { code: 'GAINMASTER', points: 50000, dollars: 100, daily: true }
+    ];
+
+    for (const code of bonusCodes) {
+      await pool.query(`
+        INSERT INTO bonus_codes (code, points, dollars, daily)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (code) DO UPDATE SET
+          points = EXCLUDED.points,
+          dollars = EXCLUDED.dollars,
+          daily = EXCLUDED.daily
+      `, [code.code, code.points, code.dollars, code.daily]);
+    }
+
+    console.log('Database tables initialized successfully');
   } catch (err) {
     console.error('Error initializing database:', err);
   }
 };
 
+// Initialize database on startup
 initializeDatabase();
-
-// Telegram bot setup
-const botToken = process.env.BOT_TOKEN;
-const adminChatId = process.env.ADMIN_CHAT_ID;
 
 // Middleware to verify Telegram initData
 const verifyTelegramData = (req, res, next) => {
@@ -110,17 +165,39 @@ const verifyTelegramData = (req, res, next) => {
   next();
 };
 
+// Helper function to generate referral code
+const generateReferralCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return 'YZEMAN-' + code;
+};
+
 // Get or create user
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   try {
     const { user } = req.body;
+    
+    // Check if user exists
+    const existingUser = await pool.query(
+      `SELECT * FROM users WHERE telegram_id = $1`,
+      [user.id]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      return res.json(existingUser.rows[0]);
+    }
+    
+    // Create new user with referral code
+    const referralCode = generateReferralCode();
     const result = await pool.query(
-      `INSERT INTO users (telegram_id, username, first_name, last_name) 
-       VALUES ($1, $2, $3, $4) 
-       ON CONFLICT (telegram_id) 
-       DO UPDATE SET updated_at = CURRENT_TIMESTAMP 
+      `INSERT INTO users 
+        (telegram_id, username, first_name, last_name, referral_code) 
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [user.id, user.username, user.first_name, user.last_name]
+      [user.id, user.username, user.first_name, user.last_name, referralCode]
     );
     
     res.json(result.rows[0]);
@@ -160,8 +237,8 @@ app.put('/api/user/:id', verifyTelegramData, async (req, res) => {
       `UPDATE users 
        SET points = $1, referrals = $2, tier = $3, multiplier = $4, 
            next_tier_refs = $5, social_dollars = $6, wallet_address = $7, 
-           updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $8 
+           used_referral_code = $8, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $9 
        RETURNING *`,
       [
         userData.points,
@@ -171,6 +248,7 @@ app.put('/api/user/:id', verifyTelegramData, async (req, res) => {
         userData.next_tier_refs,
         userData.social_dollars,
         userData.wallet_address,
+        userData.used_referral_code,
         userId
       ]
     );
@@ -212,22 +290,29 @@ app.post('/api/social', verifyTelegramData, async (req, res) => {
   try {
     const { userId, platform } = req.body;
     
-    // Update user social dollars
-    await pool.query(
-      `UPDATE users SET social_dollars = social_dollars + 50 
-       WHERE id = $1 AND NOT EXISTS (
-         SELECT 1 FROM social_tasks 
-         WHERE user_id = $1 AND platform = $2
-       )`,
+    // Check if already completed
+    const existing = await pool.query(
+      `SELECT * FROM social_tasks 
+       WHERE user_id = $1 AND platform = $2`,
       [userId, platform]
     );
+    
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Task already completed' });
+    }
     
     // Record social task
     await pool.query(
       `INSERT INTO social_tasks (user_id, platform) 
-       VALUES ($1, $2) 
-       ON CONFLICT (user_id, platform) DO NOTHING`,
+       VALUES ($1, $2)`,
       [userId, platform]
+    );
+    
+    // Update user social dollars
+    await pool.query(
+      `UPDATE users SET social_dollars = social_dollars + 50 
+       WHERE id = $1`,
+      [userId]
     );
     
     res.json({ success: true });
@@ -311,9 +396,9 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
     // Add referral bonus to referred user
     await pool.query(
       `UPDATE users 
-       SET points = points + 1000 
-       WHERE id = $1`,
-      [referredId]
+       SET points = points + $1 
+       WHERE id = $2`,
+      [referralReward, referredId]
     );
     
     // Check for tier upgrade
@@ -326,7 +411,151 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Check and upgrade user tier
+// Apply referral code
+app.post('/api/redeem-referral', verifyTelegramData, async (req, res) => {
+  try {
+    const { userId, referralCode } = req.body;
+    
+    // Check if user already used a referral code
+    const userResult = await pool.query(
+      `SELECT used_referral_code FROM users WHERE id = $1`,
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (userResult.rows[0].used_referral_code) {
+      return res.status(400).json({ error: 'You can only use one referral code' });
+    }
+    
+    // Get referrer by referral code
+    const referrerResult = await pool.query(
+      `SELECT id, tier FROM users WHERE referral_code = $1`,
+      [referralCode]
+    );
+    
+    if (referrerResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invalid referral code' });
+    }
+    
+    const referrer = referrerResult.rows[0];
+    
+    // Get referrer's tier reward
+    const tierResult = await pool.query(
+      `SELECT referral_reward FROM tiers WHERE name = $1`,
+      [referrer.tier]
+    );
+    
+    if (tierResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid tier configuration' });
+    }
+    
+    const reward = tierResult.rows[0].referral_reward;
+    
+    // Update both users in transaction
+    await pool.query('BEGIN');
+    
+    // Update redeemer
+    await pool.query(
+      `UPDATE users 
+       SET points = points + $1, 
+           used_referral_code = TRUE
+       WHERE id = $2`,
+      [reward, userId]
+    );
+    
+    // Update referrer
+    await pool.query(
+      `UPDATE users 
+       SET points = points + $1,
+           referrals = referrals + 1
+       WHERE id = $2`,
+      [reward, referrer.id]
+    );
+    
+    await pool.query('COMMIT');
+    
+    // Check for tier upgrade for referrer
+    await checkTierUpgrade(referrer.id);
+    
+    res.json({ success: true, reward });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Redeem bonus code
+app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
+  try {
+    const { userId, bonusCode } = req.body;
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Check if bonus code exists
+    const bonusResult = await pool.query(
+      `SELECT * FROM bonus_codes WHERE code = $1`,
+      [bonusCode]
+    );
+    
+    if (bonusResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Invalid bonus code' });
+    }
+    
+    const bonus = bonusResult.rows[0];
+    
+    // Check if code has been used today
+    const usageResult = await pool.query(
+      `SELECT * FROM user_bonus_redemptions 
+       WHERE user_id = $1 AND bonus_code = $2 AND date = $3`,
+      [userId, bonusCode, today]
+    );
+    
+    if (usageResult.rows.length > 0) {
+      return res.status(400).json({ error: 'Code already used today' });
+    }
+    
+    // Apply bonus in transaction
+    await pool.query('BEGIN');
+    
+    if (bonus.points > 0) {
+      await pool.query(
+        `UPDATE users SET points = points + $1 WHERE id = $2`,
+        [bonus.points, userId]
+      );
+    }
+    
+    if (bonus.dollars > 0) {
+      await pool.query(
+        `UPDATE users SET social_dollars = social_dollars + $1 WHERE id = $2`,
+        [bonus.dollars, userId]
+      );
+    }
+    
+    // Record redemption
+    await pool.query(
+      `INSERT INTO user_bonus_redemptions (user_id, bonus_code, date)
+       VALUES ($1, $2, $3)`,
+      [userId, bonusCode, today]
+    );
+    
+    await pool.query('COMMIT');
+    
+    res.json({ 
+      success: true,
+      points: bonus.points,
+      dollars: bonus.dollars
+    });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Tier upgrade helper function
 async function checkTierUpgrade(userId) {
   try {
     const userResult = await pool.query(

@@ -766,6 +766,77 @@
             color: var(--gray);
             margin: 10px 0;
         }
+        
+        /* Bonus section styles */
+        .bonus-section {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .bonus-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--light);
+            text-align: center;
+        }
+        
+        .bonus-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .bonus-input {
+            flex: 1;
+            padding: 12px;
+            background: var(--darker);
+            border: none;
+            border-radius: 12px;
+            color: var(--light);
+            font-size: 16px;
+        }
+        
+        .bonus-btn {
+            background: linear-gradient(45deg, #FF9800, #FF5722);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .bonus-list {
+            margin-top: 20px;
+        }
+        
+        .bonus-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+        
+        .bonus-code {
+            font-family: monospace;
+            font-weight: 600;
+        }
+        
+        .bonus-reward {
+            color: var(--success);
+        }
+        
+        .redeemed-badge {
+            background: var(--success);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -802,13 +873,16 @@
             <p class="subtitle">Earn Rewards with Free Server Integration</p>
         </header>
 
+        <!-- Updated Tabs with Bonus Codes tab -->
         <div class="tabs">
             <div class="tab active" data-tab="earn">Earn Points</div>
             <div class="tab" data-tab="refer">Refer Friends</div>
             <div class="tab" data-tab="social">Social Rewards</div>
-            <div class="tab" data-tab="withdraw">Withdraw</div>
+            <div class="tab" data-tab="bonus">Bonus Codes</div>
+            <div class="tab" data-tab="withdraw">With<br>draw</div>
         </div>
 
+        <!-- Earn Points Tab -->
         <div class="tab-content active" id="earnTab">
             <div class="daily-reset" style="background: linear-gradient(135deg, var(--darker), var(--dark));">
                 <i class="fas fa-sync-alt"></i> Daily tasks reset in <span id="resetTimer"></span>
@@ -934,10 +1008,20 @@
             </div>
         </div>
 
+        <!-- Refer Friends Tab with Referral Code Input -->
         <div class="tab-content" id="referTab">
             <div class="referral-section">
                 <h2 class="referral-title">Refer Friends & Earn</h2>
-                <p>Share your referral code with friends and earn 1000 points for each friend who signs up</p>
+                <p>Share your referral code with friends and earn points for each friend who signs up</p>
+                
+                <!-- Referral Code Input Section -->
+                <div style="margin: 20px 0;">
+                    <h3>Enter Referral Code</h3>
+                    <p>If you have a referral code, enter it to earn bonus points</p>
+                    <input type="text" class="wallet-input" id="referralCodeInput" placeholder="Enter referral code">
+                    <button class="copy-btn" id="applyReferralBtn" style="margin-top: 10px;">Apply Code</button>
+                </div>
+                
                 <div class="referral-code" id="referralCode">YZEMAN-<span id="userCode">X7B9F2</span></div>
                 <button class="copy-btn" id="copyCodeBtn">
                     <i class="fas fa-copy"></i> Copy Referral Code
@@ -981,6 +1065,7 @@
             </div>
         </div>
 
+        <!-- Social Rewards Tab -->
         <div class="tab-content" id="socialTab">
             <div class="channel-card">
                 <div class="channel-icon">
@@ -1068,6 +1153,31 @@
             </div>
         </div>
 
+        <!-- Bonus Codes Tab -->
+        <div class="tab-content" id="bonusTab">
+            <div class="bonus-section">
+                <h2 class="bonus-title">Redeem Bonus Codes</h2>
+                <p>Enter bonus codes to earn extra points and dollars</p>
+                
+                <div class="bonus-input-container">
+                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code">
+                    <button class="bonus-btn" id="redeemBonusBtn">Redeem</button>
+                </div>
+                
+                <div class="bonus-list">
+                    
+                </div>
+            </div>
+            
+            <div class="social-proof">
+                <div class="social-title">Join Our Telegram Channel for More Bonus Codes</div>
+                <div class="social-icons">
+                    <a href="https://t.me/YzemanEarnBotChannel" target="_blank"><i class="fab fa-telegram"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Withdraw Tab -->
         <div class="tab-content" id="withdrawTab">
             <div class="progress-container">
                 <div class="progress-header">
@@ -1100,14 +1210,7 @@
             </div>
         </div>
 
-        <div class="social-proof">
-            <div class="social-title">Join Our Community</div>
-            <div class="social-icons">
-                <a href="https://t.me/YzemanBot" target="_blank"><i class="fab fa-telegram"></i></a>
-                
-            </div>
-        </div>
-    </div>
+        
 
     <script>
         // Initialize Telegram Web App
@@ -1147,6 +1250,10 @@
         const joinChannelBtn = document.getElementById('joinChannelBtn');
         const currentRefsElement = document.getElementById('currentRefs');
         const nextTierReqElement = document.getElementById('nextTierReq');
+        const applyReferralBtn = document.getElementById('applyReferralBtn');
+        const redeemBonusBtn = document.getElementById('redeemBonusBtn');
+        const referralCodeInput = document.getElementById('referralCodeInput');
+        const bonusCodeInput = document.getElementById('bonusCodeInput');
         
         // User data
         let userData = {
@@ -1174,7 +1281,9 @@
             walletAddress: "",
             adCount: 0,
             premiumAdCount: 0,
-            dailyReset: new Date().setHours(24, 0, 0, 0)
+            dailyReset: new Date().setHours(24, 0, 0, 0),
+            usedReferralCode: false,
+            usedBonusCodes: {}
         };
         
         // Tier system with higher requirements
@@ -1194,6 +1303,15 @@
         ];
         let currentPremiumAd = 0;
         
+        // Bonus codes configuration
+        const bonusCodes = {
+            "BASER": { points: 2000, dollars: 0, daily: true },
+            "BOTYZEMAN": { points: 100000, dollars: 0, daily: true },
+            "EARNSBOTT": { points: 0, dollars: 15, daily: true },
+            "BONUSBOTTER": { points: 0, dollars: 100, daily: true },
+            "GAINMASTER": { points: 50000, dollars: 100, daily: true }
+        };
+
         // Initialize app
         function initApp() {
             tg.expand();
@@ -1359,6 +1477,12 @@
             
             // Submit wallet address
             submitWalletBtn.addEventListener('click', saveWalletAddress);
+            
+            // Apply referral code
+            applyReferralBtn.addEventListener('click', applyReferralCode);
+            
+            // Redeem bonus code
+            redeemBonusBtn.addEventListener('click', redeemBonusCode);
         }
         
         // Update UI with current data
@@ -1420,6 +1544,15 @@
             // Ad counters
             adCounterElement.textContent = `${userData.adCount}/∞`;
             premiumAdCounterElement.textContent = `${userData.premiumAdCount}/1`;
+            
+            // Update referral code input status
+            if (userData.usedReferralCode) {
+                referralCodeInput.value = "Already used";
+                referralCodeInput.disabled = true;
+                applyReferralBtn.disabled = true;
+                applyReferralBtn.textContent = "Code Applied";
+                applyReferralBtn.style.background = "var(--success)";
+            }
         }
         
         // Generate a referral code
@@ -1437,6 +1570,96 @@
             const code = document.getElementById('referralCode').textContent;
             navigator.clipboard.writeText(code);
             showNotification('Referral code copied to clipboard!');
+        }
+        
+        // Apply referral code
+        function applyReferralCode() {
+            if (userData.usedReferralCode) {
+                showNotification('You can only use one referral code', 'error');
+                return;
+            }
+            
+            const code = referralCodeInput.value.trim().toUpperCase();
+            
+            if (!code) {
+                showNotification('Please enter a referral code', 'error');
+                return;
+            }
+            
+            // Determine tier from code (simplified)
+            let tier = "Fresher";
+            let reward = 1000;
+            
+            if (code.includes("PLAT")) {
+                tier = "Platinum";
+                reward = 3000;
+            } else if (code.includes("GOLD")) {
+                tier = "Gold";
+                reward = 3000;
+            } else if (code.includes("SILVER")) {
+                tier = "Silver";
+                reward = 2000;
+            } else if (code.includes("BRUTE")) {
+                tier = "Brute";
+                reward = 1500;
+            }
+            
+            // Apply rewards
+            userData.points += reward;
+            userData.usedReferralCode = true;
+            saveUserData();
+            updateUI();
+            
+            showNotification(`Referral code applied! +${reward.toLocaleString()} points earned (${tier} tier)`);
+        }
+        
+        // Redeem bonus code
+        function redeemBonusCode() {
+            const code = bonusCodeInput.value.trim().toUpperCase();
+            
+            if (!code) {
+                showNotification('Please enter a bonus code', 'error');
+                return;
+            }
+            
+            const bonus = bonusCodes[code];
+            
+            if (!bonus) {
+                showNotification('Invalid bonus code', 'error');
+                return;
+            }
+            
+            // Check if code has been used today
+            const today = new Date().toDateString();
+            if (bonus.daily) {
+                if (userData.usedBonusCodes[code] === today) {
+                    showNotification('This code has already been used today', 'error');
+                    return;
+                }
+            } else if (userData.usedBonusCodes[code]) {
+                showNotification('This code has already been used', 'error');
+                return;
+            }
+            
+            // Apply bonus
+            let message = 'Bonus code applied! ';
+            
+            if (bonus.points > 0) {
+                userData.points += bonus.points;
+                message += `+${bonus.points.toLocaleString()} points `;
+            }
+            
+            if (bonus.dollars > 0) {
+                userData.socialDollars += bonus.dollars;
+                message += `+$${bonus.dollars} `;
+            }
+            
+            // Record usage
+            userData.usedBonusCodes[code] = bonus.daily ? today : true;
+            saveUserData();
+            updateUI();
+            
+            showNotification(message);
         }
         
         // Start watching an ad using SDK
