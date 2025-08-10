@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YzemanBot - Earn Rewards</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='//libtl.com/sdk.js' data-zone='9683863' data-sdk='show_9683863'></script>
@@ -837,6 +837,21 @@
             border-radius: 12px;
             font-size: 12px;
         }
+        
+        /* New styles for referral link container */
+        .referral-link-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .referral-link-box {
+            background: rgba(37, 117, 252, 0.1);
+            border: 1px solid var(--secondary);
+            border-radius: 12px;
+            padding: 12px;
+            margin: 15px 0;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -862,7 +877,7 @@
                 <img id="userAvatar" class="user-avatar" src="" alt="Profile">
                 <div class="user-info">
                     <div class="user-name" id="userName">Loading...</div>
-                    <div class="user-id" id="userId">ID: <span id="userIdValue">loading</span></div>
+                    <div class="user-id" id="userId">ID: loading</div>
                 </div>
             </div>
             
@@ -1008,25 +1023,22 @@
             </div>
         </div>
 
-        <!-- Refer Friends Tab with Referral Code Input -->
+        <!-- Simplified Refer Friends Tab -->
         <div class="tab-content" id="referTab">
             <div class="referral-section">
                 <h2 class="referral-title">Refer Friends & Earn</h2>
-                <p>Share your referral code with friends and earn points for each friend who signs up</p>
-                
-                <!-- Referral Code Input Section -->
-                <div style="margin: 20px 0;">
-                    <h3>Enter Referral Code</h3>
-                    <p>If you have a referral code, enter it to earn bonus points</p>
-                    <input type="text" class="wallet-input" id="referralCodeInput" placeholder="Enter referral code">
-                    <button class="copy-btn" id="applyReferralBtn" style="margin-top: 10px;">Apply Code</button>
-                </div>
+                <p>Share your referral link with friends and earn points for each friend who signs up</p>
                 
                 <div class="referral-code" id="referralCode">YZEMAN-<span id="userCode">X7B9F2</span></div>
+                
+                <div class="referral-link-container">
+                    <p>Your referral link:</p>
+                    <div class="referral-link-box" id="referralLink">https://t.me/YzemanBot?start=ref-X7B9F2</div>
+                </div>
+                
                 <button class="copy-btn" id="copyCodeBtn">
-                    <i class="fas fa-copy"></i> Copy Referral Code
+                    <i class="fas fa-copy"></i> Copy Referral Link
                 </button>
-                <p class="referral-link" id="referralLink">https://t.me/YzemanBot?start=ref-X7B9F2</p>
             </div>
 
             <div class="task-list">
@@ -1038,6 +1050,7 @@
                         <div class="task-title">Your Referral Progress</div>
                         <div class="task-description">Earn higher tiers with more referrals</div>
                         <div class="task-reward">Current referrals: <span id="currentRefCount">0</span></div>
+                        <div class="task-reward">Current reward per referral: <span id="currentReferralReward">1000</span> pts</div>
                     </div>
                 </div>
             </div>
@@ -1210,8 +1223,6 @@
             </div>
         </div>
 
-        
-
     <script>
         // Initialize Telegram Web App
         const tg = window.Telegram.WebApp;
@@ -1250,9 +1261,9 @@
         const joinChannelBtn = document.getElementById('joinChannelBtn');
         const currentRefsElement = document.getElementById('currentRefs');
         const nextTierReqElement = document.getElementById('nextTierReq');
-        const applyReferralBtn = document.getElementById('applyReferralBtn');
+        const currentRefCountElement = document.getElementById('currentRefCount');
+        const currentReferralRewardElement = document.getElementById('currentReferralReward');
         const redeemBonusBtn = document.getElementById('redeemBonusBtn');
-        const referralCodeInput = document.getElementById('referralCodeInput');
         const bonusCodeInput = document.getElementById('bonusCodeInput');
         
         // User data
@@ -1282,7 +1293,6 @@
             adCount: 0,
             premiumAdCount: 0,
             dailyReset: new Date().setHours(24, 0, 0, 0),
-            usedReferralCode: false,
             usedBonusCodes: {}
         };
         
@@ -1436,7 +1446,7 @@
             // Change premium ad button
             document.getElementById('changeAdBtn').addEventListener('click', changePremiumAd);
             
-            // Refer button
+            // Refer button - simplified to just switch to refer tab
             document.getElementById('referBtn').addEventListener('click', () => {
                 document.querySelector('.tab').classList.remove('active');
                 document.querySelectorAll('.tab')[1].classList.add('active');
@@ -1463,8 +1473,8 @@
             document.getElementById('twitterBtn').addEventListener('click', () => completeSocialTask('twitter', 'https://x.com/oisreal80231?s=21'));
             joinChannelBtn.addEventListener('click', () => completeSocialTask('telegram', 'https://t.me/YzemanEarnBotChannel'));
             
-            // Copy referral code
-            document.getElementById('copyCodeBtn').addEventListener('click', copyReferralCode);
+            // Copy referral link
+            document.getElementById('copyCodeBtn').addEventListener('click', copyReferralLink);
             
             // Withdraw button
             withdrawBtn.addEventListener('click', startWithdrawal);
@@ -1478,139 +1488,15 @@
             // Submit wallet address
             submitWalletBtn.addEventListener('click', saveWalletAddress);
             
-            // Apply referral code
-            applyReferralBtn.addEventListener('click', applyReferralCode);
-            
             // Redeem bonus code
             redeemBonusBtn.addEventListener('click', redeemBonusCode);
         }
         
-        // Update UI with current data
-        function updateUI() {
-            // Points and USD
-            pointsElement.textContent = `${userData.points.toLocaleString()} pts`;
-            const usdValue = userData.points / 100000;
-            pointsUSDElement.textContent = usdValue.toFixed(2);
-            
-            // Withdrawal progress
-            const totalBalance = usdValue + userData.socialDollars;
-            const progressPercent = Math.min(100, (totalBalance / 1000) * 100);
-            progressBar.style.width = `${progressPercent}%`;
-            progressAmount.textContent = totalBalance.toFixed(2);
-            withdrawProgress.textContent = totalBalance.toFixed(2);
-            withdrawBar.style.width = `${progressPercent}%`;
-            
-            // Tier info
-            const currentTier = tiers.find(t => t.name === userData.tier);
-            userTierElement.textContent = userData.tier;
-            referralCountElement.textContent = `${userData.referrals} referral${userData.referrals !== 1 ? 's' : ''}`;
-            currentTierElement.textContent = userData.tier;
-            tierMultiplierElement.textContent = `${userData.multiplier}x`;
-            nextTierRefElement.textContent = userData.nextTierRefs;
-            referralRewardElement.textContent = currentTier?.referralReward || 1000;
-            
-            // Update referral code
-            if (!localStorage.getItem('referralCode')) {
-                const code = generateReferralCode();
-                localStorage.setItem('referralCode', code);
-            }
-            const userCode = localStorage.getItem('referralCode');
-            referralCodeElement.textContent = userCode;
-            referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
-            
-            // Update referral stats
-            document.getElementById('currentRefCount').textContent = userData.referrals;
-            document.getElementById('currentRefs').textContent = userData.referrals;
-            
-            // Tier progress
-            const nextTier = tiers[tiers.indexOf(currentTier) + 1];
-            if (nextTier) {
-                document.getElementById('nextTierReq').textContent = nextTier.refsRequired;
-                const tierProgress = (userData.referrals / nextTier.refsRequired) * 100;
-                document.getElementById('tierProgressBar').style.width = `${Math.min(100, tierProgress)}%`;
-            }
-            
-            // Withdraw button
-            withdrawBtn.disabled = totalBalance < 1000 || !userData.walletAddress;
-            
-            // Update task buttons based on completion
-            updateTaskButtons();
-            
-            // Wallet address
-            if (userData.walletAddress) {
-                walletAddressInput.value = userData.walletAddress;
-            }
-            
-            // Ad counters
-            adCounterElement.textContent = `${userData.adCount}/∞`;
-            premiumAdCounterElement.textContent = `${userData.premiumAdCount}/1`;
-            
-            // Update referral code input status
-            if (userData.usedReferralCode) {
-                referralCodeInput.value = "Already used";
-                referralCodeInput.disabled = true;
-                applyReferralBtn.disabled = true;
-                applyReferralBtn.textContent = "Code Applied";
-                applyReferralBtn.style.background = "var(--success)";
-            }
-        }
-        
-        // Generate a referral code
-        function generateReferralCode() {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            let code = '';
-            for (let i = 0; i < 6; i++) {
-                code += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            return code;
-        }
-        
-        // Copy referral code to clipboard
-        function copyReferralCode() {
-            const code = document.getElementById('referralCode').textContent;
-            navigator.clipboard.writeText(code);
-            showNotification('Referral code copied to clipboard!');
-        }
-        
-        // Apply referral code
-        function applyReferralCode() {
-            if (userData.usedReferralCode) {
-                showNotification('You can only use one referral code', 'error');
-                return;
-            }
-            
-            const code = referralCodeInput.value.trim().toUpperCase();
-            
-            if (!code) {
-                showNotification('Please enter a referral code', 'error');
-                return;
-            }
-            
-            // Determine tier from code (simplified)
-            let tier = "Fresher";
-            let reward = 1000;
-            
-            if (code.includes("PLAT")) {
-                tier = "Platinum";
-                reward = 3000;
-            } else if (code.includes("GOLD")) {
-                tier = "Gold";
-                reward = 3000;
-            } else if (code.includes("SILVER")) {
-                tier = "Silver";
-                reward = 2000;
-            } else if (code.includes("BRUTE")) {
-                tier = "Brute";
-                reward = 1500;
-            }
-            
-            // Apply rewards
-            userData.points += reward;
-            userData.usedReferralCode = true;
-            saveUserData();
-            updateUI();
-            
-            showNotification(`Referral code applied! +${reward.toLocaleString()} points earned (${tier} tier)`);
+        // Copy the full referral link
+        function copyReferralLink() {
+            const link = document.getElementById('referralLink').textContent;
+            navigator.clipboard.writeText(link);
+            showNotification('Referral link copied to clipboard!');
         }
         
         // Redeem bonus code
@@ -1899,6 +1785,80 @@
             } else {
                 showNotification('Please enter a valid wallet address', 'error');
             }
+        }
+        
+        // Update UI with current data
+        function updateUI() {
+            // Points and USD
+            pointsElement.textContent = `${userData.points.toLocaleString()} pts`;
+            const usdValue = userData.points / 100000;
+            pointsUSDElement.textContent = usdValue.toFixed(2);
+            
+            // Withdrawal progress
+            const totalBalance = usdValue + userData.socialDollars;
+            const progressPercent = Math.min(100, (totalBalance / 1000) * 100);
+            progressBar.style.width = `${progressPercent}%`;
+            progressAmount.textContent = totalBalance.toFixed(2);
+            withdrawProgress.textContent = totalBalance.toFixed(2);
+            withdrawBar.style.width = `${progressPercent}%`;
+            
+            // Tier info
+            const currentTier = tiers.find(t => t.name === userData.tier);
+            userTierElement.textContent = userData.tier;
+            referralCountElement.textContent = `${userData.referrals} referral${userData.referrals !== 1 ? 's' : ''}`;
+            currentTierElement.textContent = userData.tier;
+            tierMultiplierElement.textContent = `${userData.multiplier}x`;
+            nextTierRefElement.textContent = userData.nextTierRefs;
+            referralRewardElement.textContent = currentTier?.referralReward || 1000;
+            
+            // Display current referral reward
+            currentReferralRewardElement.textContent = currentTier?.referralReward || 1000;
+            
+            // Update referral code and link
+            if (!localStorage.getItem('referralCode')) {
+                const code = generateReferralCode();
+                localStorage.setItem('referralCode', code);
+            }
+            const userCode = localStorage.getItem('referralCode');
+            referralCodeElement.textContent = userCode;
+            referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
+            
+            // Update referral stats
+            currentRefCountElement.textContent = userData.referrals;
+            currentRefsElement.textContent = userData.referrals;
+            
+            // Tier progress
+            const nextTier = tiers[tiers.indexOf(currentTier) + 1];
+            if (nextTier) {
+                nextTierReqElement.textContent = nextTier.refsRequired;
+                const tierProgress = (userData.referrals / nextTier.refsRequired) * 100;
+                document.getElementById('tierProgressBar').style.width = `${Math.min(100, tierProgress)}%`;
+            }
+            
+            // Withdraw button
+            withdrawBtn.disabled = totalBalance < 1000 || !userData.walletAddress;
+            
+            // Update task buttons based on completion
+            updateTaskButtons();
+            
+            // Wallet address
+            if (userData.walletAddress) {
+                walletAddressInput.value = userData.walletAddress;
+            }
+            
+            // Ad counters
+            adCounterElement.textContent = `${userData.adCount}/∞`;
+            premiumAdCounterElement.textContent = `${userData.premiumAdCount}/1`;
+        }
+        
+        // Generate a referral code
+        function generateReferralCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
         }
         
         // Update task buttons based on completion
