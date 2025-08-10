@@ -458,7 +458,7 @@ bot.start(async (ctx) => {
   
   const welcomeMessage = `👋 Welcome to YzemanBot!\n\n` +
     `Earn rewards by completing tasks and inviting friends.\n\n` +
-    `Start earning now: ${process.env.WEBAPP_URL}`;
+    `Start earning now: Click Yzemanbot button`;
   
   ctx.reply(welcomeMessage);
 });
