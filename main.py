@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -17,10 +17,11 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# Configuration
-BOT_TOKEN = os.getenv("BOT_TOKEN", "6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0")
-ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID", "1828689837"))
-WEBHOOK_URL = "https://yourdomain.com/webhook"  # Replace with your domain
+# Configuration - Get from Render environment variables
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_CHAT_ID = int(os.getenv("ADMIN_CHAT_ID"))
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")  # Provided by Render
+WEBHOOK_URL = f"{RENDER_EXTERNAL_URL}/webhook"
 POINTS_PER_DOLLAR = 100000  # 100,000 points = $1
 MIN_WITHDRAWAL = 1000 * POINTS_PER_DOLLAR  # $1000 minimum withdrawal
 
@@ -76,6 +77,9 @@ def generate_referral_code(user_id: int) -> str:
     referral_codes[code] = user_id
     return code
 
+# Initialize bot application
+application = Application.builder().token(BOT_TOKEN).build()
+
 # Telegram Bot Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
@@ -101,7 +105,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             "referral_code": generate_referral_code(user_id),
             "completed_tasks": {},
             "used_bonus_codes": {},
-            "join_date": datetime.now().isoformat()
+            "join_date": datetime.now().isoformat(),
+            "multiplier": 1.0
         }
         
         # Process referral if exists
@@ -113,6 +118,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 referrer["points"] += reward
                 referrer["referrals"] += 1
                 referrer["tier"] = calculate_tier(referrer["referrals"])
+                referrer["multiplier"] = {
+                    "Fresher": 1.0,
+                    "Brute": 1.2,
+                    "Silver": 1.5,
+                    "Gold": 2.0,
+                    "Platinum": 3.0
+                }.get(referrer["tier"], 1.0)
                 
                 # Notify referrer
                 bot = context.bot
@@ -155,12 +167,12 @@ async def earn_points(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     user_data = users_db[user_id]
     
     # Create a deep link to the web app
-    web_app_url = f"https://yourdomain.com?startapp=yzeman_{user_id}"  # Replace with your domain
+    web_app_url = f"{RENDER_EXTERNAL_URL}?startapp=yzeman_{user_id}"
     
     text = (
         f"🎯 Earn Points Menu\n\n"
         f"💰 Your balance: {user_data['points']} points (${user_data['points'] / POINTS_PER_DOLLAR:.2f})\n"
-        f"📊 Your tier: {user_data['tier']} ({(user_data['points'] / POINTS_PER_DOLLAR * user_data['multiplier']):.1f}x multiplier)\n\n"
+        f"📊 Your tier: {user_data['tier']} ({user_data['multiplier']:.1f}x multiplier)\n\n"
         "Click the button below to open the earning dashboard:"
     )
     
@@ -187,7 +199,7 @@ async def refer_friends(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         f"👥 Refer Friends\n\n"
         f"Your current tier: {user_data['tier']}\n"
         f"Referrals: {user_data['referrals']}\n"
-        f"Points per referral: {get_referral_reward(user_data['tier']}\n\n"
+        f"Points per referral: {get_referral_reward(user_data['tier'])}\n\n"
         f"Share your referral link:\n"
         f"https://t.me/YzemanBot?start=ref-{user_data['referral_code']}\n\n"
         "When someone joins using your link, you'll earn points!"
@@ -318,8 +330,6 @@ async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @app.post("/webhook")
 async def telegram_webhook(update: dict):
     """Handle Telegram webhook updates"""
-    application = Application.builder().token(BOT_TOKEN).build()
-    
     # Register handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(earn_points, pattern="^earn$"))
@@ -351,13 +361,7 @@ async def get_user_data(user_id: int):
         "tier": user_data["tier"],
         "wallet_address": user_data.get("wallet_address"),
         "referral_code": user_data.get("referral_code", ""),
-        "multiplier": {
-            "Fresher": 1.0,
-            "Brute": 1.2,
-            "Silver": 1.5,
-            "Gold": 2.0,
-            "Platinum": 3.0
-        }.get(user_data["tier"], 1.0),
+        "multiplier": user_data.get("multiplier", 1.0),
         "completed_tasks": user_data.get("completed_tasks", {}),
         "used_bonus_codes": user_data.get("used_bonus_codes", {})
     }
@@ -384,6 +388,13 @@ async def update_user_data(user_id: int, data: dict):
     if "referrals" in data:
         users_db[user_id]["referrals"] = data["referrals"]
         users_db[user_id]["tier"] = calculate_tier(data["referrals"])
+        users_db[user_id]["multiplier"] = {
+            "Fresher": 1.0,
+            "Brute": 1.2,
+            "Silver": 1.5,
+            "Gold": 2.0,
+            "Platinum": 3.0
+        }.get(users_db[user_id]["tier"], 1.0)
     
     return {"status": "success"}
 
@@ -428,25 +439,24 @@ async def serve_index(request: Request):
     """Serve the index.html file"""
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Initialize bot
-async def setup_bot():
-    """Set up the Telegram bot with webhook"""
-    application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Register handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(earn_points, pattern="^earn$"))
-    application.add_handler(CallbackQueryHandler(refer_friends, pattern="^refer$"))
-    application.add_handler(CallbackQueryHandler(withdraw, pattern="^withdraw$"))
-    application.add_handler(CallbackQueryHandler(main_menu, pattern="^main_menu$"))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_wallet_address))
-    
-    # Set webhook
-    await application.bot.set_webhook(WEBHOOK_URL)
-    
-    return application
+@app.on_event("startup")
+async def on_startup():
+    """Set up the Telegram bot with webhook on startup"""
+    try:
+        await application.initialize()
+        await application.start()
+        await application.bot.set_webhook(WEBHOOK_URL)
+        logging.info(f"Webhook set to: {WEBHOOK_URL}")
+    except Exception as e:
+        logging.error(f"Failed to initialize bot: {e}")
 
-# Run the application
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Clean up on shutdown"""
+    await application.stop()
+    await application.shutdown()
+
+# For local development
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
