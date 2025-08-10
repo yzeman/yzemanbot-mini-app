@@ -1353,20 +1353,31 @@
             startResetTimer();
         }
         
-        // Load user data from localStorage
-        function loadUserData() {
-            const savedData = localStorage.getItem('yzemanUserData');
-            if (savedData) {
-                const parsed = JSON.parse(savedData);
-                // Convert timestamps to numbers
-                if (parsed.completedTasks) {
-                    for (const key in parsed.completedTasks) {
-                        parsed.completedTasks[key] = Number(parsed.completedTasks[key]);
-                    }
-                }
-                userData = parsed;
-            }
+        // Replace localStorage with API calls
+async function loadUserData() {
+    const response = await fetch('/api/user', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-InitData': window.Telegram.WebApp.initData
         }
+    });
+    return await response.json();
+}
+
+async function completeTask(taskType) {
+    const response = await fetch('/api/complete-task', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Telegram-InitData': window.Telegram.WebApp.initData
+        },
+        body: JSON.stringify({ type: taskType })
+    });
+    return await response.json();
+}
+
+// Similar functions for redeemBonus, withdraw, etc.
         
         // Save user data to localStorage
         function saveUserData() {
