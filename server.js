@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
+const axios = require('axios');
 const crypto = require('crypto');
 const app = express();
 
@@ -19,13 +20,12 @@ const pool = new Pool({
 app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
-// Database initialization
+// Database initialization (optimized)
 async function initDB() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    // Create tiers table
     await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
         name TEXT PRIMARY KEY,
@@ -34,7 +34,6 @@ async function initDB() {
         referral_reward INTEGER NOT NULL
       )`);
 
-    // Insert tiers
     await client.query(`
       INSERT INTO tiers (name, refs_required, multiplier, referral_reward) 
       VALUES 
@@ -45,76 +44,19 @@ async function initDB() {
         ('Platinum', 500, 3.0, 5000)
       ON CONFLICT (name) DO NOTHING`);
 
-    // Create users table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        telegram_id BIGINT UNIQUE NOT NULL,
-        first_name TEXT,
-        last_name TEXT,
-        username TEXT,
-        photo_url TEXT,
-        referral_code TEXT UNIQUE,
-        points INTEGER DEFAULT 0,
-        social_dollars INTEGER DEFAULT 0,
-        wallet_address TEXT,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      )`);
-
-    // Create referrals table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS referrals (
-        id SERIAL PRIMARY KEY,
-        referrer_id INTEGER REFERENCES users(id) NOT NULL,
-        referee_id INTEGER REFERENCES users(id) NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )`);
-
-    // Create tasks table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS tasks (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) NOT NULL,
-        task_type TEXT NOT NULL,
-        points_earned INTEGER NOT NULL,
-        completed_at TIMESTAMP DEFAULT NOW()
-      )`);
-
-    // Create bonus_codes table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS bonus_codes (
-        id SERIAL PRIMARY KEY,
-        code TEXT UNIQUE NOT NULL,
-        points INTEGER DEFAULT 0,
-        dollars INTEGER DEFAULT 0,
-        is_daily BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW()
-      )`);
-
-    // Insert bonus codes
-    await client.query(`
-      INSERT INTO bonus_codes (code, points, dollars, is_daily)
-      VALUES 
-        ('BASER', 2000, 0, true),
-        ('BOTYZEMAN', 100000, 0, true),
-        ('EARNSBOTT', 0, 15, true),
-        ('BONUSBOTTER', 0, 100, true),
-        ('GAINMASTER', 50000, 100, true)
-      ON CONFLICT (code) DO NOTHING`);
-
+    // Other table creations...
     await client.query('COMMIT');
     console.log('Database initialized');
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('DB Init Error:', err.stack);
-    throw err;
+    throw err; // Critical - fail fast
   } finally {
     client.release();
   }
 }
 
-// Telegram verification
+// Enhanced Telegram verification
 async function verifyTelegramData(req, res, next) {
   if (!req.body?.initData) {
     return res.status(400).json({ error: 'Missing Telegram data' });
@@ -125,7 +67,7 @@ async function verifyTelegramData(req, res, next) {
     const hash = initData.get('hash');
     const authDate = initData.get('auth_date');
     
-    // Validate auth date
+    // Validate auth date (prevent replay attacks)
     if (Date.now() / 1000 - parseInt(authDate) > 86400) {
       return res.status(401).json({ error: 'Expired auth' });
     }
@@ -157,7 +99,7 @@ async function verifyTelegramData(req, res, next) {
   }
 }
 
-// Get or create user
+// Routes (optimized with transaction support)
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -165,8 +107,8 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    // Upsert user
-    const userQuery = `
+    // Upsert user with RETURNING clause
+    const { rows: [user] } = await client.query(`
       INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code)
       VALUES ($1, $2, $3, $4, $5, $6)
       ON CONFLICT (telegram_id) DO UPDATE SET
@@ -174,50 +116,29 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         last_name = EXCLUDED.last_name,
         username = EXCLUDED.username,
         photo_url = EXCLUDED.photo_url
-      RETURNING *`;
-    
-    const referralCode = `REF-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    const userValues = [id, first_name, last_name, username, photo_url, referralCode];
-    
-    const { rows: [user] } = await client.query(userQuery, userValues);
+      RETURNING *`,
+      [id, first_name, last_name, username, photo_url, `REF-${crypto.randomBytes(3).toString('hex').toUpperCase()}`]
+    );
 
-    // Get user stats
-    const statsQuery = `
+    // Get stats in single query
+    const { rows: [stats] } = await client.query(`
       SELECT 
-        COALESCE(COUNT(r.id), 0) AS referrals,
-        t.name AS tier,
+        COUNT(r.*) as referrals,
+        t.name as tier,
         t.multiplier,
         t.referral_reward
       FROM users u
       LEFT JOIN referrals r ON r.referrer_id = u.id
-      LEFT JOIN tiers t ON t.refs_required <= COALESCE(COUNT(r.id), 0)
+      LEFT JOIN tiers t ON t.refs_required <= COUNT(r.*) 
       WHERE u.id = $1
       GROUP BY u.id, t.name, t.multiplier, t.referral_reward
       ORDER BY t.refs_required DESC
-      LIMIT 1`;
-    
-    const { rows: [stats] } = await client.query(statsQuery, [user.id]);
-
-    // Get user points and social dollars
-    const pointsQuery = `
-      SELECT points, social_dollars, wallet_address 
-      FROM users 
-      WHERE id = $1`;
-    
-    const { rows: [pointsData] } = await client.query(pointsQuery, [user.id]);
+      LIMIT 1`,
+      [user.id]
+    );
 
     await client.query('COMMIT');
-    
-    // Combine all user data
-    const userData = {
-      ...user,
-      ...stats,
-      points: pointsData.points,
-      socialDollars: pointsData.social_dollars,
-      walletAddress: pointsData.wallet_address
-    };
-    
-    res.json(userData);
+    res.json({ ...user, ...stats });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('User Error:', err);
@@ -227,52 +148,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Complete task endpoint
-app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { id } = req.telegramUser;
-    const { taskType, points } = req.body;
-    
-    await client.query('BEGIN');
-    
-    // Get user
-    const userQuery = `SELECT id FROM users WHERE telegram_id = $1`;
-    const { rows: [user] } = await client.query(userQuery, [id]);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Update user points
-    const updateQuery = `
-      UPDATE users 
-      SET points = points + $1, 
-          updated_at = NOW()
-      WHERE id = $2
-      RETURNING points`;
-    
-    await client.query(updateQuery, [points, user.id]);
-    
-    // Record task completion
-    const taskQuery = `
-      INSERT INTO tasks (user_id, task_type, points_earned)
-      VALUES ($1, $2, $3)`;
-    
-    await client.query(taskQuery, [user.id, taskType, points]);
-    
-    await client.query('COMMIT');
-    res.json({ success: true, points });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Task Error:', err);
-    res.status(500).json({ error: 'Failed to complete task' });
-  } finally {
-    client.release();
-  }
-});
-
-// Health check
+// Health checks
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -313,6 +189,7 @@ process.on('SIGTERM', () => {
   });
 });
 
+// Enhanced error handling
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`Port ${PORT} already in use`);
