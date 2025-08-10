@@ -373,5 +373,11 @@ ALTER TABLE users ADD COLUMN referral_code TEXT UNIQUE;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initDB();
+});
 
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+}).on('error', (err) => {
+  console.error('Port conflict:', err);
+  process.exit(1);
 });
