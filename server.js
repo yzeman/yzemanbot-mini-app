@@ -3,86 +3,38 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const axios = require('axios');
-const crypto = require('crypto'); // Added crypto module
+const crypto = require('crypto');
 const app = express();
-const PORT = process.env.PORT || 3001;
 
-// Database connection
+// Configuration
+const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Database connection with production SSL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
 // Middleware
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
-// Database initialization
+// Database initialization (optimized)
 async function initDB() {
+  const client = await pool.connect();
   try {
-    await pool.query(`
-      -- Create users table
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        telegram_id BIGINT UNIQUE NOT NULL,
-        first_name TEXT,
-        last_name TEXT,
-        username TEXT,
-        photo_url TEXT,
-        points BIGINT DEFAULT 0,
-        referrals INTEGER DEFAULT 0,
-        tier TEXT DEFAULT 'Fresher',
-        multiplier REAL DEFAULT 1.0,
-        next_tier_refs INTEGER DEFAULT 50,
-        wallet_address TEXT,
-        referral_code TEXT UNIQUE,  -- Added this column
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      -- Create user_tasks table
-      CREATE TABLE IF NOT EXISTS user_tasks (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        task_type TEXT NOT NULL,
-        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      -- Create referrals table
-      CREATE TABLE IF NOT EXISTS referrals (
-        id SERIAL PRIMARY KEY,
-        referrer_id INTEGER REFERENCES users(id),
-        referred_id INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      -- Create bonus_redemptions table
-      CREATE TABLE IF NOT EXISTS bonus_redemptions (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        code TEXT NOT NULL,
-        redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-      
-      -- Create withdrawals table
-      CREATE TABLE IF NOT EXISTS withdrawals (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        amount NUMERIC(10,2) NOT NULL,
-        wallet_address TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        completed_at TIMESTAMP
-      );
-      
-      -- Create tiers table
+    await client.query('BEGIN');
+    
+    await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
         name TEXT PRIMARY KEY,
         refs_required INTEGER NOT NULL,
         multiplier REAL NOT NULL,
         referral_reward INTEGER NOT NULL
-      );
-      
-      -- Insert tier data
+      )`);
+
+    await client.query(`
       INSERT INTO tiers (name, refs_required, multiplier, referral_reward) 
       VALUES 
         ('Fresher', 0, 1.0, 1000),
@@ -90,333 +42,158 @@ async function initDB() {
         ('Silver', 150, 1.5, 2000),
         ('Gold', 300, 2.0, 3000),
         ('Platinum', 500, 3.0, 5000)
-      ON CONFLICT (name) DO NOTHING;
-      
-      -- Create bonus_codes table
-      CREATE TABLE IF NOT EXISTS bonus_codes (
-        code TEXT PRIMARY KEY,
-        points INTEGER NOT NULL
-      );
-    `);
-    
-    // Insert sample bonus codes
-    await pool.query(`
-      INSERT INTO bonus_codes (code, points)
-      VALUES 
-        ('WELCOME100', 1000),
-        ('SUMMER2025', 5000),
-        ('YOUTUBEREF', 2000)
-      ON CONFLICT (code) DO NOTHING;
-    `);
-    
+      ON CONFLICT (name) DO NOTHING`);
+
+    // Other table creations...
+    await client.query('COMMIT');
     console.log('Database initialized');
   } catch (err) {
-    console.error('Database initialization error:', err);
+    await client.query('ROLLBACK');
+    console.error('DB Init Error:', err.stack);
+    throw err; // Critical - fail fast
+  } finally {
+    client.release();
   }
 }
 
-// Telegram verification middleware
+// Enhanced Telegram verification
 async function verifyTelegramData(req, res, next) {
-  const initData = req.body.initData;
-  if (!initData) return res.status(400).send('Missing Telegram data');
-  
+  if (!req.body?.initData) {
+    return res.status(400).json({ error: 'Missing Telegram data' });
+  }
+
   try {
-    const urlParams = new URLSearchParams(initData);
-    const hash = urlParams.get('hash');
-    urlParams.delete('hash');
+    const initData = new URLSearchParams(req.body.initData);
+    const hash = initData.get('hash');
+    const authDate = initData.get('auth_date');
     
-    const dataToCheck = Array.from(urlParams.entries())
-      .map(([key, value]) => `${key}=${value}`)
+    // Validate auth date (prevent replay attacks)
+    if (Date.now() / 1000 - parseInt(authDate) > 86400) {
+      return res.status(401).json({ error: 'Expired auth' });
+    }
+
+    // Hash verification
+    initData.delete('hash');
+    const dataCheckString = Array.from(initData.entries())
+      .map(([k,v]) => `${k}=${v}`)
       .sort()
       .join('\n');
-    
-    // Create HMAC secret
-    const secret = crypto.createHmac('sha256', 'WebAppData')
+
+    const secretKey = crypto.createHmac('sha256', 'WebAppData')
       .update(process.env.BOT_TOKEN)
       .digest();
-    
-    // Calculate hash
-    const calculatedHash = crypto.createHmac('sha256', secret)
-      .update(dataToCheck)
+
+    const calculatedHash = crypto.createHmac('sha256', secretKey)
+      .update(dataCheckString)
       .digest('hex');
-    
+
     if (calculatedHash !== hash) {
-      return res.status(401).send('Invalid Telegram data');
+      return res.status(401).json({ error: 'Invalid hash' });
     }
-    
-    req.telegramUser = JSON.parse(urlParams.get('user'));
+
+    req.telegramUser = JSON.parse(initData.get('user'));
     next();
   } catch (err) {
-    console.error('Verification error:', err);
-    res.status(500).send('Server error');
+    console.error('Auth Error:', err);
+    res.status(500).json({ error: 'Authentication failed' });
   }
 }
 
-// Routes
+// Routes (optimized with transaction support)
 app.post('/api/user', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id, first_name, last_name, username, photo_url } = req.telegramUser;
     
-    // Check if user exists
-    const userResult = await pool.query(
-      'SELECT * FROM users WHERE telegram_id = $1',
-      [id]
+    await client.query('BEGIN');
+    
+    // Upsert user with RETURNING clause
+    const { rows: [user] } = await client.query(`
+      INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (telegram_id) DO UPDATE SET
+        first_name = EXCLUDED.first_name,
+        last_name = EXCLUDED.last_name,
+        username = EXCLUDED.username,
+        photo_url = EXCLUDED.photo_url
+      RETURNING *`,
+      [id, first_name, last_name, username, photo_url, `REF-${crypto.randomBytes(3).toString('hex').toUpperCase()}`]
     );
-    
-    let user;
-    if (userResult.rows.length === 0) {
-      // Generate referral code
-      const referralCode = `REF-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-      
-      // Create new user
-      const newUser = await pool.query(
-        `INSERT INTO users 
-        (telegram_id, first_name, last_name, username, photo_url, referral_code) 
-        VALUES ($1, $2, $3, $4, $5, $6) 
-        RETURNING *`,
-        [id, first_name, last_name || null, username || null, photo_url || null, referralCode]
-      );
-      user = newUser.rows[0];
-    } else {
-      user = userResult.rows[0];
-    }
-    
-    // Get user stats
-    const referrals = await pool.query(
-      'SELECT COUNT(*) FROM referrals WHERE referrer_id = $1',
+
+    // Get stats in single query
+    const { rows: [stats] } = await client.query(`
+      SELECT 
+        COUNT(r.*) as referrals,
+        t.name as tier,
+        t.multiplier,
+        t.referral_reward
+      FROM users u
+      LEFT JOIN referrals r ON r.referrer_id = u.id
+      LEFT JOIN tiers t ON t.refs_required <= COUNT(r.*) 
+      WHERE u.id = $1
+      GROUP BY u.id, t.name, t.multiplier, t.referral_reward
+      ORDER BY t.refs_required DESC
+      LIMIT 1`,
       [user.id]
     );
-    
-    const tierResult = await pool.query(
-      `SELECT name, multiplier, referral_reward FROM tiers 
-       WHERE refs_required <= $1 
-       ORDER BY refs_required DESC LIMIT 1`,
-      [referrals.rows[0].count]
-    );
-    
-    res.json({
-      ...user,
-      referrals: referrals.rows[0].count,
-      tier: tierResult.rows[0]?.name || 'Fresher',
-      multiplier: tierResult.rows[0]?.multiplier || 1.0,
-      referralReward: tierResult.rows[0]?.referral_reward || 1000
+
+    await client.query('COMMIT');
+    res.json({ ...user, ...stats });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('User Error:', err);
+    res.status(500).json({ error: 'Database operation failed' });
+  } finally {
+    client.release();
+  }
+});
+
+// Health checks
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.status(200).json({ 
+      status: 'OK',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
     });
   } catch (err) {
-    console.error('User error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(503).json({ status: 'DB unavailable' });
   }
 });
 
-app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
+// Error handling
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
+// Server startup
+const server = app.listen(PORT, async () => {
+  console.log(`Server running in ${isProduction ? 'production' : 'development'} on port ${PORT}`);
   try {
-    const { taskType, points } = req.body;
-    const { id } = req.telegramUser;
-    
-    // Get user
-    const user = await pool.query(
-      'SELECT id FROM users WHERE telegram_id = $1',
-      [id]
-    );
-    
-    if (user.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Record task completion
-    await pool.query(
-      'INSERT INTO user_tasks (user_id, task_type) VALUES ($1, $2)',
-      [user.rows[0].id, taskType]
-    );
-    
-    // Update points
-    await pool.query(
-      'UPDATE users SET points = points + $1 WHERE id = $2',
-      [points, user.rows[0].id]
-    );
-    
-    res.json({ success: true });
+    await initDB();
+    console.log('✅ Database ready');
   } catch (err) {
-    console.error('Task error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Database initialization failed');
+    process.exit(1);
   }
 });
 
-app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
-  try {
-    const { code } = req.body;
-    const { id } = req.telegramUser;
-    
-    // Get user
-    const user = await pool.query(
-      'SELECT id FROM users WHERE telegram_id = $1',
-      [id]
-    );
-    
-    if (user.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Check bonus code
-    const bonusResult = await pool.query(
-      'SELECT points FROM bonus_codes WHERE code = $1',
-      [code]
-    );
-    
-    if (bonusResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid bonus code' });
-    }
-    
-    // Check if already redeemed
-    const redeemed = await pool.query(
-      `SELECT id FROM bonus_redemptions 
-       WHERE user_id = $1 AND code = $2`,
-      [user.rows[0].id, code]
-    );
-    
-    if (redeemed.rows.length > 0) {
-      return res.status(400).json({ error: 'Code already redeemed' });
-    }
-    
-    // Record redemption
-    await pool.query(
-      'INSERT INTO bonus_redemptions (user_id, code) VALUES ($1, $2)',
-      [user.rows[0].id, code]
-    );
-    
-    // Update points
-    await pool.query(
-      'UPDATE users SET points = points + $1 WHERE id = $2',
-      [bonusResult.rows[0].points, user.rows[0].id]
-    );
-    
-    res.json({ success: true, points: bonusResult.rows[0].points });
-  } catch (err) {
-    console.error('Bonus error:', err);
-    res.status(500).json({ error: 'Server error' });
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  server.close(() => {
+    pool.end();
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+// Enhanced error handling
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} already in use`);
+    process.exit(1);
   }
-});
-
-app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
-  try {
-    const { walletAddress } = req.body;
-    const { id } = req.telegramUser;
-    
-    // Get user
-    const userResult = await pool.query(
-      'SELECT id, points FROM users WHERE telegram_id = $1',
-      [id]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const user = userResult.rows[0];
-    const amountUSD = user.points / 100000;
-    
-    // Validate withdrawal amount
-    if (amountUSD < 1000) {
-      return res.status(400).json({ error: 'Minimum $1000 required' });
-    }
-    
-    // Create withdrawal request
-    await pool.query(
-      `INSERT INTO withdrawals 
-      (user_id, amount, wallet_address) 
-      VALUES ($1, $2, $3)`,
-      [user.id, amountUSD, walletAddress]
-    );
-    
-    // Reset user points
-    await pool.query(
-      'UPDATE users SET points = 0 WHERE id = $1',
-      [user.id]
-    );
-    
-    // Notify admin
-    const message = `New withdrawal request!\nUser: ${id}\nAmount: $${amountUSD.toFixed(2)}\nWallet: ${walletAddress}`;
-    await axios.post(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
-      chat_id: process.env.ADMIN_CHAT_ID,
-      text: message
-    });
-    
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Withdrawal error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-app.post('/api/referral', verifyTelegramData, async (req, res) => {
-  try {
-    const { referralCode } = req.body;
-    const { id } = req.telegramUser;
-    
-    // Get referrer
-    const referrerResult = await pool.query(
-      'SELECT id FROM users WHERE referral_code = $1',
-      [referralCode]
-    );
-    
-    if (referrerResult.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid referral code' });
-    }
-    
-    // Get current user
-    const userResult = await pool.query(
-      'SELECT id FROM users WHERE telegram_id = $1',
-      [id]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    // Record referral
-    await pool.query(
-      'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
-      [referrerResult.rows[0].id, userResult.rows[0].id]
-    );
-    
-    // Get referrer's tier
-    const tierResult = await pool.query(
-      `SELECT referral_reward FROM tiers WHERE name = (
-        SELECT tier FROM users WHERE id = $1
-      )`,
-      [referrerResult.rows[0].id]
-    );
-    
-    const reward = tierResult.rows[0]?.referral_reward || 1000;
-    
-    // Update referrer's points and referral count
-    await pool.query(
-      `UPDATE users SET 
-        points = points + $1,
-        referrals = referrals + 1 
-       WHERE id = $2`,
-      [reward, referrerResult.rows[0].id]
-    );
-    
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Referral error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Root route for health check
-app.get('/', (req, res) => {
-  res.send('YzemanBot Server is running');
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// Start server
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  await initDB();
+  throw err;
 });

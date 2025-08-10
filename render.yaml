@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: yzemanbot-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
