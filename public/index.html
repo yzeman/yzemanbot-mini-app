@@ -852,6 +852,54 @@
             margin: 15px 0;
             word-break: break-all;
         }
+        /* Add pointer events fix */
+        button, .tab, .task-action, .channel-join, .copy-btn, .withdraw-btn, .submit-btn, .bonus-btn, .premium-ad-action, .ad-action {
+            cursor: pointer;
+            pointer-events: auto !important;
+        }
+
+        /* Disabled state */
+        button:disabled, .task-action:disabled {
+            pointer-events: none;
+        }
+        
+        /* Fix for iframe blocking */
+        .iframe-container {
+            z-index: 10000;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .ad-loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -1225,7 +1273,7 @@
 
     <script>
         // Initialize Telegram Web App
-        const tg = window.Telegram.WebApp;
+        const tg = window.Telegram?.WebApp;
         
         // DOM Elements
         const pointsElement = document.getElementById('points');
@@ -1324,57 +1372,84 @@
 
         // Initialize app
         function initApp() {
-            tg.expand();
-            tg.enableClosingConfirmation();
-            
-            // Set up user profile
-            const user = tg.initDataUnsafe.user;
-            if (user) {
-                userNameElement.textContent = `${user.first_name} ${user.last_name || ''}`.trim();
-                userIdElement.textContent = `ID: ${user.id}`;
+            if (tg) {
+                tg.expand();
+                tg.enableClosingConfirmation();
                 
-                if (user.photo_url) {
-                    userAvatarElement.src = user.photo_url;
-                } else {
-                    userAvatarElement.src = 'https://via.placeholder.com/50';
+                // Set up user profile
+                const user = tg.initDataUnsafe.user;
+                if (user) {
+                    userNameElement.textContent = `${user.first_name} ${user.last_name || ''}`.trim();
+                    userIdElement.textContent = `ID: ${user.id}`;
+                    
+                    if (user.photo_url) {
+                        userAvatarElement.src = user.photo_url;
+                    } else {
+                        userAvatarElement.src = 'https://via.placeholder.com/50';
+                    }
                 }
+                
+                // Load user data from backend
+                fetchUserData();
+            } else {
+                // Fallback for non-Telegram environment
+                userNameElement.textContent = 'Test User';
+                userIdElement.textContent = 'ID: 12345';
+                userAvatarElement.src = 'https://via.placeholder.com/50';
+                loadLocalData();
             }
-            
-            // Load user data
-            loadUserData();
             
             // Setup event listeners
             setupEventListeners();
-            
-            // Update UI
-            updateUI();
             
             // Start daily reset timer
             startResetTimer();
         }
         
-        // Example: Get user data
-async function getUserData() {
-  const response = await fetch('/api/user', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
-  });
-  return await response.json();
-}
-
-// Example: Complete a task
-async function completeTask(taskType, points) {
-  await fetch('/api/complete-task', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      initData: window.Telegram.WebApp.initData,
-      taskType,
-      points
-    })
-  });
-}
+        // Fetch user data from backend
+        async function fetchUserData() {
+            try {
+                const response = await fetch('/api/user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        initData: tg.initData
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user data');
+                }
+                
+                const data = await response.json();
+                Object.assign(userData, data);
+                updateUI();
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                loadLocalData();
+            }
+        }
+        
+        // Load user data from localStorage
+        function loadLocalData() {
+            const savedData = localStorage.getItem('yzemanUserData');
+            if (savedData) {
+                try {
+                    const parsedData = JSON.parse(savedData);
+                    Object.assign(userData, parsedData);
+                    
+                    // Convert dailyReset to number
+                    if (typeof userData.dailyReset === 'string') {
+                        userData.dailyReset = parseInt(userData.dailyReset);
+                    }
+                } catch (e) {
+                    console.error('Error loading user data:', e);
+                }
+            }
+            updateUI();
+        }
         
         // Save user data to localStorage
         function saveUserData() {
@@ -1411,8 +1486,10 @@ async function completeTask(taskType, points) {
                 const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((diff % (1000 * 60)) / 1000);
                 
-                resetTimerElement.textContent = 
-                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                if (resetTimerElement) {
+                    resetTimerElement.textContent = 
+                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
             };
             
             updateTimer();
@@ -1456,7 +1533,7 @@ async function completeTask(taskType, points) {
             
             // Refer button - simplified to just switch to refer tab
             document.getElementById('referBtn').addEventListener('click', () => {
-                document.querySelector('.tab').classList.remove('active');
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab')[1].classList.add('active');
                 document.getElementById('earnTab').classList.remove('active');
                 document.getElementById('referTab').classList.add('active');
@@ -1576,6 +1653,9 @@ async function completeTask(taskType, points) {
                     saveUserData();
                     updateUI();
                     showNotification(`+${actualReward.toLocaleString()} points earned!`);
+                    
+                    // Update backend
+                    completeTask('adWatch', actualReward);
                 }).catch((error) => {
                     showNotification('Ad not completed or failed to load', 'error');
                 }).finally(() => {
@@ -1609,6 +1689,9 @@ async function completeTask(taskType, points) {
                     saveUserData();
                     updateUI();
                     showNotification(`Premium ad completed! +${reward.toLocaleString()} points`);
+                    
+                    // Update backend
+                    completeTask('premiumAd', reward);
                 }).catch((error) => {
                     showNotification('Premium ad not completed or failed to load', 'error');
                 }).finally(() => {
@@ -1667,6 +1750,9 @@ async function completeTask(taskType, points) {
                     saveUserData();
                     updateUI();
                     showNotification(`Website task completed! +${reward.toLocaleString()} points`);
+                    
+                    // Update backend
+                    completeTask('website', reward);
                 }
             }, 1000);
         }
@@ -1711,6 +1797,9 @@ async function completeTask(taskType, points) {
                     saveUserData();
                     updateUI();
                     showNotification(`YouTube task completed! +${reward.toLocaleString()} points`);
+                    
+                    // Update backend
+                    completeTask('youtubeWatch', reward);
                 }
             }, 1000);
         }
@@ -1770,11 +1859,13 @@ async function completeTask(taskType, points) {
                 updateUI();
                 
                 // Show admin contact message
-                tg.showPopup({
-                    title: 'Withdrawal Requested',
-                    message: 'Admin will contact you via Telegram to complete your withdrawal.',
-                    buttons: [{ type: 'ok' }]
-                });
+                if (tg) {
+                    tg.showPopup({
+                        title: 'Withdrawal Requested',
+                        message: 'Admin will contact you via Telegram to complete your withdrawal.',
+                        buttons: [{ type: 'ok' }]
+                    });
+                }
                 
                 showNotification('Withdrawal requested! Admin will contact you soon.');
             } else {
@@ -1827,7 +1918,7 @@ async function completeTask(taskType, points) {
                 const code = generateReferralCode();
                 localStorage.setItem('referralCode', code);
             }
-            const userCode = localStorage.getItem('referralCode');
+            const userCode = localStorage.getItem('referralCode') || 'REF123';
             referralCodeElement.textContent = userCode;
             referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
             
@@ -1900,9 +1991,37 @@ async function completeTask(taskType, points) {
             }, 3000);
         }
         
+        // Complete task on backend
+        async function completeTask(taskType, points) {
+            try {
+                const response = await fetch('/api/complete-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        initData: tg?.initData,
+                        taskType,
+                        points
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error('Failed to update task on backend');
+                }
+            } catch (error) {
+                console.error('Error completing task:', error);
+            }
+        }
+        
         // Initialize app when ready
-        tg.ready();
-        initApp();
+        if (tg) {
+            tg.ready();
+            initApp();
+        } else {
+            // Fallback for non-Telegram environment
+            document.addEventListener('DOMContentLoaded', initApp);
+        }
     </script>
 </body>
 </html>
