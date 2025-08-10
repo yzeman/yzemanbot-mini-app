@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: yzemanbot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120
+    envVars:
+      - key: BOT_TOKEN
+        value: 6235048166:AAE7jQItOA3n5tqn_971ih6RQ8qvPY4V7X0
+      - key: ADMIN_CHAT_ID
+        value: 1828689837
+      - key: PORT
+        value: 10000
