@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const axios = require('axios');
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Database connection
 const pool = new Pool({
@@ -373,4 +373,5 @@ ALTER TABLE users ADD COLUMN referral_code TEXT UNIQUE;
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   await initDB();
+
 });
