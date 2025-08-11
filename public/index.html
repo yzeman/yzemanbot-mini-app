@@ -900,6 +900,58 @@
             font-size: 18px;
             text-align: center;
         }
+        /* Add new styles for withdrawal history */
+        .withdrawal-history {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-top: 25px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .history-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+            color: var(--light);
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .history-amount {
+            font-weight: 600;
+            color: var(--success);
+        }
+
+        .history-date {
+            color: var(--gray);
+            font-size: 14px;
+        }
+
+        .history-status {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .status-completed {
+            background: var(--success);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -1239,37 +1291,45 @@
         </div>
 
         <!-- Withdraw Tab -->
-        <div class="tab-content" id="withdrawTab">
-            <div class="progress-container">
-                <div class="progress-header">
-                    <div class="progress-title">Withdrawal Progress</div>
-                    <div class="progress-amount">$<span id="withdrawProgress">0.00</span>/$1000</div>
-                </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="withdrawBar" style="width: 0%"></div>
-                </div>
-                <div class="progress-goal">Reach $1000 to withdraw your earnings</div>
+    <div class="tab-content" id="withdrawTab">
+        <div class="progress-container">
+            <div class="progress-header">
+                <div class="progress-title">Withdrawal Progress</div>
+                <div class="progress-amount">$<span id="withdrawProgress">0.00</span>/$1000</div>
             </div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="withdrawBar" style="width: 0%"></div>
+            </div>
+            <div class="progress-goal">Reach $1000 to withdraw your earnings</div>
+        </div>
 
-            <div class="withdraw-container">
-                <div class="withdraw-info">
-                    <p>Minimum withdrawal: $1000 (100,000,000 points)</p>
-                    <p>Withdrawals are processed via USDT (TRC-20)</p>
-                    <p>Admin will contact you after withdrawal request</p>
-                </div>
-                
-                <input type="text" class="wallet-input" id="walletAddress" placeholder="Enter USDT (TRC-20) Wallet Address">
-                <button class="submit-btn" id="submitWalletBtn">Submit Wallet Address</button>
-                
-                <button class="withdraw-btn" id="withdrawBtn" disabled>Withdraw $1000</button>
+        <div class="withdraw-container">
+            <div class="withdraw-info">
+                <p>Minimum withdrawal: $1000 (100,000,000 points)</p>
+                <p>Withdrawals are processed via USDT (TRC-20)</p>
+                <p>Admin will contact you after withdrawal request</p>
             </div>
             
-            <div class="admin-message">
-                <div class="admin-title">After Withdrawal</div>
-                <div class="admin-info">Admin will contact you via Telegram to complete the withdrawal process</div>
-                <div class="admin-contact">@yzemanreal</div>
+            <input type="text" class="wallet-input" id="walletAddress" placeholder="Enter USDT (TRC-20) Wallet Address">
+            <button class="submit-btn" id="submitWalletBtn">Submit Wallet Address</button>
+            
+            <button class="withdraw-btn" id="withdrawBtn" disabled>Withdraw $1000</button>
+        </div>
+        
+        <div class="admin-message">
+            <div class="admin-title">After Withdrawal</div>
+            <div class="admin-info">Admin will contact you via Telegram to complete the withdrawal process</div>
+            <div class="admin-contact">@yzemanreal</div>
+        </div>
+        
+        <!-- Add withdrawal history section -->
+        <div class="withdrawal-history">
+            <div class="history-title">Withdrawal History</div>
+            <div id="withdrawalHistoryList">
+                <!-- History items will be added here dynamically -->
             </div>
         </div>
+    </div>
 
     <script>
     // Initialize Telegram Web App
@@ -1342,6 +1402,7 @@
         premiumAdCount: 0,
         dailyReset: new Date().setHours(24, 0, 0, 0),
         usedBonusCodes: {}
+        withdrawals: [] // array of { amount: 1000, date: Date, status: 'pending'/'completed' }
     };
     
     // Tier system with higher requirements
@@ -1375,6 +1436,8 @@
         if (tg) {
             tg.expand();
             tg.enableClosingConfirmation();
+            // Load user data from backend OR localStorage
+        loadLocalData();          
             
             // Set up user profile
             const user = tg.initDataUnsafe.user;
@@ -1449,22 +1512,83 @@
     }
     
     // Load user data from localStorage
-    function loadLocalData() {
+function loadLocalData() {
         const savedData = localStorage.getItem('yzemanUserData');
         if (savedData) {
             try {
                 const parsedData = JSON.parse(savedData);
-                Object.assign(userData, parsedData);
                 
-                // Convert dailyReset to number
-                if (typeof userData.dailyReset === 'string') {
-                    userData.dailyReset = parseInt(userData.dailyReset);
+                // Convert numeric fields to numbers
+                const numericFields = [
+                    'points', 'referrals', 'socialDollars', 
+                    'adCount', 'premiumAdCount', 'dailyReset',
+                    'multiplier', 'nextTierRefs'
+                ];
+                
+                numericFields.forEach(field => {
+                    if (parsedData[field] !== undefined) {
+                        parsedData[field] = Number(parsedData[field]);
+                    }
+                });
+                
+                // Convert completedTasks timestamps to numbers
+                if (parsedData.completedTasks) {
+                    for (const task in parsedData.completedTasks) {
+                        parsedData.completedTasks[task] = Number(parsedData.completedTasks[task]);
+                    }
                 }
+                
+                // Convert withdrawal dates to Date objects
+                if (parsedData.withdrawals) {
+                    parsedData.withdrawals = parsedData.withdrawals.map(wd => ({
+                        ...wd,
+                        date: new Date(wd.date)
+                    }));
+                }
+                
+                Object.assign(userData, parsedData);
             } catch (e) {
                 console.error('Error loading user data:', e);
+                // If parsing fails, reset to defaults but keep wallet address
+                const wallet = userData.walletAddress;
+                userData = {
+                    // ... default values ...
+                    walletAddress: wallet
+                };
             }
         }
         updateUI();
+    }
+    // Start withdrawal process
+    function startWithdrawal() {
+        if (userData.walletAddress) {
+            // Record the withdrawal
+            userData.withdrawals.push({
+                amount: 1000,
+                date: new Date(),
+                status: 'pending'
+            });
+            
+            // Reset points and social dollars
+            userData.points = 0;
+            userData.socialDollars = 0;
+            
+            saveUserData();
+            updateUI();
+            
+            // Show admin contact message
+            if (tg) {
+                tg.showPopup({
+                    title: 'Withdrawal Requested',
+                    message: 'Admin will contact you via Telegram to complete your withdrawal.',
+                    buttons: [{ type: 'ok' }]
+                });
+            }
+            
+            showNotification('Withdrawal requested! Admin will contact you soon.');
+        } else {
+            showNotification('Please enter your USDT wallet address first', 'error');
+        }
     }
     
     // Save user data to localStorage
@@ -1654,10 +1778,12 @@
     }
     
     // Start watching an ad using SDK
-    function startAdWatch() {
-        const currentTier = tiers.find(t => t.name === userData.tier);
-        const reward = currentTier?.adReward || 70;
-        const actualReward = Math.floor(reward * userData.multiplier);
+function startAdWatch() {
+    const currentTier = tiers.find(t => t.name === userData.tier);
+    const reward = currentTier?.adReward || 70;
+    
+    // Convert points to number before addition
+    const actualReward = Math.floor(Number(reward) * Number(userData.multiplier));
         
         // Show loading indicator
         adStatus.textContent = "Loading ad...";
@@ -1689,6 +1815,8 @@
         if (userData.premiumAdCount >= 1) {
             showNotification('You can only complete one premium ad per day!');
             return;
+            // Convert points to number before addition
+    const reward = 1000 * Number(userData.multiplier);
         }
         
         // Show loading indicator
@@ -1735,6 +1863,8 @@
         if (!canDoTaskToday('website')) {
             showNotification('You have already completed this task today!');
             return;
+            // Convert points to number before addition
+    const reward = 500 * Number(userData.multiplier);
         }
         
         // Show iframe with website
@@ -1773,6 +1903,8 @@
         if (!canDoTaskToday('youtubeWatch')) {
             showNotification('You have already completed this task today!');
             return;
+            // Convert points to number before addition
+    const reward = 2000 * Number(userData.multiplier);
         }
         
         // Show iframe with YouTube video
@@ -1952,6 +2084,31 @@
         // Ad counters
         adCounterElement.textContent = `${userData.adCount}/∞`;
         premiumAdCounterElement.textContent = `${userData.premiumAdCount}/1`;
+    }
+    // Update withdrawal history
+        renderWithdrawalHistory();
+    }
+
+    // Render withdrawal history list
+    function renderWithdrawalHistory() {
+        const container = document.getElementById('withdrawalHistoryList');
+        if (!container) return;
+        
+        if (userData.withdrawals.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--gray); padding: 20px;">No withdrawal history</div>';
+            return;
+        }
+        
+        // Sort withdrawals by date (newest first)
+        const sortedWithdrawals = [...userData.withdrawals].sort((a, b) => b.date - a.date);
+        
+        container.innerHTML = sortedWithdrawals.map(wd => `
+            <div class="history-item">
+                <div class="history-amount">$${wd.amount.toFixed(2)}</div>
+                <div class="history-date">${wd.date.toLocaleDateString()}</div>
+                <div class="history-status status-${wd.status}">${wd.status}</div>
+            </div>
+        `).join('');
     }
     
     // Generate a referral code
