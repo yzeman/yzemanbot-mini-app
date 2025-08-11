@@ -124,6 +124,14 @@ async function verifyTelegramData(req, res, next) {
 
 // Routes
 app.post('/api/user', verifyTelegramData, async (req, res) => {
+	// Convert numeric fields to numbers
+const responseData = { ...user, ...stats };
+responseData.points = Number(responseData.points);
+responseData.referrals = Number(responseData.referrals);
+responseData.multiplier = Number(responseData.multiplier);
+responseData.referral_reward = Number(responseData.referral_reward);
+
+res.json(responseData);
   const client = await pool.connect();
   try {
     const { id, first_name, last_name, username, photo_url } = req.telegramUser;
