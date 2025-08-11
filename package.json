@@ -4,13 +4,16 @@
   "description": "YzemanBot Mini App and Telegram Bot",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "bot": "node bot.js",
+    "start": "PGPORT=5433 node server.js",
+    "bot": "PGPORT=5433 node bot.js",
     "dev": "concurrently \"nodemon server.js\" \"nodemon bot.js\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "postinstall": "npm audit --production",
-    "db:start": "pg_ctl start -D $PREFIX/var/lib/postgresql",
-    "db:stop": "pg_ctl stop -D $PREFIX/var/lib/postgresql"
+    "db:init": "rm -rf $PREFIX/var/lib/postgresql/* && initdb -D $PREFIX/var/lib/postgresql --auth=trust && echo \"unix_socket_directories = '/tmp'\" >> $PREFIX/var/lib/postgresql/postgresql.conf && echo \"port = 5433\" >> $PREFIX/var/lib/postgresql/postgresql.conf",
+    "db:start": "pg_ctl -D $PREFIX/var/lib/postgresql -o \"-p 5433\" start",
+    "db:stop": "pg_ctl -D $PREFIX/var/lib/postgresql stop",
+    "db:create": "PGPORT=5433 createdb yzenanbot",
+    "db:reset": "npm run db:stop && npm run db:init && npm run db:start && npm run db:create"
   },
   "dependencies": {
     "axios": "1.7.2",
