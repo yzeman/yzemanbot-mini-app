@@ -1387,7 +1387,49 @@
                     } else {
                         userAvatarElement.src = 'https://via.placeholder.com/50';
                     }
-                }
+                function initApp() {
+  // ... existing code ...
+  
+  // Handle referral parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const refCode = urlParams.get('ref');
+  if (refCode) {
+    processReferral(refCode);
+  }
+}
+
+async function processReferral(code) {
+  try {
+    const response = await fetch('/api/referral', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        initData: window.Telegram.WebApp.initData,
+        referralCode: code
+      })
+    });
+    const result = await response.json();
+    if (result.success) {
+      showNotification('Referral applied successfully!');
+    }
+  } catch (err) {
+    console.error('Referral error:', err);
+  }
+}
+
+// Handle referral links
+function handleReferral() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const ref = urlParams.get('ref');
+  
+  if (ref) {
+    localStorage.setItem('referralCode', ref);
+    showNotification('Referral code applied!');
+  }
+}
+
+// Call in initApp()
+handleReferral();
                 
                 // Load user data from backend
                 fetchUserData();
