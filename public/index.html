@@ -1475,15 +1475,41 @@ function initApp() {
     startResetTimer();
 }
 
-// Handle referral parameter from URL
 function handleReferral() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
+    let refCode = '';
+    
+    // Check Telegram WebApp start parameter
+    if (window.Telegram && Telegram.WebApp) {
+        const startParam = Telegram.WebApp.startParam;
+        if (startParam && startParam.startsWith('ref-')) {
+            refCode = startParam.split('ref-')[1];
+        }
+    }
+    
+    // Check URL parameters
+    if (!refCode) {
+        const urlParams = new URLSearchParams(window.location.search);
+        refCode = urlParams.get('ref');
+    }
     
     if (refCode) {
         localStorage.setItem('referralCode', refCode);
         showNotification('Referral code applied!');
+        
+        // Create new user code if needed
+        if (!localStorage.getItem('userReferralCode')) {
+            localStorage.setItem('userReferralCode', generateReferralCode());
+        }
     }
+}
+  
+ function generateUserReferralCode() {
+    let userCode = localStorage.getItem('userReferralCode');
+    if (!userCode) {
+        userCode = generateReferralCode();
+        localStorage.setItem('userReferralCode', userCode);
+    }
+    return userCode;
 }
 
 // Load user data from localStorage
@@ -2020,10 +2046,10 @@ function updateUI() {
     // Display current referral reward
     currentReferralRewardElement.textContent = currentTier?.referralReward || 1000;
     
-    // Update referral code and link
-    const userCode = localStorage.getItem('referralCode') || generateReferralCode();
-    referralCodeElement.textContent = userCode;
-    referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
+    // Inside updateUI function:
+const userCode = generateUserReferralCode();
+referralCodeElement.textContent = userCode;
+referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
     
     // Update referral stats
     currentRefCountElement.textContent = userData.referrals;
@@ -2125,6 +2151,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tg.ready();
     }
     initApp();
+    // Inside initApp function:
+// Migrate old referral code
+if (localStorage.getItem('referralCode') && !localStorage.getItem('userReferralCode')) {
+    localStorage.setItem('userReferralCode', localStorage.getItem('referralCode'));
+}
 });
 </script>
 </body>
