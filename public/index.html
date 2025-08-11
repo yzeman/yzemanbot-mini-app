@@ -1332,7 +1332,7 @@
     </div>
 
     <script>
-    // Initialize Telegram Web App
+// Initialize Telegram Web App
 const tg = window.Telegram?.WebApp;
 
 // DOM Elements
@@ -1376,11 +1376,13 @@ const bonusCodeInput = document.getElementById('bonusCodeInput');
 
 // User data
 let userData = {
+    id: '', // Will be set based on Telegram user or generated
     points: 0,
     referrals: 0,
     tier: "Fresher",
     multiplier: 1,
     nextTierRefs: 50,
+    referralCode: '',
     completedSocial: {
         youtube1: false,
         youtube2: false,
@@ -1402,7 +1404,7 @@ let userData = {
     premiumAdCount: 0,
     dailyReset: new Date().setHours(24, 0, 0, 0),
     usedBonusCodes: {},
-    withdrawals: [] // array of { amount: 1000, date: Date, status: 'pending'/'completed' }
+    withdrawals: []
 };
 
 // Tier system with higher requirements
@@ -1433,6 +1435,11 @@ const bonusCodes = {
 
 // Initialize app
 function initApp() {
+    // Migrate old referral code
+    if (localStorage.getItem('referralCode') && !localStorage.getItem('userReferralCode')) {
+        localStorage.setItem('userReferralCode', localStorage.getItem('referralCode'));
+    }
+    
     if (tg) {
         tg.expand();
         tg.enableClosingConfirmation();
@@ -1440,6 +1447,7 @@ function initApp() {
         // Set up user profile
         const user = tg.initDataUnsafe.user;
         if (user) {
+            userData.id = user.id.toString();
             userNameElement.textContent = `${user.first_name} ${user.last_name || ''}`.trim();
             userIdElement.textContent = `ID: ${user.id}`;
             
@@ -1450,23 +1458,24 @@ function initApp() {
             }
         } else {
             // Fallback if no user data
+            userData.id = Date.now().toString();
             userNameElement.textContent = 'Telegram User';
-            userIdElement.textContent = 'ID: Unknown';
+            userIdElement.textContent = `ID: ${userData.id}`;
             userAvatarElement.src = 'https://via.placeholder.com/50';
         }
-        
-        // Handle referral parameter
-        handleReferral();
     } else {
         // Fallback for non-Telegram environment
+        userData.id = Date.now().toString();
         userNameElement.textContent = 'Test User';
-        userIdElement.textContent = 'ID: 12345';
+        userIdElement.textContent = `ID: ${userData.id}`;
         userAvatarElement.src = 'https://via.placeholder.com/50';
-        handleReferral();
     }
     
     // Load user data
     loadLocalData();
+    
+    // Handle referral parameter
+    handleReferral();
     
     // Setup event listeners
     setupEventListeners();
@@ -1496,18 +1505,67 @@ function handleReferral() {
         localStorage.setItem('referralCode', refCode);
         showNotification('Referral code applied!');
         
-        // Create new user code if needed
-        if (!localStorage.getItem('userReferralCode')) {
-            localStorage.setItem('userReferralCode', generateReferralCode());
-        }
+        // Process referral after loading user data
+        processReferral(refCode);
     }
 }
-  
- function generateUserReferralCode() {
+
+function processReferral(refCode) {
+    // Only process if we have a valid ref code and it's not the user's own code
+    const userCode = generateUserReferralCode();
+    if (refCode && refCode !== userCode) {
+        // Get all users
+        const allUsers = JSON.parse(localStorage.getItem('allUsers') || '{}');
+        
+        // Find referrer by referral code
+        const referrerId = Object.keys(allUsers).find(id => 
+            allUsers[id].referralCode === refCode
+        );
+        
+        if (referrerId) {
+            const referrer = allUsers[referrerId];
+            
+            // Get current tier for reward calculation
+            const currentTier = tiers.find(t => t.name === referrer.tier);
+            const reward = currentTier?.referralReward || 1000;
+            
+            // Update referrer's data
+            referrer.referrals += 1;
+            referrer.points += reward;
+            
+            // Update tier if needed
+            const tierIndex = tiers.findIndex(t => t.name === referrer.tier);
+            if (tierIndex < tiers.length - 1 && referrer.referrals >= tiers[tierIndex + 1].refsRequired) {
+                referrer.tier = tiers[tierIndex + 1].name;
+                referrer.multiplier = tiers[tierIndex + 1].multiplier;
+            }
+            
+            // Save updated referrer data
+            allUsers[referrerId] = referrer;
+            localStorage.setItem('allUsers', JSON.stringify(allUsers));
+            
+            // Give bonus to new user
+            userData.points += 500; // Sign-up bonus
+            saveUserData();
+            showNotification('Referral applied! +500 bonus points');
+        }
+    }
+    
+    // Clear referral code after processing
+    localStorage.removeItem('referralCode');
+}
+
+function generateUserReferralCode() {
     let userCode = localStorage.getItem('userReferralCode');
     if (!userCode) {
         userCode = generateReferralCode();
         localStorage.setItem('userReferralCode', userCode);
+        userData.referralCode = userCode;
+        
+        // Add user to global user list
+        const allUsers = JSON.parse(localStorage.getItem('allUsers') || '{}');
+        allUsers[userData.id] = userData;
+        localStorage.setItem('allUsers', JSON.stringify(allUsers));
     }
     return userCode;
 }
@@ -1553,11 +1611,13 @@ function loadLocalData() {
             // If parsing fails, reset to defaults but keep wallet address
             const wallet = userData.walletAddress;
             userData = {
+                id: userData.id,
                 points: 0,
                 referrals: 0,
                 tier: "Fresher",
                 multiplier: 1,
                 nextTierRefs: 50,
+                referralCode: userData.referralCode || '',
                 completedSocial: {
                     youtube1: false,
                     youtube2: false,
@@ -1583,11 +1643,24 @@ function loadLocalData() {
             };
         }
     }
+    
+    // Ensure user is in global registry
+    const allUsers = JSON.parse(localStorage.getItem('allUsers') || '{}');
+    if (!allUsers[userData.id]) {
+        allUsers[userData.id] = userData;
+        localStorage.setItem('allUsers', JSON.stringify(allUsers));
+    }
+    
     updateUI();
 }
 
 // Save user data to localStorage
 function saveUserData() {
+    // Update global user list
+    const allUsers = JSON.parse(localStorage.getItem('allUsers') || '{}');
+    allUsers[userData.id] = userData;
+    localStorage.setItem('allUsers', JSON.stringify(allUsers));
+    
     localStorage.setItem('yzemanUserData', JSON.stringify(userData));
 }
 
@@ -1669,9 +1742,7 @@ function setupEventListeners() {
     // Refer button - simplified to just switch to refer tab
     document.getElementById('referBtn').addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab')[1].classList.add('active');
-        document.getElementById('earnTab').classList.remove('active');
-        document.getElementById('referTab').classList.add('active');
+        document.querySelectorAll('.tab')[1].class极客
     });
     
     // Visit website button
@@ -1704,6 +1775,7 @@ function setupEventListeners() {
     // Submit wallet address
     submitWalletBtn.addEventListener('click', saveWalletAddress);
     
+极客
     // Redeem bonus code
     redeemBonusBtn.addEventListener('click', redeemBonusCode);
 }
@@ -1787,7 +1859,7 @@ function startAdWatch() {
             userData.points += actualReward;
             userData.adCount++;
             userData.completedTasks.adWatch = Date.now();
-            saveUserData();
+            saveUser极客
             updateUI();
             showNotification(`+${actualReward.toLocaleString()} points earned!`);
         }).catch((error) => {
@@ -2046,17 +2118,17 @@ function updateUI() {
     // Display current referral reward
     currentReferralRewardElement.textContent = currentTier?.referralReward || 1000;
     
-    // Inside updateUI function:
-const userCode = generateUserReferralCode();
-referralCodeElement.textContent = userCode;
-referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
+    // Generate and display user referral code
+    const userCode = generateUserReferralCode();
+    referralCodeElement.textContent = userCode;
+    referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
     
     // Update referral stats
     currentRefCountElement.textContent = userData.referrals;
     currentRefsElement.textContent = userData.referrals;
     
     // Tier progress
-    const nextTier = tiers[tiers.indexOf(currentTier) + 1];
+    const nextTier = tiers[tiers.findIndex(t => t.name === userData.tier) + 1];
     if (nextTier) {
         nextTierReqElement.textContent = nextTier.refsRequired;
         const tierProgress = (userData.referrals / nextTier.refsRequired) * 100;
@@ -2151,11 +2223,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tg.ready();
     }
     initApp();
-    // Inside initApp function:
-// Migrate old referral code
-if (localStorage.getItem('referralCode') && !localStorage.getItem('userReferralCode')) {
-    localStorage.setItem('userReferralCode', localStorage.getItem('referralCode'));
-}
 });
 </script>
 </body>
