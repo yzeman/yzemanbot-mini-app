@@ -1433,29 +1433,14 @@
             // Get referral code from localStorage if exists
             const refCode = localStorage.getItem('referralCode');
             
-            const response = await fetch('/api/user', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    initData: tg ? tg.initData : null,
-                    referralCode: refCode || null
-                })
-            });
+            // Simulated API call
+            console.log("Fetching user data...");
             
-            if (!response.ok) {
-                throw new Error('Failed to fetch user data');
-            }
+            // Create a consistent user code
+            const userCode = generateReferralCode();
+            localStorage.setItem('referralCode', userCode);
             
-            const data = await response.json();
-            Object.assign(userData, data);
-            
-            // If we had a referral code and it was processed, remove it
-            if (refCode) {
-                localStorage.removeItem('referralCode');
-            }
-            
+            // Update UI with consistent referral code
             updateUI();
         } catch (error) {
             console.error('Error fetching user data:', error);
@@ -1611,8 +1596,12 @@
     // Copy the full referral link
     function copyReferralLink() {
         const link = document.getElementById('referralLink').textContent;
-        navigator.clipboard.writeText(link);
-        showNotification('Referral link copied to clipboard!');
+        navigator.clipboard.writeText(link).then(() => {
+            showNotification('Referral link copied to clipboard!');
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            showNotification('Failed to copy link', 'error');
+        });
     }
     
     // Redeem bonus code
@@ -1684,9 +1673,6 @@
                 saveUserData();
                 updateUI();
                 showNotification(`+${actualReward.toLocaleString()} points earned!`);
-                
-                // Update backend
-                completeTask('adWatch', actualReward);
             }).catch((error) => {
                 showNotification('Ad not completed or failed to load', 'error');
             }).finally(() => {
@@ -1714,15 +1700,12 @@
             show_9683863('pop').then(() => {
                 // User completed the ad
                 const reward = 1000 * userData.multiplier;
-                userData.points += actualReward;
+                userData.points += reward;
                 userData.premiumAdCount++;
                 userData.completedTasks.premiumAd = Date.now();
                 saveUserData();
                 updateUI();
                 showNotification(`Premium ad completed! +${reward.toLocaleString()} points`);
-                
-                // Update backend
-                completeTask('premiumAd', reward);
             }).catch((error) => {
                 showNotification('Premium ad not completed or failed to load', 'error');
             }).finally(() => {
@@ -1776,14 +1759,11 @@
                 
                 // Reward user
                 const reward = 500 * userData.multiplier;
-                userData.points += actualReward;
+                userData.points += reward;
                 userData.completedTasks.website = Date.now();
                 saveUserData();
                 updateUI();
                 showNotification(`Website task completed! +${reward.toLocaleString()} points`);
-                
-                // Update backend
-                completeTask('website', reward);
             }
         }, 1000);
     }
@@ -1823,14 +1803,11 @@
                 
                 // Reward user
                 const reward = 2000 * userData.multiplier;
-                userData.points += actualReward;
+                userData.points += reward;
                 userData.completedTasks.youtubeWatch = Date.now();
                 saveUserData();
                 updateUI();
                 showNotification(`YouTube task completed! +${reward.toLocaleString()} points`);
-                
-                // Update backend
-                completeTask('youtubeWatch', reward);
             }
         }, 1000);
     }
@@ -1945,11 +1922,7 @@
         currentReferralRewardElement.textContent = currentTier?.referralReward || 1000;
         
         // Update referral code and link
-        if (!localStorage.getItem('referralCode')) {
-            const code = generateReferralCode();
-            localStorage.setItem('referralCode', code);
-        }
-        const userCode = localStorage.getItem('referralCode') || 'REF123';
+        const userCode = localStorage.getItem('referralCode') || generateReferralCode();
         referralCodeElement.textContent = userCode;
         referralLinkElement.textContent = `https://t.me/YzemanBot?start=ref-${userCode}`;
         
@@ -2022,37 +1995,13 @@
         }, 3000);
     }
     
-    // Complete task on backend
-    async function completeTask(taskType, points) {
-        try {
-            const response = await fetch('/api/complete-task', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    initData: tg?.initData,
-                    taskType,
-                    points
-                })
-            });
-            
-            if (!response.ok) {
-                console.error('Failed to update task on backend');
-            }
-        } catch (error) {
-            console.error('Error completing task:', error);
-        }
-    }
-    
     // Initialize app when ready
-    if (tg) {
-        tg.ready();
+    document.addEventListener('DOMContentLoaded', () => {
+        if (tg) {
+            tg.ready();
+        }
         initApp();
-    } else {
-        // Fallback for non-Telegram environment
-        document.addEventListener('DOMContentLoaded', initApp);
-    }
+    });
 </script>
 </body>
 </html>
