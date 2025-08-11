@@ -7,14 +7,13 @@
     "start": "node server.js",
     "bot": "node bot.js",
     "dev": "concurrently \"nodemon server.js\" \"nodemon bot.js\"",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "if [ -z \"$RENDER\" ]; then npm audit fix --force; fi"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "axios": "1.7.2",
     "dotenv": "16.4.5",
     "express": "4.19.2",
-    "nanoid": "4.0.0", 
+    "nanoid": "4.0.0",
     "node-telegram-bot-api": "0.61.0",
     "pg": "8.11.3"
   },
