@@ -118,6 +118,11 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         photo_url = EXCLUDED.photo_url
       RETURNING *`,
       [id, first_name, last_name, username, photo_url, `REF-${crypto.randomBytes(3).toString('hex').toUpperCase()}`]
+      // Add this to user creation in /api/user route
+const referralCode = `YZEMAN-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+// Add to INSERT query:
+referral_code: referralCode
     );
 
     // Get stats in single query
@@ -147,6 +152,14 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     client.release();
   }
 });
+// In /api/referral endpoint, replace:
+const tierResult = await pool.query(
+  `SELECT referral_reward FROM tiers WHERE name = (
+    SELECT tier FROM users WHERE id = $1
+  )`,
+  [referrerResult.rows[0].id]
+);
+const reward = tierResult.rows[0]?.referral_reward || 1000;
 
 // Health checks
 app.get('/health', async (req, res) => {
