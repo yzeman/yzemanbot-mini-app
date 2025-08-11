@@ -4,19 +4,17 @@
   "description": "YzemanBot Mini App and Telegram Bot",
   "main": "server.js",
   "scripts": {
-    "start": "NODE_ENV=production node server.js",
+    "start": "node server.js",
     "bot": "node bot.js",
-    "dev": "NODE_ENV=development concurrently \"nodemon server.js\" \"nodemon bot.js\"",
+    "dev": "concurrently \"nodemon server.js\" \"nodemon bot.js\"",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:init": "mkdir -p $PREFIX/var/lib/postgresql && initdb -D $PREFIX/var/lib/postgresql --auth=trust",
-    "db:start": "pg_ctl -D $PREFIX/var/lib/postgresql -l $PREFIX/var/lib/postgresql/logfile -o \"-p 5433\" start",
-    "postinstall": "if [ \"$NODE_ENV\" = \"production\" ]; then npm audit fix --force; fi"
+    "postinstall": "if [ -z \"$RENDER\" ]; then npm audit fix --force; fi"
   },
   "dependencies": {
     "axios": "1.7.2",
     "dotenv": "16.4.5",
     "express": "4.19.2",
-    "nanoid": "4.0.0",
+    "nanoid": "4.0.0", 
     "node-telegram-bot-api": "0.61.0",
     "pg": "8.11.3"
   },
