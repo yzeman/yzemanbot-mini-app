@@ -14,7 +14,7 @@ const pool = new Pool({
 // Get bot token from environment variables
 const token = process.env.BOT_TOKEN;
 if (!token) {
-  console.error('BOT_TOKEN environment variable is not set!');
+  console.error('❌ BOT_TOKEN environment variable is not set!');
   process.exit(1);
 }
 
@@ -22,7 +22,11 @@ const bot = new TelegramBot(token, { polling: true });
 
 // Health check endpoint
 botApp.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', service: 'telegram-bot' });
+  res.status(200).json({ 
+    status: 'OK', 
+    service: 'telegram-bot',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Set bot commands
