@@ -1678,7 +1678,7 @@
         if (typeof show_9683863 === 'function') {
             show_9683863().then(() => {
                 // User completed the ad
-                userData.points = Number(userData.points) + Number(actualReward);
+                userData.points += actualReward;
                 userData.adCount++;
                 userData.completedTasks.adWatch = Date.now();
                 saveUserData();
@@ -1714,7 +1714,7 @@
             show_9683863('pop').then(() => {
                 // User completed the ad
                 const reward = 1000 * userData.multiplier;
-                userData.points = Number(userData.points) + Number(actualReward);
+                userData.points += actualReward;
                 userData.premiumAdCount++;
                 userData.completedTasks.premiumAd = Date.now();
                 saveUserData();
@@ -1776,7 +1776,7 @@
                 
                 // Reward user
                 const reward = 500 * userData.multiplier;
-                userData.points = Number(userData.points) + Number(actualReward);
+                userData.points += actualReward;
                 userData.completedTasks.website = Date.now();
                 saveUserData();
                 updateUI();
@@ -1823,7 +1823,7 @@
                 
                 // Reward user
                 const reward = 2000 * userData.multiplier;
-                userData.points = Number(userData.points) + Number(actualReward);
+                userData.points += actualReward;
                 userData.completedTasks.youtubeWatch = Date.now();
                 saveUserData();
                 updateUI();
