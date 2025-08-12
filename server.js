@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
-const axios = require('axios');
 const crypto = require('crypto');
 const app = express();
 
@@ -10,22 +9,41 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Database connection with production SSL
+// Enhanced database connection with error handling
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: isProduction ? { rejectUnauthorized: false } : false
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000
+});
+
+// Handle database connection errors
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
+  process.exit(-1);
 });
 
 // Middleware
 app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
-// Database initialization (optimized)
+// Add global error handlers
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
+// Database initialization
 async function initDB() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
+    // Create users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -41,6 +59,7 @@ async function initDB() {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`);
 
+    // Create tiers table
     await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
         name TEXT PRIMARY KEY,
@@ -49,6 +68,7 @@ async function initDB() {
         referral_reward INTEGER NOT NULL
       )`);
 
+    // Insert default tiers
     await client.query(`
       INSERT INTO tiers (name, refs_required, multiplier, referral_reward) 
       VALUES 
@@ -59,6 +79,7 @@ async function initDB() {
         ('Platinum', 500, 3.0, 5000)
       ON CONFLICT (name) DO NOTHING`);
 
+    // Create referrals table
     await client.query(`
       CREATE TABLE IF NOT EXISTS referrals (
         id SERIAL PRIMARY KEY,
@@ -68,6 +89,7 @@ async function initDB() {
         UNIQUE (referred_id)
       )`);
 
+    // Create ad_rewards table
     await client.query(`
       CREATE TABLE IF NOT EXISTS ad_rewards (
         id SERIAL PRIMARY KEY,
@@ -78,17 +100,17 @@ async function initDB() {
       )`);
 
     await client.query('COMMIT');
-    console.log('Database initialized');
+    console.log('✅ Database initialized successfully');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('DB Init Error:', err.stack);
+    console.error('❌ Database initialization failed:', err.stack);
     throw err;
   } finally {
     client.release();
   }
 }
 
-// Enhanced Telegram verification
+// Telegram verification middleware
 async function verifyTelegramData(req, res, next) {
   if (!req.body?.initData) {
     return res.status(400).json({ error: 'Missing Telegram data' });
@@ -99,16 +121,19 @@ async function verifyTelegramData(req, res, next) {
     const hash = initData.get('hash');
     const authDate = initData.get('auth_date');
     
+    // Validate auth date (24 hour window)
     if (Date.now() / 1000 - parseInt(authDate) > 86400) {
-      return res.status(401).json({ error: 'Expired auth' });
+      return res.status(401).json({ error: 'Expired authentication' });
     }
 
+    // Prepare data check string
     initData.delete('hash');
     const dataCheckString = Array.from(initData.entries())
       .map(([k,v]) => `${k}=${v}`)
       .sort()
       .join('\n');
 
+    // Verify hash
     const secretKey = crypto.createHmac('sha256', 'WebAppData')
       .update(process.env.BOT_TOKEN)
       .digest();
@@ -121,13 +146,16 @@ async function verifyTelegramData(req, res, next) {
       return res.status(401).json({ error: 'Invalid hash' });
     }
 
+    // Attach user to request
     req.telegramUser = JSON.parse(initData.get('user'));
     next();
   } catch (err) {
-    console.error('Auth Error:', err);
+    console.error('Authentication Error:', err);
     res.status(500).json({ error: 'Authentication failed' });
   }
 }
+
+// API Endpoints
 
 // Ad reward endpoint
 app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
@@ -142,7 +170,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 
     await client.query('BEGIN');
     
-    // Get user
+    // Get user ID
     const userResult = await client.query(
       'SELECT id FROM users WHERE telegram_id = $1',
       [telegramId]
@@ -166,9 +194,9 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
       [rewardAmount, userId]
     );
     
-    // Get updated user data
+    // Get updated points
     const { rows: [user] } = await client.query(
-      'SELECT * FROM users WHERE id = $1',
+      'SELECT points FROM users WHERE id = $1',
       [userId]
     );
     
@@ -183,7 +211,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Routes
+// User registration/update endpoint
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -192,8 +220,10 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
+    // Generate unique referral code
     const userReferralCode = `YZEMAN-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
     
+    // Create or update user
     const { rows: [user] } = await client.query(`
       INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -206,6 +236,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       [id, first_name, last_name, username, photo_url, userReferralCode]
     );
 
+    // Process referral if provided
     if (referralCode) {
       const referrerResult = await client.query(
         'SELECT id FROM users WHERE referral_code = $1',
@@ -213,11 +244,13 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       );
       
       if (referrerResult.rows.length > 0 && referrerResult.rows[0].id !== user.id) {
+        // Create referral relationship
         await client.query(
-          'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON极客
+          'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [referrerResult.rows[0].id, user.id]
         );
         
+        // Get referrer's reward amount based on tier
         const tierResult = await client.query(
           `SELECT referral_reward FROM tiers WHERE name = (
             SELECT tier FROM users WHERE id = $1
@@ -227,6 +260,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         
         const reward = tierResult.rows[0]?.referral_reward || 1000;
         
+        // Award referrer
         await client.query(
           'UPDATE users SET points = points + $1 WHERE id = $2',
           [reward, referrerResult.rows[0].id]
@@ -234,6 +268,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       }
     }
 
+    // Get user stats
     const { rows: [stats] } = await client.query(`
       SELECT 
         COUNT(r.*) AS referrals,
@@ -259,7 +294,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Handle referral redemptions
+// Referral processing endpoint
 app.post('/api/referral', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -272,6 +307,7 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
 
     await client.query('BEGIN');
     
+    // Get current user
     const userResult = await client.query(
       'SELECT id FROM users WHERE telegram_id = $1',
       [telegramId]
@@ -283,6 +319,7 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
+    // Get referrer
     const referrerResult = await client.query(
       'SELECT id FROM users WHERE referral_code = $1',
       [referralCode]
@@ -294,10 +331,12 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
     
     const referrerId = referrerResult.rows[0].id;
     
+    // Prevent self-referral
     if (referrerId === userId) {
       return res.status(400).json({ error: 'Cannot refer yourself' });
     }
     
+    // Check if already referred
     const existingReferral = await client.query(
       'SELECT 1 FROM referrals WHERE referred_id = $1',
       [userId]
@@ -307,11 +346,13 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'Referral already processed' });
     }
     
+    // Create referral
     await client.query(
       'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
       [referrerId, userId]
     );
     
+    // Get referrer's reward amount
     const tierResult = await client.query(
       `SELECT referral_reward FROM tiers WHERE name = (
         SELECT tier FROM users WHERE id = $1
@@ -321,11 +362,13 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
     
     const reward = tierResult.rows[0]?.referral_reward || 1000;
     
+    // Award referrer
     await client.query(
       'UPDATE users SET points = points + $1 WHERE id = $2',
       [reward, referrerId]
     );
     
+    // Check for tier upgrade
     const referralCountResult = await client.query(
       'SELECT COUNT(*) FROM referrals WHERE referrer_id = $1',
       [referrerId]
@@ -358,7 +401,7 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Health checks
+// Health check endpoint
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -372,38 +415,36 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Error handling
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
-});
-
-// Server startup
+// Start server
 const server = app.listen(PORT, async () => {
-  console.log(`Server running in ${isProduction ? 'production' : 'development'} on port ${PORT}`);
+  console.log(`🚀 Server running in ${isProduction ? 'production' : 'development'} on port ${PORT}`);
+  console.log(`🔗 Database URL: ${process.env.DATABASE_URL ? 'configured' : 'missing'}`);
+  
   try {
     await initDB();
-    console.log('✅ Database ready');
+    console.log('✅ Database initialized and ready');
   } catch (err) {
-    console.error('❌ Database initialization failed');
+    console.error('❌ Failed to initialize database:', err);
     process.exit(1);
   }
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received. Shutting down gracefully...');
+  console.log('🛑 SIGTERM received. Shutting down gracefully...');
   server.close(() => {
     pool.end();
-    console.log('Server closed');
+    console.log('🔴 Server closed');
     process.exit(0);
   });
 });
 
-// Enhanced error handling
+// Handle server errors
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} already in use`);
+    console.error(`❌ Port ${PORT} already in use`);
     process.exit(1);
   }
-  throw err;
+  console.error('❌ Server error:', err);
+  process.exit(1);
 });
