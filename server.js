@@ -65,7 +65,16 @@ async function initDB() {
         referrer_id INTEGER NOT NULL REFERENCES users(id),
         referred_id INTEGER NOT NULL REFERENCES users(id),
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        UNIQUE (referred_id)  -- Ensure a user can only be referred once
+        UNIQUE (referred_id)
+      )`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ad_rewards (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        reward_amount INTEGER NOT NULL,
+        ad_type TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`);
 
     await client.query('COMMIT');
@@ -90,12 +99,10 @@ async function verifyTelegramData(req, res, next) {
     const hash = initData.get('hash');
     const authDate = initData.get('auth_date');
     
-    // Validate auth date (prevent replay attacks)
     if (Date.now() / 1000 - parseInt(authDate) > 86400) {
       return res.status(401).json({ error: 'Expired auth' });
     }
 
-    // Hash verification
     initData.delete('hash');
     const dataCheckString = Array.from(initData.entries())
       .map(([k,v]) => `${k}=${v}`)
@@ -122,16 +129,62 @@ async function verifyTelegramData(req, res, next) {
   }
 }
 
+// Ad reward endpoint
+app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { rewardAmount, adType } = req.body;
+    const telegramId = req.telegramUser.id;
+
+    if (!rewardAmount || !adType) {
+      return res.status(400).json({ error: 'Missing reward parameters' });
+    }
+
+    await client.query('BEGIN');
+    
+    // Get user
+    const userResult = await client.query(
+      'SELECT id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userId = userResult.rows[0].id;
+    
+    // Record the reward
+    await client.query(
+      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+      [userId, rewardAmount, adType]
+    );
+    
+    // Update user points
+    await client.query(
+      'UPDATE users SET points = points + $1 WHERE id = $2',
+      [rewardAmount, userId]
+    );
+    
+    // Get updated user data
+    const { rows: [user] } = await client.query(
+      'SELECT * FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    await client.query('COMMIT');
+    res.json({ success: true, points: user.points });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Ad Reward Error:', err);
+    res.status(500).json({ error: 'Failed to process ad reward' });
+  } finally {
+    client.release();
+  }
+});
+
 // Routes
 app.post('/api/user', verifyTelegramData, async (req, res) => {
-	// Convert numeric fields to numbers
-const responseData = { ...user, ...stats };
-responseData.points = Number(responseData.points);
-responseData.referrals = Number(responseData.referrals);
-responseData.multiplier = Number(responseData.multiplier);
-responseData.referral_reward = Number(responseData.referral_reward);
-
-res.json(responseData);
   const client = await pool.connect();
   try {
     const { id, first_name, last_name, username, photo_url } = req.telegramUser;
@@ -139,10 +192,8 @@ res.json(responseData);
     
     await client.query('BEGIN');
     
-    // Generate unique referral code for new user
     const userReferralCode = `YZEMAN-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
     
-    // Upsert user with referral code
     const { rows: [user] } = await client.query(`
       INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -155,7 +206,6 @@ res.json(responseData);
       [id, first_name, last_name, username, photo_url, userReferralCode]
     );
 
-    // Process referral if provided
     if (referralCode) {
       const referrerResult = await client.query(
         'SELECT id FROM users WHERE referral_code = $1',
@@ -163,13 +213,11 @@ res.json(responseData);
       );
       
       if (referrerResult.rows.length > 0 && referrerResult.rows[0].id !== user.id) {
-        // Insert referral record
         await client.query(
-          'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON极客
           [referrerResult.rows[0].id, user.id]
         );
         
-        // Get referrer's tier and reward amount
         const tierResult = await client.query(
           `SELECT referral_reward FROM tiers WHERE name = (
             SELECT tier FROM users WHERE id = $1
@@ -179,7 +227,6 @@ res.json(responseData);
         
         const reward = tierResult.rows[0]?.referral_reward || 1000;
         
-        // Update referrer's points
         await client.query(
           'UPDATE users SET points = points + $1 WHERE id = $2',
           [reward, referrerResult.rows[0].id]
@@ -187,7 +234,6 @@ res.json(responseData);
       }
     }
 
-    // Get user stats with referral count
     const { rows: [stats] } = await client.query(`
       SELECT 
         COUNT(r.*) AS referrals,
@@ -226,7 +272,6 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
 
     await client.query('BEGIN');
     
-    // Get current user
     const userResult = await client.query(
       'SELECT id FROM users WHERE telegram_id = $1',
       [telegramId]
@@ -238,7 +283,6 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
-    // Get referrer
     const referrerResult = await client.query(
       'SELECT id FROM users WHERE referral_code = $1',
       [referralCode]
@@ -254,7 +298,6 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'Cannot refer yourself' });
     }
     
-    // Check if referral already exists
     const existingReferral = await client.query(
       'SELECT 1 FROM referrals WHERE referred_id = $1',
       [userId]
@@ -264,13 +307,11 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'Referral already processed' });
     }
     
-    // Create referral record
     await client.query(
       'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
       [referrerId, userId]
     );
     
-    // Get referrer's tier and reward amount
     const tierResult = await client.query(
       `SELECT referral_reward FROM tiers WHERE name = (
         SELECT tier FROM users WHERE id = $1
@@ -280,20 +321,17 @@ app.post('/api/referral', verifyTelegramData, async (req, res) => {
     
     const reward = tierResult.rows[0]?.referral_reward || 1000;
     
-    // Update referrer's points
     await client.query(
       'UPDATE users SET points = points + $1 WHERE id = $2',
       [reward, referrerId]
     );
     
-    // Update referrer's referral count
     const referralCountResult = await client.query(
       'SELECT COUNT(*) FROM referrals WHERE referrer_id = $1',
       [referrerId]
     );
     const referralCount = parseInt(referralCountResult.rows[0].count);
     
-    // Check for tier upgrade
     const tierUpgrade = await client.query(
       `SELECT name FROM tiers 
        WHERE refs_required <= $1 
