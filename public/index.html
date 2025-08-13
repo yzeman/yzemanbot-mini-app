@@ -701,7 +701,7 @@
         .channel-icon {
             width: 50px;
             height: 50px;
-            background: linear-gradient(45deg, #ff512f, #f09819);
+            background: linear-gradient(45deg, #ff52f, #f09819);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -1054,7 +1054,7 @@
                         <i class="fas fa-ad"></i>
                     </div>
                     <div class="task-details">
-                        <div class="task-title">Visit an Ad <span class="tier-badge fresher">+51 pts</span></div>
+                        <div class="task-title">Visit an Ad <span class="tier-badge fresher">+557pts</span></div>
                         <div class="task-description">Watch a 1-minute ad to earn points</div>
                         <div class="task-reward">Daily limit: <span id="adCounter">0/∞</span></div>
                     </div>
@@ -1068,7 +1068,7 @@
                     <div class="task-details">
                         <div class="task-title">Watch YouTube Video</div>
                         <div class="task-description">Watch for 5 minutes to earn points</div>
-                        <div class="task-reward">+2000 points</div>
+                        <div class="task-reward">+12000 points</div>
                     </div>
                     <button class="task-action" id="watchYoutubeBtn">Watch</button>
                 </div>
@@ -1080,7 +1080,7 @@
                     <div class="task-details">
                         <div class="task-title">Visit Website</div>
                         <div class="task-description">Stay 2 minute to earn points</div>
-                        <div class="task-reward">+500 points</div>
+                        <div class="task-reward">+5000 points</div>
                     </div>
                     <button class="task-action" id="visitWebsiteBtn">Visit</button>
                 </div>
@@ -1092,7 +1092,7 @@
                     <div class="task-details">
                         <div class="task-title">Refer a Friend</div>
                         <div class="task-description">Get points when friends join</div>
-                        <div class="task-reward">+<span id="referralReward">1000</span> points</div>
+                        <div class="task-reward">+<span id="referralReward">5000</span> points</div>
                     </div>
                     <button class="task-action" id="referBtn">Refer</button>
                 </div>
@@ -1110,7 +1110,7 @@
                         <div class="premium-ad-details">
                             <div class="premium-ad-title">Premium Video Task</div>
                             <div class="premium-ad-description">Watch YouTube video for 20 minutes, like and comment to earn</div>
-                            <div class="premium-ad-reward">+1000 points</div>
+                            <div class="premium-ad-reward">+3000 points</div>
                         </div>
                         <button class="premium-ad-action" id="premiumAdBtn">Start</button>
                     </div>
@@ -1417,11 +1417,11 @@ let userData = {
 
 // Tier system with higher requirements
 const tiers = [
-    { name: "Fresher", refsRequired: 0, multiplier: 1, adReward: 51, referralReward: 1000 },
-    { name: "Brute", refsRequired: 50, multiplier: 1.2, adReward: 74, referralReward: 1500 },
-    { name: "Silver", refsRequired: 150, multiplier: 1.5, adReward: 105, referralReward: 2000 },
-    { name: "Gold", refsRequired: 300, multiplier: 2, adReward: 140, referralReward: 3000 },
-    { name: "Platinum", refsRequired: 500, multiplier: 3, adReward: 210, referralReward: 5000 }
+    { name: "Fresher", refsRequired: 0, multiplier: 1, adReward: 557, referralReward: 5000 },
+    { name: "Brute", refsRequired: 50, multiplier: 1.2, adReward: 1058, referralReward: 10000 },
+    { name: "Silver", refsRequired: 150, multiplier: 1.5, adReward: 1559, referralReward: 15000 },
+    { name: "Gold", refsRequired: 300, multiplier: 2, adReward: 2021, referralReward: 20000 },
+    { name: "Platinum", refsRequired: 500, multiplier: 3, adReward: 2753, referralReward: 30000 }
 ];
 
 // Initialize app
@@ -1494,7 +1494,7 @@ function processReferral(refCode) {
         if (referrerId) {
             const referrer = allUsers[referrerId];
             const currentTier = tiers.find(t => t.name === referrer.tier);
-            const reward = currentTier?.referralReward || 1000;
+            const reward = currentTier?.referralReward || 5000;
             
             referrer.referrals += 1;
             referrer.points += reward;
@@ -1808,7 +1808,7 @@ function redeemBonusCode() {
 // Start watching an ad using SDK
 function startAdWatch() {
     const currentTier = tiers.find(t => t.name === userData.tier);
-    const reward = currentTier?.adReward || 70;
+    const reward = currentTier?.adReward || 557;
     const actualReward = Math.floor(Number(reward) * Number(userData.multiplier));
         
     adStatus.textContent = "Loading ad...";
@@ -1884,7 +1884,7 @@ function startPremiumAd() {
     
     if (typeof show_9683863 === 'function') {
         show_9683863('pop').then(() => {
-            const reward = 1000 * userData.multiplier;
+            const reward = 3000 * userData.multiplier;
             userData.points += reward;
             userData.premiumAdCount++;
             userData.completedTasks.premiumAd = Date.now();
@@ -1898,7 +1898,7 @@ function startPremiumAd() {
         });
     } else {
         // Fallback premium ad implementation
-        showFallbackPremiumAd(1000 * userData.multiplier);
+        showFallbackPremiumAd(3000 * userData.multiplier);
     }
 }
 
@@ -1940,7 +1940,6 @@ function showFallbackPremiumAd(reward) {
 
 // Change premium ad
 function changePremiumAd() {
-    currentPremiumAd = (currentPremiumAd + 1) % premiumAds.length;
     showNotification('Premium ad changed!');
 }
 
@@ -1976,7 +1975,7 @@ function startWebsiteTask() {
             iframeContainer.style.display = 'none';
             timerElement.style.display = 'none';
             
-            const reward = 500 * userData.multiplier;
+            const reward = 5000 * userData.multiplier;
             userData.points += reward;
             userData.completedTasks.website = Date.now();
             saveUserData();
@@ -2017,7 +2016,7 @@ function startYoutubeTask() {
             iframeContainer.style.display = 'none';
             timerElement.style.display = 'none';
             
-            const reward = 2000 * userData.multiplier;
+            const reward = 12000 * userData.multiplier;
             userData.points += reward;
             userData.completedTasks.youtubeWatch = Date.now();
             saveUserData();
