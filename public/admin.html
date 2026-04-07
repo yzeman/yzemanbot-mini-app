@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - YzemanBot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #00c853;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Tables */
+        .table-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(106, 17, 203, 0.3);
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: rgba(106, 17, 203, 0.5);
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Tier badges */
+        .tier-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tier-Fresher { background: #4CAF50; }
+        .tier-Brute { background: #2196F3; }
+        .tier-Silver { background: #9E9E9E; color: #000; }
+        .tier-Gold { background: #FFD700; color: #000; }
+        .tier-Platinum { background: #E0E0E0; color: #000; }
+
+        /* Status badges */
+        .status-pending { background: #ff9800; color: #000; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .status-completed { background: #4CAF50; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .status-processing { background: #2196F3; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+
+        /* Actions */
+        .action-btn {
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            margin-right: 5px;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .action-btn.danger {
+            background: linear-gradient(135deg, #ff5252, #ff1744);
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 16px;
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #00c853, #69f0ae);
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            color: #000;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+        }
+
+        .modal-content input, .modal-content textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .close-modal {
+            background: #ff5252;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #6a11cb;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Withdrawal stats */
+        .withdrawal-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .withdrawal-stat {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            opacity: 0.7;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            th, td {
+                padding: 10px;
+                font-size: 12px;
+            }
+            .tab-btn {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👑 YzemanBot Admin Dashboard</h1>
+            <p>Manage users, track withdrawals, and monitor platform stats</p>
+        </div>
+
+        <!-- Stats Overview -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="number" id="totalUsers">-</div>
+                <div class="label">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="totalPoints">-</div>
+                <div class="label">Total Points Distributed</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="totalWithdrawals">-</div>
+                <div class="label">Total Withdrawals Requested</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="pendingWithdrawals">-</div>
+                <div class="label">Pending Withdrawals</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="totalReferrals">-</div>
+                <div class="label">Total Referrals</div>
+            </div>
+            <div class="stat-card">
+                <div class="number" id="platinumUsers">-</div>
+                <div class="label">Platinum Tier Users</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="users">👥 Users</button>
+            <button class="tab-btn" data-tab="withdrawals">💰 Withdrawals</button>
+            <button class="tab-btn" data-tab="referrals">🔗 Referrals</button>
+            <button class="tab-btn" data-tab="analytics">📊 Analytics</button>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="usersTab" class="tab-content active">
+            <div class="search-box">
+                <input type="text" id="userSearch" placeholder="Search by username, name, or ID..." onkeyup="filterUsers()">
+                <button class="refresh-btn" onclick="loadAllData()">🔄 Refresh</button>
+            </div>
+            <div class="table-container">
+                <div id="usersLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    Loading users...
+                </div>
+                <table id="usersTable" style="display: none;">
+                    <thead>
+                        <tr><th onclick="sortUsers('id')">ID ↕</th><th onclick="sortUsers('username')">Username ↕</th><th onclick="sortUsers('first_name')">Name ↕</th><th onclick="sortUsers('tier')">Tier ↕</th><th onclick="sortUsers('points')">Points ↕</th><th onclick="sortUsers('referrals')">Referrals ↕</th><th>Referral Code</th><th>Wallet</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Withdrawals Tab -->
+        <div id="withdrawalsTab" class="tab-content" style="display: none;">
+            <div class="withdrawal-stats">
+                <div class="withdrawal-stat">
+                    <div class="number" id="totalPendingAmount">$0</div>
+                    <div class="label">Total Pending Amount</div>
+                </div>
+                <div class="withdrawal-stat">
+                    <div class="number" id="totalCompletedAmount">$0</div>
+                    <div class="label">Total Completed Amount</div>
+                </div>
+                <div class="withdrawal-stat">
+                    <div class="number" id="avgWithdrawal">$0</div>
+                    <div class="label">Average Withdrawal</div>
+                </div>
+            </div>
+            <div class="table-container">
+                <div id="withdrawalsLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    Loading withdrawals...
+                </div>
+                <table id="withdrawalsTable" style="display: none;">
+                    <thead>
+                        <tr><th>ID</th><th>User</th><th>Amount</th><th>Wallet Address</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="withdrawalsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Referrals Tab -->
+        <div id="referralsTab" class="tab-content" style="display: none;">
+            <div class="table-container">
+                <div id="referralsLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    Loading referrals...
+                </div>
+                <table id="referralsTable" style="display: none;">
+                    <thead>
+                        <tr><th>Referrer</th><th>Referred User</th><th>Date</th><th>Reward Earned</th></tr>
+                    </thead>
+                    <tbody id="referralsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analyticsTab" class="tab-content" style="display: none;">
+            <div class="table-container">
+                <h3 style="margin-bottom: 20px;">📈 Tier Distribution</h3>
+                <div id="tierChart"></div>
+                
+                <h3 style="margin: 30px 0 20px;">🏆 Top 10 Referrers</h3>
+                <table style="width: 100%;">
+                    <thead><tr><th>Rank</th><th>Username</th><th>Referrals</th><th>Points</th><th>Tier</th></tr></thead>
+                    <tbody id="topReferrersBody"></tbody>
+                </table>
+                
+                <h3 style="margin: 30px 0 20px;">💰 Top 10 Earners</h3>
+                <table style="width: 100%;">
+                    <thead><tr><th>Rank</th><th>Username</th><th>Points</th><th>USD Value</th><th>Tier</th></tr></thead>
+                    <tbody id="topEarnersBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            YzemanBot Admin Dashboard | Last updated: <span id="lastUpdated">-</span>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content">
+            <h3>✏️ Edit User</h3>
+            <input type="hidden" id="editUserId">
+            <label>Points:</label>
+            <input type="number" id="editPoints">
+            <label>Tier:</label>
+            <select id="editTier">
+                <option value="Fresher">Fresher</option>
+                <option value="Brute">Brute</option>
+                <option value="Silver">Silver</option>
+                <option value="Gold">Gold</option>
+                <option value="Platinum">Platinum</option>
+            </select>
+            <label>Referrals Count:</label>
+            <input type="number" id="editReferrals">
+            <div class="modal-buttons">
+                <button class="action-btn" onclick="saveUserEdit()">Save Changes</button>
+                <button class="close-modal" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allUsers = [];
+        let allWithdrawals = [];
+        let allReferrals = [];
+        let currentSort = { column: 'id', direction: 'asc' };
+
+        // Admin authentication (simple password protection)
+        function checkAuth() {
+            const password = prompt('Enter admin password:');
+            if (password !== 'admin123') {  // Change this to your desired password
+                alert('Invalid password!');
+                window.location.href = '/';
+                return false;
+            }
+            return true;
+        }
+
+        // Load all data from API
+        async function loadAllData() {
+            if (!checkAuth()) return;
+            
+            showLoading('usersLoading');
+            showLoading('withdrawalsLoading');
+            showLoading('referralsLoading');
+            
+            try {
+                // Fetch users
+                const usersResponse = await fetch('/api/admin/users', {
+                    headers: { 'Authorization': 'Bearer admin123' }
+                });
+                if (usersResponse.ok) {
+                    allUsers = await usersResponse.json();
+                    displayUsers();
+                    updateStats();
+                }
+                
+                // Fetch withdrawals
+                const withdrawalsResponse = await fetch('/api/admin/withdrawals', {
+                    headers: { 'Authorization': 'Bearer admin123' }
+                });
+                if (withdrawalsResponse.ok) {
+                    allWithdrawals = await withdrawalsResponse.json();
+                    displayWithdrawals();
+                }
+                
+                // Fetch referrals
+                const referralsResponse = await fetch('/api/admin/referrals', {
+                    headers: { 'Authorization': 'Bearer admin123' }
+                });
+                if (referralsResponse.ok) {
+                    allReferrals = await referralsResponse.json();
+                    displayReferrals();
+                    displayTopReferrers();
+                    displayTopEarners();
+                    displayTierChart();
+                }
+                
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Failed to load data. Make sure you are logged in as admin.');
+            }
+            
+            hideLoading('usersLoading');
+            hideLoading('withdrawalsLoading');
+            hideLoading('referralsLoading');
+        }
+        
+        // Update stats
+        function updateStats() {
+            const totalPoints = allUsers.reduce((sum, u) => sum + (u.points || 0), 0);
+            const totalReferrals = allUsers.reduce((sum, u) => sum + (u.referrals || 0), 0);
+            const platinumUsers = allUsers.filter(u => u.tier === 'Platinum').length;
+            const pendingWithdrawals = allWithdrawals.filter(w => w.status === 'pending').length;
+            
+            document.getElementById('totalUsers').textContent = allUsers.length;
+            document.getElementById('totalPoints').textContent = (totalPoints / 1000000).toFixed(1) + 'M';
+            document.getElementById('totalWithdrawals').textContent = allWithdrawals.length;
+            document.getElementById('pendingWithdrawals').textContent = pendingWithdrawals;
+            document.getElementById('totalReferrals').textContent = totalReferrals;
+            document.getElementById('platinumUsers').textContent = platinumUsers;
+            
+            // Withdrawal stats
+            const pendingTotal = allWithdrawals.filter(w => w.status === 'pending').reduce((sum, w) => sum + w.amount, 0);
+            const completedTotal = allWithdrawals.filter(w => w.status === 'completed').reduce((sum, w) => sum + w.amount, 0);
+            const avgWithdrawal = allWithdrawals.length > 0 ? (allWithdrawals.reduce((sum, w) => sum + w.amount, 0) / allWithdrawals.length).toFixed(2) : 0;
+            
+            document.getElementById('totalPendingAmount').textContent = `$${pendingTotal.toFixed(2)}`;
+            document.getElementById('totalCompletedAmount').textContent = `$${completedTotal.toFixed(2)}`;
+            document.getElementById('avgWithdrawal').textContent = `$${avgWithdrawal}`;
+        }
+        
+        // Display users table
+        function displayUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            const searchTerm = document.getElementById('userSearch')?.value.toLowerCase() || '';
+            
+            let filteredUsers = allUsers.filter(user => {
+                return (user.username && user.username.toLowerCase().includes(searchTerm)) ||
+                       (user.first_name && user.first_name.toLowerCase().includes(searchTerm)) ||
+                       (user.telegram_id && user.telegram_id.toString().includes(searchTerm));
+            });
+            
+            // Sort
+            filteredUsers.sort((a, b) => {
+                let aVal = a[currentSort.column];
+                let bVal = b[currentSort.column];
+                if (currentSort.column === 'points' || currentSort.column === 'referrals' || currentSort.column === 'id') {
+                    aVal = Number(aVal) || 0;
+                    bVal = Number(bVal) || 0;
+                }
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
+            tbody.innerHTML = filteredUsers.map(user => `
+                <tr>
+                    <td>${user.id || user.telegram_id || '-'}</td>
+                    <td>${user.username ? '@' + user.username : '-'}</td>
+                    <td>${user.first_name || ''} ${user.last_name || ''}</td>
+                    <td><span class="tier-badge tier-${user.tier}">${user.tier || 'Fresher'}</span></td>
+                    <td>${(user.points || 0).toLocaleString()}</td>
+                    <td>${user.referrals || 0}</td>
+                    <td><code style="font-size: 11px;">${user.referral_code || '-'}</code></td>
+                    <td><small>${user.wallet_address ? user.wallet_address.substring(0, 15) + '...' : '-'}</small></td>
+                    <td>
+                        <button class="action-btn" onclick="editUser(${user.id})">✏️ Edit</button>
+                        <button class="action-btn danger" onclick="addPoints(${user.id})">➕ Add Points</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            document.getElementById('usersTable').style.display = 'table';
+        }
+        
+        // Display withdrawals
+        function displayWithdrawals() {
+            const tbody = document.getElementById('withdrawalsTableBody');
+            tbody.innerHTML = allWithdrawals.map(w => `
+                <tr>
+                    <td>${w.id}</td>
+                    <td>${w.username || w.user_telegram_id || '-'}</td>
+                    <td><strong>$${w.amount.toFixed(2)}</strong></td>
+                    <td><small>${w.wallet_address || '-'}</small></td>
+                    <td><span class="status-${w.status}">${w.status}</span></td>
+                    <td>${new Date(w.date).toLocaleDateString()}</td>
+                    <td>
+                        ${w.status === 'pending' ? `
+                            <button class="action-btn" onclick="updateWithdrawalStatus(${w.id}, 'processing')">⏳ Processing</button>
+                            <button class="action-btn" onclick="updateWithdrawalStatus(${w.id}, 'completed')">✅ Complete</button>
+                        ` : w.status === 'processing' ? `
+                            <button class="action-btn" onclick="updateWithdrawalStatus(${w.id}, 'completed')">✅ Complete</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+            document.getElementById('withdrawalsTable').style.display = 'table';
+        }
+        
+        // Display referrals
+        function displayReferrals() {
+            const tbody = document.getElementById('referralsTableBody');
+            tbody.innerHTML = allReferrals.map(r => `
+                <tr>
+                    <td>${r.referrer_username || r.referrer_id || '-'}</td>
+                    <td>${r.referred_username || r.referred_id || '-'}</td>
+                    <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                    <td>${(r.reward || 0).toLocaleString()} pts</td>
+                </tr>
+            `).join('');
+            document.getElementById('referralsTable').style.display = 'table';
+        }
+        
+        // Display top referrers
+        function displayTopReferrers() {
+            const sorted = [...allUsers].sort((a, b) => (b.referrals || 0) - (a.referrals || 0)).slice(0, 10);
+            const tbody = document.getElementById('topReferrersBody');
+            tbody.innerHTML = sorted.map((user, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${user.username ? '@' + user.username : user.first_name || 'User'}</td>
+                    <td>${user.referrals || 0}</td>
+                    <td>${(user.points || 0).toLocaleString()}</td>
+                    <td><span class="tier-badge tier-${user.tier}">${user.tier || 'Fresher'}</span></td>
+                </tr>
+            `).join('');
+        }
+        
+        // Display top earners
+        function displayTopEarners() {
+            const sorted = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
+            const tbody = document.getElementById('topEarnersBody');
+            tbody.innerHTML = sorted.map((user, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${user.username ? '@' + user.username : user.first_name || 'User'}</td>
+                    <td>${(user.points || 0).toLocaleString()}</td>
+                    <td>$${((user.points || 0) / 100000).toFixed(2)}</td>
+                    <td><span class="tier-badge tier-${user.tier}">${user.tier || 'Fresher'}</span></td>
+                </tr>
+            `).join('');
+        }
+        
+        // Display tier chart (simple text representation)
+        function displayTierChart() {
+            const tiers = ['Fresher', 'Brute', 'Silver', 'Gold', 'Platinum'];
+            const counts = tiers.map(tier => allUsers.filter(u => u.tier === tier).length);
+            const maxCount = Math.max(...counts);
+            
+            const chartHtml = tiers.map((tier, i) => {
+                const percentage = maxCount > 0 ? (counts[i] / maxCount) * 100 : 0;
+                return `
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>${tier}</span>
+                            <span>${counts[i]} users</span>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;">
+                            <div style="background: linear-gradient(90deg, #6a11cb, #2575fc); width: ${percentage}%; height: 30px; border-radius: 10px; display: flex; align-items: center; padding-left: 10px;">
+                                ${percentage > 15 ? `${Math.round(percentage)}%` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('tierChart').innerHTML = chartHtml;
+        }
+        
+        // Sort users
+        function sortUsers(column) {
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            displayUsers();
+        }
+        
+        // Filter users
+        function filterUsers() {
+            displayUsers();
+        }
+        
+        // Edit user modal
+        function editUser(userId) {
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) return;
+            
+            document.getElementById('editUserId').value = userId;
+            document.getElementById('editPoints').value = user.points || 0;
+            document.getElementById('editTier').value = user.tier || 'Fresher';
+            document.getElementById('editReferrals').value = user.referrals || 0;
+            document.getElementById('editUserModal').style.display = 'flex';
+        }
+        
+        // Save user edit
+        async function saveUserEdit() {
+            const userId = document.getElementById('editUserId').value;
+            const points = parseInt(document.getElementById('editPoints').value);
+            const tier = document.getElementById('editTier').value;
+            const referrals = parseInt(document.getElementById('editReferrals').value);
+            
+            try {
+                const response = await fetch('/api/admin/update-user', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer admin123'
+                    },
+                    body: JSON.stringify({ userId, points, tier, referrals })
+                });
+                
+                if (response.ok) {
+                    alert('User updated successfully!');
+                    closeModal();
+                    loadAllData();
+                } else {
+                    alert('Failed to update user');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Add points to user
+        async function addPoints(userId) {
+            const amount = prompt('Enter points to add:');
+            if (!amount || isNaN(amount)) return;
+            
+            try {
+                const response = await fetch('/api/admin/add-points', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer admin123'
+                    },
+                    body: JSON.stringify({ userId, points: parseInt(amount) })
+                });
+                
+                if (response.ok) {
+                    alert(`Added ${parseInt(amount).toLocaleString()} points!`);
+                    loadAllData();
+                } else {
+                    alert('Failed to add points');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        // Update withdrawal status
+        async function updateWithdrawalStatus(withdrawalId, status) {
+            try {
+                const response = await fetch('/api/admin/update-withdrawal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer admin123'
+                    },
+                    body: JSON.stringify({ withdrawalId, status })
+                });
+                
+                if (response.ok) {
+                    alert(`Withdrawal marked as ${status}!`);
+                    loadAllData();
+                } else {
+                    alert('Failed to update withdrawal');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('editUserModal').style.display = 'none';
+        }
+        
+        function showLoading(elementId) {
+            const el = document.getElementById(elementId);
+            if (el) el.style.display = 'flex';
+        }
+        
+        function hideLoading(elementId) {
+            const el = document.getElementById(elementId);
+            if (el) el.style.display = 'none';
+        }
+        
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const tabName = btn.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.style.display = 'none';
+                });
+                document.getElementById(`${tabName}Tab`).style.display = 'block';
+            });
+        });
+        
+        // Load data on page load
+        loadAllData();
+        
+        // Refresh every 30 seconds
+        setInterval(loadAllData, 30000);
+    </script>
+</body>
+</html>
