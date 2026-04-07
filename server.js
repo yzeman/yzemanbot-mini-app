@@ -12,7 +12,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: isProduction ? { rejectUnauthorized: false } : false,
+  ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
 });
