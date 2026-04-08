@@ -53,7 +53,7 @@ async function initDB() {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`);
     
-    // FIX: Add missing columns (this solves your error!)
+    // Add missing columns
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_address TEXT`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referrals INTEGER DEFAULT 0`);
 
@@ -155,6 +155,8 @@ async function verifyTelegramData(req, res, next) {
     res.status(500).json({ error: 'Authentication failed' });
   }
 }
+
+// ============ USER API ENDPOINTS ============
 
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -330,6 +332,122 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// ============ ADMIN API ENDPOINTS ============
+
+// Middleware to verify admin access
+function verifyAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== 'Bearer admin123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// Get all users (admin only)
+app.get('/api/admin/users', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
+             referral_code, points, tier, referrals, wallet_address, created_at
+      FROM users 
+      ORDER BY id DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get all withdrawals (admin only)
+app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT w.*, u.username, u.first_name, u.telegram_id
+      FROM withdrawals w
+      JOIN users u ON w.user_id = u.id
+      ORDER BY w.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin withdrawals error:', err);
+    res.json([]);
+  }
+});
+
+// Get all referrals (admin only)
+app.get('/api/admin/referrals', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        r.id, r.created_at,
+        u1.username as referrer_username, u1.first_name as referrer_name,
+        u2.username as referred_username, u2.first_name as referred_name,
+        t.referral_reward as reward
+      FROM referrals r
+      JOIN users u1 ON r.referrer_id = u1.id
+      JOIN users u2 ON r.referred_id = u2.id
+      LEFT JOIN tiers t ON u1.tier = t.name
+      ORDER BY r.created_at DESC
+      LIMIT 500
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin referrals error:', err);
+    res.json([]);
+  }
+});
+
+// Update user (admin only)
+app.post('/api/admin/update-user', verifyAdmin, async (req, res) => {
+  const { userId, points, tier, referrals } = req.body;
+  
+  try {
+    await pool.query(
+      'UPDATE users SET points = $1, tier = $2, referrals = $3 WHERE id = $4',
+      [points, tier, referrals, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update user error:', err);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Add points to user (admin only)
+app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  
+  try {
+    await pool.query(
+      'UPDATE users SET points = points + $1 WHERE id = $2',
+      [points, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Add points error:', err);
+    res.status(500).json({ error: 'Failed to add points' });
+  }
+});
+
+// Update withdrawal status (admin only)
+app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
+  const { withdrawalId, status } = req.body;
+  
+  try {
+    await pool.query(
+      'UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2',
+      [status, withdrawalId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update withdrawal error:', err);
+    res.status(500).json({ error: 'Failed to update withdrawal' });
+  }
+});
+
+// ============ START SERVER ============
+
 async function startServer() {
   try {
     await initDB();
@@ -337,6 +455,7 @@ async function startServer() {
     
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`📊 Admin dashboard: https://yzemanbot-backend.onrender.com/admin.html`);
     });
     
     process.on('SIGTERM', () => {
