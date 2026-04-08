@@ -24,7 +24,6 @@
             color: #888;
             margin-bottom: 30px;
         }
-        /* Stats Cards */
         .stats {
             display: flex;
             gap: 20px;
@@ -48,7 +47,6 @@
             color: #888;
             margin-top: 5px;
         }
-        /* Pending Withdrawals Section */
         .pending-section {
             background: linear-gradient(135deg, #ff9800, #ff5722);
             border-radius: 20px;
@@ -62,9 +60,6 @@
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-        .pending-title i {
-            font-size: 24px;
         }
         .pending-table {
             background: rgba(0,0,0,0.3);
@@ -97,7 +92,6 @@
             border-radius: 8px;
             cursor: pointer;
         }
-        /* Main Table */
         .search-box {
             margin-bottom: 20px;
             display: flex;
@@ -236,7 +230,6 @@
         <h1>👑 YzemanBot Admin Dashboard</h1>
         <p class="subtitle">Manage users, approve withdrawals, and monitor earnings</p>
         
-        <!-- Stats Overview -->
         <div class="stats" id="stats">
             <div class="stat-card">
                 <div class="stat-number" id="totalUsers">-</div>
@@ -260,13 +253,11 @@
             </div>
         </div>
 
-        <!-- Tabs -->
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('withdrawals')">💰 Pending Withdrawals</button>
             <button class="tab-btn" onclick="showTab('users')">👥 All Users</button>
         </div>
 
-        <!-- Pending Withdrawals Tab -->
         <div id="withdrawalsTab" class="tab-content active">
             <div class="pending-section">
                 <div class="pending-title">
@@ -278,7 +269,6 @@
             </div>
         </div>
 
-        <!-- Users Tab -->
         <div id="usersTab" class="tab-content">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Search by username, name, or Telegram ID..." onkeyup="filterUsers()">
@@ -403,7 +393,6 @@
                 return;
             }
             
-            // Sort by oldest first
             pending.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             
             container.innerHTML = `
@@ -433,6 +422,7 @@
             `;
         }
         
+        // ============ CORRECTED WITHDRAWAL PROCESSING ============
         async function processWithdrawal(withdrawalId, userId, amount, status) {
             const confirmMsg = status === 'approved' ? `Approve $${amount} withdrawal?` : `Reject $${amount} withdrawal?`;
             if (!confirm(confirmMsg)) return;
@@ -448,18 +438,22 @@
                 });
                 
                 if (response.ok) {
-                    // If approved or rejected, also deduct points from user
-                    const pointsToDeduct = amount * 100000;
-                    await fetch('/api/admin/deduct-points', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer admin123'
-                        },
-                        body: JSON.stringify({ userId, points: pointsToDeduct })
-                    });
-                    
-                    showMessage(`✅ Withdrawal ${status}! $${amount} deducted from user.`);
+                    // ONLY deduct points for APPROVED withdrawals
+                    // For rejected, the server already refunds, so don't deduct again
+                    if (status === 'approved') {
+                        const pointsToDeduct = amount * 100000;
+                        await fetch('/api/admin/deduct-points', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer admin123'
+                            },
+                            body: JSON.stringify({ userId, points: pointsToDeduct })
+                        });
+                        showMessage(`✅ Withdrawal APPROVED! $${amount} deducted from user.`);
+                    } else {
+                        showMessage(`✅ Withdrawal REJECTED! Points have been refunded to user.`);
+                    }
                     await loadAllData();
                 } else {
                     showMessage('❌ Failed to process withdrawal', true);
@@ -625,7 +619,6 @@
             }
         }
         
-        // Auto refresh every 30 seconds
         loadAllData();
         setInterval(loadAllData, 30000);
     </script>
