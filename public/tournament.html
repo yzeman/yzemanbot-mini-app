@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Weekly Tournament - YzemanBot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6a11cb;
+            --secondary: #2575fc;
+            --success: #00c853;
+            --warning: #ffab00;
+            --dark: #1a1b25;
+            --darker: #12131a;
+            --gray: #6c757d;
+            --card-bg: #252836;
+            --card-border: #2d3343;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .prize-section { background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 20px; padding: 20px; text-align: center; margin-bottom: 20px; }
+        .prize-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .prize-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .prize-item { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; }
+        .prize-rank { font-weight: bold; font-size: 14px; }
+        .prize-points { font-size: 12px; color: #FFD700; }
+        .join-btn { background: var(--success); color: white; border: none; border-radius: 16px; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 20px; }
+        .join-btn.joined { background: var(--gray); cursor: default; }
+        .my-rank-card { background: var(--card-bg); border: 2px solid var(--secondary); border-radius: 16px; padding: 15px; text-align: center; margin-bottom: 20px; }
+        .my-rank { font-size: 28px; font-weight: bold; color: var(--secondary); }
+        .my-points { font-size: 20px; color: var(--success); }
+        .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
+        .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
+        .rank { width: 40px; font-weight: bold; font-size: 16px; }
+        .rank-1 { color: #FFD700; }
+        .rank-2 { color: #C0C0C0; }
+        .rank-3 { color: #CD7F32; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; }
+        .info { flex: 1; }
+        .name { font-weight: 600; font-size: 14px; }
+        .username { font-size: 11px; color: var(--gray); }
+        .score { font-weight: bold; color: var(--success); font-size: 13px; }
+        .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
+            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-fist-raised"></i> Weekly Tournament</h1>
+            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Compete weekly for prizes!</p>
+        </div>
+
+        <div class="prize-section">
+            <div class="prize-title">🏆 Weekly Prizes 🏆</div>
+            <div class="prize-grid" id="prizesGrid">
+                <div class="prize-item"><div class="prize-rank">🥇 1st</div><div class="prize-points">100,000 pts</div></div>
+                <div class="prize-item"><div class="prize-rank">🥈 2nd</div><div class="prize-points">50,000 pts</div></div>
+                <div class="prize-item"><div class="prize-rank">🥉 3rd</div><div class="prize-points">25,000 pts</div></div>
+            </div>
+        </div>
+
+        <button class="join-btn" id="joinBtn">⚔️ Join Tournament</button>
+
+        <div id="myRankCard" class="my-rank-card" style="display: none;">
+            <div>Your Current Rank</div>
+            <div class="my-rank" id="myRank">-</div>
+            <div class="my-points" id="myPoints">0 pts this week</div>
+        </div>
+
+        <div class="leaderboard-list" id="standingsList">
+            <div class="loading">Loading standings...</div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
+        <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
+        <a href="tournament.html" class="nav-item active"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
+        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.expand(); tg.ready(); }
+
+        let hasJoined = false;
+
+        async function apiCall(endpoint, data = null) {
+            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(endpoint, options);
+            if (!response.ok) throw new Error(await response.text());
+            return response.json();
+        }
+
+        async function joinTournament() {
+            if (hasJoined) return;
+            try {
+                await apiCall('/api/tournament/join', { initData: tg.initData });
+                hasJoined = true;
+                document.getElementById('joinBtn').textContent = '✅ Joined!';
+                document.getElementById('joinBtn').classList.add('joined');
+                showNotification('You joined the tournament! Start earning points!');
+                loadStandings();
+            } catch (err) {
+                showNotification(err.message, true);
+            }
+        }
+
+        async function loadStandings() {
+            try {
+                const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
+                
+                if (data.my_rank) {
+                    document.getElementById('myRankCard').style.display = 'block';
+                    document.getElementById('myRank').textContent = `#${data.my_rank}`;
+                    document.getElementById('myPoints').textContent = `${data.my_points.toLocaleString()} pts this week`;
+                }
+                
+                const container = document.getElementById('standingsList');
+                if (!data.standings.length) {
+                    container.innerHTML = '<div class="loading">No participants yet. Be the first!</div>';
+                    return;
+                }
+                
+                container.innerHTML = data.standings.map((user, idx) => `
+                    <div class="leaderboard-item">
+                        <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
+                        <div class="avatar"><i class="fas fa-user"></i></div>
+                        <div class="info">
+                            <div class="name">${user.first_name || user.username || 'User'}</div>
+                            <div class="username">${user.username ? '@' + user.username : ''}</div>
+                        </div>
+                        <div class="score">${(user.weekly_points || 0).toLocaleString()} pts</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function showNotification(msg, isError = false) {
+            const notif = document.createElement('div');
+            notif.textContent = msg;
+            notif.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${isError ? '#ff5252' : '#00c853'};color:white;padding:12px 24px;border-radius:12px;z-index:1001;font-size:14px;`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        document.getElementById('joinBtn').addEventListener('click', joinTournament);
+        
+        loadStandings();
+    </script>
+</body>
+</html>
