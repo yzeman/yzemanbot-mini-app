@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>YzemanBot - Earn Rewards</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Ad SDK - Restored from original -->
+    <!-- Ad SDK -->
     <script src='//libtl.com/sdk.js' data-zone='9683863' data-sdk='show_9683863'></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -92,10 +92,14 @@
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 8px; }
         .history-amount { color: var(--success); font-weight: 600; }
         .history-date { font-size: 12px; color: var(--gray); }
-        .status-pending { background: var(--warning); color: #000; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
-        .status-completed { background: var(--success); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
-        .status-failed { background: var(--danger); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
-        .status-processing { background: var(--secondary); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        /* Status Colors - Pending (Yellow/Orange) */
+        .status-pending { background: #ffab00; color: #000; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-block; }
+        /* Status Colors - Completed/Success (Green) */
+        .status-completed { background: #00c853; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-block; }
+        /* Status Colors - Failed/Rejected (Red) */
+        .status-failed { background: #ff5252; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-block; }
+        /* Status Colors - Processing (Blue) */
+        .status-processing { background: #2196F3; color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; display: inline-block; }
         .admin-message { background: var(--card-bg); border-radius: 16px; padding: 20px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); }
         .retry-btn { background: var(--secondary); border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 10px; cursor: pointer; }
         .ad-container { margin-top: 20px; text-align: center; }
@@ -351,7 +355,6 @@
         let currentUser = null;
         let completedSocial = JSON.parse(localStorage.getItem('completedSocial') || '{}');
         let usedBonusCodes = JSON.parse(localStorage.getItem('usedBonusCodes') || '{}');
-        let withdrawals = JSON.parse(localStorage.getItem('withdrawals') || '[]');
 
         // ============ BONUS CODES LIST ============
         const bonusCodesList = {
@@ -454,27 +457,18 @@
             adStatus.textContent = 'Loading advertisement...';
             adCountdown.textContent = '';
             
-            // Check if ad SDK is available
             if (typeof show_9683863 === 'function') {
                 try {
-                    // Use the SDK to show ad
                     adStatus.textContent = 'Showing ad...';
                     await show_9683863();
-                    
                     adStatus.textContent = 'Ad completed! Processing reward...';
                     await addPoints(reward);
                     showNotification(`+${reward} points earned!`);
-                    
                 } catch (error) {
                     console.error('Ad error:', error);
-                    adStatus.textContent = 'Ad failed to load. Trying fallback...';
-                    
-                    // Fallback: Simulate ad with countdown
                     await simulateFallbackAd(reward, adStatus, adCountdown);
                 }
             } else {
-                // SDK not available, use fallback
-                console.log('SDK not available, using fallback');
                 await simulateFallbackAd(reward, adStatus, adCountdown);
             }
             
@@ -483,13 +477,10 @@
             }, 1000);
         }
         
-        // Fallback ad simulation when SDK is not available
         async function simulateFallbackAd(reward, adStatus, adCountdown) {
             adStatus.textContent = 'Watch ad for 5 seconds to earn points!';
-            
             let seconds = 5;
             adCountdown.textContent = `⏱️ ${seconds} seconds remaining`;
-            
             const timer = setInterval(() => {
                 seconds--;
                 adCountdown.textContent = `⏱️ ${seconds} seconds remaining`;
@@ -498,9 +489,7 @@
                     adCountdown.textContent = '✅ Ad completed!';
                 }
             }, 1000);
-            
             await new Promise(resolve => setTimeout(resolve, 5000));
-            
             adStatus.textContent = 'Processing reward...';
             await addPoints(reward);
             showNotification(`+${reward} points earned!`);
@@ -539,7 +528,7 @@
                 });
                 
                 if (response.ok) {
-                    showNotification('Withdrawal request submitted! Admin will contact you.');
+                    showNotification('Withdrawal request submitted! Admin will review it.');
                     await refreshUser();
                     loadWithdrawalHistory();
                 } else {
@@ -564,11 +553,11 @@
                     );
                     displayWithdrawalHistory(userWithdrawals);
                 } else {
-                    displayWithdrawalHistory(withdrawals);
+                    displayWithdrawalHistory([]);
                 }
             } catch (err) {
                 console.error('Failed to load withdrawals:', err);
-                displayWithdrawalHistory(withdrawals);
+                displayWithdrawalHistory([]);
             }
         }
         
@@ -581,13 +570,29 @@
                 return;
             }
             
-            container.innerHTML = history.map(w => `
-                <div class="history-item">
-                    <div class="history-amount">$${w.amount || 0}</div>
-                    <div class="history-date">${new Date(w.created_at || w.date).toLocaleDateString()}</div>
-                    <div><span class="status-${w.status || 'pending'}">${w.status || 'pending'}</span></div>
-                </div>
-            `).join('');
+            container.innerHTML = history.map(w => {
+                let statusClass = 'status-pending';
+                let statusText = w.status || 'pending';
+                if (w.status === 'completed' || w.status === 'approved') {
+                    statusClass = 'status-completed';
+                    statusText = '✅ Approved';
+                } else if (w.status === 'rejected' || w.status === 'failed') {
+                    statusClass = 'status-failed';
+                    statusText = '❌ Rejected';
+                } else if (w.status === 'processing') {
+                    statusClass = 'status-processing';
+                    statusText = '⏳ Processing';
+                } else {
+                    statusText = '⏳ Pending';
+                }
+                return `
+                    <div class="history-item">
+                        <div class="history-amount">$${w.amount || 0}</div>
+                        <div class="history-date">${new Date(w.created_at).toLocaleDateString()}</div>
+                        <div><span class="${statusClass}">${statusText}</span></div>
+                    </div>
+                `;
+            }).join('');
         }
 
         // ============ UI UPDATE ============
