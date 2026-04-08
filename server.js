@@ -6,23 +6,22 @@ const crypto = require('crypto');
 const path = require('path');
 const app = express();
 
-// CRITICAL: Use Render's PORT or default to 3000
-const PORT = process.env.PORT || 3000;
-const isProduction = process.env.NODE_ENV === 'production';
+// CRITICAL FIX: Use Render's PORT (default 10000) or fallback to 3000
+// DO NOT hardcode 3001 - Render needs port 10000!
+const PORT = process.env.PORT || 10000;
 
-// Log for debugging
 console.log('Starting server...');
 console.log('PORT:', PORT);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
 console.log('BOT_TOKEN exists:', !!process.env.BOT_TOKEN);
 
-// Database connection with better error handling
+// Database connection
 let pool;
 try {
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: isProduction ? { rejectUnauthorized: false } : false,
+        ssl: { rejectUnauthorized: false }, // Required for Render PostgreSQL
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 30000,
     });
@@ -38,7 +37,7 @@ try {
 app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
-// Health check endpoint (CRITICAL for Render)
+// Health check endpoint
 app.get('/health', async (req, res) => {
     try {
         if (pool) {
@@ -47,7 +46,8 @@ app.get('/health', async (req, res) => {
                 status: 'OK', 
                 uptime: process.uptime(), 
                 timestamp: new Date().toISOString(),
-                database: 'connected'
+                database: 'connected',
+                port: PORT
             });
         } else {
             res.status(503).json({ status: 'Database pool not initialized' });
@@ -1167,7 +1167,7 @@ app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// START SERVER
+// START SERVER - CRITICAL: Bind to 0.0.0.0
 // ============================================
 
 async function startServer() {
@@ -1182,9 +1182,11 @@ async function startServer() {
             throw new Error('Database pool not initialized');
         }
         
+        // CRITICAL: Bind to '0.0.0.0' not 'localhost'
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`📊 Health check: http://localhost:${PORT}/health`);
+            console.log(`📊 Health check: http://0.0.0.0:${PORT}/health`);
+            console.log(`✅ Server is listening on 0.0.0.0:${PORT}`);
         });
         
         process.on('SIGTERM', () => {
