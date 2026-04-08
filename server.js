@@ -6,25 +6,65 @@ const crypto = require('crypto');
 const path = require('path');
 const app = express();
 
-const PORT = process.env.PORT || 3001;
+// CRITICAL: Use Render's PORT or default to 3000
+const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: isProduction ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000,
-});
+// Log for debugging
+console.log('Starting server...');
+console.log('PORT:', PORT);
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('BOT_TOKEN exists:', !!process.env.BOT_TOKEN);
 
-pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
-});
+// Database connection with better error handling
+let pool;
+try {
+    pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: isProduction ? { rejectUnauthorized: false } : false,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
+    });
+
+    pool.on('error', (err) => {
+        console.error('Unexpected database error:', err);
+    });
+    console.log('Database pool created successfully');
+} catch (err) {
+    console.error('Failed to create database pool:', err);
+}
 
 app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
+// Health check endpoint (CRITICAL for Render)
+app.get('/health', async (req, res) => {
+    try {
+        if (pool) {
+            await pool.query('SELECT 1');
+            res.status(200).json({ 
+                status: 'OK', 
+                uptime: process.uptime(), 
+                timestamp: new Date().toISOString(),
+                database: 'connected'
+            });
+        } else {
+            res.status(503).json({ status: 'Database pool not initialized' });
+        }
+    } catch (err) {
+        console.error('Health check failed:', err);
+        res.status(503).json({ status: 'DB unavailable', error: err.message });
+    }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // ============================================
-// HELPER FUNCTIONS
+// TELEGRAM VERIFICATION
 // ============================================
 
 async function verifyTelegramData(req, res, next) {
@@ -245,7 +285,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// DAILY REWARDS & STREAK SYSTEM
+// DAILY REWARDS
 // ============================================
 
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
@@ -311,32 +351,6 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
             [finalReward, today, userId]
         );
         
-        if (streak >= 30) {
-            const loyalAchievement = await client.query(
-                "SELECT id FROM achievements WHERE name = 'Loyal User'"
-            );
-            if (loyalAchievement.rows.length > 0) {
-                await client.query(
-                    `INSERT INTO user_achievements (user_id, achievement_id) 
-                     VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                    [userId, loyalAchievement.rows[0].id]
-                );
-            }
-        }
-        
-        if (streak >= 7) {
-            const streakAchievement = await client.query(
-                "SELECT id FROM achievements WHERE name = 'Daily Streak 7'"
-            );
-            if (streakAchievement.rows.length > 0) {
-                await client.query(
-                    `INSERT INTO user_achievements (user_id, achievement_id) 
-                     VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                    [userId, streakAchievement.rows[0].id]
-                );
-            }
-        }
-        
         await client.query('COMMIT');
         
         res.json({ 
@@ -360,7 +374,7 @@ app.get('/api/daily-stats', verifyTelegramData, async (req, res) => {
         const telegramId = req.telegramUser.id;
         
         const userResult = await pool.query(
-            'SELECT id, last_login_date FROM users WHERE telegram_id = $1',
+            'SELECT id FROM users WHERE telegram_id = $1',
             [telegramId]
         );
         
@@ -425,7 +439,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
         const userId = userResult.rows[0].id;
         
         const lastSpin = await client.query(
-            "SELECT spin_date, reward_points FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
+            "SELECT spin_date FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
             [userId]
         );
         
@@ -461,19 +475,6 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
             'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
             [finalReward, userId]
         );
-        
-        if (rewardPoints === 10000) {
-            const wheelAchievement = await client.query(
-                "SELECT id FROM achievements WHERE name = 'Wheel Champion'"
-            );
-            if (wheelAchievement.rows.length > 0) {
-                await client.query(
-                    `INSERT INTO user_achievements (user_id, achievement_id) 
-                     VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                    [userId, wheelAchievement.rows[0].id]
-                );
-            }
-        }
         
         await client.query('COMMIT');
         
@@ -553,8 +554,7 @@ app.get('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res
                 u.first_name,
                 u.photo_url,
                 COUNT(r.id) as referral_count,
-                u.tier,
-                RANK() OVER (ORDER BY COUNT(r.id) DESC) as rank
+                u.tier
             FROM users u
             LEFT JOIN referrals r ON u.id = r.referrer_id 
                 AND r.created_at > NOW() - INTERVAL '7 days'
@@ -579,8 +579,7 @@ app.get('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => 
                 photo_url,
                 points,
                 tier,
-                total_points_earned,
-                RANK() OVER (ORDER BY points DESC) as rank
+                total_points_earned
             FROM users
             ORDER BY points DESC
             LIMIT 50
@@ -601,8 +600,7 @@ app.get('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res)
                 u.first_name,
                 u.photo_url,
                 COALESCE(SUM(ar.reward_amount), 0) as weekly_earnings,
-                u.tier,
-                RANK() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
+                u.tier
             FROM users u
             LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
                 AND ar.created_at > NOW() - INTERVAL '7 days'
@@ -618,7 +616,7 @@ app.get('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res)
 });
 
 // ============================================
-// ACHIEVEMENTS SYSTEM
+// ACHIEVEMENTS
 // ============================================
 
 app.get('/api/achievements', verifyTelegramData, async (req, res) => {
@@ -682,7 +680,7 @@ app.get('/api/achievements', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// WEEKLY TOURNAMENTS
+// TOURNAMENTS
 // ============================================
 
 app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
@@ -761,8 +759,7 @@ app.get('/api/tournament/standings', verifyTelegramData, async (req, res) => {
                 u.photo_url,
                 COALESCE(SUM(ar.reward_amount), 0) as weekly_points,
                 COUNT(DISTINCT r.id) as weekly_referrals,
-                u.tier,
-                RANK() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
+                u.tier
             FROM tournament_participants tp
             JOIN users u ON tp.user_id = u.id
             LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
@@ -798,24 +795,8 @@ app.get('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     }
 });
 
-app.get('/api/tournament/prizes', verifyTelegramData, async (req, res) => {
-    const prizes = [
-        { rank: 1, prize_points: 100000, prize_usd: 1, description: "🥇 100,000 points ($1)" },
-        { rank: 2, prize_points: 50000, prize_usd: 0.5, description: "🥈 50,000 points ($0.50)" },
-        { rank: 3, prize_points: 25000, prize_usd: 0.25, description: "🥉 25,000 points ($0.25)" },
-        { rank: 4, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" },
-        { rank: 5, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" },
-        { rank: 6, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" },
-        { rank: 7, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" },
-        { rank: 8, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" },
-        { rank: 9, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" },
-        { rank: 10, prize_points: 10000, prize_usd: 0.10, description: "4th-10th: 10,000 points" }
-    ];
-    res.json(prizes);
-});
-
 // ============================================
-// TEAM COMPETITIONS
+// TEAMS
 // ============================================
 
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
@@ -913,17 +894,6 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
         
         await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
         
-        const teamAchievement = await client.query(
-            "SELECT id FROM achievements WHERE name = 'Team Player'"
-        );
-        if (teamAchievement.rows.length > 0) {
-            await client.query(
-                `INSERT INTO user_achievements (user_id, achievement_id) 
-                 VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-                [userId, teamAchievement.rows[0].id]
-            );
-        }
-        
         await client.query('COMMIT');
         
         res.json({ success: true, message: 'Joined team successfully!' });
@@ -1007,8 +977,7 @@ app.get('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
                 COUNT(tm.user_id) as member_count,
                 COALESCE(SUM(u.points), 0) as total_points,
                 COALESCE(SUM(u.referrals), 0) as total_referrals,
-                u2.username as leader_name,
-                RANK() OVER (ORDER BY COALESCE(SUM(u.points), 0) DESC) as rank
+                u2.username as leader_name
             FROM teams t
             LEFT JOIN team_members tm ON t.id = tm.team_id
             LEFT JOIN users u ON tm.user_id = u.id
@@ -1043,8 +1012,7 @@ app.get('/api/team/monthly-competition', verifyTelegramData, async (req, res) =>
                 ms.team_points,
                 ms.team_referrals,
                 ms.member_count,
-                u.username as leader_name,
-                RANK() OVER (ORDER BY ms.team_points DESC) as rank
+                u.username as leader_name
             FROM teams t
             JOIN monthly_stats ms ON t.id = ms.team_id
             LEFT JOIN users u ON t.created_by = u.id
@@ -1065,7 +1033,7 @@ app.get('/api/team/monthly-competition', verifyTelegramData, async (req, res) =>
 });
 
 // ============================================
-// WITHDRAWAL API
+// WITHDRAWAL
 // ============================================
 
 app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
@@ -1115,7 +1083,7 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// ADMIN API ENDPOINTS
+// ADMIN API
 // ============================================
 
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
@@ -1145,93 +1113,6 @@ app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
     } catch (err) {
         console.error('Admin withdrawals error:', err);
         res.json([]);
-    }
-});
-
-app.get('/api/admin/referrals', verifyAdmin, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT 
-                r.id, r.created_at,
-                u1.username as referrer_username, u1.first_name as referrer_name,
-                u2.username as referred_username, u2.first_name as referred_name,
-                t.referral_reward as reward
-            FROM referrals r
-            JOIN users u1 ON r.referrer_id = u1.id
-            JOIN users u2 ON r.referred_id = u2.id
-            LEFT JOIN tiers t ON u1.tier = t.name
-            ORDER BY r.created_at DESC
-            LIMIT 500
-        `);
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Admin referrals error:', err);
-        res.json([]);
-    }
-});
-
-app.post('/api/admin/update-user', verifyAdmin, async (req, res) => {
-    const { userId, points, tier, referrals } = req.body;
-    
-    try {
-        await pool.query(
-            'UPDATE users SET points = $1, tier = $2, referrals = $3 WHERE id = $4',
-            [points, tier, referrals, userId]
-        );
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Update user error:', err);
-        res.status(500).json({ error: 'Failed to update user' });
-    }
-});
-
-app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
-    const { userId, points } = req.body;
-    
-    try {
-        await pool.query(
-            'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
-            [points, userId]
-        );
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Add points error:', err);
-        res.status(500).json({ error: 'Failed to add points' });
-    }
-});
-
-app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
-    const { userId, points } = req.body;
-    
-    try {
-        await pool.query(
-            'UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1',
-            [points, userId]
-        );
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Deduct points error:', err);
-        res.status(500).json({ error: 'Failed to deduct points' });
-    }
-});
-
-app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
-    const { userId } = req.body;
-    
-    try {
-        await pool.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
-        await pool.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-        await pool.query('DELETE FROM users WHERE id = $1', [userId]);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Delete user error:', err);
-        res.status(500).json({ error: 'Failed to delete user' });
     }
 });
 
@@ -1270,12 +1151,18 @@ app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
     }
 });
 
-app.get('/health', async (req, res) => {
+app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
+    const { userId, points } = req.body;
+    
     try {
-        await pool.query('SELECT 1');
-        res.status(200).json({ status: 'OK', uptime: process.uptime(), timestamp: new Date().toISOString() });
+        await pool.query(
+            'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
+            [points, userId]
+        );
+        res.json({ success: true });
     } catch (err) {
-        res.status(503).json({ status: 'DB unavailable' });
+        console.error('Add points error:', err);
+        res.status(500).json({ error: 'Failed to add points' });
     }
 });
 
@@ -1285,19 +1172,25 @@ app.get('/health', async (req, res) => {
 
 async function startServer() {
     try {
-        const client = await pool.connect();
-        await client.query('SELECT 1');
-        client.release();
-        console.log('✅ Database connected successfully');
+        // Test database connection
+        if (pool) {
+            const client = await pool.connect();
+            await client.query('SELECT 1');
+            client.release();
+            console.log('✅ Database connected successfully');
+        } else {
+            throw new Error('Database pool not initialized');
+        }
         
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server running on port ${PORT}`);
-            console.log(`📊 Admin dashboard: https://your-domain.com/admin.html`);
+            console.log(`📊 Health check: http://localhost:${PORT}/health`);
         });
         
         process.on('SIGTERM', () => {
+            console.log('SIGTERM received, closing server...');
             server.close(() => {
-                pool.end();
+                if (pool) pool.end();
                 process.exit(0);
             });
         });
