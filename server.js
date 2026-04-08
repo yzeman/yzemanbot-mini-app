@@ -376,6 +376,40 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Deduct points from user (admin only)
+app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  
+  try {
+    await pool.query(
+      'UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1',
+      [points, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Deduct points error:', err);
+    res.status(500).json({ error: 'Failed to deduct points' });
+  }
+});
+
+// Delete user account (admin only)
+app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
+  const { userId } = req.body;
+  
+  try {
+    // First delete related records (referrals, ad_rewards, withdrawals)
+    await pool.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
+    await pool.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
+    // Then delete the user
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
 // ============ ADMIN API ENDPOINTS ============
 
 function verifyAdmin(req, res, next) {
