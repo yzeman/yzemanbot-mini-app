@@ -29,34 +29,69 @@
         .user-name { font-weight: 600; }
         .user-id { font-size: 12px; color: var(--gray); }
         .logo { width: 80px; height: 80px; background: linear-gradient(45deg, var(--primary), var(--secondary)); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 36px; }
-        h1 { font-size: 28px; font-weight: 800; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        h1 { font-size: 28px; font-weight: 800; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
+        .subtitle { color: var(--gray); font-size: 16px; text-align: center; margin-bottom: 20px; }
         .tabs { display: flex; background: var(--card-bg); border-radius: 16px; margin-bottom: 25px; border: 1px solid var(--card-border); flex-wrap: wrap; }
-        .tab { flex: 1; padding: 16px 10px; text-align: center; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; font-size: 14px; }
+        .tab { flex: 1; padding: 16px 8px; text-align: center; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; font-size: 13px; }
         .tab.active { border-bottom: 3px solid var(--secondary); background: rgba(37, 117, 252, 0.1); }
         .tab-content { display: none; animation: fadeIn 0.5s ease; }
         .tab-content.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .stats-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
         .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 18px; text-align: center; }
-        .stat-value { font-size: 24px; font-weight: 700; margin: 8px 0; }
+        .stat-value { font-size: 24px; font-weight: 700; margin: 8px 0; color: var(--success); }
+        .stat-label { font-size: 14px; color: var(--gray); }
         .progress-container { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 25px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
         .progress-bar-bg { height: 12px; background: #2d3343; border-radius: 10px; overflow: hidden; }
         .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 1s ease; }
+        .task-list { margin-bottom: 25px; }
         .task-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 18px; margin-bottom: 15px; display: flex; align-items: center; }
-        .task-icon { width: 48px; height: 48px; background: linear-gradient(45deg, #ff9a9e, #fad0c4); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px; }
+        .task-icon { width: 48px; height: 48px; background: linear-gradient(45deg, #ff9a9e, #fad0c4); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 20px; }
         .task-details { flex: 1; }
+        .task-title { font-weight: 600; margin-bottom: 5px; }
+        .task-description { font-size: 14px; color: var(--gray); margin-bottom: 8px; }
+        .task-reward { color: var(--success); font-weight: 600; font-size: 14px; }
         .task-action { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 10px 20px; font-weight: 600; cursor: pointer; }
         .referral-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 25px; text-align: center; }
-        .referral-link-box { background: rgba(37, 117, 252, 0.1); border: 1px solid var(--secondary); border-radius: 12px; padding: 12px; margin: 15px 0; word-break: break-all; }
+        .referral-link-box { background: rgba(37, 117, 252, 0.1); border: 1px solid var(--secondary); border-radius: 12px; padding: 12px; margin: 15px 0; word-break: break-all; font-size: 12px; }
         .copy-btn { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 12px 25px; font-weight: 600; cursor: pointer; }
-        .withdraw-btn { background: linear-gradient(45deg, #00c853, #64dd17); color: white; border: none; border-radius: 12px; padding: 15px 40px; font-weight: 700; cursor: pointer; }
+        .channel-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 15px; }
+        .channel-icon { width: 50px; height: 50px; background: linear-gradient(45deg, #ff9a9e, #fad0c4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .channel-info { flex: 1; }
+        .channel-name { font-weight: 600; margin-bottom: 5px; }
+        .channel-description { font-size: 14px; color: var(--gray); }
+        .channel-join { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 8px 15px; font-weight: 600; cursor: pointer; }
+        .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 25px; }
+        .bonus-title { font-size: 20px; font-weight: 700; margin-bottom: 15px; text-align: center; }
+        .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); font-size: 16px; }
+        .bonus-btn { background: linear-gradient(45deg, #FF9800, #FF5722); color: white; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 600; cursor: pointer; }
+        .bonus-list { margin-top: 20px; }
+        .bonus-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+        .bonus-code { font-family: monospace; font-weight: 600; }
+        .bonus-reward { color: var(--success); }
+        .redeemed-badge { background: var(--success); color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px; }
+        .wallet-input { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--darker); color: var(--light); margin: 10px 0; }
+        .submit-btn { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 12px; width: 100%; cursor: pointer; }
+        .withdraw-btn { background: linear-gradient(45deg, #00c853, #64dd17); color: white; border: none; border-radius: 12px; padding: 15px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 15px 30px; border-radius: 12px; z-index: 1000; display: none; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .ad-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: none; justify-content: center; align-items: center; flex-direction: column; }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .tier-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; background: var(--primary); }
-        .error-message { color: #ff5252; text-align: center; padding: 20px; }
+        .tier-info { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-top: 20px; }
+        .tier-info ul { margin-left: 20px; margin-top: 10px; }
+        .tier-info li { margin: 8px 0; }
+        .daily-reset { text-align: center; font-size: 14px; color: var(--gray); margin: 10px 0; }
+        .conversion-info { text-align: center; font-size: 14px; color: var(--gray); margin: 10px 0; }
+        .withdrawal-history { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+        .history-amount { color: var(--success); font-weight: 600; }
+        .status-pending { background: var(--warning); color: #000; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .status-completed { background: var(--success); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .admin-message { background: var(--card-bg); border-radius: 16px; padding: 20px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); }
         .retry-btn { background: var(--secondary); border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 10px; cursor: pointer; }
     </style>
 </head>
@@ -81,60 +116,179 @@
         <div class="tabs">
             <div class="tab active" data-tab="earn">Earn</div>
             <div class="tab" data-tab="refer">Refer</div>
+            <div class="tab" data-tab="social">Social</div>
+            <div class="tab" data-tab="bonus">Bonus</div>
             <div class="tab" data-tab="withdraw">Withdraw</div>
         </div>
 
         <!-- Earn Tab -->
         <div class="tab-content active" id="earnTab">
+            <div class="daily-reset"><i class="fas fa-sync-alt"></i> Daily tasks reset daily</div>
+            <div class="conversion-info"><i class="fas fa-info-circle"></i> 100,000 points = $1 USD</div>
+
             <div class="stats-container">
                 <div class="stat-card">
                     <div class="stat-label">Points</div>
                     <div class="stat-value" id="points">0</div>
-                    <div>$<span id="pointsUSD">0.00</span></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">USD Value</div>
+                    <div class="stat-value" id="usd">$0.00</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">Tier</div>
-                    <div class="stat-value" id="userTier">Fresher</div>
-                    <div id="referralCount">0 referrals</div>
+                    <div class="stat-value" id="tier">Fresher</div>
                 </div>
             </div>
 
             <div class="progress-container">
-                <div class="progress-header">Withdrawal Progress: $<span id="progressAmount">0.00</span> / $1000</div>
+                <div class="progress-header">
+                    <span>Withdrawal Progress</span>
+                    <span>$<span id="progressAmount">0.00</span> / $1000</span>
+                </div>
                 <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
             </div>
 
-            <div class="task-card">
-                <div class="task-icon"><i class="fas fa-ad"></i></div>
-                <div class="task-details">
-                    <div class="task-title">Watch Ad</div>
-                    <div class="task-description">Watch a short ad to earn points</div>
-                    <div class="task-reward">+<span id="adReward">557</span> points</div>
+            <div class="task-list">
+                <div class="task-card">
+                    <div class="task-icon"><i class="fas fa-ad"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Watch Ad</div>
+                        <div class="task-description">Watch a short ad to earn points</div>
+                        <div class="task-reward">+<span id="adReward">557</span> points</div>
+                    </div>
+                    <button class="task-action" id="watchAdBtn">Watch</button>
                 </div>
-                <button class="task-action" id="watchAdBtn">Watch</button>
-            </div>
 
-            <div class="task-card">
-                <div class="task-icon"><i class="fas fa-user-friends"></i></div>
-                <div class="task-details">
-                    <div class="task-title">Refer a Friend</div>
-                    <div class="task-description">Get points when friends join</div>
-                    <div class="task-reward">+<span id="referralReward">5000</span> points</div>
+                <div class="task-card">
+                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Watch YouTube Video</div>
+                        <div class="task-description">Watch for 5 minutes to earn points</div>
+                        <div class="task-reward">+12000 points</div>
+                    </div>
+                    <button class="task-action" id="youtubeTaskBtn">Watch</button>
                 </div>
-                <button class="task-action" id="referBtn">Invite</button>
+
+                <div class="task-card">
+                    <div class="task-icon"><i class="fas fa-globe"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Visit Website</div>
+                        <div class="task-description">Stay for 2 minutes to earn points</div>
+                        <div class="task-reward">+5000 points</div>
+                    </div>
+                    <button class="task-action" id="websiteTaskBtn">Visit</button>
+                </div>
             </div>
         </div>
 
         <!-- Refer Tab -->
         <div class="tab-content" id="referTab">
             <div class="referral-section">
-                <h3>Your Referral Link</h3>
+                <h3>🔗 Your Referral Link</h3>
                 <div class="referral-link-box" id="referralLink">Loading...</div>
                 <button class="copy-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy Link</button>
                 <p style="margin-top: 15px;">Share this link with friends! When they join, you earn points.</p>
+                <p>Your referrals: <span id="referralCount">0</span></p>
+                <p>Points per referral: <span id="referralReward">5000</span></p>
+                
                 <div class="progress-container" style="margin-top: 20px;">
                     <div>Tier Progress: <span id="currentRefs">0</span> / <span id="nextTierReq">50</span> referrals</div>
                     <div class="progress-bar-bg"><div class="progress-bar-fill" id="tierProgressBar"></div></div>
+                </div>
+            </div>
+
+            <div class="tier-info">
+                <h4>📊 Tier Benefits</h4>
+                <ul>
+                    <li><strong>Fresher:</strong> 1x earning rate, 5000 points per referral</li>
+                    <li><strong>Brute (50 referrals):</strong> 1.2x earning rate, 10000 points per referral</li>
+                    <li><strong>Silver (150 referrals):</strong> 1.5x earning rate, 15000 points per referral</li>
+                    <li><strong>Gold (300 referrals):</strong> 2x earning rate, 20000 points per referral</li>
+                    <li><strong>Platinum (500 referrals):</strong> 3x earning rate, 30000 points per referral</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Social Tab -->
+        <div class="tab-content" id="socialTab">
+            <div class="channel-card">
+                <div class="channel-icon"><i class="fab fa-telegram"></i></div>
+                <div class="channel-info">
+                    <div class="channel-name">Official Telegram Channel</div>
+                    <div class="channel-description">Join for updates and bonus rewards</div>
+                </div>
+                <button class="channel-join" id="joinChannelBtn">Join</button>
+            </div>
+
+            <div class="task-list">
+                <div class="task-card">
+                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Subscribe to YouTube Channel 1</div>
+                        <div class="task-description">Subscribe to Yzeman Updates</div>
+                        <div class="task-reward">+5000000 points ($50)</div>
+                    </div>
+                    <button class="task-action" id="youtube1Btn">Subscribe</button>
+                </div>
+
+                <div class="task-card">
+                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Subscribe to YouTube Channel 2</div>
+                        <div class="task-description">Subscribe to Coding App with HTML</div>
+                        <div class="task-reward">+5000000 points ($50)</div>
+                    </div>
+                    <button class="task-action" id="youtube2Btn">Subscribe</button>
+                </div>
+
+                <div class="task-card">
+                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Subscribe to YouTube Channel 3</div>
+                        <div class="task-description">Subscribe to Yzeman Hacker</div>
+                        <div class="task-reward">+5000000 points ($50)</div>
+                    </div>
+                    <button class="task-action" id="youtube3Btn">Subscribe</button>
+                </div>
+
+                <div class="task-card">
+                    <div class="task-icon"><i class="fab fa-facebook"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Follow on Facebook</div>
+                        <div class="task-description">Follow our Facebook page</div>
+                        <div class="task-reward">+5000000 points ($50)</div>
+                    </div>
+                    <button class="task-action" id="facebookBtn">Follow</button>
+                </div>
+
+                <div class="task-card">
+                    <div class="task-icon"><i class="fab fa-instagram"></i></div>
+                    <div class="task-details">
+                        <div class="task-title">Follow on Instagram</div>
+                        <div class="task-description">Follow our Instagram account</div>
+                        <div class="task-reward">+5000000 points ($50)</div>
+                    </div>
+                    <button class="task-action" id="instagramBtn">Follow</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bonus Tab -->
+        <div class="tab-content" id="bonusTab">
+            <div class="bonus-section">
+                <h3 class="bonus-title">🎁 Redeem Bonus Codes</h3>
+                <p>Enter bonus codes to earn extra points!</p>
+                <div class="bonus-input-container">
+                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code">
+                    <button class="bonus-btn" id="redeemBonusBtn">Redeem</button>
+                </div>
+                <div class="bonus-list" id="bonusList"></div>
+            </div>
+            <div class="social-proof">
+                <p>Join our Telegram channel for more bonus codes!</p>
+                <div class="social-icons" style="text-align: center; margin-top: 15px;">
+                    <a href="https://t.me/YzemanEarnBotChannel" target="_blank" style="color: white;"><i class="fab fa-telegram fa-2x"></i></a>
                 </div>
             </div>
         </div>
@@ -142,298 +296,355 @@
         <!-- Withdraw Tab -->
         <div class="tab-content" id="withdrawTab">
             <div class="referral-section">
-                <h3>Withdraw Your Earnings</h3>
+                <h3>💸 Withdraw Your Earnings</h3>
                 <p>Minimum withdrawal: $1000 (100,000 points)</p>
-                <input type="text" class="wallet-input" id="walletAddress" placeholder="Enter USDT (TRC-20) Wallet Address" style="width:100%; padding:12px; margin:10px 0; border-radius:8px; border:none; background:rgba(255,255,255,0.1); color:white;">
-                <button class="submit-btn" id="saveWalletBtn" style="background:var(--secondary); color:white; border:none; padding:12px; border-radius:8px; width:100%; cursor:pointer;">Save Wallet</button>
-                <button class="withdraw-btn" id="withdrawBtn" disabled style="margin-top: 15px;">Withdraw $1000</button>
+                <p>Withdrawals are processed via USDT (TRC-20)</p>
+                <input type="text" class="wallet-input" id="walletAddress" placeholder="Enter USDT (TRC-20) Wallet Address">
+                <button class="submit-btn" id="saveWalletBtn">Save Wallet Address</button>
+                <button class="withdraw-btn" id="withdrawBtn" disabled>Withdraw $1000</button>
+            </div>
+
+            <div class="admin-message">
+                <p>After withdrawal request, admin will contact you via Telegram</p>
+                <p><strong>@yzemanreal</strong></p>
+            </div>
+
+            <div class="withdrawal-history">
+                <h4>Withdrawal History</h4>
+                <div id="withdrawalHistoryList">No withdrawals yet</div>
             </div>
         </div>
     </div>
 
     <script>
-        // ============================================================
-        // REFERRAL CODE DETECTION
-        // ============================================================
-        
+        // Telegram WebApp
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.expand();
             tg.ready();
         }
-        
-        // Detect referral code from URL or Telegram start_param
-        let detectedReferralCode = null;
+
+        // Detect referral code
+        let referralCode = null;
         const urlParams = new URLSearchParams(window.location.search);
-        detectedReferralCode = urlParams.get('start');
-        
-        if (!detectedReferralCode && tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
-            detectedReferralCode = tg.initDataUnsafe.start_param;
+        referralCode = urlParams.get('start');
+        if (referralCode && referralCode.startsWith('ref-')) {
+            referralCode = referralCode.substring(4);
         }
-        
-        // Remove 'ref-' prefix if present
-        if (detectedReferralCode && detectedReferralCode.startsWith('ref-')) {
-            detectedReferralCode = detectedReferralCode.substring(4);
-        }
-        
-        console.log('Referral code detected:', detectedReferralCode);
-        window.referralCode = detectedReferralCode;
-        
-        // ============================================================
-        // MAIN APP
-        // ============================================================
-        
+        console.log('Referral code:', referralCode);
+
         let currentUser = null;
-        let retryCount = 0;
-        const maxRetries = 3;
-        
-        function showNotification(message, isError = false) {
+        let completedSocial = JSON.parse(localStorage.getItem('completedSocial') || '{}');
+        let usedBonusCodes = JSON.parse(localStorage.getItem('usedBonusCodes') || '{}');
+
+        const bonusCodesList = {
+            "BASER": { points: 2000, dollars: 0 },
+            "BOTYZEMAN": { points: 100000, dollars: 0 },
+            "EARNSBOTT": { points: 0, dollars: 15 },
+            "BONUSBOTTER": { points: 0, dollars: 100 },
+            "YZEMASTER1": { points: 50000, dollars: 100 }
+        };
+
+        function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
-            notif.textContent = message;
+            notif.textContent = msg;
             notif.style.background = isError ? '#ff5252' : '#00c853';
             notif.style.display = 'block';
-            setTimeout(() => { notif.style.display = 'none'; }, 3000);
+            setTimeout(() => notif.style.display = 'none', 3000);
         }
-        
-        // Get API base URL (use current origin)
-        const API_BASE = window.location.origin;
-        
-        async function callAPI(endpoint, data) {
-            try {
-                const response = await fetch(`${API_BASE}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP ${response.status}: ${errorText}`);
-                }
-                
-                return await response.json();
-            } catch (error) {
-                console.error(`API Error (${endpoint}):`, error);
-                throw error;
-            }
+
+        async function apiCall(endpoint, data) {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) throw new Error(await response.text());
+            return response.json();
         }
-        
+
         async function registerUser() {
-            if (!tg || !tg.initDataUnsafe.user) {
-                console.error('No Telegram user data');
-                document.getElementById('userName').textContent = 'No Telegram Data';
-                document.getElementById('userId').textContent = 'Please open from Telegram';
+            if (!tg?.initDataUnsafe?.user) {
+                document.getElementById('userName').textContent = 'Open from Telegram';
                 return null;
             }
-            
-            const telegramUser = tg.initDataUnsafe.user;
-            
-            // Update UI with user info
-            document.getElementById('userName').textContent = `${telegramUser.first_name} ${telegramUser.last_name || ''}`;
-            document.getElementById('userId').textContent = `ID: ${telegramUser.id}`;
-            if (telegramUser.photo_url) {
-                document.getElementById('userAvatar').src = telegramUser.photo_url;
-            } else {
-                document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
-            }
-            
+
+            const user = tg.initDataUnsafe.user;
+            document.getElementById('userName').textContent = `${user.first_name} ${user.last_name || ''}`;
+            document.getElementById('userId').textContent = `ID: ${user.id}`;
+            if (user.photo_url) document.getElementById('userAvatar').src = user.photo_url;
+
             try {
-                const result = await callAPI('/api/user', {
+                const result = await apiCall('/api/user', {
                     initData: tg.initData,
-                    referralCode: window.referralCode
+                    referralCode: referralCode
                 });
-                
-                console.log('User registered:', result);
-                
-                if (window.referralCode) {
-                    showNotification(`🎉 Referral bonus applied! +500 points`);
-                    window.referralCode = null;
+                if (referralCode) {
+                    showNotification('🎉 Referral bonus applied!');
+                    referralCode = null;
                 }
-                
                 return result;
-            } catch (error) {
-                console.error('Registration error:', error);
+            } catch (err) {
+                console.error(err);
                 document.getElementById('userName').textContent = 'Connection Error';
-                document.getElementById('userId').textContent = 'Check console for details';
-                showNotification('Failed to connect to server. Please refresh.', true);
+                showNotification('Failed to connect to server', true);
                 return null;
             }
         }
-        
-        async function claimAdReward(rewardAmount) {
+
+        async function refreshUser() {
+            if (!tg?.initDataUnsafe?.user) return;
             try {
-                const result = await callAPI('/api/ad-reward', {
-                    initData: tg.initData,
-                    rewardAmount: rewardAmount,
-                    adType: 'rewarded_video'
-                });
-                return result.points;
-            } catch (error) {
-                console.error('Ad reward error:', error);
-                return null;
-            }
-        }
-        
-        async function refreshUserData() {
-            if (!tg) return;
-            
-            try {
-                const result = await callAPI('/api/user', {
+                const result = await apiCall('/api/user', {
                     initData: tg.initData,
                     referralCode: null
                 });
                 currentUser = result;
                 updateUI();
-            } catch (error) {
-                console.error('Refresh error:', error);
+            } catch (err) {
+                console.error('Refresh error:', err);
             }
         }
-        
+
+        async function addPoints(amount) {
+            try {
+                await apiCall('/api/ad-reward', {
+                    initData: tg.initData,
+                    rewardAmount: amount,
+                    adType: 'reward'
+                });
+                await refreshUser();
+                return true;
+            } catch (err) {
+                showNotification('Failed: ' + err.message, true);
+                return false;
+            }
+        }
+
         function updateUI() {
             if (!currentUser) return;
             
             const points = currentUser.points || 0;
-            const pointsUSD = points / 100000;
-            const progressPercent = Math.min((pointsUSD / 1000) * 100, 100);
+            const usd = points / 100000;
+            const progress = Math.min((usd / 1000) * 100, 100);
             
             document.getElementById('points').textContent = points.toLocaleString();
-            document.getElementById('pointsUSD').textContent = pointsUSD.toFixed(2);
-            document.getElementById('progressAmount').textContent = pointsUSD.toFixed(2);
-            document.getElementById('progressBar').style.width = progressPercent + '%';
-            document.getElementById('userTier').textContent = currentUser.tier || 'Fresher';
-            document.getElementById('referralCount').textContent = (currentUser.referrals || 0) + ' referrals';
+            document.getElementById('usd').textContent = `$${usd.toFixed(2)}`;
+            document.getElementById('tier').textContent = currentUser.tier || 'Fresher';
+            document.getElementById('progressAmount').textContent = usd.toFixed(2);
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('referralCount').textContent = currentUser.referrals || 0;
             document.getElementById('currentRefs').textContent = currentUser.referrals || 0;
             
-            // Tier progress
-            const tiers = ['Fresher', 'Brute', 'Silver', 'Gold', 'Platinum'];
-            const tierRefs = [0, 50, 150, 300, 500];
-            const currentTierIndex = tiers.indexOf(currentUser.tier);
-            const nextTierRefs = tierRefs[currentTierIndex + 1] || 500;
-            document.getElementById('nextTierReq').textContent = nextTierRefs;
-            const tierProgress = ((currentUser.referrals || 0) / nextTierRefs) * 100;
-            document.getElementById('tierProgressBar').style.width = Math.min(tierProgress, 100) + '%';
-            
-            // Referral link
-            if (currentUser.referral_code) {
-                const link = `https://t.me/YzemanBot?start=ref-${currentUser.referral_code}`;
-                document.getElementById('referralLink').textContent = link;
-            }
-            
-            // Referral reward based on tier
             const tierRewards = { Fresher: 5000, Brute: 10000, Silver: 15000, Gold: 20000, Platinum: 30000 };
             document.getElementById('referralReward').textContent = tierRewards[currentUser.tier] || 5000;
             
-            // Ad reward based on tier
             const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
             document.getElementById('adReward').textContent = adRewards[currentUser.tier] || 557;
             
-            // Withdraw button
-            const withdrawBtn = document.getElementById('withdrawBtn');
-            if (withdrawBtn) {
-                withdrawBtn.disabled = pointsUSD < 1000;
+            const tiers = ['Fresher', 'Brute', 'Silver', 'Gold', 'Platinum'];
+            const tierRefs = [0, 50, 150, 300, 500];
+            const idx = tiers.indexOf(currentUser.tier);
+            const nextRefs = tierRefs[idx + 1] || 500;
+            document.getElementById('nextTierReq').textContent = nextRefs;
+            const tierProgress = ((currentUser.referrals || 0) / nextRefs) * 100;
+            document.getElementById('tierProgressBar').style.width = Math.min(tierProgress, 100) + '%';
+            
+            if (currentUser.referral_code) {
+                document.getElementById('referralLink').textContent = `https://t.me/YzemanBot?start=ref-${currentUser.referral_code}`;
             }
+            
+            const withdrawBtn = document.getElementById('withdrawBtn');
+            if (withdrawBtn) withdrawBtn.disabled = usd < 1000;
+            
+            if (currentUser.wallet_address) {
+                document.getElementById('walletAddress').value = currentUser.wallet_address;
+            }
+            
+            displayBonusList();
         }
-        
+
         async function watchAd() {
             const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
             const reward = adRewards[currentUser?.tier] || 557;
             
             const loading = document.getElementById('adLoading');
             loading.style.display = 'flex';
-            
             setTimeout(async () => {
-                const newPoints = await claimAdReward(reward);
-                if (newPoints !== null) {
-                    showNotification(`+${reward} points earned!`);
-                    await refreshUserData();
-                } else {
-                    showNotification('Ad failed, try again', true);
-                }
+                await addPoints(reward);
+                showNotification(`+${reward} points earned!`);
                 loading.style.display = 'none';
             }, 3000);
         }
-        
-        async function saveWalletAddress() {
+
+        async function completeSocialTask(taskName, reward = 5000000) {
+            if (completedSocial[taskName]) {
+                showNotification('You already completed this task!', true);
+                return;
+            }
+            completedSocial[taskName] = true;
+            localStorage.setItem('completedSocial', JSON.stringify(completedSocial));
+            await addPoints(reward);
+            showNotification(`+${reward.toLocaleString()} points earned! 🎉`);
+        }
+
+        async function redeemBonus() {
+            const code = document.getElementById('bonusCodeInput').value.trim().toUpperCase();
+            if (!code) {
+                showNotification('Enter a bonus code', true);
+                return;
+            }
+            
+            const bonus = bonusCodesList[code];
+            if (!bonus) {
+                showNotification('Invalid bonus code', true);
+                return;
+            }
+            
+            const today = new Date().toDateString();
+            if (usedBonusCodes[code] === today) {
+                showNotification('Code already used today', true);
+                return;
+            }
+            
+            let totalPoints = 0;
+            let msg = '';
+            if (bonus.points > 0) {
+                totalPoints += bonus.points;
+                msg += `${bonus.points.toLocaleString()} points `;
+            }
+            if (bonus.dollars > 0) {
+                totalPoints += bonus.dollars * 100000;
+                msg += `$${bonus.dollars} `;
+            }
+            
+            usedBonusCodes[code] = today;
+            localStorage.setItem('usedBonusCodes', JSON.stringify(usedBonusCodes));
+            
+            await addPoints(totalPoints);
+            showNotification(`Bonus code redeemed! +${msg}`);
+            document.getElementById('bonusCodeInput').value = '';
+            displayBonusList();
+        }
+
+        function displayBonusList() {
+            const today = new Date().toDateString();
+            const list = document.getElementById('bonusList');
+            list.innerHTML = '';
+            for (const [code, bonus] of Object.entries(bonusCodesList)) {
+                const rewardText = [];
+                if (bonus.points > 0) rewardText.push(`${bonus.points.toLocaleString()} pts`);
+                if (bonus.dollars > 0) rewardText.push(`$${bonus.dollars}`);
+                const isUsed = usedBonusCodes[code] === today;
+                
+                const item = document.createElement('div');
+                item.className = 'bonus-item';
+                item.innerHTML = `
+                    <span class="bonus-code">${code}</span>
+                    <span class="bonus-reward">${rewardText.join(' + ')}</span>
+                    ${isUsed ? '<span class="redeemed-badge">Used Today</span>' : '<span>Available</span>'}
+                `;
+                list.appendChild(item);
+            }
+        }
+
+        async function saveWallet() {
             const address = document.getElementById('walletAddress').value.trim();
             if (!address) {
                 showNotification('Enter wallet address', true);
                 return;
             }
-            
             try {
-                const result = await callAPI('/api/user', {
+                await apiCall('/api/user', {
                     initData: tg.initData,
                     walletAddress: address
                 });
-                showNotification('Wallet address saved!');
-                currentUser = result;
-                updateUI();
-            } catch (error) {
+                showNotification('Wallet saved!');
+                await refreshUser();
+            } catch (err) {
                 showNotification('Failed to save wallet', true);
             }
         }
-        
-        function copyReferralLink() {
+
+        function copyLink() {
             const link = document.getElementById('referralLink').textContent;
             navigator.clipboard.writeText(link);
-            showNotification('Referral link copied!');
+            showNotification('Link copied!');
         }
-        
+
+        // YouTube task
+        function startYoutubeTask() {
+            window.open('https://youtube.com/watch?v=dQw4w9WgXcQ', '_blank');
+            showNotification('Watch the video for 5 minutes to earn points');
+            setTimeout(async () => {
+                await addPoints(12000);
+                showNotification('YouTube task completed! +12000 points');
+            }, 300000);
+        }
+
+        // Website task
+        function startWebsiteTask() {
+            window.open('https://yzeupdates.lat/articles.html', '_blank');
+            showNotification('Stay on the website for 2 minutes');
+            setTimeout(async () => {
+                await addPoints(5000);
+                showNotification('Website task completed! +5000 points');
+            }, 120000);
+        }
+
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
-                document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
+                document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
             });
         });
-        
+
         // Event listeners
         document.getElementById('watchAdBtn')?.addEventListener('click', watchAd);
-        document.getElementById('copyBtn')?.addEventListener('click', copyReferralLink);
-        document.getElementById('saveWalletBtn')?.addEventListener('click', saveWalletAddress);
-        document.getElementById('referBtn')?.addEventListener('click', () => {
-            document.querySelector('.tab[data-tab="refer"]').click();
-        });
+        document.getElementById('copyBtn')?.addEventListener('click', copyLink);
+        document.getElementById('saveWalletBtn')?.addEventListener('click', saveWallet);
+        document.getElementById('redeemBonusBtn')?.addEventListener('click', redeemBonus);
+        document.getElementById('youtubeTaskBtn')?.addEventListener('click', startYoutubeTask);
+        document.getElementById('websiteTaskBtn')?.addEventListener('click', startWebsiteTask);
         
-        // Initialize app
+        document.getElementById('youtube1Btn')?.addEventListener('click', () => {
+            window.open('https://youtube.com/@yzeupdates', '_blank');
+            completeSocialTask('youtube1');
+        });
+        document.getElementById('youtube2Btn')?.addEventListener('click', () => {
+            window.open('https://youtube.com/@codingappwithhtml', '_blank');
+            completeSocialTask('youtube2');
+        });
+        document.getElementById('youtube3Btn')?.addEventListener('click', () => {
+            window.open('https://youtube.com/@yzemanhacker8831', '_blank');
+            completeSocialTask('youtube3');
+        });
+        document.getElementById('facebookBtn')?.addEventListener('click', () => {
+            window.open('https://www.facebook.com/share/1ADZJ1DVyn/', '_blank');
+            completeSocialTask('facebook');
+        });
+        document.getElementById('instagramBtn')?.addEventListener('click', () => {
+            window.open('https://www.instagram.com/yzeupdates', '_blank');
+            completeSocialTask('instagram');
+        });
+        document.getElementById('joinChannelBtn')?.addEventListener('click', () => {
+            window.open('https://t.me/YzemanEarnBotChannel', '_blank');
+            completeSocialTask('telegram', 5000000);
+        });
+
+        // Initialize
         async function init() {
-            // Show loading state
-            document.getElementById('userName').textContent = 'Connecting to server...';
-            
-            // Set user profile from Telegram if available
-            if (tg && tg.initDataUnsafe.user) {
-                const user = tg.initDataUnsafe.user;
-                document.getElementById('userName').textContent = `${user.first_name} ${user.last_name || ''}`;
-                document.getElementById('userId').textContent = `ID: ${user.id}`;
-                if (user.photo_url) {
-                    document.getElementById('userAvatar').src = user.photo_url;
-                }
-            }
-            
-            // Register user with backend
             currentUser = await registerUser();
-            
             if (currentUser) {
                 updateUI();
-                if (window.referralCode) {
-                    showNotification(`🎉 Referral bonus applied!`);
-                    window.referralCode = null;
-                }
-            } else {
-                document.getElementById('userName').textContent = 'Connection Error';
-                document.getElementById('userId').innerHTML = '<button class="retry-btn" onclick="location.reload()">🔄 Retry</button>';
-                showNotification('Could not connect to server. Please refresh the page.', true);
             }
         }
         
         init();
-        
-        // Refresh data every 30 seconds
-        setInterval(() => {
-            if (currentUser) refreshUserData();
-        }, 30000);
+        setInterval(() => { if (currentUser) refreshUser(); }, 30000);
     </script>
 </body>
 </html>
