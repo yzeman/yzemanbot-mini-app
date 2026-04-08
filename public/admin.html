@@ -3,120 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Admin Dashboard - YzemanBot</title>
     <style>
-        body { background: #1a1a2e; color: white; font-family: system-ui; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; background: #252836; border-radius: 16px; overflow: hidden; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
-        th { background: #6a11cb; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        h1 { color: #6a11cb; }
-        .stats { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
-        .stat-card { background: #252836; padding: 20px; border-radius: 16px; flex: 1; text-align: center; }
-        .stat-number { font-size: 32px; font-weight: bold; color: #00c853; }
-        input, select { padding: 8px; margin: 5px; border-radius: 8px; border: none; }
-        button { background: #6a11cb; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
-        .refresh-btn { background: #00c853; margin-bottom: 20px; }
-        .tier-Fresher { color: #4CAF50; }
-        .tier-Brute { color: #2196F3; }
-        .tier-Silver { color: #9E9E9E; }
-        .tier-Gold { color: #FFD700; }
-        .tier-Platinum { color: #E0E0E0; }
-        .search-box { margin-bottom: 20px; }
-        .search-box input { width: 300px; padding: 10px; background: #252836; color: white; }
+        body {
+            background: #1a1a2e;
+            color: white;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #6a11cb;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: #252836;
+            padding: 20px 30px;
+            border-radius: 16px;
+            flex: 1;
+            text-align: center;
+            min-width: 150px;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #00c853;
+        }
+        .stat-label {
+            color: #888;
+            margin-top: 5px;
+        }
+        .search-box {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            background: #252836;
+            color: white;
+            font-size: 16px;
+        }
+        .refresh-btn {
+            background: #00c853;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .refresh-btn:hover {
+            background: #00e676;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #252836;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #3a3a4a;
+        }
+        th {
+            background: #6a11cb;
+            cursor: pointer;
+            user-select: none;
+        }
+        th:hover {
+            background: #7c3aed;
+        }
+        tr:hover {
+            background: #2d2d3a;
+        }
+        .tier-Fresher { color: #4CAF50; font-weight: bold; }
+        .tier-Brute { color: #2196F3; font-weight: bold; }
+        .tier-Silver { color: #9E9E9E; font-weight: bold; }
+        .tier-Gold { color: #FFD700; font-weight: bold; }
+        .tier-Platinum { color: #E0E0E0; font-weight: bold; }
+        .add-points-btn {
+            background: #6a11cb;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .add-points-btn:hover {
+            background: #8b3dff;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        .error {
+            background: #ff5252;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            th, td { padding: 10px; font-size: 12px; }
+            .stat-number { font-size: 24px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>👑 YzemanBot Admin Dashboard</h1>
+        <p class="subtitle">Manage users, track points, and monitor referrals</p>
         
         <div class="stats" id="stats">
-            <div class="stat-card"><div class="stat-number" id="totalUsers">-</div><div>Total Users</div></div>
-            <div class="stat-card"><div class="stat-number" id="totalPoints">-</div><div>Total Points</div></div>
-            <div class="stat-card"><div class="stat-number" id="totalReferrals">-</div><div>Total Referrals</div></div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalUsers">-</div>
+                <div class="stat-label">Total Users</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalPoints">-</div>
+                <div class="stat-label">Total Points</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalReferrals">-</div>
+                <div class="stat-label">Total Referrals</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalUSD">-</div>
+                <div class="stat-label">Total USD Value</div>
+            </div>
         </div>
-        
-        <button class="refresh-btn" onclick="loadData()">🔄 Refresh</button>
         
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search by username, name, or ID..." onkeyup="filterUsers()">
+            <input type="text" id="searchInput" placeholder="🔍 Search by username, name, or Telegram ID..." onkeyup="filterUsers()">
+            <button class="refresh-btn" onclick="loadUsers()">🔄 Refresh</button>
         </div>
+        
+        <div id="errorMessage" style="display: none;" class="error"></div>
         
         <div style="overflow-x: auto;">
             <table id="usersTable">
                 <thead>
                     <tr>
-                        <th>ID</th><th>Username</th><th>Name</th><th>Tier</th><th>Points</th><th>Referrals</th><th>Wallet</th><th>Actions</th>
+                        <th onclick="sortBy('id')">ID ↕</th>
+                        <th onclick="sortBy('username')">Username ↕</th>
+                        <th onclick="sortBy('first_name')">Name ↕</th>
+                        <th onclick="sortBy('tier')">Tier ↕</th>
+                        <th onclick="sortBy('points')">Points ↕</th>
+                        <th onclick="sortBy('referrals')">Referrals ↕</th>
+                        <th>Referral Code</th>
+                        <th>Wallet</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="usersBody"></tbody>
+                <tbody id="usersBody">
+                    <tr><td colspan="9" class="loading">Loading users...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
 
     <script>
         let allUsers = [];
+        let sortColumn = 'id';
+        let sortDirection = 'desc';
         
-        async function loadData() {
-            const password = prompt('Enter admin password:');
-            if (password !== 'admin123') {
-                alert('Wrong password!');
-                return;
-            }
+        async function loadUsers() {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.style.display = 'none';
             
             try {
                 const response = await fetch('/api/admin/users', {
                     headers: { 'Authorization': 'Bearer admin123' }
                 });
-                if (response.ok) {
-                    allUsers = await response.json();
-                    displayUsers();
-                    updateStats();
-                } else {
-                    alert('Failed to load users');
+                
+                if (response.status === 401) {
+                    errorDiv.innerHTML = '❌ Unauthorized. Make sure you are the admin.';
+                    errorDiv.style.display = 'block';
+                    document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Access denied. Please contact admin.</td></tr>';
+                    return;
                 }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                allUsers = await response.json();
+                displayUsers();
+                updateStats();
+                
             } catch (err) {
-                alert('Error: ' + err.message);
+                console.error('Error loading users:', err);
+                errorDiv.innerHTML = '❌ Failed to load users: ' + err.message;
+                errorDiv.style.display = 'block';
+                document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Error loading users. Make sure server is running.</td></tr>';
             }
         }
         
         function updateStats() {
             const totalPoints = allUsers.reduce((sum, u) => sum + (u.points || 0), 0);
             const totalReferrals = allUsers.reduce((sum, u) => sum + (u.referrals || 0), 0);
+            const totalUSD = totalPoints / 100000;
+            
             document.getElementById('totalUsers').textContent = allUsers.length;
             document.getElementById('totalPoints').textContent = (totalPoints / 1000000).toFixed(1) + 'M';
-            document.getElementById('totalReferrals').textContent = totalReferrals;
+            document.getElementById('totalReferrals').textContent = totalReferrals.toLocaleString();
+            document.getElementById('totalUSD').textContent = '$' + totalUSD.toFixed(2);
         }
         
         function displayUsers() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const filtered = allUsers.filter(u => 
+            let filtered = allUsers.filter(u => 
                 (u.username && u.username.toLowerCase().includes(searchTerm)) ||
                 (u.first_name && u.first_name.toLowerCase().includes(searchTerm)) ||
+                (u.last_name && u.last_name.toLowerCase().includes(searchTerm)) ||
                 (u.telegram_id && u.telegram_id.toString().includes(searchTerm))
             );
             
+            // Sort
+            filtered.sort((a, b) => {
+                let aVal = a[sortColumn] || 0;
+                let bVal = b[sortColumn] || 0;
+                if (typeof aVal === 'string') {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
             const tbody = document.getElementById('usersBody');
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found</td></tr>';
+                return;
+            }
+            
             tbody.innerHTML = filtered.map(user => `
                 <tr>
                     <td>${user.id}</td>
                     <td>${user.username ? '@' + user.username : '-'}</td>
                     <td>${user.first_name || ''} ${user.last_name || ''}</td>
-                    <td class="tier-${user.tier}">${user.tier || 'Fresher'}</td>
+                    <td class="tier-${user.tier || 'Fresher'}">${user.tier || 'Fresher'}</td>
                     <td>${(user.points || 0).toLocaleString()}</td>
                     <td>${user.referrals || 0}</td>
+                    <td><code style="font-size: 11px;">${user.referral_code || '-'}</code></td>
                     <td><small>${user.wallet_address ? user.wallet_address.substring(0, 15) + '...' : '-'}</small></td>
-                    <td>
-                        <button onclick="addPoints(${user.id})">➕ Add Points</button>
-                    </td>
+                    <td><button class="add-points-btn" onclick="addPoints(${user.id}, '${user.first_name || ''}')">➕ Add Points</button></td>
                 </tr>
             `).join('');
         }
         
-        function filterUsers() { displayUsers(); }
+        function filterUsers() {
+            displayUsers();
+        }
         
-        async function addPoints(userId) {
-            const amount = prompt('Enter points to add:');
+        function sortBy(column) {
+            if (sortColumn === column) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = column;
+                sortDirection = 'asc';
+            }
+            displayUsers();
+        }
+        
+        async function addPoints(userId, userName) {
+            const amount = prompt(`Enter points to add for ${userName || 'user'}:`);
             if (!amount || isNaN(amount)) return;
             
             try {
@@ -128,19 +304,22 @@
                     },
                     body: JSON.stringify({ userId, points: parseInt(amount) })
                 });
+                
                 if (response.ok) {
-                    alert(`Added ${parseInt(amount).toLocaleString()} points!`);
-                    loadData();
+                    alert(`✅ Added ${parseInt(amount).toLocaleString()} points!`);
+                    loadUsers();
                 } else {
-                    alert('Failed to add points');
+                    const error = await response.text();
+                    alert('❌ Failed to add points: ' + error);
                 }
             } catch (err) {
-                alert('Error: ' + err.message);
+                alert('❌ Error: ' + err.message);
             }
         }
         
-        loadData();
-        setInterval(loadData, 30000);
+        // Auto refresh every 30 seconds
+        loadUsers();
+        setInterval(loadUsers, 30000);
     </script>
 </body>
 </html>
