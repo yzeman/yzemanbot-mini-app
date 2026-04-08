@@ -5,8 +5,8 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const app = express();
 
-// USE PORT 10000 AS RENDER EXPECTS
-const PORT = 10000;
+// MUST USE 3001 - Matches Render environment variable
+const PORT = 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
