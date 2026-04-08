@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>YzemanBot - Earn Rewards</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Ad SDK - Restored from original -->
+    <script src='//libtl.com/sdk.js' data-zone='9683863' data-sdk='show_9683863'></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -67,7 +69,7 @@
         .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
         .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); font-size: 16px; }
         .bonus-btn { background: linear-gradient(45deg, #FF9800, #FF5722); color: white; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 600; cursor: pointer; }
-        .bonus-list { margin-top: 20px; }
+        .bonus-list { margin-top: 20px; max-height: 300px; overflow-y: auto; }
         .bonus-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
         .bonus-code { font-family: monospace; font-weight: 600; }
         .bonus-reward { color: var(--success); }
@@ -77,7 +79,7 @@
         .withdraw-btn { background: linear-gradient(45deg, #00c853, #64dd17); color: white; border: none; border-radius: 12px; padding: 15px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 10px; }
         .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 15px 30px; border-radius: 12px; z-index: 1000; display: none; }
-        .ad-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        .ad-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: none; justify-content: center; align-items: center; flex-direction: column; }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .tier-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; background: var(--primary); }
@@ -87,17 +89,27 @@
         .daily-reset { text-align: center; font-size: 14px; color: var(--gray); margin: 10px 0; }
         .conversion-info { text-align: center; font-size: 14px; color: var(--gray); margin: 10px 0; }
         .withdrawal-history { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-top: 20px; max-height: 300px; overflow-y: auto; }
-        .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--card-border); flex-wrap: wrap; gap: 8px; }
         .history-amount { color: var(--success); font-weight: 600; }
+        .history-date { font-size: 12px; color: var(--gray); }
         .status-pending { background: var(--warning); color: #000; padding: 3px 8px; border-radius: 12px; font-size: 11px; }
         .status-completed { background: var(--success); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .status-failed { background: var(--danger); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
+        .status-processing { background: var(--secondary); padding: 3px 8px; border-radius: 12px; font-size: 11px; }
         .admin-message { background: var(--card-bg); border-radius: 16px; padding: 20px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); }
         .retry-btn { background: var(--secondary); border: none; padding: 10px 20px; border-radius: 8px; color: white; margin-top: 10px; cursor: pointer; }
+        .ad-container { margin-top: 20px; text-align: center; }
+        .ad-banner { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin: 10px 0; }
+        .countdown { font-size: 24px; font-weight: bold; color: var(--success); margin: 10px 0; }
     </style>
 </head>
 <body>
     <div class="notification" id="notification">Reward claimed!</div>
-    <div class="ad-loading" id="adLoading"><div class="spinner"></div><div style="margin-top: 20px;">Loading ad...</div></div>
+    <div class="ad-loading" id="adLoading">
+        <div class="spinner"></div>
+        <div style="margin-top: 20px;" id="adStatus">Loading ad...</div>
+        <div class="countdown" id="adCountdown"></div>
+    </div>
 
     <div class="container">
         <header>
@@ -157,7 +169,7 @@
                         <div class="task-description">Watch a short ad to earn points</div>
                         <div class="task-reward">+<span id="adReward">557</span> points</div>
                     </div>
-                    <button class="task-action" id="watchAdBtn">Watch</button>
+                    <button class="task-action" id="watchAdBtn">Watch Ad</button>
                 </div>
 
                 <div class="task-card">
@@ -280,10 +292,12 @@
                 <h3 class="bonus-title">🎁 Redeem Bonus Codes</h3>
                 <p>Enter bonus codes to earn extra points!</p>
                 <div class="bonus-input-container">
-                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code">
+                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code (e.g., BASER)">
                     <button class="bonus-btn" id="redeemBonusBtn">Redeem</button>
                 </div>
-                <div class="bonus-list" id="bonusList"></div>
+                <div class="bonus-list" id="bonusList">
+                    <div class="bonus-item">Loading bonus codes...</div>
+                </div>
             </div>
             <div class="social-proof">
                 <p>Join our Telegram channel for more bonus codes!</p>
@@ -311,20 +325,20 @@
 
             <div class="withdrawal-history">
                 <h4>Withdrawal History</h4>
-                <div id="withdrawalHistoryList">No withdrawals yet</div>
+                <div id="withdrawalHistoryList">Loading...</div>
             </div>
         </div>
     </div>
 
     <script>
-        // Telegram WebApp
+        // ============ TELEGRAM WEBAPP INIT ============
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.expand();
             tg.ready();
         }
 
-        // Detect referral code
+        // ============ REFERRAL CODE DETECTION ============
         let referralCode = null;
         const urlParams = new URLSearchParams(window.location.search);
         referralCode = urlParams.get('start');
@@ -333,24 +347,28 @@
         }
         console.log('Referral code:', referralCode);
 
+        // ============ GLOBAL VARIABLES ============
         let currentUser = null;
         let completedSocial = JSON.parse(localStorage.getItem('completedSocial') || '{}');
         let usedBonusCodes = JSON.parse(localStorage.getItem('usedBonusCodes') || '{}');
+        let withdrawals = JSON.parse(localStorage.getItem('withdrawals') || '[]');
 
+        // ============ BONUS CODES LIST ============
         const bonusCodesList = {
-            "BASER": { points: 2000, dollars: 0 },
-            "BOTYZEMAN": { points: 100000, dollars: 0 },
-            "EARNSBOTT": { points: 0, dollars: 15 },
-            "BONUSBOTTER": { points: 0, dollars: 100 },
-            "YZEMASTER1": { points: 50000, dollars: 100 }
+            "BASER": { points: 2000, dollars: 0, description: "2,000 bonus points" },
+            "BOTYZEMAN": { points: 100000, dollars: 0, description: "100,000 bonus points" },
+            "EARNSBOTT": { points: 0, dollars: 15, description: "$15 bonus" },
+            "BONUSBOTTER": { points: 0, dollars: 100, description: "$100 bonus" },
+            "YZEMASTER1": { points: 50000, dollars: 100, description: "50,000 points + $100" }
         };
 
+        // ============ HELPER FUNCTIONS ============
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
             notif.style.background = isError ? '#ff5252' : '#00c853';
             notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
+            setTimeout(() => notif.style.display = 'none', 4000);
         }
 
         async function apiCall(endpoint, data) {
@@ -363,6 +381,7 @@
             return response.json();
         }
 
+        // ============ USER REGISTRATION ============
         async function registerUser() {
             if (!tg?.initDataUnsafe?.user) {
                 document.getElementById('userName').textContent = 'Open from Telegram';
@@ -401,6 +420,7 @@
                 });
                 currentUser = result;
                 updateUI();
+                loadWithdrawalHistory();
             } catch (err) {
                 console.error('Refresh error:', err);
             }
@@ -408,7 +428,7 @@
 
         async function addPoints(amount) {
             try {
-                await apiCall('/api/ad-reward', {
+                const result = await apiCall('/api/ad-reward', {
                     initData: tg.initData,
                     rewardAmount: amount,
                     adType: 'reward'
@@ -421,6 +441,156 @@
             }
         }
 
+        // ============ AD WATCHING WITH SDK ============
+        async function watchAd() {
+            const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
+            const reward = adRewards[currentUser?.tier] || 557;
+            
+            const loading = document.getElementById('adLoading');
+            const adStatus = document.getElementById('adStatus');
+            const adCountdown = document.getElementById('adCountdown');
+            
+            loading.style.display = 'flex';
+            adStatus.textContent = 'Loading advertisement...';
+            adCountdown.textContent = '';
+            
+            // Check if ad SDK is available
+            if (typeof show_9683863 === 'function') {
+                try {
+                    // Use the SDK to show ad
+                    adStatus.textContent = 'Showing ad...';
+                    await show_9683863();
+                    
+                    adStatus.textContent = 'Ad completed! Processing reward...';
+                    await addPoints(reward);
+                    showNotification(`+${reward} points earned!`);
+                    
+                } catch (error) {
+                    console.error('Ad error:', error);
+                    adStatus.textContent = 'Ad failed to load. Trying fallback...';
+                    
+                    // Fallback: Simulate ad with countdown
+                    await simulateFallbackAd(reward, adStatus, adCountdown);
+                }
+            } else {
+                // SDK not available, use fallback
+                console.log('SDK not available, using fallback');
+                await simulateFallbackAd(reward, adStatus, adCountdown);
+            }
+            
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 1000);
+        }
+        
+        // Fallback ad simulation when SDK is not available
+        async function simulateFallbackAd(reward, adStatus, adCountdown) {
+            adStatus.textContent = 'Watch ad for 5 seconds to earn points!';
+            
+            let seconds = 5;
+            adCountdown.textContent = `⏱️ ${seconds} seconds remaining`;
+            
+            const timer = setInterval(() => {
+                seconds--;
+                adCountdown.textContent = `⏱️ ${seconds} seconds remaining`;
+                if (seconds <= 0) {
+                    clearInterval(timer);
+                    adCountdown.textContent = '✅ Ad completed!';
+                }
+            }, 1000);
+            
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            adStatus.textContent = 'Processing reward...';
+            await addPoints(reward);
+            showNotification(`+${reward} points earned!`);
+        }
+
+        // ============ WITHDRAWAL FUNCTIONS ============
+        async function requestWithdrawal() {
+            if (!currentUser) return;
+            
+            const usdAmount = (currentUser.points || 0) / 100000;
+            if (usdAmount < 1000) {
+                showNotification(`Need $1000 to withdraw. You have $${usdAmount.toFixed(2)}`, true);
+                return;
+            }
+            
+            const wallet = document.getElementById('walletAddress').value.trim();
+            if (!wallet) {
+                showNotification('Please save your wallet address first', true);
+                return;
+            }
+            
+            if (!wallet.startsWith('T') || wallet.length < 34) {
+                showNotification('Please enter a valid USDT (TRC-20) wallet address (starts with T)', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        initData: tg.initData,
+                        amount: 1000,
+                        walletAddress: wallet
+                    })
+                });
+                
+                if (response.ok) {
+                    showNotification('Withdrawal request submitted! Admin will contact you.');
+                    await refreshUser();
+                    loadWithdrawalHistory();
+                } else {
+                    const error = await response.text();
+                    showNotification('Withdrawal failed: ' + error, true);
+                }
+            } catch (err) {
+                showNotification('Error: ' + err.message, true);
+            }
+        }
+        
+        async function loadWithdrawalHistory() {
+            try {
+                const response = await fetch('/api/admin/withdrawals', {
+                    headers: { 'Authorization': 'Bearer admin123' }
+                });
+                
+                if (response.ok) {
+                    const allWithdrawals = await response.json();
+                    const userWithdrawals = allWithdrawals.filter(w => 
+                        w.user_id === currentUser?.id || w.telegram_id === currentUser?.telegram_id
+                    );
+                    displayWithdrawalHistory(userWithdrawals);
+                } else {
+                    displayWithdrawalHistory(withdrawals);
+                }
+            } catch (err) {
+                console.error('Failed to load withdrawals:', err);
+                displayWithdrawalHistory(withdrawals);
+            }
+        }
+        
+        function displayWithdrawalHistory(history) {
+            const container = document.getElementById('withdrawalHistoryList');
+            if (!container) return;
+            
+            if (!history || history.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px;">No withdrawal requests yet</div>';
+                return;
+            }
+            
+            container.innerHTML = history.map(w => `
+                <div class="history-item">
+                    <div class="history-amount">$${w.amount || 0}</div>
+                    <div class="history-date">${new Date(w.created_at || w.date).toLocaleDateString()}</div>
+                    <div><span class="status-${w.status || 'pending'}">${w.status || 'pending'}</span></div>
+                </div>
+            `).join('');
+        }
+
+        // ============ UI UPDATE ============
         function updateUI() {
             if (!currentUser) return;
             
@@ -464,19 +634,7 @@
             displayBonusList();
         }
 
-        async function watchAd() {
-            const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
-            const reward = adRewards[currentUser?.tier] || 557;
-            
-            const loading = document.getElementById('adLoading');
-            loading.style.display = 'flex';
-            setTimeout(async () => {
-                await addPoints(reward);
-                showNotification(`+${reward} points earned!`);
-                loading.style.display = 'none';
-            }, 3000);
-        }
-
+        // ============ SOCIAL TASKS ============
         async function completeSocialTask(taskName, reward = 5000000) {
             if (completedSocial[taskName]) {
                 showNotification('You already completed this task!', true);
@@ -488,16 +646,17 @@
             showNotification(`+${reward.toLocaleString()} points earned! 🎉`);
         }
 
+        // ============ BONUS CODES ============
         async function redeemBonus() {
             const code = document.getElementById('bonusCodeInput').value.trim().toUpperCase();
             if (!code) {
-                showNotification('Enter a bonus code', true);
+                showNotification('Enter a bonus code (e.g., BASER, BOTYZEMAN, EARNSBOTT)', true);
                 return;
             }
             
             const bonus = bonusCodesList[code];
             if (!bonus) {
-                showNotification('Invalid bonus code', true);
+                showNotification(`Invalid bonus code "${code}". Try: BASER, BOTYZEMAN, EARNSBOTT, BONUSBOTTER, YZEMASTER1`, true);
                 return;
             }
             
@@ -530,6 +689,8 @@
         function displayBonusList() {
             const today = new Date().toDateString();
             const list = document.getElementById('bonusList');
+            if (!list) return;
+            
             list.innerHTML = '';
             for (const [code, bonus] of Object.entries(bonusCodesList)) {
                 const rewardText = [];
@@ -542,16 +703,21 @@
                 item.innerHTML = `
                     <span class="bonus-code">${code}</span>
                     <span class="bonus-reward">${rewardText.join(' + ')}</span>
-                    ${isUsed ? '<span class="redeemed-badge">Used Today</span>' : '<span>Available</span>'}
+                    ${isUsed ? '<span class="redeemed-badge">Used Today</span>' : '<span style="color:#888;">Available</span>'}
                 `;
                 list.appendChild(item);
             }
         }
 
+        // ============ WALLET & REFERRAL ============
         async function saveWallet() {
             const address = document.getElementById('walletAddress').value.trim();
             if (!address) {
                 showNotification('Enter wallet address', true);
+                return;
+            }
+            if (!address.startsWith('T') || address.length < 34) {
+                showNotification('Please enter a valid USDT (TRC-20) wallet address (starts with T)', true);
                 return;
             }
             try {
@@ -569,10 +735,10 @@
         function copyLink() {
             const link = document.getElementById('referralLink').textContent;
             navigator.clipboard.writeText(link);
-            showNotification('Link copied!');
+            showNotification('Referral link copied!');
         }
 
-        // YouTube task
+        // ============ TASKS ============
         function startYoutubeTask() {
             window.open('https://youtube.com/watch?v=dQw4w9WgXcQ', '_blank');
             showNotification('Watch the video for 5 minutes to earn points');
@@ -582,7 +748,6 @@
             }, 300000);
         }
 
-        // Website task
         function startWebsiteTask() {
             window.open('https://yzeupdates.lat/articles.html', '_blank');
             showNotification('Stay on the website for 2 minutes');
@@ -592,7 +757,7 @@
             }, 120000);
         }
 
-        // Tab switching
+        // ============ TAB SWITCHING ============
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -602,10 +767,11 @@
             });
         });
 
-        // Event listeners
+        // ============ EVENT LISTENERS ============
         document.getElementById('watchAdBtn')?.addEventListener('click', watchAd);
         document.getElementById('copyBtn')?.addEventListener('click', copyLink);
         document.getElementById('saveWalletBtn')?.addEventListener('click', saveWallet);
+        document.getElementById('withdrawBtn')?.addEventListener('click', requestWithdrawal);
         document.getElementById('redeemBonusBtn')?.addEventListener('click', redeemBonus);
         document.getElementById('youtubeTaskBtn')?.addEventListener('click', startYoutubeTask);
         document.getElementById('websiteTaskBtn')?.addEventListener('click', startWebsiteTask);
@@ -635,11 +801,12 @@
             completeSocialTask('telegram', 5000000);
         });
 
-        // Initialize
+        // ============ INITIALIZATION ============
         async function init() {
             currentUser = await registerUser();
             if (currentUser) {
                 updateUI();
+                loadWithdrawalHistory();
             }
         }
         
