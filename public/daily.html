@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Daily Rewards - YzemanBot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6a11cb;
+            --secondary: #2575fc;
+            --success: #00c853;
+            --warning: #ffab00;
+            --dark: #1a1b25;
+            --darker: #12131a;
+            --gray: #6c757d;
+            --card-bg: #252836;
+            --card-border: #2d3343;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
+        .container { max-width: 500px; margin: 0 auto; text-align: center; }
+        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .streak-card { background: linear-gradient(135deg, #FF9800, #FF5722); border-radius: 20px; padding: 25px; margin: 20px 0; }
+        .streak-number { font-size: 48px; font-weight: bold; margin: 10px 0; }
+        .streak-label { font-size: 14px; opacity: 0.9; }
+        .claim-btn { background: linear-gradient(45deg, var(--success), #64dd17); color: white; border: none; border-radius: 50px; padding: 18px 40px; font-size: 18px; font-weight: bold; cursor: pointer; margin: 20px 0; width: 100%; }
+        .claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .reward-preview { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; margin: 15px 0; }
+        .reward-amount { font-size: 32px; color: var(--success); font-weight: bold; }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 20px 0; }
+        .calendar-day { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 5px; text-align: center; font-size: 12px; }
+        .calendar-day.claimed { background: var(--success); border-color: var(--success); }
+        .calendar-day.today { border-color: var(--warning); border-width: 2px; }
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
+            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-calendar-alt"></i> Daily Rewards</h1>
+            <p style="color: var(--gray);">Claim daily bonus and build your streak!</p>
+        </div>
+
+        <div class="streak-card">
+            <div class="streak-label">🔥 Current Streak</div>
+            <div class="streak-number" id="streakCount">0</div>
+            <div class="streak-label">days in a row!</div>
+        </div>
+
+        <div class="reward-preview">
+            <div>Today's Reward</div>
+            <div class="reward-amount" id="todayReward">-</div>
+            <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">+ streak bonus every 7 days</div>
+        </div>
+
+        <button class="claim-btn" id="claimBtn">🎁 Claim Daily Reward</button>
+
+        <div class="reward-preview">
+            <div>📊 Your Stats</div>
+            <div style="display: flex; justify-content: space-around; margin-top: 15px;">
+                <div><strong id="totalDays">0</strong><br><small>Total Days</small></div>
+                <div><strong id="maxStreak">0</strong><br><small>Max Streak</small></div>
+            </div>
+        </div>
+
+        <div class="calendar" id="calendar"></div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
+        <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
+        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
+        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.expand(); tg.ready(); }
+
+        let dailyStats = null;
+
+        async function apiCall(endpoint, data = null) {
+            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(endpoint, options);
+            if (!response.ok) throw new Error(await response.text());
+            return response.json();
+        }
+
+        async function loadDailyStats() {
+            try {
+                const data = await apiCall('/api/daily-stats', { initData: tg.initData });
+                dailyStats = data;
+                
+                document.getElementById('streakCount').textContent = data.current_streak || 0;
+                document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
+                document.getElementById('maxStreak').textContent = data.max_streak || 0;
+                
+                const baseReward = 1000;
+                const streakBonus = Math.floor((data.current_streak || 0) / 7) * 5000;
+                const todayReward = baseReward + streakBonus;
+                document.getElementById('todayReward').textContent = `${todayReward.toLocaleString()} points`;
+                
+                const claimBtn = document.getElementById('claimBtn');
+                if (data.claimed_today) {
+                    claimBtn.disabled = true;
+                    claimBtn.textContent = '✅ Already Claimed Today';
+                } else {
+                    claimBtn.disabled = false;
+                    claimBtn.textContent = '🎁 Claim Daily Reward';
+                }
+                
+                renderCalendar();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderCalendar() {
+            const calendar = document.getElementById('calendar');
+            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            const claimedDays = dailyStats?.last_7_days || [];
+            const claimedDates = new Set(claimedDays.map(d => d.reward_date));
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            calendar.innerHTML = days.map((day, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() - (6 - i));
+                const dateStr = date.toISOString().split('T')[0];
+                const isClaimed = claimedDates.has(dateStr);
+                const isToday = dateStr === today;
+                
+                return `
+                    <div class="calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}">
+                        <div>${day}</div>
+                        <div style="font-size: 10px; margin-top: 5px;">${date.getDate()}</div>
+                        ${isClaimed ? '<i class="fas fa-check" style="font-size: 10px; margin-top: 3px;"></i>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function claimDaily() {
+            try {
+                const result = await apiCall('/api/daily-reward', { initData: tg.initData });
+                showNotification(result.message);
+                loadDailyStats();
+            } catch (err) {
+                showNotification(err.message, true);
+            }
+        }
+
+        function showNotification(msg, isError = false) {
+            const notif = document.createElement('div');
+            notif.textContent = msg;
+            notif.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${isError ? '#ff5252' : '#00c853'};color:white;padding:12px 24px;border-radius:12px;z-index:1001;font-size:14px;`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        document.getElementById('claimBtn').addEventListener('click', claimDaily);
+        
+        loadDailyStats();
+    </script>
+</body>
+</html>
