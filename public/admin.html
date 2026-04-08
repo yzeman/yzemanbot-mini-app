@@ -24,6 +24,7 @@
             color: #888;
             margin-bottom: 30px;
         }
+        /* Stats Cards */
         .stats {
             display: flex;
             gap: 20px;
@@ -47,10 +48,61 @@
             color: #888;
             margin-top: 5px;
         }
+        /* Pending Withdrawals Section */
+        .pending-section {
+            background: linear-gradient(135deg, #ff9800, #ff5722);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .pending-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .pending-title i {
+            font-size: 24px;
+        }
+        .pending-table {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+        .pending-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .pending-table th, .pending-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .approve-btn {
+            background: #00c853;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .reject-btn {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        /* Main Table */
         .search-box {
             margin-bottom: 20px;
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
         .search-box input {
             flex: 1;
@@ -101,17 +153,33 @@
         .tier-Silver { color: #9E9E9E; font-weight: bold; }
         .tier-Gold { color: #FFD700; font-weight: bold; }
         .tier-Platinum { color: #E0E0E0; font-weight: bold; }
-        .add-points-btn {
+        .action-btn {
             background: #6a11cb;
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 6px 10px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 12px;
+            margin: 2px;
         }
-        .add-points-btn:hover {
-            background: #8b3dff;
+        .action-btn.danger {
+            background: #ff5252;
+        }
+        .action-btn.warning {
+            background: #ff9800;
+        }
+        .action-btn:hover {
+            opacity: 0.8;
+        }
+        .copy-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
         }
         .loading {
             text-align: center;
@@ -126,6 +194,37 @@
             margin-bottom: 20px;
             text-align: center;
         }
+        .success {
+            background: #00c853;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            background: #252836;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .tab-btn.active {
+            background: #6a11cb;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
         @media (max-width: 768px) {
             th, td { padding: 10px; font-size: 12px; }
             .stat-number { font-size: 24px; }
@@ -135,8 +234,9 @@
 <body>
     <div class="container">
         <h1>👑 YzemanBot Admin Dashboard</h1>
-        <p class="subtitle">Manage users, track points, and monitor referrals</p>
+        <p class="subtitle">Manage users, approve withdrawals, and monitor earnings</p>
         
+        <!-- Stats Overview -->
         <div class="stats" id="stats">
             <div class="stat-card">
                 <div class="stat-number" id="totalUsers">-</div>
@@ -147,48 +247,107 @@
                 <div class="stat-label">Total Points</div>
             </div>
             <div class="stat-card">
+                <div class="stat-number" id="totalUSD">-</div>
+                <div class="stat-label">Total USD Value</div>
+            </div>
+            <div class="stat-card">
                 <div class="stat-number" id="totalReferrals">-</div>
                 <div class="stat-label">Total Referrals</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number" id="totalUSD">-</div>
-                <div class="stat-label">Total USD Value</div>
+                <div class="stat-number" id="pendingWithdrawals">-</div>
+                <div class="stat-label">Pending Withdrawals</div>
             </div>
         </div>
-        
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="🔍 Search by username, name, or Telegram ID..." onkeyup="filterUsers()">
-            <button class="refresh-btn" onclick="loadUsers()">🔄 Refresh</button>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('withdrawals')">💰 Pending Withdrawals</button>
+            <button class="tab-btn" onclick="showTab('users')">👥 All Users</button>
         </div>
-        
-        <div id="errorMessage" style="display: none;" class="error"></div>
-        
-        <div style="overflow-x: auto;">
-            <table id="usersTable">
-                <thead>
-                    <tr>
-                        <th onclick="sortBy('id')">ID ↕</th>
-                        <th onclick="sortBy('username')">Username ↕</th>
-                        <th onclick="sortBy('first_name')">Name ↕</th>
-                        <th onclick="sortBy('tier')">Tier ↕</th>
-                        <th onclick="sortBy('points')">Points ↕</th>
-                        <th onclick="sortBy('referrals')">Referrals ↕</th>
-                        <th>Referral Code</th>
-                        <th>Wallet</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="usersBody">
-                    <tr><td colspan="9" class="loading">Loading users...</td></tr>
-                </tbody>
-            </table>
+
+        <!-- Pending Withdrawals Tab -->
+        <div id="withdrawalsTab" class="tab-content active">
+            <div class="pending-section">
+                <div class="pending-title">
+                    <i>💰</i> Pending Withdrawal Requests
+                </div>
+                <div class="pending-table">
+                    <div id="pendingWithdrawalsList" class="loading">Loading withdrawals...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="usersTab" class="tab-content">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Search by username, name, or Telegram ID..." onkeyup="filterUsers()">
+                <button class="refresh-btn" onclick="loadAllData()">🔄 Refresh</button>
+            </div>
+            
+            <div id="errorMessage" style="display: none;" class="error"></div>
+            <div id="successMessage" style="display: none;" class="success"></div>
+            
+            <div style="overflow-x: auto;">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortBy('id')">ID ↕</th>
+                            <th onclick="sortBy('username')">Username ↕</th>
+                            <th onclick="sortBy('first_name')">Name ↕</th>
+                            <th onclick="sortBy('tier')">Tier ↕</th>
+                            <th onclick="sortBy('points')">Points ↕</th>
+                            <th onclick="sortBy('referrals')">Referrals ↕</th>
+                            <th>Referral Code</th>
+                            <th>Wallet</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersBody">
+                        <tr><td colspan="9" class="loading">Loading users...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
         let allUsers = [];
+        let allWithdrawals = [];
         let sortColumn = 'id';
         let sortDirection = 'desc';
+        
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (tabName === 'withdrawals') {
+                document.querySelector('.tab-btn:first-child').classList.add('active');
+                document.getElementById('withdrawalsTab').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn:last-child').classList.add('active');
+                document.getElementById('usersTab').classList.add('active');
+            }
+        }
+        
+        function showMessage(msg, isError = false) {
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            if (isError) {
+                errorDiv.innerHTML = msg;
+                errorDiv.style.display = 'block';
+                setTimeout(() => errorDiv.style.display = 'none', 3000);
+            } else {
+                successDiv.innerHTML = msg;
+                successDiv.style.display = 'block';
+                setTimeout(() => successDiv.style.display = 'none', 3000);
+            }
+        }
+        
+        async function loadAllData() {
+            await loadUsers();
+            await loadWithdrawals();
+        }
         
         async function loadUsers() {
             const errorDiv = document.getElementById('errorMessage');
@@ -200,15 +359,12 @@
                 });
                 
                 if (response.status === 401) {
-                    errorDiv.innerHTML = '❌ Unauthorized. Make sure you are the admin.';
-                    errorDiv.style.display = 'block';
-                    document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Access denied. Please contact admin.</td></tr>';
+                    showMessage('❌ Unauthorized. Admin access only.', true);
+                    document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Access denied</td></tr>';
                     return;
                 }
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 
                 allUsers = await response.json();
                 displayUsers();
@@ -216,9 +372,100 @@
                 
             } catch (err) {
                 console.error('Error loading users:', err);
-                errorDiv.innerHTML = '❌ Failed to load users: ' + err.message;
-                errorDiv.style.display = 'block';
-                document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Error loading users. Make sure server is running.</td></tr>';
+                showMessage('❌ Failed to load users: ' + err.message, true);
+                document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Error loading users</td></tr>';
+            }
+        }
+        
+        async function loadWithdrawals() {
+            try {
+                const response = await fetch('/api/admin/withdrawals', {
+                    headers: { 'Authorization': 'Bearer admin123' }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                allWithdrawals = await response.json();
+                displayPendingWithdrawals();
+                
+            } catch (err) {
+                console.error('Error loading withdrawals:', err);
+                document.getElementById('pendingWithdrawalsList').innerHTML = '<div class="loading">Error loading withdrawals</div>';
+            }
+        }
+        
+        function displayPendingWithdrawals() {
+            const container = document.getElementById('pendingWithdrawalsList');
+            const pending = allWithdrawals.filter(w => w.status === 'pending');
+            
+            if (pending.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:40px;">✅ No pending withdrawal requests</div>';
+                return;
+            }
+            
+            // Sort by oldest first
+            pending.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Username</th><th>Amount</th><th>Wallet Address</th><th>Date</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                        ${pending.map(w => `
+                            <tr>
+                                <td>${w.id}</td>
+                                <td>${w.username || w.first_name || 'User ' + w.user_id}</td>
+                                <td style="color:#00c853; font-weight:bold;">$${w.amount}</td>
+                                <td>
+                                    <code style="font-size:11px;">${w.wallet_address.substring(0, 20)}...</code>
+                                    <button class="copy-btn" onclick="copyToClipboard('${w.wallet_address}')">📋 Copy</button>
+                                </td>
+                                <td>${new Date(w.created_at).toLocaleString()}</td>
+                                <td>
+                                    <button class="approve-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'approved')">✅ Approve</button>
+                                    <button class="reject-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'rejected')">❌ Reject</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        async function processWithdrawal(withdrawalId, userId, amount, status) {
+            const confirmMsg = status === 'approved' ? `Approve $${amount} withdrawal?` : `Reject $${amount} withdrawal?`;
+            if (!confirm(confirmMsg)) return;
+            
+            try {
+                const response = await fetch('/api/admin/update-withdrawal', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer admin123'
+                    },
+                    body: JSON.stringify({ withdrawalId, status })
+                });
+                
+                if (response.ok) {
+                    // If approved or rejected, also deduct points from user
+                    const pointsToDeduct = amount * 100000;
+                    await fetch('/api/admin/deduct-points', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer admin123'
+                        },
+                        body: JSON.stringify({ userId, points: pointsToDeduct })
+                    });
+                    
+                    showMessage(`✅ Withdrawal ${status}! $${amount} deducted from user.`);
+                    await loadAllData();
+                } else {
+                    showMessage('❌ Failed to process withdrawal', true);
+                }
+            } catch (err) {
+                showMessage('❌ Error: ' + err.message, true);
             }
         }
         
@@ -226,11 +473,13 @@
             const totalPoints = allUsers.reduce((sum, u) => sum + (u.points || 0), 0);
             const totalReferrals = allUsers.reduce((sum, u) => sum + (u.referrals || 0), 0);
             const totalUSD = totalPoints / 100000;
+            const pendingCount = allWithdrawals.filter(w => w.status === 'pending').length;
             
             document.getElementById('totalUsers').textContent = allUsers.length;
-            document.getElementById('totalPoints').textContent = (totalPoints / 1000000).toFixed(1) + 'M';
-            document.getElementById('totalReferrals').textContent = totalReferrals.toLocaleString();
+            document.getElementById('totalPoints').textContent = totalPoints.toLocaleString();
             document.getElementById('totalUSD').textContent = '$' + totalUSD.toFixed(2);
+            document.getElementById('totalReferrals').textContent = totalReferrals.toLocaleString();
+            document.getElementById('pendingWithdrawals').textContent = pendingCount;
         }
         
         function displayUsers() {
@@ -242,7 +491,6 @@
                 (u.telegram_id && u.telegram_id.toString().includes(searchTerm))
             );
             
-            // Sort
             filtered.sort((a, b) => {
                 let aVal = a[sortColumn] || 0;
                 let bVal = b[sortColumn] || 0;
@@ -271,10 +519,22 @@
                     <td>${(user.points || 0).toLocaleString()}</td>
                     <td>${user.referrals || 0}</td>
                     <td><code style="font-size: 11px;">${user.referral_code || '-'}</code></td>
-                    <td><small>${user.wallet_address ? user.wallet_address.substring(0, 15) + '...' : '-'}</small></td>
-                    <td><button class="add-points-btn" onclick="addPoints(${user.id}, '${user.first_name || ''}')">➕ Add Points</button></td>
+                    <td>
+                        <code style="font-size: 11px;">${user.wallet_address ? user.wallet_address.substring(0, 15) + '...' : '-'}</code>
+                        ${user.wallet_address ? `<button class="copy-btn" onclick="copyToClipboard('${user.wallet_address}')">📋 Copy</button>` : ''}
+                    </td>
+                    <td>
+                        <button class="action-btn" onclick="addPoints(${user.id}, '${user.first_name || ''}')">➕ Add Points</button>
+                        <button class="action-btn warning" onclick="deductPoints(${user.id}, '${user.first_name || ''}')">➖ Deduct Points</button>
+                        <button class="action-btn danger" onclick="deleteUser(${user.id}, '${user.first_name || ''}')">🗑️ Delete</button>
+                    </td>
                 </tr>
             `).join('');
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            showMessage('✅ Wallet address copied!');
         }
         
         function filterUsers() {
@@ -292,13 +552,13 @@
         }
         
         async function addPoints(userId, userName) {
-            const amount = prompt(`Enter points to add for ${userName || 'user'}:`);
+            const amount = prompt(`Enter points to ADD for ${userName || 'user'}:`);
             if (!amount || isNaN(amount)) return;
             
             try {
                 const response = await fetch('/api/admin/add-points', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer admin123'
                     },
@@ -306,20 +566,68 @@
                 });
                 
                 if (response.ok) {
-                    alert(`✅ Added ${parseInt(amount).toLocaleString()} points!`);
-                    loadUsers();
+                    showMessage(`✅ Added ${parseInt(amount).toLocaleString()} points to ${userName || 'user'}!`);
+                    await loadUsers();
                 } else {
-                    const error = await response.text();
-                    alert('❌ Failed to add points: ' + error);
+                    showMessage('❌ Failed to add points', true);
                 }
             } catch (err) {
-                alert('❌ Error: ' + err.message);
+                showMessage('❌ Error: ' + err.message, true);
+            }
+        }
+        
+        async function deductPoints(userId, userName) {
+            const amount = prompt(`Enter points to DEDUCT from ${userName || 'user'}:`);
+            if (!amount || isNaN(amount)) return;
+            
+            try {
+                const response = await fetch('/api/admin/deduct-points', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer admin123'
+                    },
+                    body: JSON.stringify({ userId, points: parseInt(amount) })
+                });
+                
+                if (response.ok) {
+                    showMessage(`✅ Deducted ${parseInt(amount).toLocaleString()} points from ${userName || 'user'}!`);
+                    await loadUsers();
+                } else {
+                    showMessage('❌ Failed to deduct points', true);
+                }
+            } catch (err) {
+                showMessage('❌ Error: ' + err.message, true);
+            }
+        }
+        
+        async function deleteUser(userId, userName) {
+            if (!confirm(`⚠️ Are you sure you want to DELETE ${userName || 'user'}? This action cannot be undone!`)) return;
+            
+            try {
+                const response = await fetch('/api/admin/delete-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer admin123'
+                    },
+                    body: JSON.stringify({ userId })
+                });
+                
+                if (response.ok) {
+                    showMessage(`✅ User ${userName || 'user'} has been deleted!`);
+                    await loadAllData();
+                } else {
+                    showMessage('❌ Failed to delete user', true);
+                }
+            } catch (err) {
+                showMessage('❌ Error: ' + err.message, true);
             }
         }
         
         // Auto refresh every 30 seconds
-        loadUsers();
-        setInterval(loadUsers, 30000);
+        loadAllData();
+        setInterval(loadAllData, 30000);
     </script>
 </body>
 </html>
