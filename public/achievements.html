@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Achievements - YzemanBot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #6a11cb;
+            --secondary: #2575fc;
+            --success: #00c853;
+            --warning: #ffab00;
+            --dark: #1a1b25;
+            --darker: #12131a;
+            --gray: #6c757d;
+            --card-bg: #252836;
+            --card-border: #2d3343;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .stats-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+        .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: bold; color: var(--success); }
+        .stat-label { font-size: 12px; color: var(--gray); margin-top: 5px; }
+        .achievement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .achievement-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; text-align: center; transition: all 0.3s; }
+        .achievement-card.locked { opacity: 0.6; filter: grayscale(0.3); }
+        .achievement-card.unlocked { border-color: var(--success); background: rgba(0, 200, 83, 0.1); }
+        .achievement-icon { font-size: 40px; margin-bottom: 10px; }
+        .achievement-name { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .achievement-desc { font-size: 11px; color: var(--gray); margin-bottom: 8px; }
+        .achievement-reward { font-size: 11px; color: var(--success); font-weight: bold; }
+        .locked-badge { background: var(--gray); color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; display: inline-block; margin-top: 8px; }
+        .unlocked-badge { background: var(--success); color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; display: inline-block; margin-top: 8px; }
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
+            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+        }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+        .loading { text-align: center; padding: 40px; color: var(--gray); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-medal"></i> Achievements</h1>
+            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Unlock badges and earn bonus points</p>
+        </div>
+
+        <div class="stats-summary" id="statsSummary">
+            <div class="stat-card"><div class="stat-value" id="achievementsCount">0</div><div class="stat-label">Achievements Unlocked</div></div>
+            <div class="stat-card"><div class="stat-value" id="totalPointsEarned">0</div><div class="stat-label">Total Points Earned</div></div>
+        </div>
+
+        <div class="achievement-grid" id="achievementsGrid">
+            <div class="loading">Loading achievements...</div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
+        <a href="achievements.html" class="nav-item active"><i class="fas fa-medal"></i><span>Achievements</span></a>
+        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
+        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.expand(); tg.ready(); }
+
+        async function apiCall(endpoint, data = null) {
+            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(endpoint, options);
+            if (!response.ok) throw new Error(await response.text());
+            return response.json();
+        }
+
+        async function loadAchievements() {
+            try {
+                const data = await apiCall('/api/achievements', { initData: tg.initData });
+                
+                document.getElementById('achievementsCount').textContent = data.userStats.achievements_count || 0;
+                document.getElementById('totalPointsEarned').textContent = (data.userStats.total_points_earned || 0).toLocaleString();
+                
+                const grid = document.getElementById('achievementsGrid');
+                const iconMap = {
+                    'Loyal User': '🔥', 'Referral Master': '👑', 'Points Millionaire': '💰',
+                    'Social Butterfly': '🦋', 'Tournament Winner': '🏆', 'Team Player': '🤝',
+                    'Platinum Elite': '💎', 'Wheel Champion': '🎡', 'Daily Streak 7': '📅', 'Super Referrer': '⭐'
+                };
+                
+                grid.innerHTML = data.achievements.map(ach => `
+                    <div class="achievement-card ${ach.achieved ? 'unlocked' : 'locked'}">
+                        <div class="achievement-icon">${iconMap[ach.name] || '🏅'}</div>
+                        <div class="achievement-name">${ach.name}</div>
+                        <div class="achievement-desc">${ach.description}</div>
+                        <div class="achievement-reward">+${(ach.points_reward || 0).toLocaleString()} pts</div>
+                        ${ach.achieved ? '<div class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</div>' : '<div class="locked-badge"><i class="fas fa-lock"></i> Locked</div>'}
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+                document.getElementById('achievementsGrid').innerHTML = '<div class="loading">Failed to load achievements</div>';
+            }
+        }
+
+        loadAchievements();
+    </script>
+</body>
+</html>
