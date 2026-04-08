@@ -541,25 +541,28 @@
         }
         
         async function loadWithdrawalHistory() {
-            try {
-                const response = await fetch('/api/admin/withdrawals', {
-                    headers: { 'Authorization': 'Bearer admin123' }
-                });
-                
-                if (response.ok) {
-                    const allWithdrawals = await response.json();
-                    const userWithdrawals = allWithdrawals.filter(w => 
-                        w.user_id === currentUser?.id || w.telegram_id === currentUser?.telegram_id
-                    );
-                    displayWithdrawalHistory(userWithdrawals);
-                } else {
-                    displayWithdrawalHistory([]);
-                }
-            } catch (err) {
-                console.error('Failed to load withdrawals:', err);
-                displayWithdrawalHistory([]);
-            }
+    try {
+        const response = await fetch('/api/admin/withdrawals', {
+            headers: { 'Authorization': 'Bearer admin123' }
+        });
+        
+        if (response.ok) {
+            const allWithdrawals = await response.json();
+            const userWithdrawals = allWithdrawals.filter(w => 
+                w.user_id === currentUser?.id || w.telegram_id === currentUser?.telegram_id
+            );
+            displayWithdrawalHistory(userWithdrawals);
+            
+            // REFRESH USER DATA to update points after approval/rejection
+            await refreshUser();
+        } else {
+            displayWithdrawalHistory([]);
         }
+    } catch (err) {
+        console.error('Failed to load withdrawals:', err);
+        displayWithdrawalHistory([]);
+    }
+}
         
         function displayWithdrawalHistory(history) {
             const container = document.getElementById('withdrawalHistoryList');
