@@ -325,7 +325,7 @@
             <p>Manage users, approve withdrawals, and track platform earnings</p>
         </div>
 
-        <!-- Stats Grid - NEW DESIGN -->
+        <!-- Stats Grid -->
         <div class="stats-grid" id="stats">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
@@ -343,7 +343,7 @@
                 <div class="stat-label">Total Approved Amount</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon">📊</div>
+                <div class="stat-icon">❌</div>
                 <div class="stat-number" id="totalRejectedAmount">-</div>
                 <div class="stat-label">Total Rejected Amount</div>
             </div>
@@ -401,7 +401,7 @@
             </div>
         </div>
 
-        <!-- Analytics Tab - NEW -->
+        <!-- Analytics Tab -->
         <div id="analyticsTab" class="tab-content">
             <div class="stats-grid">
                 <div class="stat-card">
@@ -610,14 +610,16 @@
             const totalUsers = allUsers.length;
             const pendingCount = allWithdrawals.filter(w => w.status === 'pending').length;
             
-            // Calculate approved and rejected amounts
+            // Calculate approved and rejected amounts - FIXED: Convert to numbers
             let totalApproved = 0;
             let totalRejected = 0;
+            
             allWithdrawals.forEach(w => {
+                const amount = Number(w.amount) || 0;
                 if (w.status === 'approved' || w.status === 'completed') {
-                    totalApproved += w.amount;
+                    totalApproved += amount;
                 } else if (w.status === 'rejected' || w.status === 'failed') {
-                    totalRejected += w.amount;
+                    totalRejected += amount;
                 }
             });
             
