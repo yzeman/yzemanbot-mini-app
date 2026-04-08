@@ -506,10 +506,34 @@ app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
   const { withdrawalId, status } = req.body;
   
   try {
+    // First, get withdrawal details to know the amount and user
+    const withdrawalResult = await pool.query(
+      'SELECT user_id, amount FROM withdrawals WHERE id = $1',
+      [withdrawalId]
+    );
+    
+    if (withdrawalResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Withdrawal not found' });
+    }
+    
+    const withdrawal = withdrawalResult.rows[0];
+    
+    // If rejecting or failing, refund the points back to user
+    if (status === 'rejected' || status === 'failed') {
+      const pointsToRefund = withdrawal.amount * 100000;
+      await pool.query(
+        'UPDATE users SET points = points + $1 WHERE id = $2',
+        [pointsToRefund, withdrawal.user_id]
+      );
+      console.log(`💰 Refunded ${pointsToRefund} points to user ${withdrawal.user_id} for rejected withdrawal #${withdrawalId}`);
+    }
+    
+    // Update withdrawal status
     await pool.query(
       'UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2',
       [status, withdrawalId]
     );
+    
     res.json({ success: true });
   } catch (err) {
     console.error('Update withdrawal error:', err);
