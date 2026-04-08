@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const app = express();
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;  // KEEP THIS AS 3001
 const isProduction = process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
