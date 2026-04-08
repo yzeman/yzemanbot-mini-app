@@ -5,7 +5,8 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const app = express();
 
-const PORT = process.env.PORT || 3001;  // KEEP THIS AS 3001
+// USE PORT 10000 AS RENDER EXPECTS
+const PORT = 10000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 const pool = new Pool({
@@ -17,20 +18,10 @@ const pool = new Pool({
 
 pool.on('error', (err) => {
   console.error('Unexpected error on idle client', err);
-  process.exit(-1);
 });
 
 app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
-
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
-});
 
 async function initDB() {
   const client = await pool.connect();
@@ -151,6 +142,14 @@ async function verifyTelegramData(req, res, next) {
     console.error('Authentication Error:', err);
     res.status(500).json({ error: 'Authentication failed' });
   }
+}
+
+function verifyAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== 'Bearer admin123') {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
 }
 
 // ============ USER API ENDPOINTS ============
@@ -320,7 +319,6 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
   }
 });
 
-// ============ WITHDRAWAL API ENDPOINT ============
 app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -377,14 +375,6 @@ app.get('/health', async (req, res) => {
 });
 
 // ============ ADMIN API ENDPOINTS ============
-
-function verifyAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== 'Bearer admin123') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
 
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
@@ -473,16 +463,13 @@ async function startServer() {
     await initDB();
     console.log('✅ Database initialized and ready');
     
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📊 Admin dashboard: https://yzemanbot-backend.onrender.com/admin.html`);
-    });
-    
-    process.on('SIGTERM', () => {
-      server.close(() => {
-        pool.end();
-        process.exit(0);
-      });
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`========================================`);
+      console.log(`🚀 SERVER IS RUNNING!`);
+      console.log(`📡 Port: ${PORT}`);
+      console.log(`🌐 URL: https://yzemanbot-backend.onrender.com`);
+      console.log(`❤️  Health: https://yzemanbot-backend.onrender.com/health`);
+      console.log(`========================================`);
     });
     
   } catch (err) {
