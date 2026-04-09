@@ -27,7 +27,7 @@
             color: var(--light); 
             min-height: 100vh; 
             padding: 20px; 
-            padding-bottom: 100px; /* Extra padding so footer doesn't block content */
+            padding-bottom: 100px;
         }
         .container { max-width: 500px; margin: 0 auto; }
         
@@ -128,14 +128,14 @@
         .channel-reward { font-size: 11px; color: var(--success); }
         .channel-join { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 8px 16px; cursor: pointer; font-size: 12px; }
         
-        /* Bonus Section */
-        .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        /* Bonus Section - No visible codes */
+        .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
         .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
-        .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); }
+        .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); text-align: center; font-size: 16px; letter-spacing: 2px; }
         .bonus-btn { background: linear-gradient(45deg, #FF9800, #FF5722); color: white; border: none; border-radius: 12px; padding: 12px 20px; cursor: pointer; }
-        .bonus-list { margin-top: 15px; max-height: 250px; overflow-y: auto; }
-        .bonus-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--card-border); font-size: 13px; }
-        .redeemed-badge { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; }
+        .bonus-message { margin-top: 15px; padding: 10px; border-radius: 12px; font-size: 13px; display: none; }
+        .bonus-message.success { background: rgba(0, 200, 83, 0.2); color: var(--success); display: block; }
+        .bonus-message.error { background: rgba(255, 82, 82, 0.2); color: var(--danger); display: block; }
         
         /* Withdraw Section */
         .wallet-input { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--darker); color: var(--light); margin: 10px 0; }
@@ -152,12 +152,30 @@
         .admin-message { background: var(--card-bg); border-radius: 16px; padding: 15px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); font-size: 12px; }
         .daily-reset, .conversion-info { text-align: center; font-size: 11px; color: var(--gray); margin: 10px 0; }
         
-        /* Notification & Loading */
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
-        .ad-loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; display: none; justify-content: center; align-items: center; flex-direction: column; }
+        /* Ad Loading Screen */
+        .ad-loading { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.95); 
+            z-index: 10000; 
+            display: none; 
+            justify-content: center; 
+            align-items: center; 
+            flex-direction: column;
+            text-align: center;
+        }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .countdown { font-size: 24px; font-weight: bold; color: var(--success); margin: 10px 0; }
+        .countdown { font-size: 48px; font-weight: bold; color: var(--success); margin: 20px 0; font-family: monospace; }
+        .ad-warning { font-size: 12px; color: var(--gray); margin-top: 10px; }
+        .ad-progress-bar { width: 200px; height: 4px; background: #333; border-radius: 4px; margin: 15px auto; overflow: hidden; }
+        .ad-progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.1s linear; }
+        
+        /* Notification */
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
         
         @media (max-width: 480px) {
             body { padding: 12px; padding-bottom: 90px; }
@@ -167,15 +185,21 @@
             .feature-card { padding: 12px 8px; }
             .feature-icon { font-size: 24px; }
             .feature-title { font-size: 11px; }
+            .countdown { font-size: 36px; }
         }
     </style>
 </head>
 <body>
     <div class="notification" id="notification">Reward claimed!</div>
+    
+    <!-- Ad Loading Screen with Timer -->
     <div class="ad-loading" id="adLoading">
         <div class="spinner"></div>
-        <div style="margin-top: 20px;" id="adStatus">Loading ad...</div>
-        <div class="countdown" id="adCountdown"></div>
+        <div style="margin-top: 20px; font-size: 16px;" id="adStatus">Loading advertisement...</div>
+        <div class="countdown" id="adCountdown">0</div>
+        <div class="ad-progress-bar"><div class="ad-progress-fill" id="adProgressFill"></div></div>
+        <div class="ad-warning" id="adWarning">⚠️ Please wait for the ad to complete</div>
+        <div class="ad-warning" style="color: #ff5252;" id="adCloseWarning"></div>
     </div>
 
     <div class="container">
@@ -193,7 +217,7 @@
             <p class="subtitle">Watch Ads & Earn Rewards</p>
         </header>
 
-        <!-- Stats Cards (visible on all pages) -->
+        <!-- Stats Cards -->
         <div class="stats-container">
             <div class="stat-card"><div class="stat-label">Points</div><div class="stat-value" id="points">0</div></div>
             <div class="stat-card"><div class="stat-label">USD Value</div><div class="stat-value" id="usd">$0.00</div></div>
@@ -205,11 +229,8 @@
             <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
         </div>
 
-        <!-- ============================================ -->
-        <!-- PAGE 1: EARN / HOME (Main earning page) -->
-        <!-- ============================================ -->
+        <!-- PAGE 1: EARN -->
         <div class="page active" id="earnPage">
-            <!-- Hero Ad Button -->
             <div class="hero-ad-card" id="watchAdBtn">
                 <div class="hero-ad-icon"><i class="fas fa-play-circle"></i></div>
                 <div class="hero-ad-title">Watch Ad & Earn!</div>
@@ -217,7 +238,6 @@
                 <div class="hero-ad-reward">+<span id="adReward">557</span> points</div>
             </div>
 
-            <!-- Quick Tasks -->
             <div class="quick-tasks">
                 <div class="task-card" id="youtubeTaskBtn">
                     <div class="task-icon"><i class="fab fa-youtube"></i></div>
@@ -231,48 +251,21 @@
                 </div>
             </div>
 
-            <!-- More Features Section -->
             <div class="more-features-title">🎮 More Features</div>
             <div class="feature-grid">
-                <div class="feature-card" onclick="location.href='daily.html'">
-                    <div class="feature-icon">📅</div>
-                    <div class="feature-title">Daily Rewards</div>
-                    <div class="feature-desc">Claim daily bonus</div>
-                </div>
-                <div class="feature-card" onclick="location.href='wheel.html'">
-                    <div class="feature-icon">🎡</div>
-                    <div class="feature-title">Wheel of Fortune</div>
-                    <div class="feature-desc">Spin every 3 days</div>
-                </div>
-                <div class="feature-card" onclick="location.href='leaderboard.html'">
-                    <div class="feature-icon">🏆</div>
-                    <div class="feature-title">Leaderboard</div>
-                    <div class="feature-desc">Top earners</div>
-                </div>
-                <div class="feature-card" onclick="location.href='achievements.html'">
-                    <div class="feature-icon">🎖️</div>
-                    <div class="feature-title">Achievements</div>
-                    <div class="feature-desc">Unlock badges</div>
-                </div>
-                <div class="feature-card" onclick="location.href='tournament.html'">
-                    <div class="feature-icon">⚔️</div>
-                    <div class="feature-title">Tournament</div>
-                    <div class="feature-desc">Weekly comp</div>
-                </div>
-                <div class="feature-card" onclick="location.href='team.html'">
-                    <div class="feature-icon">👥</div>
-                    <div class="feature-title">Teams</div>
-                    <div class="feature-desc">Monthly comp</div>
-                </div>
+                <div class="feature-card" onclick="location.href='daily.html'"><div class="feature-icon">📅</div><div class="feature-title">Daily Rewards</div><div class="feature-desc">Claim daily bonus</div></div>
+                <div class="feature-card" onclick="location.href='wheel.html'"><div class="feature-icon">🎡</div><div class="feature-title">Wheel of Fortune</div><div class="feature-desc">Spin every 3 days</div></div>
+                <div class="feature-card" onclick="location.href='leaderboard.html'"><div class="feature-icon">🏆</div><div class="feature-title">Leaderboard</div><div class="feature-desc">Top earners</div></div>
+                <div class="feature-card" onclick="location.href='achievements.html'"><div class="feature-icon">🎖️</div><div class="feature-title">Achievements</div><div class="feature-desc">Unlock badges</div></div>
+                <div class="feature-card" onclick="location.href='tournament.html'"><div class="feature-icon">⚔️</div><div class="feature-title">Tournament</div><div class="feature-desc">Weekly comp</div></div>
+                <div class="feature-card" onclick="location.href='team.html'"><div class="feature-icon">👥</div><div class="feature-title">Teams</div><div class="feature-desc">Monthly comp</div></div>
             </div>
 
             <div class="daily-reset"><i class="fas fa-sync-alt"></i> Daily tasks reset daily</div>
             <div class="conversion-info"><i class="fas fa-info-circle"></i> 100,000 points = $1 USD</div>
         </div>
 
-        <!-- ============================================ -->
         <!-- PAGE 2: REFER -->
-        <!-- ============================================ -->
         <div class="page" id="referPage">
             <div class="referral-section">
                 <h3>🔗 Your Referral Link</h3>
@@ -280,13 +273,11 @@
                 <button class="copy-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy Link</button>
                 <p style="margin-top: 15px; font-size: 13px;">Share with friends! You earn points when they join.</p>
                 <p style="font-size: 13px; margin-top: 10px;">Your referrals: <strong id="referralCount">0</strong> | Points per referral: <strong id="referralReward">5000</strong></p>
-                
                 <div class="progress-container" style="margin-top: 15px;">
                     <div>Tier Progress: <span id="currentRefs">0</span> / <span id="nextTierReq">50</span> referrals</div>
                     <div class="progress-bar-bg"><div class="progress-bar-fill" id="tierProgressBar"></div></div>
                 </div>
             </div>
-
             <div class="tier-info">
                 <h4>📊 Tier Benefits</h4>
                 <ul>
@@ -299,86 +290,37 @@
             </div>
         </div>
 
-        <!-- ============================================ -->
         <!-- PAGE 3: SOCIAL -->
-        <!-- ============================================ -->
         <div class="page" id="socialPage">
-            <div class="channel-card">
-                <div class="channel-icon"><i class="fab fa-telegram"></i></div>
-                <div class="channel-info">
-                    <div class="channel-name">Official Telegram Channel</div>
-                    <div class="channel-reward">+5,000,000 points ($50)</div>
-                </div>
-                <button class="channel-join" id="joinChannelBtn">Join</button>
-            </div>
-            <div class="channel-card">
-                <div class="channel-icon"><i class="fab fa-youtube"></i></div>
-                <div class="channel-info">
-                    <div class="channel-name">Subscribe to Yzeman Updates</div>
-                    <div class="channel-reward">+5,000,000 points ($50)</div>
-                </div>
-                <button class="channel-join" id="youtube1Btn">Subscribe</button>
-            </div>
-            <div class="channel-card">
-                <div class="channel-icon"><i class="fab fa-youtube"></i></div>
-                <div class="channel-info">
-                    <div class="channel-name">Subscribe to Coding App with HTML</div>
-                    <div class="channel-reward">+5,000,000 points ($50)</div>
-                </div>
-                <button class="channel-join" id="youtube2Btn">Subscribe</button>
-            </div>
-            <div class="channel-card">
-                <div class="channel-icon"><i class="fab fa-youtube"></i></div>
-                <div class="channel-info">
-                    <div class="channel-name">Subscribe to Yzeman Hacker</div>
-                    <div class="channel-reward">+5,000,000 points ($50)</div>
-                </div>
-                <button class="channel-join" id="youtube3Btn">Subscribe</button>
-            </div>
-            <div class="channel-card">
-                <div class="channel-icon"><i class="fab fa-facebook"></i></div>
-                <div class="channel-info">
-                    <div class="channel-name">Follow on Facebook</div>
-                    <div class="channel-reward">+5,000,000 points ($50)</div>
-                </div>
-                <button class="channel-join" id="facebookBtn">Follow</button>
-            </div>
-            <div class="channel-card">
-                <div class="channel-icon"><i class="fab fa-instagram"></i></div>
-                <div class="channel-info">
-                    <div class="channel-name">Follow on Instagram</div>
-                    <div class="channel-reward">+5,000,000 points ($50)</div>
-                </div>
-                <button class="channel-join" id="instagramBtn">Follow</button>
-            </div>
+            <div class="channel-card"><div class="channel-icon"><i class="fab fa-telegram"></i></div><div class="channel-info"><div class="channel-name">Official Telegram Channel</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="joinChannelBtn">Join</button></div>
+            <div class="channel-card"><div class="channel-icon"><i class="fab fa-youtube"></i></div><div class="channel-info"><div class="channel-name">Subscribe to Yzeman Updates</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="youtube1Btn">Subscribe</button></div>
+            <div class="channel-card"><div class="channel-icon"><i class="fab fa-youtube"></i></div><div class="channel-info"><div class="channel-name">Subscribe to Coding App with HTML</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="youtube2Btn">Subscribe</button></div>
+            <div class="channel-card"><div class="channel-icon"><i class="fab fa-youtube"></i></div><div class="channel-info"><div class="channel-name">Subscribe to Yzeman Hacker</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="youtube3Btn">Subscribe</button></div>
+            <div class="channel-card"><div class="channel-icon"><i class="fab fa-facebook"></i></div><div class="channel-info"><div class="channel-name">Follow on Facebook</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="facebookBtn">Follow</button></div>
+            <div class="channel-card"><div class="channel-icon"><i class="fab fa-instagram"></i></div><div class="channel-info"><div class="channel-name">Follow on Instagram</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="instagramBtn">Follow</button></div>
         </div>
 
-        <!-- ============================================ -->
-        <!-- PAGE 4: BONUS -->
-        <!-- ============================================ -->
+        <!-- PAGE 4: BONUS - Hidden codes, only input field -->
         <div class="page" id="bonusPage">
             <div class="bonus-section">
-                <h3 class="bonus-title">🎁 Redeem Bonus Codes</h3>
-                <p>Enter bonus codes to earn extra points!</p>
+                <h3 class="bonus-title">🎁 Redeem Bonus Code</h3>
+                <p>Enter a bonus code to earn extra points!</p>
+                <p style="font-size: 12px; color: var(--gray); margin-top: 5px;">Codes are given out by the admin on Telegram</p>
                 <div class="bonus-input-container">
-                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code (e.g., BASER)">
+                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code" maxlength="20" autocomplete="off">
                     <button class="bonus-btn" id="redeemBonusBtn">Redeem</button>
                 </div>
-                <div class="bonus-list" id="bonusList">
-                    <div class="bonus-item">Loading bonus codes...</div>
-                </div>
+                <div id="bonusMessage" class="bonus-message"></div>
             </div>
             <div class="social-proof">
-                <p style="text-align: center;">Join our Telegram channel for more bonus codes!</p>
+                <p style="text-align: center;">Join our Telegram channel for bonus codes!</p>
                 <div style="text-align: center; margin-top: 15px;">
                     <a href="https://t.me/YzemanEarnBotChannel" target="_blank" style="color: white;"><i class="fab fa-telegram fa-2x"></i></a>
                 </div>
             </div>
         </div>
 
-        <!-- ============================================ -->
         <!-- PAGE 5: WITHDRAW -->
-        <!-- ============================================ -->
         <div class="page" id="withdrawPage">
             <div class="referral-section">
                 <h3>💸 Withdraw Your Earnings</h3>
@@ -399,28 +341,13 @@
         </div>
     </div>
 
-    <!-- Bottom Navigation - 5 main tabs only -->
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
-        <div class="nav-item active" data-page="earn">
-            <i class="fas fa-home"></i>
-            <span>Earn</span>
-        </div>
-        <div class="nav-item" data-page="refer">
-            <i class="fas fa-users"></i>
-            <span>Refer</span>
-        </div>
-        <div class="nav-item" data-page="social">
-            <i class="fas fa-share-alt"></i>
-            <span>Social</span>
-        </div>
-        <div class="nav-item" data-page="bonus">
-            <i class="fas fa-gift"></i>
-            <span>Bonus</span>
-        </div>
-        <div class="nav-item" data-page="withdraw">
-            <i class="fas fa-dollar-sign"></i>
-            <span>Withdraw</span>
-        </div>
+        <div class="nav-item active" data-page="earn"><i class="fas fa-home"></i><span>Earn</span></div>
+        <div class="nav-item" data-page="refer"><i class="fas fa-users"></i><span>Refer</span></div>
+        <div class="nav-item" data-page="social"><i class="fas fa-share-alt"></i><span>Social</span></div>
+        <div class="nav-item" data-page="bonus"><i class="fas fa-gift"></i><span>Bonus</span></div>
+        <div class="nav-item" data-page="withdraw"><i class="fas fa-dollar-sign"></i><span>Withdraw</span></div>
     </div>
 
     <script src="app.js"></script>
@@ -436,26 +363,119 @@
         };
 
         function switchPage(pageId) {
-            Object.values(pages).forEach(page => {
-                if (page) page.classList.remove('active');
-            });
+            Object.values(pages).forEach(page => { if (page) page.classList.remove('active'); });
             if (pages[pageId]) pages[pageId].classList.add('active');
-            
             navItems.forEach(item => {
-                if (item.dataset.page === pageId) {
-                    item.classList.add('active');
-                } else {
-                    item.classList.remove('active');
-                }
+                if (item.dataset.page === pageId) item.classList.add('active');
+                else item.classList.remove('active');
             });
         }
 
         navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const pageId = item.dataset.page;
-                switchPage(pageId);
-            });
+            item.addEventListener('click', () => switchPage(item.dataset.page));
         });
+
+        // ============================================
+        // IMPROVED AD WATCHING WITH MINIMUM TIME REQUIREMENT
+        // ============================================
+        
+        let adStartTime = 0;
+        let adCompleted = false;
+        let adTimerInterval = null;
+        const MINIMUM_AD_SECONDS = 8; // 8 seconds minimum watch time
+        
+        // Override the watchAd function to enforce minimum time
+        const originalWatchAd = window.watchAd;
+        
+        window.watchAd = async function() {
+            const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
+            const reward = adRewards[currentUser?.tier] || 557;
+            
+            const loading = document.getElementById('adLoading');
+            const adStatus = document.getElementById('adStatus');
+            const adCountdown = document.getElementById('adCountdown');
+            const adProgressFill = document.getElementById('adProgressFill');
+            const adWarning = document.getElementById('adWarning');
+            const adCloseWarning = document.getElementById('adCloseWarning');
+            
+            // Reset state
+            adCompleted = false;
+            adStartTime = Date.now();
+            
+            loading.style.display = 'flex';
+            adStatus.textContent = '⏳ Please wait... Ad loading';
+            adCountdown.textContent = MINIMUM_AD_SECONDS;
+            adProgressFill.style.width = '0%';
+            adWarning.textContent = `⚠️ Please wait ${MINIMUM_AD_SECONDS} seconds to earn reward`;
+            adCloseWarning.textContent = '';
+            
+            // Start countdown timer
+            let secondsLeft = MINIMUM_AD_SECONDS;
+            adTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
+                secondsLeft = Math.max(0, MINIMUM_AD_SECONDS - elapsed);
+                adCountdown.textContent = secondsLeft;
+                const progressPercent = (elapsed / MINIMUM_AD_SECONDS) * 100;
+                adProgressFill.style.width = Math.min(100, progressPercent) + '%';
+                
+                if (elapsed >= MINIMUM_AD_SECONDS) {
+                    adCompleted = true;
+                    clearInterval(adTimerInterval);
+                    adTimerInterval = null;
+                    adStatus.textContent = '✅ Ad completed! Processing reward...';
+                    adWarning.textContent = '✓ You have earned your reward!';
+                    adCloseWarning.textContent = '';
+                } else {
+                    adStatus.textContent = `📺 Watching ad... ${elapsed}/${MINIMUM_AD_SECONDS} seconds`;
+                }
+            }, 1000);
+            
+            // Show the ad using the SDK
+            if (typeof show_9683863 === 'function') {
+                try {
+                    adStatus.textContent = '🎬 Showing advertisement...';
+                    await show_9683863();
+                    
+                    // After ad SDK returns, check if minimum time was met
+                    const elapsedSeconds = Math.floor((Date.now() - adStartTime) / 1000);
+                    
+                    if (elapsedSeconds >= MINIMUM_AD_SECONDS) {
+                        adCompleted = true;
+                        await addPoints(reward);
+                        showNotification(`+${reward} points earned! 🎉`);
+                    } else {
+                        // User closed ad too early
+                        const remaining = MINIMUM_AD_SECONDS - elapsedSeconds;
+                        showNotification(`❌ Ad watched too short! Need ${remaining} more seconds. Try again!`, true);
+                    }
+                } catch (error) {
+                    console.error('Ad error:', error);
+                    const elapsedSeconds = Math.floor((Date.now() - adStartTime) / 1000);
+                    if (elapsedSeconds >= MINIMUM_AD_SECONDS) {
+                        await addPoints(reward);
+                        showNotification(`+${reward} points earned! 🎉`);
+                    } else {
+                        showNotification('Ad was interrupted. Please try again!', true);
+                    }
+                }
+            } else {
+                // Fallback simulation for testing
+                adStatus.textContent = '🎬 Simulating ad...';
+                await new Promise(resolve => setTimeout(resolve, MINIMUM_AD_SECONDS * 1000));
+                await addPoints(reward);
+                showNotification(`+${reward} points earned! 🎉`);
+            }
+            
+            // Clean up
+            if (adTimerInterval) {
+                clearInterval(adTimerInterval);
+                adTimerInterval = null;
+            }
+            
+            setTimeout(() => {
+                loading.style.display = 'none';
+            }, 500);
+        };
     </script>
 </body>
 </html>
