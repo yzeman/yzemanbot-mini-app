@@ -826,7 +826,7 @@ app.post('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res
 // ACHIEVEMENTS API
 // ============================================
 
-app.get('/api/achievements', verifyTelegramData, async (req, res) => {
+app.post('/api/achievements', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
     
