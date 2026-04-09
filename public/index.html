@@ -31,8 +31,7 @@
         }
         .container { max-width: 500px; margin: 0 auto; }
         
-        /* Header Styles */
-        .user-profile { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 20px; backdrop-filter: blur(10px); }
+        .user-profile { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 20px; }
         .user-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--secondary); }
         .user-info { flex: 1; }
         .user-name { font-weight: 700; font-size: 16px; }
@@ -41,19 +40,16 @@
         h1 { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
         .subtitle { color: var(--gray); font-size: 13px; text-align: center; margin-bottom: 20px; }
         
-        /* Stats Cards */
         .stats-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
         .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 12px; text-align: center; }
         .stat-value { font-size: 20px; font-weight: 700; margin: 5px 0; color: var(--success); }
         .stat-label { font-size: 11px; color: var(--gray); }
         
-        /* Progress Bar */
         .progress-container { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
         .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
         .progress-bar-bg { height: 8px; background: #2d3343; border-radius: 10px; overflow: hidden; }
         .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 0.5s ease; }
         
-        /* Hero Ad Card */
         .hero-ad-card { background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 24px; padding: 25px; text-align: center; margin-bottom: 25px; cursor: pointer; transition: transform 0.2s; }
         .hero-ad-card:hover { transform: scale(1.02); }
         .hero-ad-icon { font-size: 48px; margin-bottom: 15px; }
@@ -61,7 +57,6 @@
         .hero-ad-subtitle { font-size: 14px; opacity: 0.9; margin-bottom: 15px; }
         .hero-ad-reward { font-size: 28px; font-weight: bold; background: rgba(255,255,255,0.2); display: inline-block; padding: 8px 20px; border-radius: 40px; }
         
-        /* Quick Task Cards */
         .quick-tasks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
         .task-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; }
         .task-card:hover { transform: translateY(-3px); background: rgba(37, 117, 252, 0.1); }
@@ -69,7 +64,6 @@
         .task-title { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
         .task-reward { font-size: 12px; color: var(--success); font-weight: 600; }
         
-        /* More Features Section */
         .more-features-title { font-size: 16px; font-weight: 600; margin: 20px 0 15px 0; display: flex; align-items: center; gap: 10px; }
         .more-features-title:before, .more-features-title:after { content: ""; flex: 1; height: 1px; background: var(--card-border); }
         .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
@@ -79,7 +73,6 @@
         .feature-title { font-weight: 600; font-size: 12px; }
         .feature-desc { font-size: 10px; color: var(--gray); margin-top: 4px; }
         
-        /* Bottom Navigation */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -110,17 +103,14 @@
         .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.15); }
         .nav-item span { font-size: 10px; font-weight: 500; }
         
-        /* Page Content */
         .page { display: none; animation: fadeIn 0.3s ease; }
         .page.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Referral Section */
         .referral-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
         .referral-link-box { background: rgba(37, 117, 252, 0.1); border: 1px solid var(--secondary); border-radius: 12px; padding: 12px; margin: 15px 0; word-break: break-all; font-size: 12px; }
         .copy-btn { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 600; cursor: pointer; width: 100%; }
         
-        /* Social Tasks */
         .channel-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
         .channel-icon { width: 45px; height: 45px; background: linear-gradient(45deg, #ff9a9e, #fad0c4); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
         .channel-info { flex: 1; }
@@ -128,7 +118,6 @@
         .channel-reward { font-size: 11px; color: var(--success); }
         .channel-join { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 8px 16px; cursor: pointer; font-size: 12px; }
         
-        /* Bonus Section */
         .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
         .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
         .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); text-align: center; font-size: 16px; letter-spacing: 2px; }
@@ -137,7 +126,6 @@
         .bonus-message.success { background: rgba(0, 200, 83, 0.2); color: var(--success); display: block; }
         .bonus-message.error { background: rgba(255, 82, 82, 0.2); color: var(--danger); display: block; }
         
-        /* Withdraw Section */
         .wallet-input { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--darker); color: var(--light); margin: 10px 0; }
         .withdraw-btn { background: linear-gradient(45deg, #00c853, #64dd17); color: white; border: none; border-radius: 12px; padding: 15px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 10px; }
         .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -152,7 +140,6 @@
         .admin-message { background: var(--card-bg); border-radius: 16px; padding: 15px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); font-size: 12px; }
         .daily-reset, .conversion-info { text-align: center; font-size: 11px; color: var(--gray); margin: 10px 0; }
         
-        /* Notification */
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
         
         @media (max-width: 480px) {
@@ -170,7 +157,6 @@
     <div class="notification" id="notification"></div>
 
     <div class="container">
-        <!-- Header -->
         <header>
             <div class="user-profile">
                 <img id="userAvatar" class="user-avatar" src="" alt="Profile">
@@ -184,7 +170,6 @@
             <p class="subtitle">Watch Ads & Earn Rewards</p>
         </header>
 
-        <!-- Stats Cards -->
         <div class="stats-container">
             <div class="stat-card"><div class="stat-label">Points</div><div class="stat-value" id="points">0</div></div>
             <div class="stat-card"><div class="stat-label">USD Value</div><div class="stat-value" id="usd">$0.00</div></div>
@@ -196,7 +181,6 @@
             <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
         </div>
 
-        <!-- PAGE 1: EARN -->
         <div class="page active" id="earnPage">
             <div class="hero-ad-card" id="watchAdBtn">
                 <div class="hero-ad-icon"><i class="fas fa-play-circle"></i></div>
@@ -206,16 +190,8 @@
             </div>
 
             <div class="quick-tasks">
-                <div class="task-card" id="youtubeTaskBtn">
-                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
-                    <div class="task-title">YouTube Video</div>
-                    <div class="task-reward">+12,000 pts</div>
-                </div>
-                <div class="task-card" id="websiteTaskBtn">
-                    <div class="task-icon"><i class="fas fa-globe"></i></div>
-                    <div class="task-title">Visit Website</div>
-                    <div class="task-reward">+5,000 pts</div>
-                </div>
+                <div class="task-card" id="youtubeTaskBtn"><div class="task-icon"><i class="fab fa-youtube"></i></div><div class="task-title">YouTube Video</div><div class="task-reward">+12,000 pts</div></div>
+                <div class="task-card" id="websiteTaskBtn"><div class="task-icon"><i class="fas fa-globe"></i></div><div class="task-title">Visit Website</div><div class="task-reward">+5,000 pts</div></div>
             </div>
 
             <div class="more-features-title">🎮 More Features</div>
@@ -232,7 +208,6 @@
             <div class="conversion-info"><i class="fas fa-info-circle"></i> 100,000 points = $1 USD</div>
         </div>
 
-        <!-- PAGE 2: REFER -->
         <div class="page" id="referPage">
             <div class="referral-section">
                 <h3>🔗 Your Referral Link</h3>
@@ -240,24 +215,11 @@
                 <button class="copy-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy Link</button>
                 <p style="margin-top: 15px; font-size: 13px;">Share with friends! You earn points when they join.</p>
                 <p style="font-size: 13px; margin-top: 10px;">Your referrals: <strong id="referralCount">0</strong> | Points per referral: <strong id="referralReward">5000</strong></p>
-                <div class="progress-container" style="margin-top: 15px;">
-                    <div>Tier Progress: <span id="currentRefs">0</span> / <span id="nextTierReq">50</span> referrals</div>
-                    <div class="progress-bar-bg"><div class="progress-bar-fill" id="tierProgressBar"></div></div>
-                </div>
+                <div class="progress-container" style="margin-top: 15px;"><div>Tier Progress: <span id="currentRefs">0</span> / <span id="nextTierReq">50</span> referrals</div><div class="progress-bar-bg"><div class="progress-bar-fill" id="tierProgressBar"></div></div></div>
             </div>
-            <div class="tier-info">
-                <h4>📊 Tier Benefits</h4>
-                <ul>
-                    <li><strong>Fresher:</strong> 1x earning rate, 5,000 points per referral</li>
-                    <li><strong>Brute (50 referrals):</strong> 1.2x earning rate, 10,000 points per referral</li>
-                    <li><strong>Silver (150 referrals):</strong> 1.5x earning rate, 15,000 points per referral</li>
-                    <li><strong>Gold (300 referrals):</strong> 2x earning rate, 20,000 points per referral</li>
-                    <li><strong>Platinum (500 referrals):</strong> 3x earning rate, 30,000 points per referral</li>
-                </ul>
-            </div>
+            <div class="tier-info"><h4>📊 Tier Benefits</h4><ul><li><strong>Fresher:</strong> 1x earning rate, 5,000 points per referral</li><li><strong>Brute (50 referrals):</strong> 1.2x earning rate, 10,000 points per referral</li><li><strong>Silver (150 referrals):</strong> 1.5x earning rate, 15,000 points per referral</li><li><strong>Gold (300 referrals):</strong> 2x earning rate, 20,000 points per referral</li><li><strong>Platinum (500 referrals):</strong> 3x earning rate, 30,000 points per referral</li></ul></div>
         </div>
 
-        <!-- PAGE 3: SOCIAL -->
         <div class="page" id="socialPage">
             <div class="channel-card"><div class="channel-icon"><i class="fab fa-telegram"></i></div><div class="channel-info"><div class="channel-name">Official Telegram Channel</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="joinChannelBtn">Join</button></div>
             <div class="channel-card"><div class="channel-icon"><i class="fab fa-youtube"></i></div><div class="channel-info"><div class="channel-name">Subscribe to Yzeman Updates</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="youtube1Btn">Subscribe</button></div>
@@ -267,7 +229,6 @@
             <div class="channel-card"><div class="channel-icon"><i class="fab fa-instagram"></i></div><div class="channel-info"><div class="channel-name">Follow on Instagram</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="instagramBtn">Follow</button></div>
         </div>
 
-        <!-- PAGE 4: BONUS -->
         <div class="page" id="bonusPage">
             <div class="bonus-section">
                 <h3 class="bonus-title">🎁 Redeem Bonus Code</h3>
@@ -279,15 +240,9 @@
                 </div>
                 <div id="bonusMessage" class="bonus-message"></div>
             </div>
-            <div class="social-proof">
-                <p style="text-align: center;">Join our Telegram channel for bonus codes!</p>
-                <div style="text-align: center; margin-top: 15px;">
-                    <a href="https://t.me/YzemanEarnBotChannel" target="_blank" style="color: white;"><i class="fab fa-telegram fa-2x"></i></a>
-                </div>
-            </div>
+            <div class="social-proof"><p style="text-align: center;">Join our Telegram channel for bonus codes!</p><div style="text-align: center; margin-top: 15px;"><a href="https://t.me/YzemanEarnBotChannel" target="_blank" style="color: white;"><i class="fab fa-telegram fa-2x"></i></a></div></div>
         </div>
 
-        <!-- PAGE 5: WITHDRAW -->
         <div class="page" id="withdrawPage">
             <div class="referral-section">
                 <h3>💸 Withdraw Your Earnings</h3>
@@ -297,18 +252,11 @@
                 <button class="copy-btn" id="saveWalletBtn" style="width: 100%; margin-bottom: 10px;">Save Wallet</button>
                 <button class="withdraw-btn" id="withdrawBtn" disabled>Withdraw $1000</button>
             </div>
-            <div class="admin-message">
-                <p>After withdrawal request, admin will contact you via Telegram</p>
-                <p><strong>@yzemanreal</strong></p>
-            </div>
-            <div class="withdrawal-history">
-                <h4>Withdrawal History</h4>
-                <div id="withdrawalHistoryList">Loading...</div>
-            </div>
+            <div class="admin-message"><p>After withdrawal request, admin will contact you via Telegram</p><p><strong>@yzemanreal</strong></p></div>
+            <div class="withdrawal-history"><h4>Withdrawal History</h4><div id="withdrawalHistoryList">Loading...</div></div>
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <div class="nav-item active" data-page="earn"><i class="fas fa-home"></i><span>Earn</span></div>
         <div class="nav-item" data-page="refer"><i class="fas fa-users"></i><span>Refer</span></div>
@@ -343,146 +291,59 @@
         });
 
         // ============================================
-        // AD WATCHING - USING PAGE FOCUS EVENT
-        // More reliable than visibilitychange for Telegram
+        // SIMPLE AD WATCHING - NO COMPLEX TIMING
+        // Just open ad and give reward after fixed delay
         // ============================================
         
-        let adStartTime = 0;
         let isWatchingAd = false;
-        let rewardProcessed = false;
-        let checkInterval = null;
-        
-        const MIN_SECONDS = 7;    // Minimum 7 seconds for reward
-        const MAX_SECONDS = 14;   // Maximum 14 seconds for reward
-        
-        // Function to check and give reward when page becomes active
-        function checkAndReward() {
-            if (!isWatchingAd || rewardProcessed) return;
-            
-            const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-            
-            // Only process if enough time has passed
-            if (elapsed >= MIN_SECONDS) {
-                if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
-                    // REWARD!
-                    giveReward();
-                } else if (elapsed > MAX_SECONDS) {
-                    // Too late - no reward
-                    showNotification(`Ad session expired. Please try again.`, true);
-                    resetAdState();
-                }
-            }
-        }
-        
-        async function giveReward() {
-            if (rewardProcessed) return;
-            
-            const reward = getRewardAmount();
-            await addPoints(reward);
-            showNotification(`🎉 +${reward} points earned!`, false);
-            rewardProcessed = true;
-            resetAdState();
-        }
-        
-        function resetAdState() {
-            isWatchingAd = false;
-            if (checkInterval) {
-                clearInterval(checkInterval);
-                checkInterval = null;
-            }
-        }
-        
-        // Listen for page focus (when user returns from Chrome)
-        window.addEventListener('focus', function() {
-            if (isWatchingAd && !rewardProcessed) {
-                checkAndReward();
-            }
-        });
-        
-        // Also listen for click anywhere (as backup)
-        document.addEventListener('click', function() {
-            if (isWatchingAd && !rewardProcessed) {
-                checkAndReward();
-            }
-        });
-        
-        // Periodic check every second while watching ad
-        function startPeriodicCheck() {
-            if (checkInterval) clearInterval(checkInterval);
-            checkInterval = setInterval(() => {
-                if (isWatchingAd && !rewardProcessed) {
-                    const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                    
-                    // If we passed the max time without reward, expire
-                    if (elapsed > MAX_SECONDS && !rewardProcessed) {
-                        showNotification(`Ad session expired. Please try again.`, true);
-                        resetAdState();
-                    }
-                }
-            }, 1000);
-        }
         
         function getRewardAmount() {
             const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
             return adRewards[currentUser?.tier] || 557;
         }
         
-        // Main watch ad function
         window.watchAd = async function() {
-            // Prevent multiple ads at once
             if (isWatchingAd) {
                 showNotification('Please wait, an ad is already playing.', true);
                 return;
             }
             
-            // Reset state
             isWatchingAd = true;
-            rewardProcessed = false;
-            adStartTime = Date.now();
+            const reward = getRewardAmount();
             
-            // Start periodic check
-            startPeriodicCheck();
+            // Show notification that ad is starting
+            showNotification('Opening ad... Please wait 10 seconds.', false);
             
             // Open the ad
             if (typeof show_9683863 === 'function') {
                 try {
                     await show_9683863();
                     
-                    // After ad SDK returns, check if enough time passed
-                    setTimeout(() => {
-                        if (isWatchingAd && !rewardProcessed) {
-                            checkAndReward();
-                        }
-                    }, 1000);
+                    // Wait 10 seconds before giving reward
+                    showNotification('Ad completed! Processing reward...', false);
+                    
+                    setTimeout(async () => {
+                        await addPoints(reward);
+                        showNotification(`🎉 +${reward} points earned!`, false);
+                        isWatchingAd = false;
+                    }, 2000);
                     
                 } catch (error) {
                     console.error('Ad error:', error);
                     showNotification('Failed to load ad. Please try again.', true);
-                    resetAdState();
+                    isWatchingAd = false;
                 }
             } else {
-                // Test mode - simulate ad
-                showNotification('Opening test ad... Come back in 7-14 seconds.', false);
-                
-                // Simulate user returning after 10 seconds
+                // Test mode
+                showNotification('Test mode: Simulating ad for 10 seconds...', false);
                 setTimeout(async () => {
-                    if (isWatchingAd && !rewardProcessed) {
-                        const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                        if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
-                            await giveReward();
-                        } else if (elapsed < MIN_SECONDS) {
-                            showNotification(`You didn't complete the ad visit. Please watch the full ad to earn points.`, true);
-                            resetAdState();
-                        } else {
-                            showNotification(`Ad session expired. Please try again.`, true);
-                            resetAdState();
-                        }
-                    }
+                    await addPoints(reward);
+                    showNotification(`🎉 +${reward} points earned! (Test mode)`, false);
+                    isWatchingAd = false;
                 }, 10000);
             }
         };
         
-        // Helper functions
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             if (notif) {
