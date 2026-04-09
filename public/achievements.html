@@ -45,9 +45,12 @@
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
         .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; }
     </style>
 </head>
 <body>
+    <div class="notification" id="notification"></div>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-medal"></i> Achievements</h1>
@@ -60,7 +63,7 @@
         </div>
 
         <div class="achievement-grid" id="achievementsGrid">
-            <div class="loading">Loading achievements...</div>
+            <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading achievements...</div>
         </div>
     </div>
 
@@ -76,11 +79,25 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.expand(); tg.ready(); }
 
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.style.background = isError ? '#ff5252' : '#00c853';
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+
         async function apiCall(endpoint, data = null) {
-            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
-            if (data) options.body = JSON.stringify(data);
+            const options = { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data || { initData: tg.initData })
+            };
             const response = await fetch(endpoint, options);
-            if (!response.ok) throw new Error(await response.text());
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error || 'Request failed');
+            }
             return response.json();
         }
 
@@ -88,28 +105,41 @@
             try {
                 const data = await apiCall('/api/achievements', { initData: tg.initData });
                 
-                document.getElementById('achievementsCount').textContent = data.userStats.achievements_count || 0;
-                document.getElementById('totalPointsEarned').textContent = (data.userStats.total_points_earned || 0).toLocaleString();
+                document.getElementById('achievementsCount').textContent = data.userStats?.achievements_count || 0;
+                document.getElementById('totalPointsEarned').textContent = (data.userStats?.total_points_earned || 0).toLocaleString();
                 
                 const grid = document.getElementById('achievementsGrid');
                 const iconMap = {
-                    'Loyal User': '🔥', 'Referral Master': '👑', 'Points Millionaire': '💰',
-                    'Social Butterfly': '🦋', 'Tournament Winner': '🏆', 'Team Player': '🤝',
-                    'Platinum Elite': '💎', 'Wheel Champion': '🎡', 'Daily Streak 7': '📅', 'Super Referrer': '⭐'
+                    'Loyal User': '🔥', 
+                    'Referral Master': '👑', 
+                    'Points Millionaire': '💰',
+                    'Social Butterfly': '🦋', 
+                    'Tournament Winner': '🏆', 
+                    'Team Player': '🤝',
+                    'Platinum Elite': '💎', 
+                    'Wheel Champion': '🎡', 
+                    'Daily Streak 7': '📅', 
+                    'Super Referrer': '⭐'
                 };
+                
+                if (!data.achievements || data.achievements.length === 0) {
+                    grid.innerHTML = '<div class="loading">No achievements available yet</div>';
+                    return;
+                }
                 
                 grid.innerHTML = data.achievements.map(ach => `
                     <div class="achievement-card ${ach.achieved ? 'unlocked' : 'locked'}">
                         <div class="achievement-icon">${iconMap[ach.name] || '🏅'}</div>
                         <div class="achievement-name">${ach.name}</div>
-                        <div class="achievement-desc">${ach.description}</div>
+                        <div class="achievement-desc">${ach.description || ''}</div>
                         <div class="achievement-reward">+${(ach.points_reward || 0).toLocaleString()} pts</div>
                         ${ach.achieved ? '<div class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</div>' : '<div class="locked-badge"><i class="fas fa-lock"></i> Locked</div>'}
                     </div>
                 `).join('');
             } catch (err) {
-                console.error(err);
-                document.getElementById('achievementsGrid').innerHTML = '<div class="loading">Failed to load achievements</div>';
+                console.error('Achievements error:', err);
+                document.getElementById('achievementsGrid').innerHTML = '<div class="loading"><i class="fas fa-exclamation-circle"></i><br>Failed to load achievements. Please refresh.</div>';
+                showNotification('Failed to load achievements', true);
             }
         }
 
