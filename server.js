@@ -448,7 +448,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// DAILY REWARDS API - FIXED VERSION
+// DAILY REWARDS API
 // ============================================
 
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
@@ -749,10 +749,10 @@ app.get('/api/wheel-status', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// LEADERBOARD API
+// LEADERBOARD API - FIXED: CHANGED FROM GET TO POST
 // ============================================
 
-app.get('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
+app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -776,7 +776,7 @@ app.get('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res
   }
 });
 
-app.get('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
+app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -798,7 +798,7 @@ app.get('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => 
   }
 });
 
-app.get('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res) => {
+app.post('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
