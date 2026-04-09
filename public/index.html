@@ -343,114 +343,102 @@
         });
 
         // ============================================
-        // AD WATCHING WITH PAGE VISIBILITY TRACKING
-        // NO LOADING SCREEN - INSTANT RESPONSE
-        // 
+        // SIMPLE AD WATCHING
         // RULES:
-        // - Return BEFORE 3 seconds → NO REWARD (too fast, didn't watch)
-        // - Return BETWEEN 3-12 seconds → YES REWARD (perfect!)
-        // - Return AFTER 12 seconds → NO REWARD (too slow, session expired)
+        // - Return BEFORE 5 seconds → NO REWARD
+        // - Return BETWEEN 5-12 seconds → YES REWARD
+        // - Return AFTER 12 seconds → NO REWARD
+        // - Can only watch one ad at a time
         // ============================================
         
         let adStartTime = 0;
-        let adActive = false;
-        let rewardGiven = false;
+        let isWatchingAd = false;
+        let rewardProcessed = false;
         
-        // Time thresholds in seconds
-        const MIN_REWARD_SECONDS = 3;    // Must be at least 3 seconds away
-        const MAX_REWARD_SECONDS = 12;   // Must return within 12 seconds
+        const MIN_SECONDS = 5;    // Must be at least 5 seconds away
+        const MAX_SECONDS = 12;   // Must return within 12 seconds
         
-        // Track when page becomes visible again (user returns from Chrome)
+        // Track when user returns to the app
         document.addEventListener('visibilitychange', async function() {
-            if (!adActive) return;
+            // Only process if we're watching an ad and haven't given reward yet
+            if (!isWatchingAd || rewardProcessed) return;
             
             if (!document.hidden) {
-                // User returned to the Mini App!
+                // User came back!
                 const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
                 
-                console.log(`User returned after ${elapsed} seconds`);
+                console.log(`Returned after ${elapsed} seconds`);
                 
-                // Check reward conditions
-                if (elapsed >= MIN_REWARD_SECONDS && elapsed <= MAX_REWARD_SECONDS) {
-                    // PERFECT! User returned within the sweet spot (3-12 seconds)
-                    if (!rewardGiven) {
-                        showNotification(`🎉 Reward earned! +${getCurrentReward()} points!`);
-                        
-                        // Give reward
-                        const reward = getCurrentReward();
-                        await addPoints(reward);
-                        rewardGiven = true;
-                    }
-                } else if (elapsed < MIN_REWARD_SECONDS) {
-                    // Returned too fast - didn't really watch
-                    showNotification(`⚠️ Ad watched too quickly! No reward.`, true);
-                } else if (elapsed > MAX_REWARD_SECONDS) {
-                    // Returned too slow - session expired
-                    showNotification(`⏰ Ad session expired! No reward.`, true);
+                // Check timing
+                if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
+                    // PERFECT! Give reward
+                    const reward = getRewardAmount();
+                    await addPoints(reward);
+                    showNotification(`🎉 +${reward} points earned!`, false);
+                    rewardProcessed = true;
+                } else if (elapsed < MIN_SECONDS) {
+                    showNotification(`⚠️ Came back too early (${elapsed}s). Need ${MIN_SECONDS}s. No reward.`, true);
+                    rewardProcessed = true;
+                } else {
+                    showNotification(`⏰ Came back too late (${elapsed}s). Session expired. No reward.`, true);
+                    rewardProcessed = true;
                 }
                 
-                // Reset ad state
-                adActive = false;
+                // Reset ad watching state
+                isWatchingAd = false;
             }
         });
         
-        // Helper to get current reward based on user tier
-        function getCurrentReward() {
+        function getRewardAmount() {
             const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
             return adRewards[currentUser?.tier] || 557;
         }
         
-        // Override the watchAd function - NO LOADING SCREEN
+        // Main watch ad function
         window.watchAd = async function() {
-            if (adActive) {
+            // Prevent multiple ads at once
+            if (isWatchingAd) {
                 showNotification('Please wait, ad is already playing!', true);
                 return;
             }
             
-            // Reset state - NO LOADING SCREEN
-            adActive = true;
-            rewardGiven = false;
+            // Reset state
+            isWatchingAd = true;
+            rewardProcessed = false;
             adStartTime = Date.now();
             
-            // Show the ad using the SDK (this opens the ad immediately)
+            // Open the ad
             if (typeof show_9683863 === 'function') {
                 try {
-                    // This opens the ad in a new window/tab
                     await show_9683863();
-                    
-                    // Note: The SDK returns immediately when ad is opened
-                    // The actual time tracking happens in the visibilitychange event
-                    // No loading screen - user goes directly to ad
-                    
+                    // User will leave to Chrome, visibilitychange will handle when they return
                 } catch (error) {
                     console.error('Ad error:', error);
-                    showNotification('Failed to load advertisement. Please try again.', true);
-                    adActive = false;
+                    showNotification('Failed to load ad. Please try again.', true);
+                    isWatchingAd = false;
                 }
             } else {
-                // Fallback for testing - simulate ad opening
-                showNotification('Opening test ad...', false);
-                
-                // Simulate user leaving for 5 seconds (perfect for reward)
+                // Test mode - simulate ad
+                showNotification('Test ad opened! Come back in 5-12 seconds.', false);
+                // In test mode, we'll simulate return after 7 seconds
                 setTimeout(async () => {
-                    const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                    
-                    if (elapsed >= MIN_REWARD_SECONDS && elapsed <= MAX_REWARD_SECONDS) {
-                        const reward = getCurrentReward();
-                        await addPoints(reward);
-                        showNotification(`🎉 Reward earned! +${reward} points!`);
-                    } else if (elapsed < MIN_REWARD_SECONDS) {
-                        showNotification(`⚠️ Returned too quickly! No reward.`, true);
-                    } else {
-                        showNotification(`⏰ Returned too late! No reward.`, true);
+                    if (isWatchingAd && !rewardProcessed) {
+                        const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
+                        if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
+                            const reward = getRewardAmount();
+                            await addPoints(reward);
+                            showNotification(`🎉 +${reward} points earned!`, false);
+                        } else {
+                            showNotification(`⏰ No reward. Time: ${elapsed}s (need ${MIN_SECONDS}-${MAX_SECONDS}s)`, true);
+                        }
+                        isWatchingAd = false;
+                        rewardProcessed = true;
                     }
-                    
-                    adActive = false;
-                }, 5000);
+                }, 7000);
             }
         };
         
-        // Helper function to show notification
+        // Helper functions
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             if (notif) {
@@ -461,23 +449,9 @@
             }
         }
         
-        // Helper function to add points
         async function addPoints(amount) {
             if (window.addPoints) {
                 return await window.addPoints(amount);
-            } else if (window.apiCall && window.tg) {
-                try {
-                    const result = await window.apiCall('/api/ad-reward', {
-                        initData: window.tg?.initData,
-                        rewardAmount: amount,
-                        adType: 'reward'
-                    });
-                    if (window.refreshUser) await window.refreshUser();
-                    return true;
-                } catch (err) {
-                    console.error('Failed to add points:', err);
-                    return false;
-                }
             }
             return false;
         }
