@@ -12,6 +12,7 @@
             --secondary: #2575fc;
             --success: #00c853;
             --warning: #ffab00;
+            --danger: #ff5252;
             --dark: #1a1b25;
             --darker: #12131a;
             --gray: #6c757d;
@@ -33,6 +34,7 @@
         .calendar-day { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 5px; text-align: center; font-size: 12px; }
         .calendar-day.claimed { background: var(--success); border-color: var(--success); }
         .calendar-day.today { border-color: var(--warning); border-width: 2px; }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
             display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
@@ -40,9 +42,12 @@
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+        .loading { text-align: center; padding: 40px; color: var(--gray); }
     </style>
 </head>
 <body>
+    <div class="notification" id="notification"></div>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-calendar-alt"></i> Daily Rewards</h1>
@@ -92,8 +97,21 @@
             const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
             if (data) options.body = JSON.stringify(data);
             const response = await fetch(endpoint, options);
-            if (!response.ok) throw new Error(await response.text());
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Something went wrong');
+            }
             return response.json();
+        }
+
+        function showNotification(message, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = message;
+            notif.style.background = isError ? '#ff5252' : '#00c853';
+            notif.style.display = 'block';
+            setTimeout(() => {
+                notif.style.display = 'none';
+            }, 4000);
         }
 
         async function loadDailyStats() {
@@ -101,15 +119,19 @@
                 const data = await apiCall('/api/daily-stats', { initData: tg.initData });
                 dailyStats = data;
                 
-                document.getElementById('streakCount').textContent = data.current_streak || 0;
+                // Update streak display
+                const currentStreak = data.current_streak || 0;
+                document.getElementById('streakCount').textContent = currentStreak;
                 document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
                 document.getElementById('maxStreak').textContent = data.max_streak || 0;
                 
+                // Calculate today's reward
                 const baseReward = 1000;
-                const streakBonus = Math.floor((data.current_streak || 0) / 7) * 5000;
+                const streakBonus = Math.floor(currentStreak / 7) * 5000;
                 const todayReward = baseReward + streakBonus;
                 document.getElementById('todayReward').textContent = `${todayReward.toLocaleString()} points`;
                 
+                // Update claim button
                 const claimBtn = document.getElementById('claimBtn');
                 if (data.claimed_today) {
                     claimBtn.disabled = true;
@@ -121,7 +143,8 @@
                 
                 renderCalendar();
             } catch (err) {
-                console.error(err);
+                console.error('Error loading daily stats:', err);
+                showNotification(err.message || 'Failed to load daily rewards', true);
             }
         }
 
@@ -151,21 +174,24 @@
         }
 
         async function claimDaily() {
+            const claimBtn = document.getElementById('claimBtn');
+            claimBtn.disabled = true;
+            claimBtn.textContent = 'Processing...';
+            
             try {
                 const result = await apiCall('/api/daily-reward', { initData: tg.initData });
-                showNotification(result.message);
-                loadDailyStats();
+                showNotification(result.message || `🎉 You earned ${result.reward.toLocaleString()} points!`);
+                await loadDailyStats();
             } catch (err) {
-                showNotification(err.message, true);
+                console.error('Claim error:', err);
+                let errorMessage = err.message;
+                if (errorMessage === 'Already claimed today') {
+                    errorMessage = "You've already claimed your daily reward today! Come back tomorrow for more points. 🌟";
+                }
+                showNotification(errorMessage, true);
+                claimBtn.disabled = false;
+                claimBtn.textContent = '🎁 Claim Daily Reward';
             }
-        }
-
-        function showNotification(msg, isError = false) {
-            const notif = document.createElement('div');
-            notif.textContent = msg;
-            notif.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${isError ? '#ff5252' : '#00c853'};color:white;padding:12px 24px;border-radius:12px;z-index:1001;font-size:14px;`;
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 3000);
         }
 
         document.getElementById('claimBtn').addEventListener('click', claimDaily);
