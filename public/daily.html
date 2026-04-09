@@ -83,7 +83,7 @@
         <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
         <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
+        <a href="tournament.html" class="nav-item"><i class="elas fa-fist-raised"></i><span>Tournament</span></a>
         <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
     </div>
 
@@ -94,14 +94,19 @@
         let dailyStats = null;
 
         async function apiCall(endpoint, data = null) {
-            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
+            const options = { 
+                method: data ? 'POST' : 'GET', 
+                headers: { 'Content-Type': 'application/json' } 
+            };
             if (data) options.body = JSON.stringify(data);
+            
             const response = await fetch(endpoint, options);
+            const result = await response.json();
+            
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Something went wrong');
+                throw new Error(result.error || 'Request failed');
             }
-            return response.json();
+            return result;
         }
 
         function showNotification(message, isError = false) {
@@ -111,7 +116,7 @@
             notif.style.display = 'block';
             setTimeout(() => {
                 notif.style.display = 'none';
-            }, 4000);
+            }, 3000);
         }
 
         async function loadDailyStats() {
@@ -119,23 +124,20 @@
                 const data = await apiCall('/api/daily-stats', { initData: tg.initData });
                 dailyStats = data;
                 
-                // Update streak display
                 const currentStreak = data.current_streak || 0;
                 document.getElementById('streakCount').textContent = currentStreak;
                 document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
                 document.getElementById('maxStreak').textContent = data.max_streak || 0;
                 
-                // Calculate today's reward
                 const baseReward = 1000;
                 const streakBonus = Math.floor(currentStreak / 7) * 5000;
                 const todayReward = baseReward + streakBonus;
                 document.getElementById('todayReward').textContent = `${todayReward.toLocaleString()} points`;
                 
-                // Update claim button
                 const claimBtn = document.getElementById('claimBtn');
                 if (data.claimed_today) {
                     claimBtn.disabled = true;
-                    claimBtn.textContent = '✅ Already Claimed Today';
+                    claimBtn.textContent = '✅ Already Claimed';
                 } else {
                     claimBtn.disabled = false;
                     claimBtn.textContent = '🎁 Claim Daily Reward';
@@ -143,8 +145,8 @@
                 
                 renderCalendar();
             } catch (err) {
-                console.error('Error loading daily stats:', err);
-                showNotification(err.message || 'Failed to load daily rewards', true);
+                console.error('Load error:', err);
+                showNotification('Failed to load rewards. Please refresh.', true);
             }
         }
 
@@ -180,22 +182,24 @@
             
             try {
                 const result = await apiCall('/api/daily-reward', { initData: tg.initData });
-                showNotification(result.message || `🎉 You earned ${result.reward.toLocaleString()} points!`);
+                showNotification(`🎉 +${result.reward.toLocaleString()} points!`);
                 await loadDailyStats();
             } catch (err) {
-                console.error('Claim error:', err);
-                let errorMessage = err.message;
-                if (errorMessage === 'Already claimed today') {
-                    errorMessage = "You've already claimed your daily reward today! Come back tomorrow for more points. 🌟";
+                let msg = err.message;
+                if (msg === 'Already claimed today') {
+                    msg = '✅ Already claimed today!';
+                } else if (msg.includes('streak')) {
+                    msg = '🔥 Streak bonus added!';
+                } else {
+                    msg = '❌ Failed. Please try again.';
                 }
-                showNotification(errorMessage, true);
+                showNotification(msg, true);
                 claimBtn.disabled = false;
                 claimBtn.textContent = '🎁 Claim Daily Reward';
             }
         }
 
         document.getElementById('claimBtn').addEventListener('click', claimDaily);
-        
         loadDailyStats();
     </script>
 </body>
