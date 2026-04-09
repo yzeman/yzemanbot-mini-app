@@ -22,81 +22,64 @@
             --card-border: #2d3343;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
+        body { 
+            background: linear-gradient(135deg, var(--darker), var(--dark)); 
+            color: var(--light); 
+            min-height: 100vh; 
+            padding: 20px; 
+            padding-bottom: 100px; /* Extra padding so footer doesn't block content */
+        }
         .container { max-width: 500px; margin: 0 auto; }
         
         /* Header Styles */
-        .user-profile { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 12px; }
-        .user-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+        .user-profile { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 20px; backdrop-filter: blur(10px); }
+        .user-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--secondary); }
         .user-info { flex: 1; }
-        .user-name { font-weight: 600; }
-        .user-id { font-size: 12px; color: var(--gray); }
-        .logo { width: 80px; height: 80px; background: linear-gradient(45deg, var(--primary), var(--secondary)); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 36px; }
-        h1 { font-size: 28px; font-weight: 800; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
-        .subtitle { color: var(--gray); font-size: 16px; text-align: center; margin-bottom: 20px; }
+        .user-name { font-weight: 700; font-size: 16px; }
+        .user-id { font-size: 11px; color: var(--gray); }
+        .logo { width: 70px; height: 70px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; font-size: 32px; }
+        h1 { font-size: 26px; font-weight: 800; background: linear-gradient(135deg, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
+        .subtitle { color: var(--gray); font-size: 13px; text-align: center; margin-bottom: 20px; }
         
-        /* Stats Container */
-        .stats-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        /* Stats Cards */
+        .stats-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
         .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 12px; text-align: center; }
-        .stat-value { font-size: 18px; font-weight: 700; margin: 5px 0; color: var(--success); }
+        .stat-value { font-size: 20px; font-weight: 700; margin: 5px 0; color: var(--success); }
         .stat-label { font-size: 11px; color: var(--gray); }
         
         /* Progress Bar */
-        .progress-container { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-        .progress-header { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }
-        .progress-bar-bg { height: 12px; background: #2d3343; border-radius: 10px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 1s ease; }
+        .progress-container { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; }
+        .progress-bar-bg { height: 8px; background: #2d3343; border-radius: 10px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); width: 0%; transition: width 0.5s ease; }
         
-        /* Feature Grid - Navigation to all features */
-        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
-        .feature-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px 10px; text-align: center; cursor: pointer; transition: transform 0.2s, background 0.2s; }
+        /* Hero Ad Card */
+        .hero-ad-card { background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 24px; padding: 25px; text-align: center; margin-bottom: 25px; cursor: pointer; transition: transform 0.2s; }
+        .hero-ad-card:hover { transform: scale(1.02); }
+        .hero-ad-icon { font-size: 48px; margin-bottom: 15px; }
+        .hero-ad-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+        .hero-ad-subtitle { font-size: 14px; opacity: 0.9; margin-bottom: 15px; }
+        .hero-ad-reward { font-size: 28px; font-weight: bold; background: rgba(255,255,255,0.2); display: inline-block; padding: 8px 20px; border-radius: 40px; }
+        
+        /* Quick Task Cards */
+        .quick-tasks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
+        .task-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .task-card:hover { transform: translateY(-3px); background: rgba(37, 117, 252, 0.1); }
+        .task-icon { font-size: 28px; margin-bottom: 8px; }
+        .task-title { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
+        .task-reward { font-size: 12px; color: var(--success); font-weight: 600; }
+        
+        /* More Features Section */
+        .more-features-title { font-size: 16px; font-weight: 600; margin: 20px 0 15px 0; display: flex; align-items: center; gap: 10px; }
+        .more-features-title:before, .more-features-title:after { content: ""; flex: 1; height: 1px; background: var(--card-border); }
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+        .feature-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px 10px; text-align: center; cursor: pointer; transition: all 0.2s; }
         .feature-card:hover { transform: translateY(-3px); background: rgba(37, 117, 252, 0.1); }
         .feature-icon { font-size: 28px; margin-bottom: 8px; }
-        .feature-title { font-weight: 600; font-size: 13px; }
+        .feature-title { font-weight: 600; font-size: 12px; }
         .feature-desc { font-size: 10px; color: var(--gray); margin-top: 4px; }
         
-        /* Task List */
-        .task-list { margin-bottom: 25px; }
-        .task-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
-        .task-icon { width: 45px; height: 45px; background: linear-gradient(45deg, #ff9a9e, #fad0c4); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .task-details { flex: 1; }
-        .task-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
-        .task-description { font-size: 11px; color: var(--gray); margin-bottom: 5px; }
-        .task-reward { color: var(--success); font-weight: 600; font-size: 12px; }
-        .task-action { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 12px; }
-        
-        /* Referral Section */
-        .referral-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
-        .referral-link-box { background: rgba(37, 117, 252, 0.1); border: 1px solid var(--secondary); border-radius: 12px; padding: 10px; margin: 15px 0; word-break: break-all; font-size: 11px; }
-        .copy-btn { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 10px 20px; font-weight: 600; cursor: pointer; }
-        
-        /* Withdrawal Section */
-        .wallet-input { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--darker); color: var(--light); margin: 10px 0; }
-        .withdraw-btn { background: linear-gradient(45deg, #00c853, #64dd17); color: white; border: none; border-radius: 12px; padding: 15px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 10px; }
-        .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .withdrawal-history { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-top: 20px; max-height: 300px; overflow-y: auto; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
-        .status-pending { background: #ffab00; color: #000; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
-        .status-completed { background: #00c853; color: white; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
-        .status-failed { background: #ff5252; color: white; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
-        
-        /* Bonus Section */
-        .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-        .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
-        .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); }
-        .bonus-btn { background: linear-gradient(45deg, #FF9800, #FF5722); color: white; border: none; border-radius: 12px; padding: 12px 20px; cursor: pointer; }
-        .bonus-list { margin-top: 15px; max-height: 250px; overflow-y: auto; }
-        .bonus-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--card-border); font-size: 13px; }
-        .redeemed-badge { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; }
-        
-        /* Social Tasks */
-        .channel-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
-        .channel-join { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 6px 15px; cursor: pointer; font-size: 12px; }
-        .tier-info { background: var(--card-bg); border-radius: 16px; padding: 15px; margin-top: 15px; font-size: 12px; }
-        .tier-info ul { margin-left: 20px; margin-top: 8px; }
-        .tier-info li { margin: 5px 0; }
-        
-        /* Bottom Navigation Bar */
+        /* Bottom Navigation */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -120,10 +103,54 @@
             padding: 6px 10px;
             border-radius: 12px;
             transition: all 0.2s;
+            cursor: pointer;
+            flex: 1;
         }
         .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
-        .nav-item span { font-size: 9px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.15); }
+        .nav-item span { font-size: 10px; font-weight: 500; }
+        
+        /* Page Content */
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Referral Section */
+        .referral-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
+        .referral-link-box { background: rgba(37, 117, 252, 0.1); border: 1px solid var(--secondary); border-radius: 12px; padding: 12px; margin: 15px 0; word-break: break-all; font-size: 12px; }
+        .copy-btn { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 600; cursor: pointer; width: 100%; }
+        
+        /* Social Tasks */
+        .channel-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+        .channel-icon { width: 45px; height: 45px; background: linear-gradient(45deg, #ff9a9e, #fad0c4); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .channel-info { flex: 1; }
+        .channel-name { font-weight: 600; font-size: 14px; }
+        .channel-reward { font-size: 11px; color: var(--success); }
+        .channel-join { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 8px 16px; cursor: pointer; font-size: 12px; }
+        
+        /* Bonus Section */
+        .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
+        .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); }
+        .bonus-btn { background: linear-gradient(45deg, #FF9800, #FF5722); color: white; border: none; border-radius: 12px; padding: 12px 20px; cursor: pointer; }
+        .bonus-list { margin-top: 15px; max-height: 250px; overflow-y: auto; }
+        .bonus-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--card-border); font-size: 13px; }
+        .redeemed-badge { background: var(--success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; }
+        
+        /* Withdraw Section */
+        .wallet-input { width: 100%; padding: 12px; border-radius: 12px; border: none; background: var(--darker); color: var(--light); margin: 10px 0; }
+        .withdraw-btn { background: linear-gradient(45deg, #00c853, #64dd17); color: white; border: none; border-radius: 12px; padding: 15px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        .withdraw-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .withdrawal-history { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+        .status-pending { background: #ffab00; color: #000; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
+        .status-completed { background: #00c853; color: white; padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; }
+        
+        .tier-info { background: var(--card-bg); border-radius: 16px; padding: 15px; margin-top: 15px; font-size: 12px; }
+        .tier-info ul { margin-left: 20px; margin-top: 8px; }
+        .tier-info li { margin: 5px 0; }
+        .admin-message { background: var(--card-bg); border-radius: 16px; padding: 15px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); font-size: 12px; }
+        .daily-reset, .conversion-info { text-align: center; font-size: 11px; color: var(--gray); margin: 10px 0; }
         
         /* Notification & Loading */
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
@@ -132,18 +159,14 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .countdown { font-size: 24px; font-weight: bold; color: var(--success); margin: 10px 0; }
         
-        .daily-reset { text-align: center; font-size: 12px; color: var(--gray); margin: 10px 0; }
-        .conversion-info { text-align: center; font-size: 12px; color: var(--gray); margin: 10px 0; }
-        .admin-message { background: var(--card-bg); border-radius: 16px; padding: 15px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); font-size: 12px; }
-        
         @media (max-width: 480px) {
-            body { padding: 12px; }
+            body { padding: 12px; padding-bottom: 90px; }
+            .hero-ad-title { font-size: 20px; }
+            .hero-ad-reward { font-size: 22px; }
             .feature-grid { gap: 8px; }
             .feature-card { padding: 12px 8px; }
             .feature-icon { font-size: 24px; }
             .feature-title { font-size: 11px; }
-            .nav-item { padding: 4px 8px; }
-            .nav-item i { font-size: 18px; }
         }
     </style>
 </head>
@@ -167,145 +190,173 @@
             </div>
             <div class="logo"><i class="fas fa-coins"></i></div>
             <h1>YzemanBot</h1>
-            <p class="subtitle">Earn Rewards with Referrals</p>
+            <p class="subtitle">Watch Ads & Earn Rewards</p>
         </header>
 
-        <!-- Main Tabs -->
-        <div class="tabs" style="display: flex; background: var(--card-bg); border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--card-border);">
-            <div class="tab active" data-tab="earn" style="flex: 1; padding: 12px; text-align: center; font-weight: 600; cursor: pointer;">Earn</div>
-            <div class="tab" data-tab="refer" style="flex: 1; padding: 12px; text-align: center; font-weight: 600; cursor: pointer;">Refer</div>
-            <div class="tab" data-tab="social" style="flex: 1; padding: 12px; text-align: center; font-weight: 600; cursor: pointer;">Social</div>
-            <div class="tab" data-tab="bonus" style="flex: 1; padding: 12px; text-align: center; font-weight: 600; cursor: pointer;">Bonus</div>
-            <div class="tab" data-tab="withdraw" style="flex: 1; padding: 12px; text-align: center; font-weight: 600; cursor: pointer;">Withdraw</div>
+        <!-- Stats Cards (visible on all pages) -->
+        <div class="stats-container">
+            <div class="stat-card"><div class="stat-label">Points</div><div class="stat-value" id="points">0</div></div>
+            <div class="stat-card"><div class="stat-label">USD Value</div><div class="stat-value" id="usd">$0.00</div></div>
+            <div class="stat-card"><div class="stat-label">Tier</div><div class="stat-value" id="tier">Fresher</div></div>
         </div>
 
-        <!-- Feature Grid - Quick Access to All Features -->
-        <div class="feature-grid">
-            <div class="feature-card" onclick="location.href='daily.html'">
-                <div class="feature-icon">📅</div>
-                <div class="feature-title">Daily Rewards</div>
-                <div class="feature-desc">Claim daily bonus & streak</div>
-            </div>
-            <div class="feature-card" onclick="location.href='wheel.html'">
-                <div class="feature-icon">🎡</div>
-                <div class="feature-title">Wheel of Fortune</div>
-                <div class="feature-desc">Spin every 3 days</div>
-            </div>
-            <div class="feature-card" onclick="location.href='leaderboard.html'">
-                <div class="feature-icon">🏆</div>
-                <div class="feature-title">Leaderboard</div>
-                <div class="feature-desc">Top earners & referrers</div>
-            </div>
-            <div class="feature-card" onclick="location.href='achievements.html'">
-                <div class="feature-icon">🎖️</div>
-                <div class="feature-title">Achievements</div>
-                <div class="feature-desc">Unlock badges & rewards</div>
-            </div>
-            <div class="feature-card" onclick="location.href='tournament.html'">
-                <div class="feature-icon">⚔️</div>
-                <div class="feature-title">Tournament</div>
-                <div class="feature-desc">Weekly competition</div>
-            </div>
-            <div class="feature-card" onclick="location.href='team.html'">
-                <div class="feature-icon">👥</div>
-                <div class="feature-title">Teams</div>
-                <div class="feature-desc">Monthly competition</div>
-            </div>
+        <div class="progress-container">
+            <div class="progress-header"><span>💰 Withdrawal Progress</span><span>$<span id="progressAmount">0.00</span> / $1000</span></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
         </div>
 
-        <!-- Earn Tab Content -->
-        <div class="tab-content active" id="earnTab">
+        <!-- ============================================ -->
+        <!-- PAGE 1: EARN / HOME (Main earning page) -->
+        <!-- ============================================ -->
+        <div class="page active" id="earnPage">
+            <!-- Hero Ad Button -->
+            <div class="hero-ad-card" id="watchAdBtn">
+                <div class="hero-ad-icon"><i class="fas fa-play-circle"></i></div>
+                <div class="hero-ad-title">Watch Ad & Earn!</div>
+                <div class="hero-ad-subtitle">Tap to watch a short video</div>
+                <div class="hero-ad-reward">+<span id="adReward">557</span> points</div>
+            </div>
+
+            <!-- Quick Tasks -->
+            <div class="quick-tasks">
+                <div class="task-card" id="youtubeTaskBtn">
+                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
+                    <div class="task-title">YouTube Video</div>
+                    <div class="task-reward">+12,000 pts</div>
+                </div>
+                <div class="task-card" id="websiteTaskBtn">
+                    <div class="task-icon"><i class="fas fa-globe"></i></div>
+                    <div class="task-title">Visit Website</div>
+                    <div class="task-reward">+5,000 pts</div>
+                </div>
+            </div>
+
+            <!-- More Features Section -->
+            <div class="more-features-title">🎮 More Features</div>
+            <div class="feature-grid">
+                <div class="feature-card" onclick="location.href='daily.html'">
+                    <div class="feature-icon">📅</div>
+                    <div class="feature-title">Daily Rewards</div>
+                    <div class="feature-desc">Claim daily bonus</div>
+                </div>
+                <div class="feature-card" onclick="location.href='wheel.html'">
+                    <div class="feature-icon">🎡</div>
+                    <div class="feature-title">Wheel of Fortune</div>
+                    <div class="feature-desc">Spin every 3 days</div>
+                </div>
+                <div class="feature-card" onclick="location.href='leaderboard.html'">
+                    <div class="feature-icon">🏆</div>
+                    <div class="feature-title">Leaderboard</div>
+                    <div class="feature-desc">Top earners</div>
+                </div>
+                <div class="feature-card" onclick="location.href='achievements.html'">
+                    <div class="feature-icon">🎖️</div>
+                    <div class="feature-title">Achievements</div>
+                    <div class="feature-desc">Unlock badges</div>
+                </div>
+                <div class="feature-card" onclick="location.href='tournament.html'">
+                    <div class="feature-icon">⚔️</div>
+                    <div class="feature-title">Tournament</div>
+                    <div class="feature-desc">Weekly comp</div>
+                </div>
+                <div class="feature-card" onclick="location.href='team.html'">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-title">Teams</div>
+                    <div class="feature-desc">Monthly comp</div>
+                </div>
+            </div>
+
             <div class="daily-reset"><i class="fas fa-sync-alt"></i> Daily tasks reset daily</div>
             <div class="conversion-info"><i class="fas fa-info-circle"></i> 100,000 points = $1 USD</div>
-
-            <div class="stats-container">
-                <div class="stat-card"><div class="stat-label">Points</div><div class="stat-value" id="points">0</div></div>
-                <div class="stat-card"><div class="stat-label">USD Value</div><div class="stat-value" id="usd">$0.00</div></div>
-                <div class="stat-card"><div class="stat-label">Tier</div><div class="stat-value" id="tier">Fresher</div></div>
-            </div>
-
-            <div class="progress-container">
-                <div class="progress-header"><span>Withdrawal Progress</span><span>$<span id="progressAmount">0.00</span> / $1000</span></div>
-                <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
-            </div>
-
-            <div class="task-list">
-                <div class="task-card">
-                    <div class="task-icon"><i class="fas fa-ad"></i></div>
-                    <div class="task-details">
-                        <div class="task-title">Watch Ad</div>
-                        <div class="task-description">Watch a short ad to earn points</div>
-                        <div class="task-reward">+<span id="adReward">557</span> points</div>
-                    </div>
-                    <button class="task-action" id="watchAdBtn">Watch Ad</button>
-                </div>
-                <div class="task-card">
-                    <div class="task-icon"><i class="fab fa-youtube"></i></div>
-                    <div class="task-details">
-                        <div class="task-title">Watch YouTube Video</div>
-                        <div class="task-description">Watch for 5 minutes to earn points</div>
-                        <div class="task-reward">+12000 points</div>
-                    </div>
-                    <button class="task-action" id="youtubeTaskBtn">Watch</button>
-                </div>
-                <div class="task-card">
-                    <div class="task-icon"><i class="fas fa-globe"></i></div>
-                    <div class="task-details">
-                        <div class="task-title">Visit Website</div>
-                        <div class="task-description">Stay for 2 minutes to earn points</div>
-                        <div class="task-reward">+5000 points</div>
-                    </div>
-                    <button class="task-action" id="websiteTaskBtn">Visit</button>
-                </div>
-            </div>
         </div>
 
-        <!-- Refer Tab Content -->
-        <div class="tab-content" id="referTab">
+        <!-- ============================================ -->
+        <!-- PAGE 2: REFER -->
+        <!-- ============================================ -->
+        <div class="page" id="referPage">
             <div class="referral-section">
                 <h3>🔗 Your Referral Link</h3>
                 <div class="referral-link-box" id="referralLink">Loading...</div>
                 <button class="copy-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy Link</button>
-                <p style="margin-top: 12px; font-size: 12px;">Share with friends! You earn points when they join.</p>
-                <p style="font-size: 12px;">Your referrals: <span id="referralCount">0</span> | Points per referral: <span id="referralReward">5000</span></p>
+                <p style="margin-top: 15px; font-size: 13px;">Share with friends! You earn points when they join.</p>
+                <p style="font-size: 13px; margin-top: 10px;">Your referrals: <strong id="referralCount">0</strong> | Points per referral: <strong id="referralReward">5000</strong></p>
+                
                 <div class="progress-container" style="margin-top: 15px;">
                     <div>Tier Progress: <span id="currentRefs">0</span> / <span id="nextTierReq">50</span> referrals</div>
                     <div class="progress-bar-bg"><div class="progress-bar-fill" id="tierProgressBar"></div></div>
                 </div>
             </div>
+
             <div class="tier-info">
                 <h4>📊 Tier Benefits</h4>
                 <ul>
-                    <li><strong>Fresher:</strong> 1x earning rate, 5000 points per referral</li>
-                    <li><strong>Brute (50 referrals):</strong> 1.2x earning rate, 10000 points per referral</li>
-                    <li><strong>Silver (150 referrals):</strong> 1.5x earning rate, 15000 points per referral</li>
-                    <li><strong>Gold (300 referrals):</strong> 2x earning rate, 20000 points per referral</li>
-                    <li><strong>Platinum (500 referrals):</strong> 3x earning rate, 30000 points per referral</li>
+                    <li><strong>Fresher:</strong> 1x earning rate, 5,000 points per referral</li>
+                    <li><strong>Brute (50 referrals):</strong> 1.2x earning rate, 10,000 points per referral</li>
+                    <li><strong>Silver (150 referrals):</strong> 1.5x earning rate, 15,000 points per referral</li>
+                    <li><strong>Gold (300 referrals):</strong> 2x earning rate, 20,000 points per referral</li>
+                    <li><strong>Platinum (500 referrals):</strong> 3x earning rate, 30,000 points per referral</li>
                 </ul>
             </div>
         </div>
 
-        <!-- Social Tab Content -->
-        <div class="tab-content" id="socialTab">
+        <!-- ============================================ -->
+        <!-- PAGE 3: SOCIAL -->
+        <!-- ============================================ -->
+        <div class="page" id="socialPage">
             <div class="channel-card">
                 <div class="channel-icon"><i class="fab fa-telegram"></i></div>
                 <div class="channel-info">
                     <div class="channel-name">Official Telegram Channel</div>
-                    <div class="channel-description">Join for updates and bonus rewards</div>
+                    <div class="channel-reward">+5,000,000 points ($50)</div>
                 </div>
                 <button class="channel-join" id="joinChannelBtn">Join</button>
             </div>
-            <div class="task-list">
-                <div class="task-card"><div class="task-icon"><i class="fab fa-youtube"></i></div><div class="task-details"><div class="task-title">Subscribe to YouTube Channel 1</div><div class="task-description">Subscribe to Yzeman Updates</div><div class="task-reward">+5,000,000 points ($50)</div></div><button class="task-action" id="youtube1Btn">Subscribe</button></div>
-                <div class="task-card"><div class="task-icon"><i class="fab fa-youtube"></i></div><div class="task-details"><div class="task-title">Subscribe to YouTube Channel 2</div><div class="task-description">Subscribe to Coding App with HTML</div><div class="task-reward">+5,000,000 points ($50)</div></div><button class="task-action" id="youtube2Btn">Subscribe</button></div>
-                <div class="task-card"><div class="task-icon"><i class="fab fa-youtube"></i></div><div class="task-details"><div class="task-title">Subscribe to YouTube Channel 3</div><div class="task-description">Subscribe to Yzeman Hacker</div><div class="task-reward">+5,000,000 points ($50)</div></div><button class="task-action" id="youtube3Btn">Subscribe</button></div>
-                <div class="task-card"><div class="task-icon"><i class="fab fa-facebook"></i></div><div class="task-details"><div class="task-title">Follow on Facebook</div><div class="task-description">Follow our Facebook page</div><div class="task-reward">+5,000,000 points ($50)</div></div><button class="task-action" id="facebookBtn">Follow</button></div>
-                <div class="task-card"><div class="task-icon"><i class="fab fa-instagram"></i></div><div class="task-details"><div class="task-title">Follow on Instagram</div><div class="task-description">Follow our Instagram account</div><div class="task-reward">+5,000,000 points ($50)</div></div><button class="task-action" id="instagramBtn">Follow</button></div>
+            <div class="channel-card">
+                <div class="channel-icon"><i class="fab fa-youtube"></i></div>
+                <div class="channel-info">
+                    <div class="channel-name">Subscribe to Yzeman Updates</div>
+                    <div class="channel-reward">+5,000,000 points ($50)</div>
+                </div>
+                <button class="channel-join" id="youtube1Btn">Subscribe</button>
+            </div>
+            <div class="channel-card">
+                <div class="channel-icon"><i class="fab fa-youtube"></i></div>
+                <div class="channel-info">
+                    <div class="channel-name">Subscribe to Coding App with HTML</div>
+                    <div class="channel-reward">+5,000,000 points ($50)</div>
+                </div>
+                <button class="channel-join" id="youtube2Btn">Subscribe</button>
+            </div>
+            <div class="channel-card">
+                <div class="channel-icon"><i class="fab fa-youtube"></i></div>
+                <div class="channel-info">
+                    <div class="channel-name">Subscribe to Yzeman Hacker</div>
+                    <div class="channel-reward">+5,000,000 points ($50)</div>
+                </div>
+                <button class="channel-join" id="youtube3Btn">Subscribe</button>
+            </div>
+            <div class="channel-card">
+                <div class="channel-icon"><i class="fab fa-facebook"></i></div>
+                <div class="channel-info">
+                    <div class="channel-name">Follow on Facebook</div>
+                    <div class="channel-reward">+5,000,000 points ($50)</div>
+                </div>
+                <button class="channel-join" id="facebookBtn">Follow</button>
+            </div>
+            <div class="channel-card">
+                <div class="channel-icon"><i class="fab fa-instagram"></i></div>
+                <div class="channel-info">
+                    <div class="channel-name">Follow on Instagram</div>
+                    <div class="channel-reward">+5,000,000 points ($50)</div>
+                </div>
+                <button class="channel-join" id="instagramBtn">Follow</button>
             </div>
         </div>
 
-        <!-- Bonus Tab Content -->
-        <div class="tab-content" id="bonusTab">
+        <!-- ============================================ -->
+        <!-- PAGE 4: BONUS -->
+        <!-- ============================================ -->
+        <div class="page" id="bonusPage">
             <div class="bonus-section">
                 <h3 class="bonus-title">🎁 Redeem Bonus Codes</h3>
                 <p>Enter bonus codes to earn extra points!</p>
@@ -313,13 +364,22 @@
                     <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter bonus code (e.g., BASER)">
                     <button class="bonus-btn" id="redeemBonusBtn">Redeem</button>
                 </div>
-                <div class="bonus-list" id="bonusList"><div class="bonus-item">Loading bonus codes...</div></div>
+                <div class="bonus-list" id="bonusList">
+                    <div class="bonus-item">Loading bonus codes...</div>
+                </div>
             </div>
-            <div class="social-proof"><p>Join our Telegram channel for more bonus codes!</p><div class="social-icons" style="text-align: center; margin-top: 15px;"><a href="https://t.me/YzemanEarnBotChannel" target="_blank" style="color: white;"><i class="fab fa-telegram fa-2x"></i></a></div></div>
+            <div class="social-proof">
+                <p style="text-align: center;">Join our Telegram channel for more bonus codes!</p>
+                <div style="text-align: center; margin-top: 15px;">
+                    <a href="https://t.me/YzemanEarnBotChannel" target="_blank" style="color: white;"><i class="fab fa-telegram fa-2x"></i></a>
+                </div>
+            </div>
         </div>
 
-        <!-- Withdraw Tab Content -->
-        <div class="tab-content" id="withdrawTab">
+        <!-- ============================================ -->
+        <!-- PAGE 5: WITHDRAW -->
+        <!-- ============================================ -->
+        <div class="page" id="withdrawPage">
             <div class="referral-section">
                 <h3>💸 Withdraw Your Earnings</h3>
                 <p style="font-size: 12px;">Minimum withdrawal: $1000 (100,000,000 points)</p>
@@ -328,22 +388,74 @@
                 <button class="copy-btn" id="saveWalletBtn" style="width: 100%; margin-bottom: 10px;">Save Wallet</button>
                 <button class="withdraw-btn" id="withdrawBtn" disabled>Withdraw $1000</button>
             </div>
-            <div class="admin-message"><p>After withdrawal request, admin will contact you via Telegram</p><p><strong>@yzemanreal</strong></p></div>
-            <div class="withdrawal-history"><h4>Withdrawal History</h4><div id="withdrawalHistoryList">Loading...</div></div>
+            <div class="admin-message">
+                <p>After withdrawal request, admin will contact you via Telegram</p>
+                <p><strong>@yzemanreal</strong></p>
+            </div>
+            <div class="withdrawal-history">
+                <h4>Withdrawal History</h4>
+                <div id="withdrawalHistoryList">Loading...</div>
+            </div>
         </div>
     </div>
 
-    <!-- Bottom Navigation Bar -->
+    <!-- Bottom Navigation - 5 main tabs only -->
     <div class="bottom-nav">
-        <a href="index.html" class="nav-item active"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="daily.html" class="nav-item"><i class="fas fa-calendar-alt"></i><span>Daily</span></a>
-        <a href="wheel.html" class="nav-item"><i class="fas fa-circle-notch"></i><span>Wheel</span></a>
-        <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
-        <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
-        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
+        <div class="nav-item active" data-page="earn">
+            <i class="fas fa-home"></i>
+            <span>Earn</span>
+        </div>
+        <div class="nav-item" data-page="refer">
+            <i class="fas fa-users"></i>
+            <span>Refer</span>
+        </div>
+        <div class="nav-item" data-page="social">
+            <i class="fas fa-share-alt"></i>
+            <span>Social</span>
+        </div>
+        <div class="nav-item" data-page="bonus">
+            <i class="fas fa-gift"></i>
+            <span>Bonus</span>
+        </div>
+        <div class="nav-item" data-page="withdraw">
+            <i class="fas fa-dollar-sign"></i>
+            <span>Withdraw</span>
+        </div>
     </div>
 
     <script src="app.js"></script>
+    <script>
+        // Page Navigation
+        const navItems = document.querySelectorAll('.nav-item');
+        const pages = {
+            earn: document.getElementById('earnPage'),
+            refer: document.getElementById('referPage'),
+            social: document.getElementById('socialPage'),
+            bonus: document.getElementById('bonusPage'),
+            withdraw: document.getElementById('withdrawPage')
+        };
+
+        function switchPage(pageId) {
+            Object.values(pages).forEach(page => {
+                if (page) page.classList.remove('active');
+            });
+            if (pages[pageId]) pages[pageId].classList.add('active');
+            
+            navItems.forEach(item => {
+                if (item.dataset.page === pageId) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const pageId = item.dataset.page;
+                switchPage(pageId);
+            });
+        });
+    </script>
 </body>
 </html>
