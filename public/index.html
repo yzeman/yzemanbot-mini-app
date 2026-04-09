@@ -167,7 +167,7 @@
     </style>
 </head>
 <body>
-    <div class="notification" id="notification">Reward claimed!</div>
+    <div class="notification" id="notification"></div>
 
     <div class="container">
         <!-- Header -->
@@ -343,20 +343,19 @@
         });
 
         // ============================================
-        // SIMPLE AD WATCHING
+        // SIMPLE AD WATCHING - NO TIME DISPLAY
         // RULES:
-        // - Return BEFORE 5 seconds → NO REWARD
-        // - Return BETWEEN 5-12 seconds → YES REWARD
-        // - Return AFTER 12 seconds → NO REWARD
-        // - Can only watch one ad at a time
+        // - Return BEFORE 7 seconds → "You didn't complete the ad visit" (NO REWARD)
+        // - Return BETWEEN 7-14 seconds → REWARD!
+        // - Return AFTER 14 seconds → "Ad session expired" (NO REWARD)
         // ============================================
         
         let adStartTime = 0;
         let isWatchingAd = false;
         let rewardProcessed = false;
         
-        const MIN_SECONDS = 5;    // Must be at least 5 seconds away
-        const MAX_SECONDS = 12;   // Must return within 12 seconds
+        const MIN_SECONDS = 7;    // Minimum 7 seconds for reward
+        const MAX_SECONDS = 14;   // Maximum 14 seconds for reward
         
         // Track when user returns to the app
         document.addEventListener('visibilitychange', async function() {
@@ -367,9 +366,7 @@
                 // User came back!
                 const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
                 
-                console.log(`Returned after ${elapsed} seconds`);
-                
-                // Check timing
+                // Check timing - NO TIME DISPLAYED TO USER
                 if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
                     // PERFECT! Give reward
                     const reward = getRewardAmount();
@@ -377,10 +374,10 @@
                     showNotification(`🎉 +${reward} points earned!`, false);
                     rewardProcessed = true;
                 } else if (elapsed < MIN_SECONDS) {
-                    showNotification(`⚠️ Came back too early (${elapsed}s). Need ${MIN_SECONDS}s. No reward.`, true);
+                    showNotification(`You didn't complete the ad visit. Please watch the full ad to earn points.`, true);
                     rewardProcessed = true;
                 } else {
-                    showNotification(`⏰ Came back too late (${elapsed}s). Session expired. No reward.`, true);
+                    showNotification(`Ad session expired. Please try again.`, true);
                     rewardProcessed = true;
                 }
                 
@@ -398,7 +395,7 @@
         window.watchAd = async function() {
             // Prevent multiple ads at once
             if (isWatchingAd) {
-                showNotification('Please wait, ad is already playing!', true);
+                showNotification('Please wait, an ad is already playing.', true);
                 return;
             }
             
@@ -419,8 +416,8 @@
                 }
             } else {
                 // Test mode - simulate ad
-                showNotification('Test ad opened! Come back in 5-12 seconds.', false);
-                // In test mode, we'll simulate return after 7 seconds
+                showNotification('Opening test ad... Come back in 7-14 seconds.', false);
+                // In test mode, we'll simulate return after 10 seconds (within reward window)
                 setTimeout(async () => {
                     if (isWatchingAd && !rewardProcessed) {
                         const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
@@ -428,13 +425,15 @@
                             const reward = getRewardAmount();
                             await addPoints(reward);
                             showNotification(`🎉 +${reward} points earned!`, false);
+                        } else if (elapsed < MIN_SECONDS) {
+                            showNotification(`You didn't complete the ad visit. Please watch the full ad to earn points.`, true);
                         } else {
-                            showNotification(`⏰ No reward. Time: ${elapsed}s (need ${MIN_SECONDS}-${MAX_SECONDS}s)`, true);
+                            showNotification(`Ad session expired. Please try again.`, true);
                         }
                         isWatchingAd = false;
                         rewardProcessed = true;
                     }
-                }, 7000);
+                }, 10000);
             }
         };
         
