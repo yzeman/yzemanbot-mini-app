@@ -128,7 +128,7 @@
         .channel-reward { font-size: 11px; color: var(--success); }
         .channel-join { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 8px 16px; cursor: pointer; font-size: 12px; }
         
-        /* Bonus Section - No visible codes */
+        /* Bonus Section */
         .bonus-section { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 20px; text-align: center; }
         .bonus-input-container { display: flex; gap: 10px; margin-bottom: 15px; }
         .bonus-input { flex: 1; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); text-align: center; font-size: 16px; letter-spacing: 2px; }
@@ -169,10 +169,8 @@
         }
         .spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .countdown { font-size: 48px; font-weight: bold; color: var(--success); margin: 20px 0; font-family: monospace; }
-        .ad-warning { font-size: 12px; color: var(--gray); margin-top: 10px; }
-        .ad-progress-bar { width: 200px; height: 4px; background: #333; border-radius: 4px; margin: 15px auto; overflow: hidden; }
-        .ad-progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.1s linear; }
+        .loading-text { font-size: 16px; margin-top: 20px; color: var(--gray); }
+        .reward-message { font-size: 24px; font-weight: bold; color: var(--success); margin-top: 20px; }
         
         /* Notification */
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
@@ -185,21 +183,17 @@
             .feature-card { padding: 12px 8px; }
             .feature-icon { font-size: 24px; }
             .feature-title { font-size: 11px; }
-            .countdown { font-size: 36px; }
         }
     </style>
 </head>
 <body>
     <div class="notification" id="notification">Reward claimed!</div>
     
-    <!-- Ad Loading Screen with Timer -->
+    <!-- Ad Loading Screen - Simple, no timer shown to user -->
     <div class="ad-loading" id="adLoading">
         <div class="spinner"></div>
-        <div style="margin-top: 20px; font-size: 16px;" id="adStatus">Loading advertisement...</div>
-        <div class="countdown" id="adCountdown">0</div>
-        <div class="ad-progress-bar"><div class="ad-progress-fill" id="adProgressFill"></div></div>
-        <div class="ad-warning" id="adWarning">⚠️ Please wait for the ad to complete</div>
-        <div class="ad-warning" style="color: #ff5252;" id="adCloseWarning"></div>
+        <div class="loading-text" id="adStatus">Loading advertisement...</div>
+        <div class="reward-message" id="rewardMessage" style="display: none;">🎉 Reward Earned! 🎉</div>
     </div>
 
     <div class="container">
@@ -300,7 +294,7 @@
             <div class="channel-card"><div class="channel-icon"><i class="fab fa-instagram"></i></div><div class="channel-info"><div class="channel-name">Follow on Instagram</div><div class="channel-reward">+5,000,000 points ($50)</div></div><button class="channel-join" id="instagramBtn">Follow</button></div>
         </div>
 
-        <!-- PAGE 4: BONUS - Hidden codes, only input field -->
+        <!-- PAGE 4: BONUS -->
         <div class="page" id="bonusPage">
             <div class="bonus-section">
                 <h3 class="bonus-title">🎁 Redeem Bonus Code</h3>
@@ -376,106 +370,140 @@
         });
 
         // ============================================
-        // IMPROVED AD WATCHING WITH MINIMUM TIME REQUIREMENT
+        // AD WATCHING WITH REWARD ONLY AFTER COMPLETION
+        // NO REWARD FOR EARLY EXIT OR X BUTTON
         // ============================================
         
         let adStartTime = 0;
         let adCompleted = false;
-        let adTimerInterval = null;
-        const MINIMUM_AD_SECONDS = 8; // 8 seconds minimum watch time
+        let adWindow = null;
+        let adCheckInterval = null;
         
-        // Override the watchAd function to enforce minimum time
-        const originalWatchAd = window.watchAd;
-        
+        // Override the watchAd function
         window.watchAd = async function() {
             const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
             const reward = adRewards[currentUser?.tier] || 557;
             
             const loading = document.getElementById('adLoading');
             const adStatus = document.getElementById('adStatus');
-            const adCountdown = document.getElementById('adCountdown');
-            const adProgressFill = document.getElementById('adProgressFill');
-            const adWarning = document.getElementById('adWarning');
-            const adCloseWarning = document.getElementById('adCloseWarning');
+            const rewardMessage = document.getElementById('rewardMessage');
             
             // Reset state
             adCompleted = false;
             adStartTime = Date.now();
+            rewardMessage.style.display = 'none';
             
             loading.style.display = 'flex';
-            adStatus.textContent = '⏳ Please wait... Ad loading';
-            adCountdown.textContent = MINIMUM_AD_SECONDS;
-            adProgressFill.style.width = '0%';
-            adWarning.textContent = `⚠️ Please wait ${MINIMUM_AD_SECONDS} seconds to earn reward`;
-            adCloseWarning.textContent = '';
-            
-            // Start countdown timer
-            let secondsLeft = MINIMUM_AD_SECONDS;
-            adTimerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                secondsLeft = Math.max(0, MINIMUM_AD_SECONDS - elapsed);
-                adCountdown.textContent = secondsLeft;
-                const progressPercent = (elapsed / MINIMUM_AD_SECONDS) * 100;
-                adProgressFill.style.width = Math.min(100, progressPercent) + '%';
-                
-                if (elapsed >= MINIMUM_AD_SECONDS) {
-                    adCompleted = true;
-                    clearInterval(adTimerInterval);
-                    adTimerInterval = null;
-                    adStatus.textContent = '✅ Ad completed! Processing reward...';
-                    adWarning.textContent = '✓ You have earned your reward!';
-                    adCloseWarning.textContent = '';
-                } else {
-                    adStatus.textContent = `📺 Watching ad... ${elapsed}/${MINIMUM_AD_SECONDS} seconds`;
-                }
-            }, 1000);
+            adStatus.textContent = 'Loading advertisement...';
             
             // Show the ad using the SDK
             if (typeof show_9683863 === 'function') {
                 try {
                     adStatus.textContent = '🎬 Showing advertisement...';
-                    await show_9683863();
                     
-                    // After ad SDK returns, check if minimum time was met
+                    // Open the ad in a new window/tab
+                    const adResult = await show_9683863();
+                    
+                    // IMPORTANT: The SDK might return immediately when user clicks X
+                    // We need to check if the ad was actually viewed
+                    
+                    // Calculate how long the ad was open
                     const elapsedSeconds = Math.floor((Date.now() - adStartTime) / 1000);
                     
-                    if (elapsedSeconds >= MINIMUM_AD_SECONDS) {
-                        adCompleted = true;
+                    // Check if the user spent enough time (minimum 25 seconds)
+                    // You can adjust this value - 25 seconds is reasonable for a video ad
+                    const MINIMUM_SECONDS = 25;
+                    
+                    if (elapsedSeconds >= MINIMUM_SECONDS) {
+                        // User watched the ad properly
+                        adStatus.textContent = '✅ Ad completed! Processing reward...';
+                        rewardMessage.style.display = 'block';
+                        
                         await addPoints(reward);
                         showNotification(`+${reward} points earned! 🎉`);
+                        adCompleted = true;
                     } else {
-                        // User closed ad too early
-                        const remaining = MINIMUM_AD_SECONDS - elapsedSeconds;
-                        showNotification(`❌ Ad watched too short! Need ${remaining} more seconds. Try again!`, true);
+                        // User closed ad too early (clicked X)
+                        adStatus.textContent = '❌ Ad was closed too early!';
+                        showNotification(`⚠️ You must watch the full ad to earn points!`, true);
+                        adCompleted = false;
                     }
+                    
                 } catch (error) {
                     console.error('Ad error:', error);
                     const elapsedSeconds = Math.floor((Date.now() - adStartTime) / 1000);
-                    if (elapsedSeconds >= MINIMUM_AD_SECONDS) {
+                    
+                    if (elapsedSeconds >= 25) {
                         await addPoints(reward);
                         showNotification(`+${reward} points earned! 🎉`);
                     } else {
-                        showNotification('Ad was interrupted. Please try again!', true);
+                        showNotification('Ad was interrupted. Please watch the full ad!', true);
                     }
                 }
             } else {
-                // Fallback simulation for testing
-                adStatus.textContent = '🎬 Simulating ad...';
-                await new Promise(resolve => setTimeout(resolve, MINIMUM_AD_SECONDS * 1000));
+                // Fallback for testing - simulate 25 second wait
+                adStatus.textContent = '📺 Watching ad... Please wait';
+                
+                // Create a fake ad timer that shows the user is waiting
+                const timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
+                    adStatus.textContent = `📺 Watching ad... ${elapsed}/25 seconds`;
+                }, 1000);
+                
+                // Wait 25 seconds
+                await new Promise(resolve => setTimeout(resolve, 25000));
+                
+                clearInterval(timerInterval);
+                adStatus.textContent = '✅ Ad completed! Processing reward...';
+                rewardMessage.style.display = 'block';
+                
                 await addPoints(reward);
                 showNotification(`+${reward} points earned! 🎉`);
+                adCompleted = true;
             }
             
-            // Clean up
-            if (adTimerInterval) {
-                clearInterval(adTimerInterval);
-                adTimerInterval = null;
-            }
-            
+            // Close the loading screen after delay
             setTimeout(() => {
                 loading.style.display = 'none';
-            }, 500);
+                rewardMessage.style.display = 'none';
+            }, 2000);
         };
+        
+        // Helper function to show notification
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            if (notif) {
+                notif.textContent = msg;
+                notif.style.background = isError ? '#ff5252' : '#00c853';
+                notif.style.display = 'block';
+                setTimeout(() => notif.style.display = 'none', 4000);
+            }
+        }
+        
+        // Helper function to add points (needs to be defined or use existing)
+        async function addPoints(amount) {
+            if (!window.addPoints) {
+                // If addPoints is not available, try to use the existing function
+                console.log('Adding points:', amount);
+                // This will be handled by the existing app.js addPoints function
+                if (window.apiCall && window.tg) {
+                    try {
+                        const result = await window.apiCall('/api/ad-reward', {
+                            initData: window.tg?.initData,
+                            rewardAmount: amount,
+                            adType: 'reward'
+                        });
+                        if (window.refreshUser) await window.refreshUser();
+                        return true;
+                    } catch (err) {
+                        console.error('Failed to add points:', err);
+                        return false;
+                    }
+                }
+            } else {
+                return await window.addPoints(amount);
+            }
+        }
     </script>
 </body>
 </html>
