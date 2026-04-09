@@ -152,7 +152,7 @@
         .admin-message { background: var(--card-bg); border-radius: 16px; padding: 15px; margin: 20px 0; text-align: center; border: 1px solid var(--secondary); font-size: 12px; }
         .daily-reset, .conversion-info { text-align: center; font-size: 11px; color: var(--gray); margin: 10px 0; }
         
-        /* Ad Loading Screen */
+        /* Ad Loading Screen - Simple, no timer visible */
         .ad-loading { 
             position: fixed; 
             top: 0; 
@@ -171,7 +171,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { font-size: 16px; margin-top: 20px; color: var(--gray); }
         .reward-message { font-size: 24px; font-weight: bold; color: var(--success); margin-top: 20px; }
-        .timer-display { font-size: 48px; font-weight: bold; color: var(--warning); margin: 20px 0; font-family: monospace; }
         
         /* Notification */
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
@@ -184,18 +183,16 @@
             .feature-card { padding: 12px 8px; }
             .feature-icon { font-size: 24px; }
             .feature-title { font-size: 11px; }
-            .timer-display { font-size: 36px; }
         }
     </style>
 </head>
 <body>
     <div class="notification" id="notification">Reward claimed!</div>
     
-    <!-- Ad Loading Screen -->
+    <!-- Ad Loading Screen - Simple, no timer visible to user -->
     <div class="ad-loading" id="adLoading">
         <div class="spinner"></div>
-        <div class="loading-text" id="adStatus">Opening advertisement...</div>
-        <div class="timer-display" id="timerDisplay">0</div>
+        <div class="loading-text" id="adStatus">Loading advertisement...</div>
         <div class="reward-message" id="rewardMessage" style="display: none;">🎉 Reward Earned! 🎉</div>
     </div>
 
@@ -374,17 +371,19 @@
 
         // ============================================
         // AD WATCHING WITH PAGE VISIBILITY TRACKING
-        // Tracks when user leaves and returns to Mini App
+        // REWARD ONLY IF USER RETURNS QUICKLY (UNDER 12 SECONDS)
+        // NO REWARD IF USER STAYS AWAY TOO LONG
+        // USER DOES NOT SEE THE TIMER
         // ============================================
         
         let adStartTime = 0;
         let adActive = false;
-        let adCheckInterval = null;
-        let timeSpent = 0;
         let rewardGiven = false;
         
-        // Minimum required time in seconds (8 seconds)
-        const MINIMUM_REQUIRED_SECONDS = 8;
+        // Maximum allowed time in seconds (12 seconds)
+        // If user returns AFTER 12 seconds → NO REWARD
+        // If user returns BEFORE 12 seconds → REWARD
+        const MAX_ALLOWED_SECONDS = 12;
         
         // Track when page becomes visible again (user returns from Chrome)
         document.addEventListener('visibilitychange', async function() {
@@ -393,19 +392,18 @@
             if (!document.hidden) {
                 // User returned to the Mini App!
                 const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                timeSpent = elapsed;
                 
                 console.log(`User returned after ${elapsed} seconds`);
                 
-                const timerDisplay = document.getElementById('timerDisplay');
                 const adStatus = document.getElementById('adStatus');
                 const rewardMessage = document.getElementById('rewardMessage');
+                const loading = document.getElementById('adLoading');
                 
-                if (elapsed >= MINIMUM_REQUIRED_SECONDS) {
-                    // User spent enough time away (watched the ad)
+                // IMPORTANT: Reward ONLY if user returned BEFORE max allowed time (under 12 seconds)
+                if (elapsed < MAX_ALLOWED_SECONDS) {
+                    // User returned quickly - GOOD! Give reward
                     if (!rewardGiven) {
-                        adStatus.textContent = '✅ Ad completed! Processing reward...';
-                        timerDisplay.textContent = elapsed;
+                        adStatus.textContent = '✅ Reward earned! Processing...';
                         rewardMessage.style.display = 'block';
                         
                         // Give reward
@@ -418,31 +416,22 @@
                         
                         // Close loading screen after delay
                         setTimeout(() => {
-                            const loading = document.getElementById('adLoading');
                             loading.style.display = 'none';
                             adActive = false;
                             rewardMessage.style.display = 'none';
                         }, 2000);
                     }
                 } else {
-                    // User returned too early - didn't watch enough
-                    adStatus.textContent = '❌ Ad watched too short!';
-                    timerDisplay.textContent = elapsed;
-                    showNotification(`⚠️ You need to watch for ${MINIMUM_REQUIRED_SECONDS} seconds! You watched ${elapsed} seconds.`, true);
+                    // User returned too late (over 12 seconds) - NO REWARD
+                    adStatus.textContent = '❌ Ad session expired';
+                    showNotification(`⏰ Time expired! No reward awarded.`, true);
                     rewardGiven = false;
                     
                     // Close loading screen after delay
                     setTimeout(() => {
-                        const loading = document.getElementById('adLoading');
                         loading.style.display = 'none';
                         adActive = false;
                     }, 2000);
-                }
-                
-                // Stop the timer
-                if (adCheckInterval) {
-                    clearInterval(adCheckInterval);
-                    adCheckInterval = null;
                 }
             }
         });
@@ -456,33 +445,16 @@
             
             const loading = document.getElementById('adLoading');
             const adStatus = document.getElementById('adStatus');
-            const timerDisplay = document.getElementById('timerDisplay');
             const rewardMessage = document.getElementById('rewardMessage');
             
             // Reset state
             adActive = true;
             rewardGiven = false;
             adStartTime = Date.now();
-            timeSpent = 0;
             rewardMessage.style.display = 'none';
             
             loading.style.display = 'flex';
             adStatus.textContent = 'Opening advertisement...';
-            timerDisplay.textContent = '0';
-            
-            // Start a timer that updates the display while user is away
-            adCheckInterval = setInterval(() => {
-                if (adActive && !rewardGiven) {
-                    const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                    timerDisplay.textContent = elapsed;
-                    
-                    if (elapsed >= MINIMUM_REQUIRED_SECONDS && !rewardGiven) {
-                        // This handles the case where user is still away but time passed
-                        // We'll give reward when they return
-                        adStatus.textContent = '✓ Ad completed! Return to app to claim reward.';
-                    }
-                }
-            }, 1000);
             
             // Show the ad using the SDK
             if (typeof show_9683863 === 'function') {
@@ -503,48 +475,32 @@
                         loading.style.display = 'none';
                         adActive = false;
                     }, 2000);
-                    
-                    if (adCheckInterval) {
-                        clearInterval(adCheckInterval);
-                        adCheckInterval = null;
-                    }
                 }
             } else {
                 // Fallback for testing - simulate ad
                 adStatus.textContent = '📺 Simulating ad (testing mode)...';
                 
-                // Simulate user leaving for 10 seconds
-                const testInterval = setInterval(() => {
-                    const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                    timerDisplay.textContent = elapsed;
-                }, 1000);
-                
-                // Simulate ad watching time
-                await new Promise(resolve => setTimeout(resolve, 10000));
-                
-                clearInterval(testInterval);
+                // Simulate user opening ad in Chrome
+                // In test mode, we'll wait 5 seconds (which is under 12 seconds)
+                await new Promise(resolve => setTimeout(resolve, 5000));
                 
                 const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                if (elapsed >= MINIMUM_REQUIRED_SECONDS) {
+                
+                if (elapsed < MAX_ALLOWED_SECONDS) {
                     adStatus.textContent = '✅ Ad completed! Processing reward...';
                     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
                     const reward = adRewards[currentUser?.tier] || 557;
                     await addPoints(reward);
                     showNotification(`+${reward} points earned! 🎉`);
                 } else {
-                    adStatus.textContent = '❌ Ad watched too short!';
-                    showNotification(`⚠️ You need to watch for ${MINIMUM_REQUIRED_SECONDS} seconds!`, true);
+                    adStatus.textContent = '❌ Ad took too long!';
+                    showNotification(`⏰ Time expired! No reward awarded.`, true);
                 }
                 
                 setTimeout(() => {
                     loading.style.display = 'none';
                     adActive = false;
                 }, 2000);
-                
-                if (adCheckInterval) {
-                    clearInterval(adCheckInterval);
-                    adCheckInterval = null;
-                }
             }
         };
         
