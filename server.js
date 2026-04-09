@@ -448,7 +448,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// DAILY REWARDS API
+// DAILY REWARDS API - FIXED VERSION
 // ============================================
 
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
@@ -547,7 +547,7 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.get('/api/daily-stats', verifyTelegramData, async (req, res) => {
+app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
     
@@ -557,17 +557,19 @@ app.get('/api/daily-stats', verifyTelegramData, async (req, res) => {
     );
     
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.json({ claimed_today: false, last_7_days: [], max_streak: 0, current_streak: 0 });
     }
     
     const userId = userResult.rows[0].id;
-    
     const today = new Date().toISOString().split('T')[0];
+    
+    // Check if claimed today
     const claimedToday = await pool.query(
       'SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2',
       [userId, today]
     );
     
+    // Get last 7 days of rewards
     const last7Days = await pool.query(`
       SELECT reward_date, streak_count, reward_points
       FROM daily_rewards
@@ -576,22 +578,42 @@ app.get('/api/daily-stats', verifyTelegramData, async (req, res) => {
       LIMIT 7
     `, [userId]);
     
+    // Get max streak
     const maxStreak = await pool.query(`
-      SELECT MAX(streak_count) as max_streak
+      SELECT COALESCE(MAX(streak_count), 0) as max_streak
       FROM daily_rewards
       WHERE user_id = $1
     `, [userId]);
     
+    // Get current streak
+    let currentStreak = 0;
+    if (last7Days.rows.length > 0) {
+      const mostRecent = last7Days.rows[0];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      if (mostRecent.reward_date === today || mostRecent.reward_date === yesterdayStr) {
+        currentStreak = mostRecent.streak_count;
+      }
+    }
+    
     res.json({
       claimed_today: claimedToday.rows.length > 0,
       last_7_days: last7Days.rows,
-      max_streak: maxStreak.rows[0]?.max_streak || 0,
-      current_streak: last7Days.rows[0]?.streak_count || 0
+      max_streak: maxStreak.rows[0].max_streak,
+      current_streak: currentStreak
     });
     
   } catch (err) {
     console.error('Daily stats error:', err);
-    res.status(500).json({ error: 'Failed to fetch daily stats' });
+    // Always return valid JSON
+    res.json({
+      claimed_today: false,
+      last_7_days: [],
+      max_streak: 0,
+      current_streak: 0
+    });
   }
 });
 
@@ -1027,7 +1049,6 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
     
-    // Check for Team Player achievement
     const teamAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Team Player'");
     if (teamAchievement.rows.length > 0) {
       await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, teamAchievement.rows[0].id]);
