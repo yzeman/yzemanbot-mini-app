@@ -343,48 +343,84 @@
         });
 
         // ============================================
-        // SIMPLE AD WATCHING - NO TIME DISPLAY
-        // RULES:
-        // - Return BEFORE 7 seconds → "You didn't complete the ad visit" (NO REWARD)
-        // - Return BETWEEN 7-14 seconds → REWARD!
-        // - Return AFTER 14 seconds → "Ad session expired" (NO REWARD)
+        // AD WATCHING - USING PAGE FOCUS EVENT
+        // More reliable than visibilitychange for Telegram
         // ============================================
         
         let adStartTime = 0;
         let isWatchingAd = false;
         let rewardProcessed = false;
+        let checkInterval = null;
         
         const MIN_SECONDS = 7;    // Minimum 7 seconds for reward
         const MAX_SECONDS = 14;   // Maximum 14 seconds for reward
         
-        // Track when user returns to the app
-        document.addEventListener('visibilitychange', async function() {
-            // Only process if we're watching an ad and haven't given reward yet
+        // Function to check and give reward when page becomes active
+        function checkAndReward() {
             if (!isWatchingAd || rewardProcessed) return;
             
-            if (!document.hidden) {
-                // User came back!
-                const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
-                
-                // Check timing - NO TIME DISPLAYED TO USER
+            const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
+            
+            // Only process if enough time has passed
+            if (elapsed >= MIN_SECONDS) {
                 if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
-                    // PERFECT! Give reward
-                    const reward = getRewardAmount();
-                    await addPoints(reward);
-                    showNotification(`🎉 +${reward} points earned!`, false);
-                    rewardProcessed = true;
-                } else if (elapsed < MIN_SECONDS) {
-                    showNotification(`You didn't complete the ad visit. Please watch the full ad to earn points.`, true);
-                    rewardProcessed = true;
-                } else {
+                    // REWARD!
+                    giveReward();
+                } else if (elapsed > MAX_SECONDS) {
+                    // Too late - no reward
                     showNotification(`Ad session expired. Please try again.`, true);
-                    rewardProcessed = true;
+                    resetAdState();
                 }
-                
-                // Reset ad watching state
-                isWatchingAd = false;
+            }
+        }
+        
+        async function giveReward() {
+            if (rewardProcessed) return;
+            
+            const reward = getRewardAmount();
+            await addPoints(reward);
+            showNotification(`🎉 +${reward} points earned!`, false);
+            rewardProcessed = true;
+            resetAdState();
+        }
+        
+        function resetAdState() {
+            isWatchingAd = false;
+            if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+            }
+        }
+        
+        // Listen for page focus (when user returns from Chrome)
+        window.addEventListener('focus', function() {
+            if (isWatchingAd && !rewardProcessed) {
+                checkAndReward();
             }
         });
+        
+        // Also listen for click anywhere (as backup)
+        document.addEventListener('click', function() {
+            if (isWatchingAd && !rewardProcessed) {
+                checkAndReward();
+            }
+        });
+        
+        // Periodic check every second while watching ad
+        function startPeriodicCheck() {
+            if (checkInterval) clearInterval(checkInterval);
+            checkInterval = setInterval(() => {
+                if (isWatchingAd && !rewardProcessed) {
+                    const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
+                    
+                    // If we passed the max time without reward, expire
+                    if (elapsed > MAX_SECONDS && !rewardProcessed) {
+                        showNotification(`Ad session expired. Please try again.`, true);
+                        resetAdState();
+                    }
+                }
+            }, 1000);
+        }
         
         function getRewardAmount() {
             const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
@@ -404,34 +440,43 @@
             rewardProcessed = false;
             adStartTime = Date.now();
             
+            // Start periodic check
+            startPeriodicCheck();
+            
             // Open the ad
             if (typeof show_9683863 === 'function') {
                 try {
                     await show_9683863();
-                    // User will leave to Chrome, visibilitychange will handle when they return
+                    
+                    // After ad SDK returns, check if enough time passed
+                    setTimeout(() => {
+                        if (isWatchingAd && !rewardProcessed) {
+                            checkAndReward();
+                        }
+                    }, 1000);
+                    
                 } catch (error) {
                     console.error('Ad error:', error);
                     showNotification('Failed to load ad. Please try again.', true);
-                    isWatchingAd = false;
+                    resetAdState();
                 }
             } else {
                 // Test mode - simulate ad
                 showNotification('Opening test ad... Come back in 7-14 seconds.', false);
-                // In test mode, we'll simulate return after 10 seconds (within reward window)
+                
+                // Simulate user returning after 10 seconds
                 setTimeout(async () => {
                     if (isWatchingAd && !rewardProcessed) {
                         const elapsed = Math.floor((Date.now() - adStartTime) / 1000);
                         if (elapsed >= MIN_SECONDS && elapsed <= MAX_SECONDS) {
-                            const reward = getRewardAmount();
-                            await addPoints(reward);
-                            showNotification(`🎉 +${reward} points earned!`, false);
+                            await giveReward();
                         } else if (elapsed < MIN_SECONDS) {
                             showNotification(`You didn't complete the ad visit. Please watch the full ad to earn points.`, true);
+                            resetAdState();
                         } else {
                             showNotification(`Ad session expired. Please try again.`, true);
+                            resetAdState();
                         }
-                        isWatchingAd = false;
-                        rewardProcessed = true;
                     }
                 }, 10000);
             }
