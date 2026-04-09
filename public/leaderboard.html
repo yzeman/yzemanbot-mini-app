@@ -11,6 +11,7 @@
             --primary: #6a11cb;
             --secondary: #2575fc;
             --success: #00c853;
+            --warning: #ffab00;
             --dark: #1a1b25;
             --darker: #12131a;
             --light: #f8f9fa;
@@ -32,15 +33,20 @@
         .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
         .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
         .rank { width: 40px; font-weight: bold; font-size: 18px; }
-        .rank-1 { color: #FFD700; }
+        .rank-1 { color: #FFD700; text-shadow: 0 0 5px rgba(255,215,0,0.5); }
         .rank-2 { color: #C0C0C0; }
         .rank-3 { color: #CD7F32; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--primary); display: flex; align-items: center; justify-content: center; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-size: 18px; }
         .info { flex: 1; }
         .name { font-weight: 600; font-size: 14px; }
         .username { font-size: 11px; color: var(--gray); }
         .score { font-weight: bold; color: var(--success); font-size: 14px; }
         .tier-badge { font-size: 10px; padding: 2px 8px; border-radius: 12px; background: var(--primary); display: inline-block; margin-top: 3px; }
+        .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        .empty-state i { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+        .your-rank-card { background: linear-gradient(135deg, rgba(106,17,203,0.2), rgba(37,117,252,0.2)); border: 1px solid var(--secondary); border-radius: 16px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .your-rank-label { font-size: 12px; color: var(--gray); }
+        .your-rank-value { font-size: 24px; font-weight: bold; color: var(--secondary); }
         .loading { text-align: center; padding: 40px; color: var(--gray); }
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
@@ -49,13 +55,28 @@
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; }
     </style>
 </head>
 <body>
+    <div class="notification" id="notification"></div>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
-            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Top performers this week</p>
+            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Compete with others and climb the ranks!</p>
+        </div>
+
+        <!-- Your Rank Card -->
+        <div class="your-rank-card" id="yourRankCard" style="display: none;">
+            <div>
+                <div class="your-rank-label">🏆 Your Rank</div>
+                <div class="your-rank-value" id="yourRank">-</div>
+            </div>
+            <div>
+                <div class="your-rank-label">📊 Your Score</div>
+                <div class="your-rank-value" id="yourScore">-</div>
+            </div>
         </div>
 
         <div class="tabs">
@@ -66,19 +87,19 @@
 
         <div id="earnersTab" class="tab-content active">
             <div class="leaderboard-list" id="topEarnersList">
-                <div class="loading">Loading top earners...</div>
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading top earners...</div>
             </div>
         </div>
 
         <div id="referrersTab" class="tab-content">
             <div class="leaderboard-list" id="topReferrersList">
-                <div class="loading">Loading top referrers...</div>
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading top referrers...</div>
             </div>
         </div>
 
         <div id="weeklyTab" class="tab-content">
             <div class="leaderboard-list" id="weeklyEarningsList">
-                <div class="loading">Loading weekly earnings...</div>
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading weekly earnings...</div>
             </div>
         </div>
     </div>
@@ -97,6 +118,14 @@
 
         let currentUser = null;
 
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.style.background = isError ? '#ff5252' : '#00c853';
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+
         async function apiCall(endpoint, data = null) {
             const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
             if (data) options.body = JSON.stringify(data);
@@ -110,69 +139,109 @@
             try {
                 const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
                 currentUser = result;
-            } catch (err) { console.error(err); }
+                
+                // Update your rank card
+                if (currentUser) {
+                    document.getElementById('yourRankCard').style.display = 'flex';
+                    const points = currentUser.points || 0;
+                    const usd = (points / 100000).toFixed(2);
+                    document.getElementById('yourRank').textContent = currentUser.tier || 'Fresher';
+                    document.getElementById('yourScore').textContent = `${points.toLocaleString()} pts`;
+                }
+            } catch (err) { 
+                console.error(err); 
+            }
         }
 
         async function loadTopEarners() {
             try {
                 const data = await apiCall('/api/leaderboard/top-earners');
                 const container = document.getElementById('topEarnersList');
-                if (!data.length) { container.innerHTML = '<div class="loading">No users yet</div>'; return; }
+                if (!data.length) { 
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><br>No users yet<br><small>Be the first to earn points!</small></div>'; 
+                    return; 
+                }
                 container.innerHTML = data.map((user, idx) => `
                     <div class="leaderboard-item">
                         <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
                         <div class="avatar"><i class="fas fa-user"></i></div>
                         <div class="info">
-                            <div class="name">${user.first_name || user.username || 'User'}</div>
-                            <div class="username">${user.username ? '@' + user.username : ''}</div>
+                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
+                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
                             <div class="tier-badge">${user.tier || 'Fresher'}</div>
                         </div>
                         <div class="score">${(user.points || 0).toLocaleString()} pts</div>
                     </div>
                 `).join('');
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                document.getElementById('topEarnersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
+            }
         }
 
         async function loadTopReferrers() {
             try {
                 const data = await apiCall('/api/leaderboard/weekly-referrers');
                 const container = document.getElementById('topReferrersList');
-                if (!data.length) { container.innerHTML = '<div class="loading">No referrals yet</div>'; return; }
+                if (!data.length) { 
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><br>No referrals yet<br><small>Invite friends to earn!</small></div>'; 
+                    return; 
+                }
                 container.innerHTML = data.map((user, idx) => `
                     <div class="leaderboard-item">
                         <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
                         <div class="avatar"><i class="fas fa-user"></i></div>
                         <div class="info">
-                            <div class="name">${user.first_name || user.username || 'User'}</div>
-                            <div class="username">${user.username ? '@' + user.username : ''}</div>
+                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
+                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
                             <div class="tier-badge">${user.tier || 'Fresher'}</div>
                         </div>
                         <div class="score">${(user.referral_count || 0)} referrals</div>
                     </div>
                 `).join('');
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                document.getElementById('topReferrersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
+            }
         }
 
         async function loadWeeklyEarnings() {
             try {
                 const data = await apiCall('/api/leaderboard/weekly-earnings');
                 const container = document.getElementById('weeklyEarningsList');
-                if (!data.length) { container.innerHTML = '<div class="loading">No earnings this week</div>'; return; }
+                if (!data.length) { 
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-week"></i><br>No earnings this week<br><small>Watch ads to earn!</small></div>'; 
+                    return; 
+                }
                 container.innerHTML = data.map((user, idx) => `
                     <div class="leaderboard-item">
                         <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
                         <div class="avatar"><i class="fas fa-user"></i></div>
                         <div class="info">
-                            <div class="name">${user.first_name || user.username || 'User'}</div>
-                            <div class="username">${user.username ? '@' + user.username : ''}</div>
+                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
+                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
                             <div class="tier-badge">${user.tier || 'Fresher'}</div>
                         </div>
                         <div class="score">${(user.weekly_earnings || 0).toLocaleString()} pts</div>
                     </div>
                 `).join('');
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                document.getElementById('weeklyEarningsList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
+            }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
