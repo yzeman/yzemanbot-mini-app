@@ -83,7 +83,7 @@
         <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
         <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="elas fa-fist-raised"></i><span>Tournament</span></a>
+        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
         <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
     </div>
 
@@ -101,12 +101,19 @@
             if (data) options.body = JSON.stringify(data);
             
             const response = await fetch(endpoint, options);
-            const result = await response.json();
             
-            if (!response.ok) {
-                throw new Error(result.error || 'Request failed');
+            // Handle non-JSON responses
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || 'Request failed');
+                }
+                return result;
+            } else {
+                const text = await response.text();
+                throw new Error(text || 'Server error');
             }
-            return result;
         }
 
         function showNotification(message, isError = false) {
@@ -146,7 +153,7 @@
                 renderCalendar();
             } catch (err) {
                 console.error('Load error:', err);
-                showNotification('Failed to load rewards. Please refresh.', true);
+                showNotification('⚠️ Failed to load. Please refresh.', true);
             }
         }
 
@@ -188,10 +195,8 @@
                 let msg = err.message;
                 if (msg === 'Already claimed today') {
                     msg = '✅ Already claimed today!';
-                } else if (msg.includes('streak')) {
-                    msg = '🔥 Streak bonus added!';
                 } else {
-                    msg = '❌ Failed. Please try again.';
+                    msg = '❌ Failed. Try again.';
                 }
                 showNotification(msg, true);
                 claimBtn.disabled = false;
