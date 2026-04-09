@@ -33,7 +33,7 @@
         .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
         .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
         .rank { width: 40px; font-weight: bold; font-size: 18px; }
-        .rank-1 { color: #FFD700; text-shadow: 0 0 5px rgba(255,215,0,0.5); }
+        .rank-1 { color: #FFD700; }
         .rank-2 { color: #C0C0C0; }
         .rank-3 { color: #CD7F32; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-size: 18px; }
@@ -70,12 +70,12 @@
         <!-- Your Rank Card -->
         <div class="your-rank-card" id="yourRankCard" style="display: none;">
             <div>
-                <div class="your-rank-label">🏆 Your Rank</div>
-                <div class="your-rank-value" id="yourRank">-</div>
+                <div class="your-rank-label">🏆 Your Tier</div>
+                <div class="your-rank-value" id="yourTier">-</div>
             </div>
             <div>
-                <div class="your-rank-label">📊 Your Score</div>
-                <div class="your-rank-value" id="yourScore">-</div>
+                <div class="your-rank-label">📊 Your Points</div>
+                <div class="your-rank-value" id="yourPoints">-</div>
             </div>
         </div>
 
@@ -127,8 +127,11 @@
         }
 
         async function apiCall(endpoint, data = null) {
-            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
-            if (data) options.body = JSON.stringify(data);
+            const options = { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data || { initData: tg.initData })
+            };
             const response = await fetch(endpoint, options);
             if (!response.ok) throw new Error(await response.text());
             return response.json();
@@ -140,13 +143,10 @@
                 const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
                 currentUser = result;
                 
-                // Update your rank card
                 if (currentUser) {
                     document.getElementById('yourRankCard').style.display = 'flex';
-                    const points = currentUser.points || 0;
-                    const usd = (points / 100000).toFixed(2);
-                    document.getElementById('yourRank').textContent = currentUser.tier || 'Fresher';
-                    document.getElementById('yourScore').textContent = `${points.toLocaleString()} pts`;
+                    document.getElementById('yourTier').textContent = currentUser.tier || 'Fresher';
+                    document.getElementById('yourPoints').textContent = `${(currentUser.points || 0).toLocaleString()} pts`;
                 }
             } catch (err) { 
                 console.error(err); 
@@ -155,7 +155,7 @@
 
         async function loadTopEarners() {
             try {
-                const data = await apiCall('/api/leaderboard/top-earners');
+                const data = await apiCall('/api/leaderboard/top-earners', { initData: tg.initData });
                 const container = document.getElementById('topEarnersList');
                 if (!data.length) { 
                     container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><br>No users yet<br><small>Be the first to earn points!</small></div>'; 
@@ -175,13 +175,13 @@
                 `).join('');
             } catch (err) { 
                 console.error(err);
-                document.getElementById('topEarnersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
+                document.getElementById('topEarnersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Try again.</div>';
             }
         }
 
         async function loadTopReferrers() {
             try {
-                const data = await apiCall('/api/leaderboard/weekly-referrers');
+                const data = await apiCall('/api/leaderboard/weekly-referrers', { initData: tg.initData });
                 const container = document.getElementById('topReferrersList');
                 if (!data.length) { 
                     container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><br>No referrals yet<br><small>Invite friends to earn!</small></div>'; 
@@ -201,13 +201,13 @@
                 `).join('');
             } catch (err) { 
                 console.error(err);
-                document.getElementById('topReferrersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
+                document.getElementById('topReferrersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Try again.</div>';
             }
         }
 
         async function loadWeeklyEarnings() {
             try {
-                const data = await apiCall('/api/leaderboard/weekly-earnings');
+                const data = await apiCall('/api/leaderboard/weekly-earnings', { initData: tg.initData });
                 const container = document.getElementById('weeklyEarningsList');
                 if (!data.length) { 
                     container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-week"></i><br>No earnings this week<br><small>Watch ads to earn!</small></div>'; 
@@ -227,7 +227,7 @@
                 `).join('');
             } catch (err) { 
                 console.error(err);
-                document.getElementById('weeklyEarningsList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
+                document.getElementById('weeklyEarningsList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Try again.</div>';
             }
         }
 
