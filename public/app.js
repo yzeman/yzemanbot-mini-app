@@ -204,58 +204,115 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING
+// AD WATCHING WITH ADSGRAM + UNITY ADS BACKUP
 // ============================================================
 
-async function watchAd() {
+let isWatchingAd = false;
+let adWindow = null;
+
+function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
-    const reward = adRewards[currentUser?.tier] || 557;
-    
-    const loading = document.getElementById('adLoading');
-    const adStatus = document.getElementById('adStatus');
-    const adCountdown = document.getElementById('adCountdown');
-    
-    if (loading) loading.style.display = 'flex';
-    if (adStatus) adStatus.textContent = 'Loading advertisement...';
-    if (adCountdown) adCountdown.textContent = '';
-    
-    if (typeof show_9683863 === 'function') {
-        try {
-            if (adStatus) adStatus.textContent = 'Showing ad...';
-            await show_9683863();
-            if (adStatus) adStatus.textContent = 'Ad completed! Processing reward...';
-            await addPoints(reward);
-            showNotification(`+${reward} points earned!`);
-        } catch (error) {
-            console.error('Ad error:', error);
-            await simulateFallbackAd(reward, adStatus, adCountdown);
-        }
-    } else {
-        await simulateFallbackAd(reward, adStatus, adCountdown);
-    }
-    
-    setTimeout(() => {
-        if (loading) loading.style.display = 'none';
-    }, 1000);
+    return adRewards[currentUser?.tier] || 557;
 }
 
-async function simulateFallbackAd(reward, adStatus, adCountdown) {
-    if (adStatus) adStatus.textContent = 'Watch ad for 5 seconds to earn points!';
-    let seconds = 5;
-    if (adCountdown) adCountdown.textContent = `⏱️ ${seconds} seconds remaining`;
-    const timer = setInterval(() => {
-        seconds--;
-        if (adCountdown) adCountdown.textContent = `⏱️ ${seconds} seconds remaining`;
-        if (seconds <= 0) {
-            clearInterval(timer);
-            if (adCountdown) adCountdown.textContent = '✅ Ad completed!';
+// Listen for messages from the ad popup window
+function setupAdMessageListener() {
+    window.addEventListener('message', async (event) => {
+        // Check if the message is from our ad window
+        if (event.data && event.data.event) {
+            console.log('Ad message received:', event.data);
+            
+            if (event.data.event === 'reward-earned') {
+                const reward = event.data.amount || getRewardAmount();
+                showNotification(`🎉 +${reward} points earned!`);
+                await addPoints(reward);
+                isWatchingAd = false;
+            } else if (event.data.event === 'ad-failed') {
+                showNotification('Ad failed to load. Please try again.', true);
+                isWatchingAd = false;
+            } else if (event.data.event === 'ad-timeout') {
+                showNotification('Ad took too long. Please try again.', true);
+                isWatchingAd = false;
+            }
+        }
+    });
+}
+
+// Open ad in a popup window
+async function openAdInWindow() {
+    const reward = getRewardAmount();
+    const userId = currentUser?.id || 'guest';
+    
+    // Create a popup window for the ad
+    const adUrl = `/ad.html?userId=${userId}&reward=${reward}`;
+    const width = 400;
+    const height = 600;
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    
+    const features = `width=${width},height=${height},left=${left},top=${top},popup=yes,noopener=yes`;
+    
+    adWindow = window.open(adUrl, 'WatchAd', features);
+    
+    if (!adWindow) {
+        // Popup blocked - try opening in new tab
+        adWindow = window.open(adUrl, '_blank');
+        showNotification('Ad opened in new tab. Return here after watching.', false);
+    }
+    
+    // Check if window is closed periodically
+    const checkInterval = setInterval(() => {
+        if (adWindow && adWindow.closed) {
+            clearInterval(checkInterval);
+            console.log('Ad window closed');
         }
     }, 1000);
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    if (adStatus) adStatus.textContent = 'Processing reward...';
-    await addPoints(reward);
-    showNotification(`+${reward} points earned!`);
+    
+    // Timeout to reset watching state after 2 minutes
+    setTimeout(() => {
+        if (isWatchingAd) {
+            isWatchingAd = false;
+            showNotification('Ad session expired. Please try again.', true);
+        }
+        if (adWindow && !adWindow.closed) {
+            adWindow.close();
+        }
+    }, 120000);
 }
+
+// Main watch ad function
+window.watchAd = async function() {
+    if (isWatchingAd) {
+        showNotification('Please wait, an ad is already playing.', true);
+        return;
+    }
+    
+    // Check if user is logged in
+    if (!currentUser) {
+        showNotification('Please log in to watch ads.', true);
+        return;
+    }
+    
+    isWatchingAd = true;
+    
+    // Show notification that ad is starting
+    showNotification('Opening ad... Please watch the full video to earn points.', false);
+    
+    // Open the ad
+    await openAdInWindow();
+};
+
+// Initialize message listener when app starts
+setupAdMessageListener();
+
+// Handle visibility change for when user returns from ad
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && isWatchingAd) {
+        // User returned to app - we don't auto-reward here
+        // Reward will be given via message from ad page
+        console.log('Returned to app, waiting for ad completion message');
+    }
+});
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
@@ -1109,7 +1166,7 @@ async function initApp() {
         
         // Watch ad button
         const watchAdBtn = document.getElementById('watchAdBtn');
-        if (watchAdBtn) watchAdBtn.addEventListener('click', watchAd);
+        if (watchAdBtn) watchAdBtn.addEventListener('click', window.watchAd);
         
         // YouTube task button
         const youtubeTaskBtn = document.getElementById('youtubeTaskBtn');
