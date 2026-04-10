@@ -40,12 +40,13 @@
         .rank-1 { color: #FFD700; }
         .rank-2 { color: #C0C0C0; }
         .rank-3 { color: #CD7F32; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; }
         .info { flex: 1; }
         .name { font-weight: 600; font-size: 14px; }
         .username { font-size: 11px; color: var(--gray); }
         .score { font-weight: bold; color: var(--success); font-size: 13px; }
         .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
             display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
@@ -56,6 +57,8 @@
     </style>
 </head>
 <body>
+    <div class="notification" id="notification"></div>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-fist-raised"></i> Weekly Tournament</h1>
@@ -80,7 +83,7 @@
         </div>
 
         <div class="leaderboard-list" id="standingsList">
-            <div class="loading">Loading standings...</div>
+            <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading standings...</div>
         </div>
     </div>
 
@@ -98,9 +101,20 @@
 
         let hasJoined = false;
 
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.style.background = isError ? '#ff5252' : '#00c853';
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+
         async function apiCall(endpoint, data = null) {
-            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
-            if (data) options.body = JSON.stringify(data);
+            const options = { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data || { initData: tg.initData })
+            };
             const response = await fetch(endpoint, options);
             if (!response.ok) throw new Error(await response.text());
             return response.json();
@@ -131,7 +145,7 @@
                 }
                 
                 const container = document.getElementById('standingsList');
-                if (!data.standings.length) {
+                if (!data.standings || data.standings.length === 0) {
                     container.innerHTML = '<div class="loading">No participants yet. Be the first!</div>';
                     return;
                 }
@@ -141,23 +155,26 @@
                         <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
                         <div class="avatar"><i class="fas fa-user"></i></div>
                         <div class="info">
-                            <div class="name">${user.first_name || user.username || 'User'}</div>
-                            <div class="username">${user.username ? '@' + user.username : ''}</div>
+                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
+                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
                         </div>
                         <div class="score">${(user.weekly_points || 0).toLocaleString()} pts</div>
                     </div>
                 `).join('');
             } catch (err) {
                 console.error(err);
+                document.getElementById('standingsList').innerHTML = '<div class="loading">Failed to load standings. Please refresh.</div>';
             }
         }
 
-        function showNotification(msg, isError = false) {
-            const notif = document.createElement('div');
-            notif.textContent = msg;
-            notif.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${isError ? '#ff5252' : '#00c853'};color:white;padding:12px 24px;border-radius:12px;z-index:1001;font-size:14px;`;
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 3000);
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
         }
 
         document.getElementById('joinBtn').addEventListener('click', joinTournament);
