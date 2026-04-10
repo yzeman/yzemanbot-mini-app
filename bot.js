@@ -37,6 +37,15 @@ app.listen(PORT, '0.0.0.0', () => {
 // Initialize bot
 const bot = new Telegraf(BOT_TOKEN);
 
+// Helper: Check if user already exists
+async function userExists(telegramId) {
+    const result = await pool.query(
+        'SELECT id, first_name, username FROM users WHERE telegram_id = $1',
+        [telegramId]
+    );
+    return result.rows[0] || null;
+}
+
 // Helper: Get user info from database
 async function getUserByTelegramId(telegramId) {
     const result = await pool.query(
@@ -100,6 +109,9 @@ bot.command('start', async (ctx) => {
         }
     }
     
+    // Check if user already exists
+    const existingUser = await userExists(ctx.from.id);
+    
     // Create keyboard with Mini App button
     let webAppUrl = MINI_APP_URL;
     if (rawReferralCode) {
@@ -115,32 +127,43 @@ bot.command('start', async (ctx) => {
         ]
     };
     
-    // Get user's own stats if they exist
-    const userStats = await getUserByTelegramId(ctx.from.id);
+    let message = '';
     
-    let message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
-    message += `Earn points by referring friends and watching ads.\n\n`;
-    
-    if (rawReferralCode && referralInfo) {
-        message += `✅ <b>You were referred by ${referralInfo.first_name || referralInfo.username || 'a friend'}!</b>\n`;
-        message += `Open the app below to claim your bonus. 🎁\n\n`;
-    } else if (rawReferralCode && !referralInfo) {
-        message += `⚠️ <b>Invalid referral code!</b>\n`;
-        message += `The code "${rawReferralCode}" is not valid.\n\n`;
-    }
-    
-    if (userStats) {
+    // CASE 1: User already exists (already registered)
+    if (existingUser) {
+        message = `🎉 <b>Welcome back, ${existingUser.first_name || existingUser.username || 'User'}!</b>\n\n`;
+        
+        if (rawReferralCode) {
+            message += `⚠️ <b>Note:</b> Referral codes only work for new users.\n`;
+            message += `Since you're already registered, no bonus was applied.\n\n`;
+        }
+        
         message += `<b>📊 Your Stats:</b>\n`;
-        message += `💰 Points: ${userStats.points?.toLocaleString() || 0}\n`;
-        message += `👥 Referrals: ${userStats.referrals || 0}\n`;
-        message += `🏆 Tier: ${userStats.tier || 'Fresher'}\n\n`;
+        message += `💰 Points: ${existingUser.points?.toLocaleString() || 0}\n`;
+        message += `👥 Referrals: ${existingUser.referrals || 0}\n`;
+        message += `🏆 Tier: ${existingUser.tier || 'Fresher'}\n\n`;
+        message += `Open the app below to continue earning! 🚀`;
+        
+    } else {
+        // CASE 2: New user
+        message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
+        message += `Earn points by referring friends and watching ads.\n\n`;
+        
+        if (rawReferralCode && referralInfo) {
+            message += `✅ <b>You were referred by ${referralInfo.first_name || referralInfo.username || 'a friend'}!</b>\n`;
+            message += `Open the app below to claim your 500 bonus points! 🎁\n\n`;
+        } else if (rawReferralCode && !referralInfo) {
+            message += `⚠️ <b>Invalid referral code!</b>\n`;
+            message += `The code "${rawReferralCode}" is not valid.\n\n`;
+        }
+        
+        message += `<b>📊 Features:</b>\n`;
+        message += `• Refer friends to earn points\n`;
+        message += `• Watch ads for rewards\n`;
+        message += `• Climb tiers (Fresher → Platinum)\n`;
+        message += `• Higher tiers = more rewards!\n\n`;
+        message += `Open the app below to get started! 🚀`;
     }
-    
-    message += `<b>📊 Features:</b>\n`;
-    message += `• Refer friends to earn points\n`;
-    message += `• Watch ads for rewards\n`;
-    message += `• Climb tiers (Fresher → Platinum)\n`;
-    message += `• Higher tiers = more rewards!`;
     
     ctx.reply(message, {
         parse_mode: 'HTML',
