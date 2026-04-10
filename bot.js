@@ -1,5 +1,6 @@
 const { Telegraf } = require('telegraf');
 const express = require('express');
+const { Pool } = require('pg');
 require('dotenv').config();
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -10,25 +11,25 @@ if (!BOT_TOKEN) {
     process.exit(1);
 }
 
-// Create express app for health check (keeps Render happy)
+// Database connection
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,
+});
+
+// Create express app for health check
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Health check endpoint for Render
 app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'OK', 
-        bot: 'running',
-        time: new Date().toISOString()
-    });
+    res.status(200).json({ status: 'OK', bot: 'running', time: new Date().toISOString() });
 });
 
-// Simple home page
 app.get('/', (req, res) => {
     res.send('🤖 Yzeman Bot is running!');
 });
 
-// Start the HTTP server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🌐 Health server running on port ${PORT}`);
 });
@@ -36,68 +37,102 @@ app.listen(PORT, '0.0.0.0', () => {
 // Initialize bot
 const bot = new Telegraf(BOT_TOKEN);
 
-// Simple in-memory storage for referral codes
-const referralStorage = new Map();
+// Helper: Get user info from database
+async function getUserByTelegramId(telegramId) {
+    const result = await pool.query(
+        'SELECT id, username, first_name, points, referrals, referral_code, tier FROM users WHERE telegram_id = $1',
+        [telegramId]
+    );
+    return result.rows[0] || null;
+}
 
-// Handle /start command with referral parameter
-bot.command('start', (ctx) => {
+// Helper: Get referrer by referral code
+async function getReferrerByCode(referralCode) {
+    // Clean the code
+    let cleanCode = referralCode;
+    if (cleanCode.startsWith('ref-')) cleanCode = cleanCode.substring(4);
+    if (cleanCode.startsWith('YZEMAN-')) cleanCode = cleanCode.substring(7);
+    
+    // Try multiple formats
+    let result = await pool.query(
+        'SELECT id, username, first_name, points, referrals FROM users WHERE referral_code = $1',
+        [cleanCode]
+    );
+    
+    if (result.rows.length === 0) {
+        result = await pool.query(
+            'SELECT id, username, first_name, points, referrals FROM users WHERE referral_code = $1',
+            [`ref-${cleanCode}`]
+        );
+    }
+    
+    if (result.rows.length === 0) {
+        result = await pool.query(
+            'SELECT id, username, first_name, points, referrals FROM users WHERE referral_code = $1',
+            [`YZEMAN-${cleanCode}`]
+        );
+    }
+    
+    return result.rows[0] || null;
+}
+
+// Handle /start command
+bot.command('start', async (ctx) => {
     console.log('📨 /start command received from user:', ctx.from.id);
     
     const args = ctx.message.text.split(' ');
-    let referralCode = args[1];
+    let rawReferralCode = args[1];
+    let referralInfo = null;
     
-    console.log('Raw referral code from URL:', referralCode);
-    
-    // Remove any 'ref-' prefix if present to clean it
-    if (referralCode && referralCode.startsWith('ref-')) {
-        referralCode = referralCode.substring(4);
-        console.log('Cleaned referral code (removed ref-):', referralCode);
+    // Clean referral code
+    if (rawReferralCode) {
+        let cleanCode = rawReferralCode;
+        if (cleanCode.startsWith('ref-')) cleanCode = cleanCode.substring(4);
+        if (cleanCode.startsWith('YZEMAN-')) cleanCode = cleanCode.substring(7);
+        
+        // Check if referrer exists in database
+        referralInfo = await getReferrerByCode(cleanCode);
+        
+        if (referralInfo) {
+            console.log(`✅ Valid referral code: ${rawReferralCode} from user ${referralInfo.id} (${referralInfo.username || referralInfo.first_name})`);
+        } else {
+            console.log(`⚠️ Invalid referral code: ${rawReferralCode}`);
+        }
     }
-    if (referralCode && referralCode.startsWith('YZEMAN-')) {
-        referralCode = referralCode.substring(7);
-        console.log('Cleaned referral code (removed YZEMAN-):', referralCode);
-    }
     
-    // Store referral code in memory
-    if (referralCode) {
-        referralStorage.set(ctx.from.id.toString(), referralCode);
-        console.log(`📝 Referral code stored: ${referralCode} for user ${ctx.from.id}`);
-    }
-    
-    // Create keyboard with Mini App button that passes the referral code
+    // Create keyboard with Mini App button
     let webAppUrl = MINI_APP_URL;
-    if (referralCode) {
-        webAppUrl = `${MINI_APP_URL}?start=ref-${referralCode}`;
+    if (rawReferralCode) {
+        webAppUrl = `${MINI_APP_URL}?start=${rawReferralCode}`;
     }
-    
-    console.log('Opening Mini App URL:', webAppUrl);
     
     const keyboard = {
         inline_keyboard: [
-            [
-                {
-                    text: '🚀 Open Yzeman Bot App',
-                    web_app: { url: webAppUrl }
-                }
-            ],
-            [
-                {
-                    text: '❓ How it works',
-                    callback_data: 'help'
-                }
-            ]
+            [{ text: '🚀 Open Yzeman Bot App', web_app: { url: webAppUrl } }],
+            [{ text: '❓ How it works', callback_data: 'help' }],
+            [{ text: '📊 My Stats', callback_data: 'stats' }]
         ]
     };
     
-    // Welcome message using HTML
+    // Get user's own stats if they exist
+    const userStats = await getUserByTelegramId(ctx.from.id);
+    
     let message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
     message += `Earn points by referring friends and watching ads.\n\n`;
     
-    if (referralCode) {
-        message += `✅ <b>You were referred!</b>\n`;
+    if (rawReferralCode && referralInfo) {
+        message += `✅ <b>You were referred by ${referralInfo.first_name || referralInfo.username || 'a friend'}!</b>\n`;
         message += `Open the app below to claim your bonus. 🎁\n\n`;
-    } else {
-        message += `Open the app below to get started! 🚀\n\n`;
+    } else if (rawReferralCode && !referralInfo) {
+        message += `⚠️ <b>Invalid referral code!</b>\n`;
+        message += `The code "${rawReferralCode}" is not valid.\n\n`;
+    }
+    
+    if (userStats) {
+        message += `<b>📊 Your Stats:</b>\n`;
+        message += `💰 Points: ${userStats.points?.toLocaleString() || 0}\n`;
+        message += `👥 Referrals: ${userStats.referrals || 0}\n`;
+        message += `🏆 Tier: ${userStats.tier || 'Fresher'}\n\n`;
     }
     
     message += `<b>📊 Features:</b>\n`;
@@ -109,11 +144,7 @@ bot.command('start', (ctx) => {
     ctx.reply(message, {
         parse_mode: 'HTML',
         reply_markup: keyboard
-    }).then(() => {
-        console.log('✅ Reply sent to user:', ctx.from.id);
-    }).catch(err => {
-        console.error('❌ Failed to send reply:', err.message);
-    });
+    }).catch(err => console.error('Failed to send reply:', err.message));
 });
 
 // Handle help button
@@ -140,9 +171,32 @@ bot.action('help', async (ctx) => {
     ctx.reply(helpMessage, { parse_mode: 'HTML' });
 });
 
+// Handle stats button
+bot.action('stats', async (ctx) => {
+    ctx.answerCbQuery();
+    
+    const userStats = await getUserByTelegramId(ctx.from.id);
+    
+    if (!userStats) {
+        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
+        return;
+    }
+    
+    let statsMessage = `<b>📊 Your YzemanBot Stats</b>\n\n`;
+    statsMessage += `💰 <b>Points:</b> ${userStats.points?.toLocaleString() || 0}\n`;
+    statsMessage += `💵 <b>USD Value:</b> $${((userStats.points || 0) / 100000).toFixed(2)}\n`;
+    statsMessage += `👥 <b>Referrals:</b> ${userStats.referrals || 0}\n`;
+    statsMessage += `🏆 <b>Tier:</b> ${userStats.tier || 'Fresher'}\n`;
+    statsMessage += `🔗 <b>Your Referral Link:</b>\n`;
+    statsMessage += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
+    statsMessage += `Share your link and earn points when friends join! 🚀`;
+    
+    ctx.reply(statsMessage, { parse_mode: 'HTML' });
+});
+
 // Error handling
 bot.catch((err, ctx) => {
-    console.error(`❌ Bot error for user ${ctx.from?.id}:`, err.message);
+    console.error(`❌ Bot error:`, err.message);
     ctx.reply('Sorry, something went wrong. Please try again later.');
 });
 
@@ -156,14 +210,16 @@ bot.launch().then(() => {
     process.exit(1);
 });
 
-// Enable graceful stop
+// Graceful stop
 process.once('SIGINT', () => {
     console.log('🛑 SIGINT received, stopping bot...');
     bot.stop('SIGINT');
+    pool.end();
     process.exit(0);
 });
 process.once('SIGTERM', () => {
     console.log('🛑 SIGTERM received, stopping bot...');
     bot.stop('SIGTERM');
+    pool.end();
     process.exit(0);
 });
