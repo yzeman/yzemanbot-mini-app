@@ -1635,6 +1635,7 @@ app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
   }
 });
 
+// Deduct points (admin only)
 app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
   const { userId, points } = req.body;
   try {
@@ -1646,18 +1647,12 @@ app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
   }
 });
 
-// ============================================
-// DELETE USER (ADMIN ONLY)
-// ============================================
-
+// Delete user (admin only)
 app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   const { userId } = req.body;
   const client = await pool.connect();
-  
   try {
     await client.query('BEGIN');
-    
-    // Delete from all related tables
     await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
     await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
@@ -1667,9 +1662,8 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
-    
     await client.query('COMMIT');
-    res.json({ success: true, message: 'User deleted successfully' });
+    res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Delete user error:', err);
