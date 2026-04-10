@@ -950,7 +950,7 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.get('/api/tournament/standings', verifyTelegramData, async (req, res) => {
+app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
   try {
     const today = new Date();
     const weekStart = new Date(today);
