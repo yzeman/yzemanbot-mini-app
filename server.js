@@ -507,7 +507,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// DAILY REWARDS API
+// DAILY REWARDS API - FIXED
 // ============================================
 
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
@@ -623,7 +623,15 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
       [userId, today]
     );
     
-    // Get last 7 days of rewards
+    // Get all daily rewards for this user
+    const allRewards = await pool.query(`
+      SELECT reward_date, streak_count, reward_points
+      FROM daily_rewards
+      WHERE user_id = $1
+      ORDER BY reward_date DESC
+    `, [userId]);
+    
+    // Get last 7 days for calendar
     const last7Days = await pool.query(`
       SELECT reward_date, streak_count, reward_points
       FROM daily_rewards
@@ -639,16 +647,25 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
       WHERE user_id = $1
     `, [userId]);
     
-    // Get current streak
+    // Calculate current streak properly
     let currentStreak = 0;
-    if (last7Days.rows.length > 0) {
-      const mostRecent = last7Days.rows[0];
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+    if (allRewards.rows.length > 0) {
+      // Check if the most recent reward is from today
+      const mostRecent = allRewards.rows[0];
+      const mostRecentDate = new Date(mostRecent.reward_date);
+      const todayDate = new Date();
       
-      if (mostRecent.reward_date === today || mostRecent.reward_date === yesterdayStr) {
+      const diffDays = Math.floor((todayDate - mostRecentDate) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) {
+        // Claimed today, show the streak count
         currentStreak = mostRecent.streak_count;
+      } else if (diffDays === 1) {
+        // Claimed yesterday, streak continues
+        currentStreak = mostRecent.streak_count;
+      } else {
+        // Missed a day, streak is 0
+        currentStreak = 0;
       }
     }
     
