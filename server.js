@@ -227,6 +227,59 @@ async function initDB() {
 }
 
 // ============================================
+// HELPER FUNCTION: Award Achievement with Points
+// ============================================
+
+async function awardAchievement(userId, achievementName, notify = true) {
+  const client = await pool.connect();
+  try {
+    const achievement = await client.query(
+      'SELECT id, points_reward FROM achievements WHERE name = $1',
+      [achievementName]
+    );
+    
+    if (achievement.rows.length === 0) return false;
+    
+    const achievementId = achievement.rows[0].id;
+    const pointsReward = achievement.rows[0].points_reward;
+    
+    // Check if already awarded
+    const existing = await client.query(
+      'SELECT * FROM user_achievements WHERE user_id = $1 AND achievement_id = $2',
+      [userId, achievementId]
+    );
+    
+    if (existing.rows.length > 0) return false;
+    
+    await client.query('BEGIN');
+    
+    // Award achievement
+    await client.query(
+      'INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2)',
+      [userId, achievementId]
+    );
+    
+    // Award points
+    if (pointsReward > 0) {
+      await client.query(
+        'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
+        [pointsReward, userId]
+      );
+      console.log(`🎉 Achievement "${achievementName}" awarded to user ${userId} +${pointsReward} points`);
+    }
+    
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(`Error awarding achievement ${achievementName}:`, err);
+    return false;
+  } finally {
+    client.release();
+  }
+}
+
+// ============================================
 // TELEGRAM VERIFICATION
 // ============================================
 
@@ -411,7 +464,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     const telegramId = req.telegramUser.id;
 
     const userResult = await client.query(
-      'SELECT id FROM users WHERE telegram_id = $1',
+      'SELECT id, points FROM users WHERE telegram_id = $1',
       [telegramId]
     );
     
@@ -430,6 +483,12 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
       'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
       [rewardAmount, userId]
     );
+    
+    // Check for Points Millionaire achievement
+    const userPoints = await client.query('SELECT points FROM users WHERE id = $1', [userId]);
+    if (userPoints.rows[0].points >= 1000000) {
+      await awardAchievement(userId, 'Points Millionaire');
+    }
     
     const { rows: [user] } = await client.query(
       'SELECT points FROM users WHERE id = $1',
@@ -514,19 +573,14 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
       [finalReward, today, userId]
     );
     
-    // Check for achievements
+    // Check for Daily Streak 7 achievement
     if (streak >= 7) {
-      const streakAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Daily Streak 7'");
-      if (streakAchievement.rows.length > 0) {
-        await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, streakAchievement.rows[0].id]);
-      }
+      await awardAchievement(userId, 'Daily Streak 7');
     }
     
+    // Check for Loyal User achievement (30 day streak)
     if (streak >= 30) {
-      const loyalAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Loyal User'");
-      if (loyalAchievement.rows.length > 0) {
-        await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, loyalAchievement.rows[0].id]);
-      }
+      await awardAchievement(userId, 'Loyal User');
     }
     
     await client.query('COMMIT');
@@ -676,11 +730,9 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
       [finalReward, userId]
     );
     
+    // Check for Wheel Champion achievement
     if (rewardPoints === 10000) {
-      const wheelAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Wheel Champion'");
-      if (wheelAchievement.rows.length > 0) {
-        await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, wheelAchievement.rows[0].id]);
-      }
+      await awardAchievement(userId, 'Wheel Champion');
     }
     
     await client.query('COMMIT');
@@ -887,7 +939,7 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TOURNAMENT API - FIXED VERSION
+// TOURNAMENT API
 // ============================================
 
 app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
@@ -1094,7 +1146,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API - ALL ENDPOINTS (FIXED TO POST)
+// TEAM API
 // ============================================
 
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
@@ -1119,7 +1171,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
-    // Check if user already created a team (even if empty)
+    // Check if user already created a team
     const existingTeam = await client.query(
       'SELECT id FROM teams WHERE created_by = $1',
       [userId]
@@ -1147,10 +1199,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
     
     // Check for Team Player achievement
-    const teamAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Team Player'");
-    if (teamAchievement.rows.length > 0) {
-      await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, teamAchievement.rows[0].id]);
-    }
+    await awardAchievement(userId, 'Team Player');
     
     await client.query('COMMIT');
     
@@ -1214,10 +1263,8 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
     
-    const teamAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Team Player'");
-    if (teamAchievement.rows.length > 0) {
-      await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, teamAchievement.rows[0].id]);
-    }
+    // Check for Team Player achievement
+    await awardAchievement(userId, 'Team Player');
     
     await client.query('COMMIT');
     
@@ -1402,7 +1449,6 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
     
     // If leader left, assign new leader
     if (isLeader) {
-      // Find the next member (oldest member by join date)
       const nextLeader = await client.query(
         'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
         [teamId]
