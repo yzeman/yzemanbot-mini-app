@@ -1378,6 +1378,14 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'You are not in a team' });
     }
     
+    // Check if user is the team leader
+    const teamInfo = await client.query(
+      'SELECT created_by FROM teams WHERE id = $1',
+      [teamId]
+    );
+    
+    const isLeader = teamInfo.rows[0]?.created_by === userId;
+    
     await client.query('BEGIN');
     
     // Remove user from team
@@ -1391,6 +1399,24 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       'UPDATE users SET team_id = NULL WHERE id = $1',
       [userId]
     );
+    
+    // If leader left, assign new leader
+    if (isLeader) {
+      // Find the next member (oldest member by join date)
+      const nextLeader = await client.query(
+        'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
+        [teamId]
+      );
+      
+      if (nextLeader.rows.length > 0) {
+        const newLeaderId = nextLeader.rows[0].user_id;
+        await client.query(
+          'UPDATE teams SET created_by = $1 WHERE id = $2',
+          [newLeaderId, teamId]
+        );
+        console.log(`Team ${teamId} new leader assigned: ${newLeaderId}`);
+      }
+    }
     
     // Check if team has any members left
     const memberCount = await client.query(
