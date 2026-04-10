@@ -20,7 +20,7 @@ bot.command('start', (ctx) => {
     console.log('📨 /start command received from user:', ctx.from.id);
     
     const args = ctx.message.text.split(' ');
-    let referralCode = args[1]; // This captures the referral code like ?start=CODE
+    let referralCode = args[1];
     
     console.log('Raw referral code from URL:', referralCode);
     
@@ -65,25 +65,25 @@ bot.command('start', (ctx) => {
         ]
     };
     
-    // Welcome message
-    let message = `🎉 *Welcome to Yzeman Bot!*\n\n`;
+    // Welcome message - using HTML instead of Markdown to avoid parsing errors
+    let message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
     message += `Earn points by referring friends and watching ads.\n\n`;
     
     if (referralCode) {
-        message += `✅ *You were referred!*\n`;
+        message += `✅ <b>You were referred!</b>\n`;
         message += `Open the app below to claim your bonus. 🎁\n\n`;
     } else {
         message += `Open the app below to get started! 🚀\n\n`;
     }
     
-    message += `📊 *Features:*\n`;
+    message += `<b>📊 Features:</b>\n`;
     message += `• Refer friends to earn points\n`;
     message += `• Watch ads for rewards\n`;
     message += `• Climb tiers (Fresher → Platinum)\n`;
     message += `• Higher tiers = more rewards!`;
     
     ctx.reply(message, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: keyboard
     }).then(() => {
         console.log('✅ Reply sent to user:', ctx.from.id);
@@ -96,16 +96,16 @@ bot.command('start', (ctx) => {
 bot.action('help', async (ctx) => {
     ctx.answerCbQuery();
     
-    let helpMessage = `📖 *How to use Yzeman Bot:*\n\n`;
-    helpMessage += `*1. Earn Points:*\n`;
+    let helpMessage = `<b>📖 How to use Yzeman Bot:</b>\n\n`;
+    helpMessage += `<b>1. Earn Points:</b>\n`;
     helpMessage += `   • Share your referral link with friends\n`;
     helpMessage += `   • Watch ads in the Mini App\n`;
     helpMessage += `   • Each referral gives you points\n\n`;
-    helpMessage += `*2. Referral System:*\n`;
+    helpMessage += `<b>2. Referral System:</b>\n`;
     helpMessage += `   • Get your unique code in the app\n`;
     helpMessage += `   • Share link: t.me/YzemanBot?start=YOUR_CODE\n`;
     helpMessage += `   • Earn rewards when friends join\n\n`;
-    helpMessage += `*3. Tiers & Multipliers:*\n`;
+    helpMessage += `<b>3. Tiers & Multipliers:</b>\n`;
     helpMessage += `   • Fresher (0 refs) - 1.0x multiplier\n`;
     helpMessage += `   • Brute (50 refs) - 1.2x multiplier\n`;
     helpMessage += `   • Silver (150 refs) - 1.5x multiplier\n`;
@@ -113,7 +113,7 @@ bot.action('help', async (ctx) => {
     helpMessage += `   • Platinum (500 refs) - 3.0x multiplier\n\n`;
     helpMessage += `Open the app below to start earning! 🚀`;
     
-    ctx.reply(helpMessage, { parse_mode: 'Markdown' });
+    ctx.reply(helpMessage, { parse_mode: 'HTML' });
 });
 
 // Error handling
@@ -122,7 +122,7 @@ bot.catch((err, ctx) => {
     ctx.reply('Sorry, something went wrong. Please try again later.');
 });
 
-// Start the bot using polling (simpler, no webhook needed)
+// Start the bot using polling
 console.log('🤖 Starting bot in polling mode...');
 bot.launch().then(() => {
     console.log('✅ Bot is running and listening for commands!');
