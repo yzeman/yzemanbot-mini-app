@@ -1341,6 +1341,69 @@ app.get('/api/team/monthly-competition', verifyTelegramData, async (req, res) =>
 });
 
 // ============================================
+// LEAVE TEAM API
+// ============================================
+
+app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    const userResult = await client.query(
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userId = userResult.rows[0].id;
+    const teamId = userResult.rows[0].team_id;
+    
+    if (!teamId) {
+      return res.status(400).json({ error: 'You are not in a team' });
+    }
+    
+    await client.query('BEGIN');
+    
+    // Remove user from team
+    await client.query(
+      'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
+      [teamId, userId]
+    );
+    
+    // Update user's team_id
+    await client.query(
+      'UPDATE users SET team_id = NULL WHERE id = $1',
+      [userId]
+    );
+    
+    // Check if team has any members left
+    const memberCount = await client.query(
+      'SELECT COUNT(*) FROM team_members WHERE team_id = $1',
+      [teamId]
+    );
+    
+    // If no members left, delete the team
+    if (parseInt(memberCount.rows[0].count) === 0) {
+      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+      console.log(`Team ${teamId} deleted - no members left`);
+    }
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Left team successfully' });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Team leave error:', err);
+    res.status(500).json({ error: 'Failed to leave team' });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
 // WITHDRAWAL API
 // ============================================
 
