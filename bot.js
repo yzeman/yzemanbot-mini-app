@@ -1,5 +1,4 @@
 const { Telegraf, session } = require('telegraf');
-const express = require('express');
 require('dotenv').config();
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -18,15 +17,21 @@ bot.use(session());
 
 // Handle /start command with referral parameter
 bot.command('start', (ctx) => {
+    console.log('📨 /start command received from user:', ctx.from.id);
+    
     const args = ctx.message.text.split(' ');
     let referralCode = args[1]; // This captures the referral code like ?start=CODE
+    
+    console.log('Raw referral code from URL:', referralCode);
     
     // Remove any 'ref-' prefix if present to clean it
     if (referralCode && referralCode.startsWith('ref-')) {
         referralCode = referralCode.substring(4);
+        console.log('Cleaned referral code (removed ref-):', referralCode);
     }
     if (referralCode && referralCode.startsWith('YZEMAN-')) {
         referralCode = referralCode.substring(7);
+        console.log('Cleaned referral code (removed YZEMAN-):', referralCode);
     }
     
     // Store referral code in session
@@ -40,6 +45,8 @@ bot.command('start', (ctx) => {
     if (referralCode) {
         webAppUrl = `${MINI_APP_URL}?start=ref-${referralCode}`;
     }
+    
+    console.log('Opening Mini App URL:', webAppUrl);
     
     const keyboard = {
         inline_keyboard: [
@@ -78,6 +85,10 @@ bot.command('start', (ctx) => {
     ctx.reply(message, {
         parse_mode: 'Markdown',
         reply_markup: keyboard
+    }).then(() => {
+        console.log('✅ Reply sent to user:', ctx.from.id);
+    }).catch(err => {
+        console.error('❌ Failed to send reply:', err.message);
     });
 });
 
@@ -105,50 +116,32 @@ bot.action('help', async (ctx) => {
     ctx.reply(helpMessage, { parse_mode: 'Markdown' });
 });
 
-// Webhook setup for Render
-const app = express();
-
-app.use(express.json());
-
-app.post(`/webhook/${BOT_TOKEN}`, (req, res) => {
-    bot.handleUpdate(req.body, res);
-    res.sendStatus(200);
+// Error handling
+bot.catch((err, ctx) => {
+    console.error(`❌ Bot error for user ${ctx.from?.id}:`, err);
+    ctx.reply('Sorry, something went wrong. Please try again later.');
 });
 
-app.get('/bot-health', (req, res) => {
-    res.status(200).json({ status: 'Bot is running', time: new Date().toISOString() });
+// Start the bot using polling (simpler, no webhook needed)
+console.log('🤖 Starting bot in polling mode...');
+bot.launch().then(() => {
+    console.log('✅ Bot is running and listening for commands!');
+    console.log('📱 Bot username: @YzemanBot');
+}).catch(err => {
+    console.error('❌ Failed to launch bot:', err);
+    process.exit(1);
 });
-
-const PORT = process.env.BOT_PORT || 3002;
-
-// Start the bot
-if (process.env.NODE_ENV === 'production') {
-    // Use webhook in production on Render
-    const WEBHOOK_URL = `${process.env.RENDER_EXTERNAL_URL || 'https://yzemanbot-backend.onrender.com'}/webhook/${BOT_TOKEN}`;
-    
-    bot.telegram.setWebhook(WEBHOOK_URL).then(() => {
-        console.log(`✅ Webhook set to: ${WEBHOOK_URL}`);
-    }).catch(err => {
-        console.error('❌ Webhook setup failed:', err.message);
-    });
-    
-    app.listen(PORT, () => {
-        console.log(`🤖 Bot webhook server running on port ${PORT}`);
-    });
-} else {
-    // Use polling in development
-    bot.launch();
-    console.log('🤖 Bot started in polling mode');
-}
 
 // Enable graceful stop
 process.once('SIGINT', () => {
+    console.log('🛑 SIGINT received, stopping bot...');
     bot.stop('SIGINT');
     process.exit(0);
 });
 process.once('SIGTERM', () => {
+    console.log('🛑 SIGTERM received, stopping bot...');
     bot.stop('SIGTERM');
     process.exit(0);
 });
 
-console.log('🤖 Yzeman Bot is running...');
+console.log('🤖 Yzeman Bot is running in polling mode...');
