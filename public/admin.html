@@ -43,7 +43,7 @@
             font-size: 0.9rem;
         }
 
-        /* Stats Grid - 2 columns, 2 rows (2x2) */
+        /* Stats Grid - 2x2 */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -95,6 +95,9 @@
             background: rgba(255, 255, 255, 0.03);
             padding: 10px;
             border-radius: 50px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .nav-btn {
@@ -303,7 +306,7 @@
         /* Buttons */
         .approve-btn { background: #00c853; color: white; border: none; padding: 5px 12px; border-radius: 20px; cursor: pointer; margin: 2px; }
         .reject-btn { background: #ff5252; color: white; border: none; padding: 5px 12px; border-radius: 20px; cursor: pointer; margin: 2px; }
-        .action-btn { background: linear-gradient(135deg, #6a11cb, #2575fc); color: white; border: none; padding: 5px 12px; border-radius: 20px; cursor: pointer; font-size: 11px; margin: 2px; }
+        .action-btn { background: linear-gradient(135deg, #6a11cb, #2575fc); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; margin: 5px; }
         .action-btn.danger { background: #ff5252; }
         .action-btn.warning { background: #ff9800; }
         .copy-btn { background: #2196F3; color: white; border: none; padding: 3px 8px; border-radius: 12px; cursor: pointer; font-size: 10px; margin-left: 5px; }
@@ -339,7 +342,7 @@
         .tier-Gold { color: #FFD700; }
         .tier-Platinum { color: #E0E0E0; }
 
-        /* Analytics Grid - 2x2 columns */
+        /* Analytics Grid - 2x2 */
         .analytics-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -394,7 +397,7 @@
             <button class="nav-btn" data-panel="users">👥 All Users</button>
             <button class="nav-btn" data-panel="withdrawals">💰 Pending Withdrawals</button>
             <button class="nav-btn" data-panel="analytics">📈 Analytics</button>
-            <button class="nav-btn" data-panel="bonus">🎁 Edit Bonus</button>
+            <button class="nav-btn" data-panel="editbonus">🎁 Edit Bonus</button>
         </div>
 
         <!-- PANEL 1: HOME -->
@@ -428,98 +431,97 @@
                             <th onclick="sortBy('tier')">Tier</th>
                             <th onclick="sortBy('points')">Points</th>
                             <th onclick="sortBy('referrals')">Referrals</th>
-                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="usersBody">
-                        <tr><td colspan="7" class="loading">Loading users...</td></tr>
+                        <tr><td colspan="6" class="loading">Loading users...<\/td><\/tr>
                     </tbody>
-                </table>
-            </div>
-        </div>
+                <\/table>
+            <\/div>
+        <\/div>
 
         <!-- PANEL 3: PENDING WITHDRAWALS -->
         <div id="panel-withdrawals" class="panel">
             <div class="pending-section">
-                <div class="bonus-title">⏳ Pending Withdrawal Requests <span id="pendingCount" style="background:rgba(0,0,0,0.3); padding:2px 10px; border-radius:20px;">0</span></div>
+                <div class="bonus-title">⏳ Pending Withdrawal Requests <span id="pendingCount" style="background:rgba(0,0,0,0.3); padding:2px 10px; border-radius:20px;">0</span><\/div>
                 <div class="table-wrapper">
-                    <div id="pendingWithdrawalsList" class="loading">Loading withdrawals...</div>
-                </div>
-            </div>
-        </div>
+                    <div id="pendingWithdrawalsList" class="loading">Loading withdrawals...<\/div>
+                <\/div>
+            <\/div>
+        <\/div>
 
         <!-- PANEL 4: ANALYTICS -->
         <div id="panel-analytics" class="panel">
             <!-- Analytics Stats 2x2 Grid -->
             <div class="analytics-grid">
-                <div class="stat-card"><div class="stat-icon">🏆</div><div class="stat-number" id="topReferrer">-</div><div class="stat-label">Top Referrer</div></div>
-                <div class="stat-card"><div class="stat-icon">💎</div><div class="stat-number" id="topEarner">-</div><div class="stat-label">Top Earner</div></div>
-                <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-number" id="platinumCount">-</div><div class="stat-label">Platinum Users</div></div>
-                <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-number" id="newUsersToday">-</div><div class="stat-label">New Today</div></div>
-            </div>
+                <div class="stat-card"><div class="stat-icon">🏆</div><div class="stat-number" id="topReferrer">-<\/div><div class="stat-label">Top Referrer<\/div><\/div>
+                <div class="stat-card"><div class="stat-icon">💎</div><div class="stat-number" id="topEarner">-<\/div><div class="stat-label">Top Earner<\/div><\/div>
+                <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-number" id="newUsersToday">-<\/div><div class="stat-label">New Today<\/div><\/div>
+                <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-number" id="platinumCount">-<\/div><div class="stat-label">Platinum Users<\/div><\/div>
+            <\/div>
 
-            <!-- Tier Distribution -->
+            <!-- Tier Distribution - 5 columns -->
             <div class="table-wrapper" style="margin-bottom:20px;">
                 <h3 style="margin-bottom:15px;">📊 User Tier Distribution</h3>
                 <div class="tier-stats" id="tierDistribution">
-                    <div class="tier-card"><div class="tier-name tier-Fresher">Fresher</div><div class="tier-count" id="tierFresher">0</div></div>
-                    <div class="tier-card"><div class="tier-name tier-Brute">Brute</div><div class="tier-count" id="tierBrute">0</div></div>
-                    <div class="tier-card"><div class="tier-name tier-Silver">Silver</div><div class="tier-count" id="tierSilver">0</div></div>
-                    <div class="tier-card"><div class="tier-name tier-Gold">Gold</div><div class="tier-count" id="tierGold">0</div></div>
-                    <div class="tier-card"><div class="tier-name tier-Platinum">Platinum</div><div class="tier-count" id="tierPlatinum">0</div></div>
-                </div>
-            </div>
+                    <div class="tier-card"><div class="tier-name tier-Fresher">Fresher</div><div class="tier-count" id="tierFresher">0<\/div><\/div>
+                    <div class="tier-card"><div class="tier-name tier-Brute">Brute</div><div class="tier-count" id="tierBrute">0<\/div><\/div>
+                    <div class="tier-card"><div class="tier-name tier-Silver">Silver</div><div class="tier-count" id="tierSilver">0<\/div><\/div>
+                    <div class="tier-card"><div class="tier-name tier-Gold">Gold</div><div class="tier-count" id="tierGold">0<\/div><\/div>
+                    <div class="tier-card"><div class="tier-name tier-Platinum">Platinum</div><div class="tier-count" id="tierPlatinum">0<\/div><\/div>
+                <\/div>
+            <\/div>
 
             <!-- Top 10 Referrers Table -->
             <div class="table-wrapper">
                 <h3 style="margin-bottom:15px;">🏅 Top 10 Referrers</h3>
                 <table id="topReferrersTable">
-                    <thead><tr><th>Rank</th><th>Username</th><th>Referrals</th><th>Tier</th></tr></thead>
-                    <tbody id="topReferrersBody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody>
-                </table>
-            </div>
+                    <thead><tr><th>Rank</th><th>Username</th><th>Referrals</th><th>Tier</th><\/thead>
+                    <tbody id="topReferrersBody"><tr><td colspan="4" class="loading">Loading...<\/td><\/tr><\/tbody>
+                <\/table>
+            <\/div>
 
             <!-- Top 10 Earners Table -->
             <div class="table-wrapper" style="margin-top:20px;">
                 <h3 style="margin-bottom:15px;">💰 Top 10 Earners</h3>
                 <table id="topEarnersTable">
-                    <thead><tr><th>Rank</th><th>Username</th><th>Points</th><th>USD Value</th><th>Tier</th></tr></thead>
-                    <tbody id="topEarnersBody"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody>
-                </table>
-            </div>
-        </div>
+                    <thead><tr><th>Rank</th><th>Username</th><th>Points</th><th>USD Value</th><th>Tier</th><\/thead>
+                    <tbody id="topEarnersBody"><tr><td colspan="5" class="loading">Loading...<\/td><\/tr><\/tbody>
+                <\/table>
+            <\/div>
+        <\/div>
 
         <!-- PANEL 5: EDIT BONUS -->
-        <div id="panel-bonus" class="panel">
+        <div id="panel-editbonus" class="panel">
             <div class="bonus-section">
                 <div class="bonus-title">🎁 Edit Bonus Codes</div>
                 <div class="bonus-grid" id="bonusCodesListFull">
-                    <div class="loading">Loading bonus codes...</div>
-                </div>
+                    <div class="loading">Loading bonus codes...<\/div>
+                <\/div>
                 <div style="margin-top: 15px; text-align: center;">
                     <button class="refresh-btn add-bonus-btn" onclick="addNewBonusCode()">➕ Add New Bonus Code</button>
-                </div>
-            </div>
-        </div>
-    </div>
+                <\/div>
+            <\/div>
+        <\/div>
+    <\/div>
 
-    <!-- User Detail Modal -->
+    <!-- User Detail Modal (Only here Add/Deduct/Delete buttons appear) -->
     <div id="userModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>👤 User Details</h3>
-                <button class="close-modal" onclick="closeModal()">&times;</button>
-            </div>
+                <button class="close-modal" onclick="closeModal()">&times;<\/button>
+            <\/div>
             <div id="modalBody">
-                <div class="loading">Loading...</div>
-            </div>
+                <div class="loading">Loading...<\/div>
+            <\/div>
             <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: center;">
                 <button class="action-btn" id="modalAddPoints">➕ Add Points</button>
                 <button class="action-btn warning" id="modalDeductPoints">➖ Deduct Points</button>
                 <button class="action-btn danger" id="modalDeleteUser">🗑️ Delete User</button>
-            </div>
-        </div>
-    </div>
+            <\/div>
+        <\/div>
+    <\/div>
 
     <script>
         let allUsers = [];
@@ -550,11 +552,10 @@
                 const panelId = 'panel-' + btn.dataset.panel;
                 document.getElementById(panelId).classList.add('active');
                 
-                // Load data when panel is opened
                 if (btn.dataset.panel === 'users') loadAllData();
                 if (btn.dataset.panel === 'withdrawals') loadWithdrawals();
                 if (btn.dataset.panel === 'analytics') { loadAllData(); setTimeout(loadAnalytics, 500); }
-                if (btn.dataset.panel === 'bonus') loadBonusCodesFull();
+                if (btn.dataset.panel === 'editbonus') loadBonusCodesFull();
                 if (btn.dataset.panel === 'home') loadBonusCodes();
             });
         });
@@ -570,8 +571,7 @@
         function loadBonusCodes() {
             const container = document.getElementById('bonusCodesList');
             if (!container) return;
-            const codes = Object.entries(bonusCodes).slice(0, 3);
-            container.innerHTML = codes.map(([code, bonus]) => {
+            container.innerHTML = Object.entries(bonusCodes).map(([code, bonus]) => {
                 const reward = [];
                 if (bonus.points > 0) reward.push(`${bonus.points.toLocaleString()} pts`);
                 if (bonus.dollars > 0) reward.push(`$${bonus.dollars}`);
@@ -650,7 +650,7 @@
                 updateTierDistribution();
             } catch (err) {
                 showMessage('❌ Failed to load users: ' + err.message, true);
-                document.getElementById('usersBody').innerHTML = '<tr><td colspan="7" class="loading">Error loading users</td></tr>';
+                document.getElementById('usersBody').innerHTML = '<tr><td colspan="6" class="loading">Error loading users<\/td><\/tr>';
             }
         }
 
@@ -671,7 +671,7 @@
             const pending = allWithdrawals.filter(w => w.status === 'pending');
             document.getElementById('pendingCount').textContent = pending.length;
             if (pending.length === 0) { container.innerHTML = '<div style="text-align:center; padding:40px;">✅ No pending withdrawal requests</div>'; return; }
-            container.innerHTML = `<table><thead><tr><th>ID</th><th>Username</th><th>Amount</th><th>Wallet Address</th><th>Date</th><th>Actions</th></tr></thead><tbody>${pending.map(w => `<tr><td>${w.id}</td><td>${w.username || w.first_name || 'User'}</td><td style="color:#00c853;">$${w.amount}</td><td><code>${w.wallet_address.substring(0, 20)}...</code><button class="copy-btn" onclick="copyToClipboard('${w.wallet_address}')">Copy</button></td><td>${new Date(w.created_at).toLocaleString()}</td><td><button class="approve-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'approved')">Approve</button><button class="reject-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'rejected')">Reject</button></td></tr>`).join('')}</tbody></table>`;
+            container.innerHTML = `<tr><thead><tr><th>ID</th><th>Username</th><th>Amount</th><th>Wallet Address</th><th>Date</th><th>Actions</th></tr></thead><tbody>${pending.map(w => `<tr><td>${w.id}<\/td><td>${w.username || w.first_name || 'User'}<\/td><td style="color:#00c853;">$${w.amount}<\/td><td><code>${w.wallet_address.substring(0, 20)}...<\/code><button class="copy-btn" onclick="copyToClipboard('${w.wallet_address}')">Copy<\/button><\/td><td>${new Date(w.created_at).toLocaleString()}<\/td><td><button class="approve-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'approved')">Approve<\/button><button class="reject-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'rejected')">Reject<\/button><\/td><\/tr>`).join('')}</tbody></table>`;
         }
 
         async function processWithdrawal(withdrawalId, userId, amount, status) {
@@ -722,10 +722,10 @@
             document.getElementById('newUsersToday').textContent = newToday;
             
             const topReferrers = [...allUsers].sort((a, b) => (b.referrals || 0) - (a.referrals || 0)).slice(0, 10);
-            document.getElementById('topReferrersBody').innerHTML = topReferrers.map((u, i) => `<tr><td>${i+1}</td><td>${u.username || u.first_name || '-'}</td><td>${u.referrals || 0}</td><td class="tier-${u.tier}">${u.tier || 'Fresher'}</td></tr>`).join('');
+            document.getElementById('topReferrersBody').innerHTML = topReferrers.map((u, i) => `<tr><td>${i+1}<\/td><td>${u.username || u.first_name || '-'}<\/td><td>${u.referrals || 0}<\/td><td class="tier-${u.tier}">${u.tier || 'Fresher'}<\/td><\/tr>`).join('');
             
             const topEarners = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
-            document.getElementById('topEarnersBody').innerHTML = topEarners.map((u, i) => `<tr><td>${i+1}</td><td>${u.username || u.first_name || '-'}</td><td>${(u.points || 0).toLocaleString()})</td><td>$${((u.points || 0) / 100000).toFixed(2)}</td><td class="tier-${u.tier}">${u.tier || 'Fresher'}</td></tr>`).join('');
+            document.getElementById('topEarnersBody').innerHTML = topEarners.map((u, i) => `<tr><td>${i+1}<\/td><td>${u.username || u.first_name || '-'}<\/td><td>${(u.points || 0).toLocaleString()}<\/td><td>$${((u.points || 0) / 100000).toFixed(2)}<\/td><td class="tier-${u.tier}">${u.tier || 'Fresher'}<\/td><\/tr>`).join('');
         }
 
         function displayUsers() {
@@ -733,8 +733,8 @@
             let filtered = allUsers.filter(u => (u.username && u.username.toLowerCase().includes(searchTerm)) || (u.first_name && u.first_name.toLowerCase().includes(searchTerm)) || (u.telegram_id && u.telegram_id.toString().includes(searchTerm)));
             filtered.sort((a, b) => { let aVal = a[sortColumn] || 0, bVal = b[sortColumn] || 0; if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); } if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1; if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1; return 0; });
             const tbody = document.getElementById('usersBody');
-            if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="loading">No users found<\/td><\/tr>'; return; }
-            tbody.innerHTML = filtered.map(user => `<tr class="user-row" onclick="showUserDetail(${user.id})"><td>${user.id}<\/td><td>${user.username ? '@' + user.username : '-'}<\/td><td>${user.first_name || ''} ${user.last_name || ''}<\/td><td class="tier-${user.tier || 'Fresher'}">${user.tier || 'Fresher'}<\/td><td>${(user.points || 0).toLocaleString()}<\/td><td>${user.referrals || 0}<\/td><td><button class="action-btn" onclick="event.stopPropagation(); addPoints(${user.id}, '${user.first_name || ''}')">➕ Add<\/button><button class="action-btn warning" onclick="event.stopPropagation(); deductPoints(${user.id}, '${user.first_name || ''}')">➖ Deduct<\/button><button class="action-btn danger" onclick="event.stopPropagation(); deleteUser(${user.id}, '${user.first_name || ''}')">🗑️ Delete<\/button><\/td><\/tr>`).join('');
+            if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="loading">No users found<\/td><\/tr>'; return; }
+            tbody.innerHTML = filtered.map(user => `<tr class="user-row" onclick="showUserDetail(${user.id})"><td>${user.id}<\/td><td>${user.username ? '@' + user.username : '-'}<\/td><td>${user.first_name || ''} ${user.last_name || ''}<\/td><td class="tier-${user.tier || 'Fresher'}">${user.tier || 'Fresher'}<\/td><td>${(user.points || 0).toLocaleString()}<\/td><td>${user.referrals || 0}<\/td><\/tr>`).join('');
         }
 
         function showUserDetail(userId) {
@@ -752,7 +752,7 @@
                 <div class="user-detail-row"><span class="user-detail-label">Points:</span><span class="user-detail-value">${(user.points || 0).toLocaleString()} pts ($${((user.points || 0)/100000).toFixed(2)})<\/span><\/div>
                 <div class="user-detail-row"><span class="user-detail-label">Referrals:</span><span class="user-detail-value">${user.referrals || 0}<\/span><\/div>
                 <div class="user-detail-row"><span class="user-detail-label">Referral Code:</span><span class="user-detail-value"><code>${user.referral_code || '-'}<\/code><\/span><\/div>
-                <div class="user-detail-row"><span class="user-detail-label">Wallet:</span><span class="user-detail-value"><code>${user.wallet_address || '-'}<\/code>${user.wallet_address ? `<button class="copy-btn" onclick="copyToClipboard('${user.wallet_address}')">Copy</button>` : ''}<\/span><\/div>
+                <div class="user-detail-row"><span class="user-detail-label">Wallet:</span><span class="user-detail-value"><code>${user.wallet_address || '-'}<\/code>${user.wallet_address ? `<button class="copy-btn" onclick="copyToClipboard('${user.wallet_address}')">Copy<\/button>` : ''}<\/span><\/div>
                 <div class="user-detail-row"><span class="user-detail-label">Created:</span><span class="user-detail-value">${new Date(user.created_at).toLocaleString()}<\/span><\/div>
             `;
             modal.style.display = 'flex';
