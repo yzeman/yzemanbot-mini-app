@@ -12,40 +12,112 @@
             --secondary: #2575fc;
             --success: #00c853;
             --warning: #ffab00;
+            --danger: #ff5252;
             --dark: #1a1b25;
             --darker: #12131a;
-            --gray: #6c757d;
+            --gray: #a0a0a0;
             --card-bg: #252836;
             --card-border: #2d3343;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
         .container { max-width: 500px; margin: 0 auto; }
+        
+        /* Header */
         .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .stats-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 25px; }
-        .stat-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; text-align: center; }
-        .stat-value { font-size: 24px; font-weight: bold; color: var(--success); }
+        .header h1 { font-size: 28px; background: linear-gradient(135deg, var(--gold), #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { color: var(--gray); font-size: 13px; margin-top: 5px; }
+        
+        /* Stats Summary */
+        .stats-summary { display: flex; gap: 15px; margin-bottom: 25px; }
+        .stat-card { 
+            flex: 1; 
+            background: linear-gradient(135deg, var(--card-bg), rgba(37,117,252,0.1));
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 18px;
+            text-align: center;
+        }
+        .stat-value { font-size: 28px; font-weight: bold; color: var(--success); }
         .stat-label { font-size: 12px; color: var(--gray); margin-top: 5px; }
-        .achievement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .achievement-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 15px; text-align: center; transition: all 0.3s; }
-        .achievement-card.locked { opacity: 0.6; filter: grayscale(0.3); }
-        .achievement-card.unlocked { border-color: var(--success); background: rgba(0, 200, 83, 0.1); }
-        .achievement-icon { font-size: 40px; margin-bottom: 10px; }
-        .achievement-name { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        
+        /* Achievement Grid */
+        .achievement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .achievement-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 18px 12px;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .achievement-card.unlocked {
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--card-bg), rgba(0,200,83,0.08));
+        }
+        .achievement-card.unlocked::before {
+            content: "✓";
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: var(--success);
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .achievement-card.locked { opacity: 0.7; }
+        
+        .achievement-icon { font-size: 44px; margin-bottom: 10px; }
+        .achievement-name { font-weight: bold; font-size: 14px; margin-bottom: 5px; color: white; }
         .achievement-desc { font-size: 11px; color: var(--gray); margin-bottom: 8px; }
-        .achievement-reward { font-size: 11px; color: var(--success); font-weight: bold; }
-        .locked-badge { background: var(--gray); color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; display: inline-block; margin-top: 8px; }
-        .unlocked-badge { background: var(--success); color: white; font-size: 10px; padding: 3px 8px; border-radius: 12px; display: inline-block; margin-top: 8px; }
+        .achievement-reward { 
+            font-size: 12px; 
+            color: var(--success); 
+            font-weight: bold;
+            background: rgba(0,200,83,0.15);
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-top: 8px;
+        }
+        .locked-badge, .unlocked-badge {
+            font-size: 10px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .unlocked-badge { background: var(--success); color: white; }
+        .locked-badge { background: var(--gray); color: white; }
+        
+        /* Loading & Empty States */
+        .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        .empty-state i { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+        
+        /* Notification */
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
+        
+        /* Bottom Navigation */
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
-            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+            display: flex; justify-content: space-around; padding: 10px 12px; z-index: 100;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
-        .loading { text-align: center; padding: 40px; color: var(--gray); }
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 6px 10px; border-radius: 12px; }
+        .nav-item i { font-size: 18px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37,117,252,0.1); }
+        
+        @media (max-width: 480px) {
+            body { padding: 15px; padding-bottom: 70px; }
+            .achievement-grid { gap: 10px; }
+            .achievement-card { padding: 15px 8px; }
+            .achievement-icon { font-size: 36px; }
+            .achievement-name { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
@@ -54,12 +126,18 @@
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-medal"></i> Achievements</h1>
-            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Unlock badges and earn bonus points</p>
+            <p>Unlock badges and earn bonus points!</p>
         </div>
 
-        <div class="stats-summary" id="statsSummary">
-            <div class="stat-card"><div class="stat-value" id="achievementsCount">0</div><div class="stat-label">Achievements Unlocked</div></div>
-            <div class="stat-card"><div class="stat-value" id="totalPointsEarned">0</div><div class="stat-label">Total Points Earned</div></div>
+        <div class="stats-summary">
+            <div class="stat-card">
+                <div class="stat-value" id="achievementsCount">0</div>
+                <div class="stat-label">Achievements Unlocked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalPointsEarned">0</div>
+                <div class="stat-label">Total Points Earned</div>
+            </div>
         </div>
 
         <div class="achievement-grid" id="achievementsGrid">
@@ -95,11 +173,24 @@
             };
             const response = await fetch(endpoint, options);
             if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error || 'Request failed');
+                const error = await response.json();
+                throw new Error(error.error || 'Request failed');
             }
             return response.json();
         }
+
+        const iconMap = {
+            'Loyal User': '🔥', 
+            'Referral Master': '👑', 
+            'Points Millionaire': '💰',
+            'Social Butterfly': '🦋', 
+            'Tournament Winner': '🏆', 
+            'Team Player': '🤝',
+            'Platinum Elite': '💎', 
+            'Wheel Champion': '🎡', 
+            'Daily Streak 7': '📅', 
+            'Super Referrer': '⭐'
+        };
 
         async function loadAchievements() {
             try {
@@ -109,38 +200,41 @@
                 document.getElementById('totalPointsEarned').textContent = (data.userStats?.total_points_earned || 0).toLocaleString();
                 
                 const grid = document.getElementById('achievementsGrid');
-                const iconMap = {
-                    'Loyal User': '🔥', 
-                    'Referral Master': '👑', 
-                    'Points Millionaire': '💰',
-                    'Social Butterfly': '🦋', 
-                    'Tournament Winner': '🏆', 
-                    'Team Player': '🤝',
-                    'Platinum Elite': '💎', 
-                    'Wheel Champion': '🎡', 
-                    'Daily Streak 7': '📅', 
-                    'Super Referrer': '⭐'
-                };
                 
                 if (!data.achievements || data.achievements.length === 0) {
-                    grid.innerHTML = '<div class="loading">No achievements available yet</div>';
+                    grid.innerHTML = '<div class="empty-state"><i class="fas fa-medal"></i><br>No achievements available</div>';
                     return;
                 }
                 
-                grid.innerHTML = data.achievements.map(ach => `
-                    <div class="achievement-card ${ach.achieved ? 'unlocked' : 'locked'}">
-                        <div class="achievement-icon">${iconMap[ach.name] || '🏅'}</div>
-                        <div class="achievement-name">${ach.name}</div>
-                        <div class="achievement-desc">${ach.description || ''}</div>
-                        <div class="achievement-reward">+${(ach.points_reward || 0).toLocaleString()} pts</div>
-                        ${ach.achieved ? '<div class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</div>' : '<div class="locked-badge"><i class="fas fa-lock"></i> Locked</div>'}
-                    </div>
-                `).join('');
+                grid.innerHTML = data.achievements.map(ach => {
+                    const isUnlocked = ach.achieved === true;
+                    return `
+                        <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'}">
+                            <div class="achievement-icon">${iconMap[ach.name] || '🏅'}</div>
+                            <div class="achievement-name">${escapeHtml(ach.name)}</div>
+                            <div class="achievement-desc">${escapeHtml(ach.description || '')}</div>
+                            <div class="achievement-reward">+${(ach.points_reward || 0).toLocaleString()} pts</div>
+                            ${isUnlocked 
+                                ? '<div class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</div>' 
+                                : '<div class="locked-badge"><i class="fas fa-lock"></i> Locked</div>'}
+                        </div>
+                    `;
+                }).join('');
             } catch (err) {
                 console.error('Achievements error:', err);
-                document.getElementById('achievementsGrid').innerHTML = '<div class="loading"><i class="fas fa-exclamation-circle"></i><br>Failed to load achievements. Please refresh.</div>';
+                document.getElementById('achievementsGrid').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load achievements</div>';
                 showNotification('Failed to load achievements', true);
             }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
         }
 
         loadAchievements();
