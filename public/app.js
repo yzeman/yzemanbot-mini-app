@@ -15,9 +15,6 @@ if (tg) {
 let referralCode = null;
 const urlParams = new URLSearchParams(window.location.search);
 referralCode = urlParams.get('start');
-if (referralCode && referralCode.startsWith('ref-')) {
-    referralCode = referralCode.substring(4);
-}
 
 let currentUser = null;
 let completedSocial = JSON.parse(localStorage.getItem('completedSocial') || '{}');
@@ -162,8 +159,9 @@ function updateUI() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
     if (adReward) adReward.textContent = adRewards[currentUser.tier] || 557;
     
+    // FIXED: referral_code already contains "ref-", so use it directly
     if (referralLink && currentUser.referral_code) {
-        referralLink.textContent = `https://t.me/YzemanBot?start=ref-${currentUser.referral_code}`;
+        referralLink.textContent = `https://t.me/YzemanBot?start=${currentUser.referral_code}`;
     }
     
     const withdrawBtn = document.getElementById('withdrawBtn');
