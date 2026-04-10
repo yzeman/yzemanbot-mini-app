@@ -1,4 +1,5 @@
 const { Telegraf } = require('telegraf');
+const express = require('express');
 require('dotenv').config();
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -9,10 +10,33 @@ if (!BOT_TOKEN) {
     process.exit(1);
 }
 
-// Initialize bot (without session - we'll use a simple variable instead)
+// Create express app for health check (keeps Render happy)
+const app = express();
+const PORT = process.env.PORT || 3002;
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        bot: 'running',
+        time: new Date().toISOString()
+    });
+});
+
+// Simple home page
+app.get('/', (req, res) => {
+    res.send('🤖 Yzeman Bot is running!');
+});
+
+// Start the HTTP server
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🌐 Health server running on port ${PORT}`);
+});
+
+// Initialize bot
 const bot = new Telegraf(BOT_TOKEN);
 
-// Simple in-memory storage for referral codes (no session needed)
+// Simple in-memory storage for referral codes
 const referralStorage = new Map();
 
 // Handle /start command with referral parameter
@@ -65,7 +89,7 @@ bot.command('start', (ctx) => {
         ]
     };
     
-    // Welcome message using HTML (more reliable than Markdown)
+    // Welcome message using HTML
     let message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
     message += `Earn points by referring friends and watching ads.\n\n`;
     
@@ -122,8 +146,8 @@ bot.catch((err, ctx) => {
     ctx.reply('Sorry, something went wrong. Please try again later.');
 });
 
-// Start the bot using polling (no webhook needed)
-console.log('🤖 Starting bot in polling mode...');
+// Start the bot
+console.log('🤖 Starting bot...');
 bot.launch().then(() => {
     console.log('✅ Bot is running and listening for commands!');
     console.log('📱 Bot username: @YzemanBot');
