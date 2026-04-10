@@ -12,6 +12,7 @@
             --secondary: #2575fc;
             --success: #00c853;
             --warning: #ffab00;
+            --danger: #ff5252;
             --dark: #1a1b25;
             --darker: #12131a;
             --gray: #6c757d;
@@ -31,15 +32,17 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .team-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
         .team-name { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
-        .team-code { background: rgba(37, 117, 252, 0.1); padding: 10px; border-radius: 12px; font-family: monospace; text-align: center; margin: 15px 0; }
+        .team-code { background: rgba(37, 117, 252, 0.1); padding: 10px; border-radius: 12px; font-family: monospace; text-align: center; margin: 15px 0; font-size: 18px; letter-spacing: 2px; }
         .member-list { margin-top: 15px; max-height: 300px; overflow-y: auto; }
         .member-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
         .leader-badge { color: var(--warning); font-size: 12px; }
+        .leave-btn { background: var(--danger); color: white; border: none; border-radius: 12px; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; margin-top: 15px; }
         .join-form { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
-        .join-input { width: 100%; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); margin-bottom: 10px; }
+        .join-input { width: 100%; padding: 12px; background: var(--darker); border: none; border-radius: 12px; color: var(--light); margin-bottom: 10px; text-align: center; font-size: 16px; letter-spacing: 2px; }
         .create-form { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
         .btn { background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 12px; padding: 12px; width: 100%; cursor: pointer; font-weight: bold; }
         .btn-success { background: linear-gradient(45deg, #00c853, #64dd17); }
+        .copy-btn { background: rgba(37, 117, 252, 0.2); border: none; border-radius: 8px; padding: 5px 12px; cursor: pointer; color: var(--secondary); margin-left: 10px; }
         .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
         .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
         .rank { width: 40px; font-weight: bold; }
@@ -47,6 +50,7 @@
         .rank-2 { color: #C0C0C0; }
         .rank-3 { color: #CD7F32; }
         .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
             display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
@@ -54,46 +58,60 @@
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+        .info-card { background: rgba(37, 117, 252, 0.1); border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center; }
+        .info-card i { font-size: 32px; margin-bottom: 10px; opacity: 0.7; }
     </style>
 </head>
 <body>
+    <div class="notification" id="notification"></div>
+
     <div class="container">
         <div class="header">
             <h1><i class="fas fa-users"></i> Teams</h1>
-            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Join a team and compete monthly!</p>
+            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Join a team and compete monthly for bonus rewards!</p>
+        </div>
+
+        <!-- Info Card -->
+        <div class="info-card">
+            <i class="fas fa-trophy"></i>
+            <p style="font-size: 13px;"><strong>🏆 Monthly Competition</strong></p>
+            <p style="font-size: 11px; color: var(--gray);">The team with the most total points each month wins! All members get bonus points.</p>
+            <p style="font-size: 11px; color: var(--gray); margin-top: 8px;">💰 1st Place: +50,000 pts | 2nd: +25,000 pts | 3rd: +10,000 pts</p>
         </div>
 
         <div class="tabs">
             <div class="tab active" data-tab="myteam">👥 My Team</div>
             <div class="tab" data-tab="leaderboard">🏆 Team Leaderboard</div>
-            <div class="tab" data-tab="monthly">📅 Monthly Competition</div>
+            <div class="tab" data-tab="monthly">📅 Monthly Results</div>
         </div>
 
         <div id="myteamTab" class="tab-content active">
             <div id="myTeamInfo">
-                <div class="loading">Loading your team...</div>
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading your team...</div>
             </div>
             <div class="join-form" id="joinForm">
-                <h3 style="margin-bottom: 15px;">Join a Team</h3>
-                <input type="text" class="join-input" id="teamCodeInput" placeholder="Enter Team Code">
+                <h3 style="margin-bottom: 15px;">🔗 Join a Team</h3>
+                <p style="font-size: 12px; color: var(--gray); margin-bottom: 10px;">Enter the 8-character team code shared by the team leader</p>
+                <input type="text" class="join-input" id="teamCodeInput" placeholder="Enter Team Code (e.g., A3F9B2C1)" maxlength="8" autocomplete="off">
                 <button class="btn" id="joinTeamBtn">Join Team</button>
             </div>
             <div class="create-form" id="createForm">
-                <h3 style="margin-bottom: 15px;">Create a Team</h3>
-                <input type="text" class="join-input" id="teamNameInput" placeholder="Team Name">
+                <h3 style="margin-bottom: 15px;">✨ Create a Team</h3>
+                <p style="font-size: 12px; color: var(--gray); margin-bottom: 10px;">Create your own team and invite friends using the team code</p>
+                <input type="text" class="join-input" id="teamNameInput" placeholder="Team Name (e.g., Dragon Warriors)" maxlength="30">
                 <button class="btn btn-success" id="createTeamBtn">Create Team</button>
             </div>
         </div>
 
         <div id="leaderboardTab" class="tab-content">
             <div class="leaderboard-list" id="teamLeaderboardList">
-                <div class="loading">Loading team leaderboard...</div>
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading team leaderboard...</div>
             </div>
         </div>
 
         <div id="monthlyTab" class="tab-content">
             <div class="team-card" id="monthlyInfo">
-                <div class="loading">Loading monthly competition...</div>
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading monthly competition...</div>
             </div>
         </div>
     </div>
@@ -110,20 +128,38 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.expand(); tg.ready(); }
 
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.style.background = isError ? '#ff5252' : '#00c853';
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+
         async function apiCall(endpoint, data = null) {
-            const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
-            if (data) options.body = JSON.stringify(data);
+            const options = { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data || { initData: tg.initData })
+            };
             const response = await fetch(endpoint, options);
-            if (!response.ok) throw new Error(await response.text());
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Request failed');
+            }
             return response.json();
         }
 
-        function showNotification(msg, isError = false) {
-            const notif = document.createElement('div');
-            notif.textContent = msg;
-            notif.style.cssText = `position:fixed;top:20px;left:50%;transform:translateX(-50%);background:${isError ? '#ff5252' : '#00c853'};color:white;padding:12px 24px;border-radius:12px;z-index:1001;font-size:14px;`;
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 3000);
+        async function leaveTeam() {
+            if (!confirm('Leave your current team? You can join or create another team anytime.')) return;
+            try {
+                await apiCall('/api/team/leave', { initData: tg.initData });
+                showNotification('👋 You left the team');
+                loadMyTeam();
+                loadTeamLeaderboard();
+            } catch (err) {
+                showNotification(err.message, true);
+            }
         }
 
         async function loadMyTeam() {
@@ -132,23 +168,35 @@
                 const container = document.getElementById('myTeamInfo');
                 
                 if (!data.has_team) {
-                    container.innerHTML = '<div class="team-card"><p style="text-align:center;">You are not in a team yet! Join or create one below.</p></div>';
+                    container.innerHTML = `
+                        <div class="team-card">
+                            <p style="text-align:center;">🚫 You are not in a team yet</p>
+                            <p style="text-align:center; font-size:12px; color:var(--gray); margin-top:10px;">Create a team or join using a team code below</p>
+                        </div>
+                    `;
                     return;
                 }
                 
                 container.innerHTML = `
                     <div class="team-card">
-                        <div class="team-name">${data.team.name}</div>
-                        <div class="team-code">Team Code: <strong>${data.team.code}</strong> <button class="copy-btn" onclick="copyCode('${data.team.code}')" style="background:none;border:none;color:var(--secondary);cursor:pointer;">📋 Copy</button></div>
-                        <div>👑 Leader: ${data.team.leader_name || 'You'}</div>
+                        <div class="team-name">${escapeHtml(data.team.name)}</div>
+                        <div class="team-code">
+                            Team Code: <strong>${data.team.code}</strong>
+                            <button class="copy-btn" onclick="copyCode('${data.team.code}')">📋 Copy</button>
+                        </div>
+                        <div>👑 Leader: ${escapeHtml(data.team.leader_name || 'You')}</div>
                         <div>👥 Members: ${data.team.member_count}</div>
                         <div>💰 Total Points: ${(data.team.total_points || 0).toLocaleString()}</div>
                         <div>📊 Total Referrals: ${data.team.total_referrals || 0}</div>
-                        <div class="member-list"><strong>Members:</strong> ${data.members.map(m => `<div class="member-item"><span>${m.first_name || m.username || 'User'} ${m.is_leader ? '<span class="leader-badge">👑 Leader</span>' : ''}</span><span>${(m.points || 0).toLocaleString()} pts</span></div>`).join('')}</div>
+                        <div class="member-list"><strong>📜 Members:</strong> ${data.members.map(m => `<div class="member-item"><span>${escapeHtml(m.first_name || m.username || 'User')} ${m.is_leader ? '<span class="leader-badge">👑 Leader</span>' : ''}</span><span>${(m.points || 0).toLocaleString()} pts</span></div>`).join('')}</div>
+                        <button class="leave-btn" id="leaveTeamBtn">🚪 Leave Team</button>
                     </div>
                 `;
+                
+                document.getElementById('leaveTeamBtn')?.addEventListener('click', leaveTeam);
             } catch (err) {
                 console.error(err);
+                document.getElementById('myTeamInfo').innerHTML = '<div class="loading">Failed to load. Please refresh.</div>';
             }
         }
 
@@ -156,67 +204,93 @@
             try {
                 const data = await apiCall('/api/team/leaderboard', { initData: tg.initData });
                 const container = document.getElementById('teamLeaderboardList');
-                if (!data.length) { container.innerHTML = '<div class="loading">No teams yet</div>'; return; }
+                if (!data.length) { 
+                    container.innerHTML = '<div class="loading">No teams created yet<br><small>Be the first to create a team!</small></div>'; 
+                    return; 
+                }
                 container.innerHTML = data.map((team, idx) => `
                     <div class="leaderboard-item">
                         <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
                         <div class="info" style="flex:1;">
-                            <div class="name">${team.name}</div>
-                            <div class="username">Leader: ${team.leader_name || 'Unknown'} | ${team.member_count} members</div>
+                            <div class="name">${escapeHtml(team.name)}</div>
+                            <div class="username">👑 ${escapeHtml(team.leader_name || 'Unknown')} | ${team.member_count} members</div>
                         </div>
                         <div class="score">${(team.total_points || 0).toLocaleString()} pts</div>
                     </div>
                 `).join('');
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                document.getElementById('teamLeaderboardList').innerHTML = '<div class="loading">Failed to load leaderboard</div>';
+            }
         }
 
         async function loadMonthlyCompetition() {
             try {
                 const data = await apiCall('/api/team/monthly-competition', { initData: tg.initData });
                 const container = document.getElementById('monthlyInfo');
-                if (!data.standings.length) {
-                    container.innerHTML = '<div class="team-card"><p style="text-align:center;">No teams competing this month</p></div>';
+                if (!data.standings || data.standings.length === 0) {
+                    container.innerHTML = '<div class="team-card"><p style="text-align:center;">📭 No teams competing this month<br><small>Join a team to compete!</small></p></div>';
                     return;
                 }
                 container.innerHTML = `
                     <div class="team-card">
-                        <h3>${data.month} Competition</h3>
+                        <h3>🏆 ${data.month} Competition</h3>
                         ${data.standings.map((team, idx) => `
                             <div class="member-item">
-                                <span><strong>#${idx + 1}</strong> ${team.name}</span>
+                                <span><strong>#${idx + 1}</strong> ${escapeHtml(team.name)}</span>
                                 <span>${(team.team_points || 0).toLocaleString()} pts</span>
                             </div>
                         `).join('')}
+                        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--card-border); font-size: 11px; color: var(--gray); text-align: center;">
+                            🎁 Winners get bonus points at month end!
+                        </div>
                     </div>
                 `;
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err);
+                document.getElementById('monthlyInfo').innerHTML = '<div class="loading">Failed to load monthly competition</div>';
+            }
         }
 
         async function createTeam() {
             const teamName = document.getElementById('teamNameInput').value.trim();
             if (!teamName) { showNotification('Enter a team name', true); return; }
+            if (teamName.length < 3) { showNotification('Team name must be at least 3 characters', true); return; }
             try {
                 const result = await apiCall('/api/team/create', { initData: tg.initData, teamName });
-                showNotification(`Team "${teamName}" created! Code: ${result.team.code}`);
+                showNotification(`✅ Team "${teamName}" created! Code: ${result.team.code}`);
                 document.getElementById('teamNameInput').value = '';
                 loadMyTeam();
+                loadTeamLeaderboard();
             } catch (err) { showNotification(err.message, true); }
         }
 
         async function joinTeam() {
             const teamCode = document.getElementById('teamCodeInput').value.trim().toUpperCase();
             if (!teamCode) { showNotification('Enter a team code', true); return; }
+            if (teamCode.length !== 8) { showNotification('Team code must be 8 characters', true); return; }
             try {
                 await apiCall('/api/team/join', { initData: tg.initData, teamCode });
-                showNotification('Joined team successfully!');
+                showNotification('✅ Joined team successfully!');
                 document.getElementById('teamCodeInput').value = '';
                 loadMyTeam();
+                loadTeamLeaderboard();
             } catch (err) { showNotification(err.message, true); }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;'
+                if (m === '>') return '&gt;';
+                return m;
+            });
         }
 
         window.copyCode = (code) => {
             navigator.clipboard.writeText(code);
-            showNotification('Team code copied!');
+            showNotification('📋 Team code copied!');
         };
 
         document.getElementById('joinTeamBtn')?.addEventListener('click', joinTeam);
