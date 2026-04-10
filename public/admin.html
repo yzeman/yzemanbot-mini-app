@@ -24,31 +24,25 @@
             margin: 0 auto;
         }
 
-        /* Header Section */
+        /* Header */
         .header {
             background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
             border-radius: 24px;
             padding: 30px;
             margin-bottom: 30px;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(106, 17, 203, 0.3);
         }
 
         .header h1 {
-            font-size: 2.5rem;
+            font-size: 2rem;
             margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
         }
 
         .header p {
             opacity: 0.9;
-            font-size: 1.1rem;
         }
 
-        /* Stats Grid - New Design */
+        /* Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -58,27 +52,25 @@
 
         .stat-card {
             background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
             border-radius: 20px;
-            padding: 25px 20px;
+            padding: 20px;
             text-align: center;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s;
         }
 
         .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
-            border-color: rgba(106, 17, 203, 0.5);
+            transform: translateY(-3px);
+            border-color: #6a11cb;
         }
 
         .stat-icon {
-            font-size: 2.5rem;
+            font-size: 2rem;
             margin-bottom: 10px;
         }
 
         .stat-number {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: bold;
             background: linear-gradient(135deg, #6a11cb, #2575fc);
             -webkit-background-clip: text;
@@ -89,31 +81,92 @@
         .stat-label {
             color: #888;
             margin-top: 8px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+        }
+
+        /* Bonus Code Section */
+        .bonus-section {
+            background: linear-gradient(135deg, #FF9800, #FF5722);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .bonus-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bonus-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .bonus-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 12px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .bonus-code {
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 1rem;
+            background: #000;
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .bonus-reward {
+            color: #FFD700;
+            font-weight: bold;
+        }
+
+        .bonus-edit {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .bonus-edit:hover {
+            background: #0b7dda;
         }
 
         /* Pending Section */
         .pending-section {
             background: linear-gradient(135deg, #ff9800, #ff5722);
-            border-radius: 24px;
-            padding: 25px;
+            border-radius: 20px;
+            padding: 20px;
             margin-bottom: 30px;
-            box-shadow: 0 10px 25px rgba(255, 87, 34, 0.3);
         }
 
         .pending-title {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         /* Tabs */
         .tabs {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             margin-bottom: 25px;
             flex-wrap: wrap;
         }
@@ -122,30 +175,35 @@
             background: rgba(255, 255, 255, 0.05);
             color: white;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 12px 28px;
-            border-radius: 50px;
+            padding: 10px 24px;
+            border-radius: 30px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s ease;
-            font-size: 1rem;
+            transition: all 0.2s;
         }
 
         .tab-btn:hover {
             background: rgba(106, 17, 203, 0.5);
-            transform: translateY(-2px);
         }
 
         .tab-btn.active {
             background: linear-gradient(135deg, #6a11cb, #2575fc);
             border-color: transparent;
-            box-shadow: 0 5px 15px rgba(106, 17, 203, 0.4);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         /* Tables */
         .table-wrapper {
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 20px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 15px;
             overflow-x: auto;
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
@@ -153,10 +211,11 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 13px;
         }
 
         th, td {
-            padding: 15px;
+            padding: 12px 10px;
             text-align: left;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
@@ -165,8 +224,6 @@
             background: rgba(106, 17, 203, 0.3);
             font-weight: 600;
             cursor: pointer;
-            user-select: none;
-            border-radius: 12px;
         }
 
         th:hover {
@@ -179,73 +236,63 @@
 
         /* Buttons */
         .approve-btn {
-            background: linear-gradient(135deg, #00c853, #69f0ae);
-            color: #000;
+            background: #00c853;
+            color: white;
             border: none;
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: 20px;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            margin: 2px;
         }
 
         .reject-btn {
-            background: linear-gradient(135deg, #ff5252, #ff1744);
+            background: #ff5252;
             color: white;
             border: none;
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: 20px;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            margin: 2px;
         }
 
         .action-btn {
             background: linear-gradient(135deg, #6a11cb, #2575fc);
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 20px;
             cursor: pointer;
-            font-size: 12px;
-            margin: 3px;
-            transition: all 0.3s ease;
+            font-size: 11px;
+            margin: 2px;
         }
 
         .action-btn.danger {
-            background: linear-gradient(135deg, #ff5252, #ff1744);
+            background: #ff5252;
         }
 
         .action-btn.warning {
-            background: linear-gradient(135deg, #ff9800, #ff5722);
+            background: #ff9800;
         }
 
         .copy-btn {
             background: #2196F3;
             color: white;
             border: none;
-            padding: 4px 10px;
-            border-radius: 15px;
+            padding: 3px 8px;
+            border-radius: 12px;
             cursor: pointer;
-            font-size: 11px;
-            margin-left: 8px;
-            transition: all 0.3s ease;
+            font-size: 10px;
+            margin-left: 5px;
         }
 
         .refresh-btn {
-            background: linear-gradient(135deg, #00c853, #69f0ae);
+            background: linear-gradient(135deg, #00c853, #64dd17);
             color: #000;
             border: none;
-            padding: 12px 28px;
-            border-radius: 50px;
+            padding: 10px 20px;
+            border-radius: 30px;
             cursor: pointer;
             font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .refresh-btn:hover, .approve-btn:hover, .reject-btn:hover, .action-btn:hover, .copy-btn:hover {
-            transform: scale(1.05);
-            opacity: 0.9;
         }
 
         /* Search Box */
@@ -258,59 +305,55 @@
 
         .search-box input {
             flex: 1;
-            padding: 14px 20px;
-            border-radius: 50px;
+            padding: 12px 18px;
+            border-radius: 30px;
             border: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.05);
             color: white;
-            font-size: 1rem;
-            transition: all 0.3s ease;
+            font-size: 14px;
         }
 
         .search-box input:focus {
             outline: none;
             border-color: #6a11cb;
-            background: rgba(106, 17, 203, 0.1);
         }
-
-        /* Tier Colors */
-        .tier-Fresher { color: #4CAF50; font-weight: bold; }
-        .tier-Brute { color: #2196F3; font-weight: bold; }
-        .tier-Silver { color: #9E9E9E; font-weight: bold; }
-        .tier-Gold { color: #FFD700; font-weight: bold; }
-        .tier-Platinum { color: #E0E0E0; font-weight: bold; }
 
         /* Messages */
         .error {
-            background: linear-gradient(135deg, #ff5252, #ff1744);
+            background: #ff5252;
             color: white;
-            padding: 15px 20px;
-            border-radius: 16px;
+            padding: 12px 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
             text-align: center;
         }
 
         .success {
-            background: linear-gradient(135deg, #00c853, #69f0ae);
-            color: #000;
-            padding: 15px 20px;
-            border-radius: 16px;
+            background: #00c853;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 12px;
             margin-bottom: 20px;
             text-align: center;
         }
 
         .loading {
             text-align: center;
-            padding: 50px;
+            padding: 40px;
             color: #888;
         }
 
-        /* Responsive */
+        /* Tier Colors */
+        .tier-Fresher { color: #4CAF50; }
+        .tier-Brute { color: #2196F3; }
+        .tier-Silver { color: #9E9E9E; }
+        .tier-Gold { color: #FFD700; }
+        .tier-Platinum { color: #E0E0E0; }
+
         @media (max-width: 768px) {
-            th, td { padding: 10px; font-size: 12px; }
-            .stat-number { font-size: 1.8rem; }
-            .header h1 { font-size: 1.8rem; }
-            .tab-btn { padding: 8px 18px; font-size: 0.9rem; }
+            th, td { padding: 8px 6px; font-size: 11px; }
+            .stat-number { font-size: 1.5rem; }
+            .header h1 { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -318,34 +361,26 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>
-                <span>👑</span> YzemanBot Admin Dashboard
-                <span>⚡</span>
-            </h1>
-            <p>Manage users, approve withdrawals, and track platform earnings</p>
+            <h1>👑 YzemanBot Admin Dashboard ⚡</h1>
+            <p>Manage users, bonus codes, withdrawals & track earnings</p>
         </div>
 
         <!-- Stats Grid -->
         <div class="stats-grid" id="stats">
-            <div class="stat-card">
-                <div class="stat-icon">👥</div>
-                <div class="stat-number" id="totalUsers">-</div>
-                <div class="stat-label">Total Users</div>
+            <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-number" id="totalUsers">-</div><div class="stat-label">Total Users</div></div>
+            <div class="stat-card"><div class="stat-icon">💰</div><div class="stat-number" id="pendingWithdrawals">-</div><div class="stat-label">Pending Withdrawals</div></div>
+            <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-number" id="totalApprovedAmount">-</div><div class="stat-label">Approved Amount</div></div>
+            <div class="stat-card"><div class="stat-icon">❌</div><div class="stat-number" id="totalRejectedAmount">-</div><div class="stat-label">Rejected Amount</div></div>
+        </div>
+
+        <!-- Bonus Codes Section -->
+        <div class="bonus-section">
+            <div class="bonus-title">🎁 Manage Bonus Codes</div>
+            <div class="bonus-grid" id="bonusCodesList">
+                <div class="loading">Loading bonus codes...</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon">💰</div>
-                <div class="stat-number" id="pendingWithdrawals">-</div>
-                <div class="stat-label">Pending Withdrawals</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">✅</div>
-                <div class="stat-number" id="totalApprovedAmount">-</div>
-                <div class="stat-label">Total Approved Amount</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">❌</div>
-                <div class="stat-number" id="totalRejectedAmount">-</div>
-                <div class="stat-label">Total Rejected Amount</div>
+            <div style="margin-top: 15px; text-align: center;">
+                <button class="refresh-btn" onclick="loadBonusCodes()">🔄 Refresh Codes</button>
             </div>
         </div>
 
@@ -359,10 +394,7 @@
         <!-- Pending Withdrawals Tab -->
         <div id="withdrawalsTab" class="tab-content active">
             <div class="pending-section">
-                <div class="pending-title">
-                    <span>⏳</span> Pending Withdrawal Requests
-                    <span style="font-size: 0.9rem; background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px;" id="pendingCount">0</span>
-                </div>
+                <div class="pending-title">⏳ Pending Withdrawal Requests <span id="pendingCount" style="background:rgba(0,0,0,0.3); padding:2px 10px; border-radius:20px;">0</span></div>
                 <div class="table-wrapper">
                     <div id="pendingWithdrawalsList" class="loading">Loading withdrawals...</div>
                 </div>
@@ -373,30 +405,14 @@
         <div id="usersTab" class="tab-content">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="🔍 Search by username, name, or Telegram ID..." onkeyup="filterUsers()">
-                <button class="refresh-btn" onclick="loadAllData()">🔄 Refresh Data</button>
+                <button class="refresh-btn" onclick="loadAllData()">🔄 Refresh</button>
             </div>
-            
             <div id="errorMessage" style="display: none;" class="error"></div>
             <div id="successMessage" style="display: none;" class="success"></div>
-            
             <div class="table-wrapper">
                 <table id="usersTable">
-                    <thead>
-                        <tr>
-                            <th onclick="sortBy('id')">ID ↕</th>
-                            <th onclick="sortBy('username')">Username ↕</th>
-                            <th onclick="sortBy('first_name')">Name ↕</th>
-                            <th onclick="sortBy('tier')">Tier ↕</th>
-                            <th onclick="sortBy('points')">Points ↕</th>
-                            <th onclick="sortBy('referrals')">Referrals ↕</th>
-                            <th>Referral Code</th>
-                            <th>Wallet</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="usersBody">
-                        <tr><td colspan="9" class="loading">Loading users...</td></tr>
-                    </tbody>
+                    <thead><tr><th onclick="sortBy('id')">ID</th><th onclick="sortBy('username')">Username</th><th onclick="sortBy('first_name')">Name</th><th onclick="sortBy('tier')">Tier</th><th onclick="sortBy('points')">Points</th><th onclick="sortBy('referrals')">Referrals</th><th>Referral Code</th><th>Wallet</th><th>Actions</th></tr></thead>
+                    <tbody id="usersBody"><tr><td colspan="9" class="loading">Loading users...</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -404,43 +420,13 @@
         <!-- Analytics Tab -->
         <div id="analyticsTab" class="tab-content">
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">🏆</div>
-                    <div class="stat-number" id="topReferrer">-</div>
-                    <div class="stat-label">Top Referrer</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">💎</div>
-                    <div class="stat-number" id="topEarner">-</div>
-                    <div class="stat-label">Top Earner (Points)</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">⭐</div>
-                    <div class="stat-number" id="platinumCount">-</div>
-                    <div class="stat-label">Platinum Tier Users</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">📅</div>
-                    <div class="stat-number" id="newUsersToday">-</div>
-                    <div class="stat-label">New Users (Today)</div>
-                </div>
+                <div class="stat-card"><div class="stat-icon">🏆</div><div class="stat-number" id="topReferrer">-</div><div class="stat-label">Top Referrer</div></div>
+                <div class="stat-card"><div class="stat-icon">💎</div><div class="stat-number" id="topEarner">-</div><div class="stat-label">Top Earner</div></div>
+                <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-number" id="platinumCount">-</div><div class="stat-label">Platinum Users</div></div>
+                <div class="stat-card"><div class="stat-icon">📅</div><div class="stat-number" id="newUsersToday">-</div><div class="stat-label">New Today</div></div>
             </div>
-            
-            <div class="table-wrapper">
-                <h3 style="margin-bottom: 20px;">🏅 Top 10 Referrers</h3>
-                <table id="topReferrersTable">
-                    <thead><tr><th>Rank</th><th>Username</th><th>Referrals</th><th>Tier</th></tr></thead>
-                    <tbody id="topReferrersBody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody>
-                </table>
-            </div>
-            
-            <div class="table-wrapper" style="margin-top: 20px;">
-                <h3 style="margin-bottom: 20px;">💰 Top 10 Earners</h3>
-                <table id="topEarnersTable">
-                    <thead><tr><th>Rank</th><th>Username</th><th>Points</th><th>USD Value</th><th>Tier</th></tr></thead>
-                    <tbody id="topEarnersBody"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody>
-                </table>
-            </div>
+            <div class="table-wrapper"><h3 style="margin-bottom:15px;">🏅 Top 10 Referrers</h3><table id="topReferrersTable"><thead><tr><th>Rank</th><th>Username</th><th>Referrals</th><th>Tier</th></tr></thead><tbody id="topReferrersBody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table></div>
+            <div class="table-wrapper" style="margin-top:20px;"><h3 style="margin-bottom:15px;">💰 Top 10 Earners</h3><table id="topEarnersTable"><thead><tr><th>Rank</th><th>Username</th><th>Points</th><th>USD Value</th><th>Tier</th></tr></thead><tbody id="topEarnersBody"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody></table></div>
         </div>
     </div>
 
@@ -449,11 +435,19 @@
         let allWithdrawals = [];
         let sortColumn = 'id';
         let sortDirection = 'desc';
-        
+
+        // Bonus codes data (stored in localStorage for admin editing)
+        let bonusCodes = {
+            "BASER": { points: 2000, dollars: 0, description: "2,000 bonus points" },
+            "BOTYZEMAN": { points: 100000, dollars: 0, description: "100,000 bonus points" },
+            "EARNSBOTT": { points: 0, dollars: 15, description: "$15 bonus" },
+            "BONUSBOTTER": { points: 0, dollars: 100, description: "$100 bonus" },
+            "YZEMASTER1": { points: 50000, dollars: 100, description: "50,000 points + $100" }
+        };
+
         function showTab(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            
             if (tabName === 'withdrawals') {
                 document.querySelector('.tab-btn:first-child').classList.add('active');
                 document.getElementById('withdrawalsTab').classList.add('active');
@@ -466,7 +460,7 @@
                 loadAnalytics();
             }
         }
-        
+
         function showMessage(msg, isError = false) {
             const errorDiv = document.getElementById('errorMessage');
             const successDiv = document.getElementById('successMessage');
@@ -480,331 +474,172 @@
                 setTimeout(() => successDiv.style.display = 'none', 3000);
             }
         }
-        
+
+        function loadBonusCodes() {
+            const container = document.getElementById('bonusCodesList');
+            container.innerHTML = Object.entries(bonusCodes).map(([code, bonus]) => {
+                const reward = [];
+                if (bonus.points > 0) reward.push(`${bonus.points.toLocaleString()} pts`);
+                if (bonus.dollars > 0) reward.push(`$${bonus.dollars}`);
+                return `
+                    <div class="bonus-item">
+                        <span class="bonus-code">${code}</span>
+                        <span class="bonus-reward">${reward.join(' + ')}</span>
+                        <button class="bonus-edit" onclick="editBonusCode('${code}')">✏️ Edit</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function editBonusCode(code) {
+            const bonus = bonusCodes[code];
+            const reward = [];
+            if (bonus.points > 0) reward.push(`${bonus.points} points`);
+            if (bonus.dollars > 0) reward.push(`$${bonus.dollars}`);
+            
+            const newPoints = prompt(`Edit ${code} - Enter POINTS reward (current: ${bonus.points}):`, bonus.points);
+            if (newPoints !== null) {
+                const newDollars = prompt(`Edit ${code} - Enter DOLLARS reward (current: $${bonus.dollars}):`, bonus.dollars);
+                if (newDollars !== null) {
+                    bonusCodes[code] = {
+                        points: parseInt(newPoints) || 0,
+                        dollars: parseInt(newDollars) || 0,
+                        description: `${parseInt(newPoints) || 0} points + $${parseInt(newDollars) || 0}`
+                    };
+                    localStorage.setItem('adminBonusCodes', JSON.stringify(bonusCodes));
+                    loadBonusCodes();
+                    showMessage(`✅ Bonus code "${code}" updated!`, false);
+                }
+            }
+        }
+
         async function loadAllData() {
             await loadUsers();
             await loadWithdrawals();
         }
-        
+
         async function loadUsers() {
             try {
-                const response = await fetch('/api/admin/users', {
-                    headers: { 'Authorization': 'Bearer admin123' }
-                });
-                
-                if (response.status === 401) {
-                    showMessage('❌ Unauthorized. Admin access only.', true);
-                    document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Access denied</td></tr>';
-                    return;
-                }
-                
+                const response = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer admin123' } });
+                if (response.status === 401) { showMessage('❌ Unauthorized. Admin access only.', true); return; }
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
                 allUsers = await response.json();
                 displayUsers();
                 updateStats();
-                
             } catch (err) {
-                console.error('Error loading users:', err);
                 showMessage('❌ Failed to load users: ' + err.message, true);
                 document.getElementById('usersBody').innerHTML = '<tr><td colspan="9" class="loading">Error loading users</td></tr>';
             }
         }
-        
+
         async function loadWithdrawals() {
             try {
-                const response = await fetch('/api/admin/withdrawals', {
-                    headers: { 'Authorization': 'Bearer admin123' }
-                });
-                
+                const response = await fetch('/api/admin/withdrawals', { headers: { 'Authorization': 'Bearer admin123' } });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
                 allWithdrawals = await response.json();
                 displayPendingWithdrawals();
                 updateStats();
-                
             } catch (err) {
-                console.error('Error loading withdrawals:', err);
                 document.getElementById('pendingWithdrawalsList').innerHTML = '<div class="loading">Error loading withdrawals</div>';
             }
         }
-        
+
         function displayPendingWithdrawals() {
             const container = document.getElementById('pendingWithdrawalsList');
             const pending = allWithdrawals.filter(w => w.status === 'pending');
             document.getElementById('pendingCount').textContent = pending.length;
-            
-            if (pending.length === 0) {
-                container.innerHTML = '<div style="text-align:center; padding:40px;">✅ No pending withdrawal requests</div>';
-                return;
-            }
-            
-            pending.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            
-            container.innerHTML = `
-                <table>
-                    <thead>
-                        <tr><th>ID</th><th>Username</th><th>Amount</th><th>Wallet Address</th><th>Date</th><th>Actions</th></tr>
-                    </thead>
-                    <tbody>
-                        ${pending.map(w => `
-                            <tr>
-                                <td>${w.id}</td>
-                                <td>${w.username || w.first_name || 'User ' + w.user_id}</td>
-                                <td style="color:#00c853; font-weight:bold;">$${w.amount}</td>
-                                <td>
-                                    <code style="font-size:11px;">${w.wallet_address.substring(0, 20)}...</code>
-                                    <button class="copy-btn" onclick="copyToClipboard('${w.wallet_address}')">📋 Copy</button>
-                                </td>
-                                <td>${new Date(w.created_at).toLocaleString()}</td>
-                                <td>
-                                    <button class="approve-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'approved')">✅ Approve</button>
-                                    <button class="reject-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'rejected')">❌ Reject</button>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
+            if (pending.length === 0) { container.innerHTML = '<div style="text-align:center; padding:40px;">✅ No pending withdrawal requests</div>'; return; }
+            container.innerHTML = `<table><thead><tr><th>ID</th><th>Username</th><th>Amount</th><th>Wallet Address</th><th>Date</th><th>Actions</th></tr></thead><tbody>${pending.map(w => `<tr><td>${w.id}</td><td>${w.username || w.first_name || 'User'}</td><td style="color:#00c853;">$${w.amount}</td><td><code>${w.wallet_address.substring(0, 20)}...</code><button class="copy-btn" onclick="copyToClipboard('${w.wallet_address}')">Copy</button></td><td>${new Date(w.created_at).toLocaleString()}</td><td><button class="approve-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'approved')">Approve</button><button class="reject-btn" onclick="processWithdrawal(${w.id}, ${w.user_id}, ${w.amount}, 'rejected')">Reject</button></td></tr>`).join('')}</tbody></table>`;
         }
-        
+
         async function processWithdrawal(withdrawalId, userId, amount, status) {
-            const confirmMsg = status === 'approved' ? `Approve $${amount} withdrawal?` : `Reject $${amount} withdrawal?`;
-            if (!confirm(confirmMsg)) return;
-            
+            if (!confirm(status === 'approved' ? `Approve $${amount} withdrawal?` : `Reject $${amount} withdrawal?`)) return;
             try {
                 const response = await fetch('/api/admin/update-withdrawal', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer admin123'
-                    },
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin123' },
                     body: JSON.stringify({ withdrawalId, status })
                 });
-                
                 if (response.ok) {
-                    if (status === 'approved') {
-                        const pointsToDeduct = amount * 100000;
-                        await fetch('/api/admin/deduct-points', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': 'Bearer admin123'
-                            },
-                            body: JSON.stringify({ userId, points: pointsToDeduct })
-                        });
-                        showMessage(`✅ Withdrawal APPROVED! $${amount} deducted from user.`);
-                    } else {
-                        showMessage(`✅ Withdrawal REJECTED! Points have been refunded to user.`);
-                    }
+                    showMessage(status === 'approved' ? `✅ Withdrawal APPROVED!` : `✅ Withdrawal REJECTED!`);
                     await loadAllData();
-                } else {
-                    showMessage('❌ Failed to process withdrawal', true);
-                }
-            } catch (err) {
-                showMessage('❌ Error: ' + err.message, true);
-            }
+                } else { showMessage('❌ Failed to process withdrawal', true); }
+            } catch (err) { showMessage('❌ Error: ' + err.message, true); }
         }
-        
+
         function updateStats() {
             const totalUsers = allUsers.length;
             const pendingCount = allWithdrawals.filter(w => w.status === 'pending').length;
-            
-            // Calculate approved and rejected amounts - FIXED: Convert to numbers
-            let totalApproved = 0;
-            let totalRejected = 0;
-            
-            allWithdrawals.forEach(w => {
-                const amount = Number(w.amount) || 0;
-                if (w.status === 'approved' || w.status === 'completed') {
-                    totalApproved += amount;
-                } else if (w.status === 'rejected' || w.status === 'failed') {
-                    totalRejected += amount;
-                }
-            });
-            
+            let totalApproved = 0, totalRejected = 0;
+            allWithdrawals.forEach(w => { const amt = Number(w.amount) || 0; if (w.status === 'approved' || w.status === 'completed') totalApproved += amt; else if (w.status === 'rejected' || w.status === 'failed') totalRejected += amt; });
             document.getElementById('totalUsers').textContent = totalUsers;
             document.getElementById('pendingWithdrawals').textContent = pendingCount;
             document.getElementById('totalApprovedAmount').textContent = '$' + totalApproved.toFixed(2);
             document.getElementById('totalRejectedAmount').textContent = '$' + totalRejected.toFixed(2);
         }
-        
+
         function loadAnalytics() {
             if (!allUsers.length) return;
-            
-            // Top referrer
             const topReferrer = [...allUsers].sort((a, b) => (b.referrals || 0) - (a.referrals || 0))[0];
-            document.getElementById('topReferrer').textContent = topReferrer?.username || topReferrer?.first_name || '-';
-            
-            // Top earner
             const topEarner = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0))[0];
-            document.getElementById('topEarner').textContent = topEarner?.username || topEarner?.first_name || '-';
-            
-            // Platinum count
             const platinumCount = allUsers.filter(u => u.tier === 'Platinum').length;
-            document.getElementById('platinumCount').textContent = platinumCount;
-            
-            // New users today
             const today = new Date().toDateString();
             const newToday = allUsers.filter(u => new Date(u.created_at).toDateString() === today).length;
+            document.getElementById('topReferrer').textContent = topReferrer?.username || topReferrer?.first_name || '-';
+            document.getElementById('topEarner').textContent = topEarner?.username || topEarner?.first_name || '-';
+            document.getElementById('platinumCount').textContent = platinumCount;
             document.getElementById('newUsersToday').textContent = newToday;
-            
-            // Top 10 referrers
             const topReferrers = [...allUsers].sort((a, b) => (b.referrals || 0) - (a.referrals || 0)).slice(0, 10);
-            document.getElementById('topReferrersBody').innerHTML = topReferrers.map((u, i) => `
-                <tr><td>${i + 1}</td><td>${u.username || u.first_name || '-'}</td><td>${u.referrals || 0}</td><td class="tier-${u.tier}">${u.tier || 'Fresher'}</td></tr>
-            `).join('');
-            
-            // Top 10 earners
+            document.getElementById('topReferrersBody').innerHTML = topReferrers.map((u, i) => `<tr><td>${i+1}</td><td>${u.username || u.first_name || '-'}</td><td>${u.referrals || 0}</td><td class="tier-${u.tier}">${u.tier || 'Fresher'}</td></tr>`).join('');
             const topEarners = [...allUsers].sort((a, b) => (b.points || 0) - (a.points || 0)).slice(0, 10);
-            document.getElementById('topEarnersBody').innerHTML = topEarners.map((u, i) => `
-                <tr><td>${i + 1}</td><td>${u.username || u.first_name || '-'}</td><td>${(u.points || 0).toLocaleString()}</td><td>$${((u.points || 0) / 100000).toFixed(2)}</td><td class="tier-${u.tier}">${u.tier || 'Fresher'}</td></tr>
-            `).join('');
+            document.getElementById('topEarnersBody').innerHTML = topEarners.map((u, i) => `<tr><td>${i+1}</td><td>${u.username || u.first_name || '-'}</td><td>${(u.points || 0).toLocaleString()}</td><td>$${((u.points || 0) / 100000).toFixed(2)}</td><td class="tier-${u.tier}">${u.tier || 'Fresher'}</td></tr>`).join('');
         }
-        
+
         function displayUsers() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            let filtered = allUsers.filter(u => 
-                (u.username && u.username.toLowerCase().includes(searchTerm)) ||
-                (u.first_name && u.first_name.toLowerCase().includes(searchTerm)) ||
-                (u.last_name && u.last_name.toLowerCase().includes(searchTerm)) ||
-                (u.telegram_id && u.telegram_id.toString().includes(searchTerm))
-            );
-            
-            filtered.sort((a, b) => {
-                let aVal = a[sortColumn] || 0;
-                let bVal = b[sortColumn] || 0;
-                if (typeof aVal === 'string') {
-                    aVal = aVal.toLowerCase();
-                    bVal = bVal.toLowerCase();
-                }
-                if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-                if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            });
-            
+            let filtered = allUsers.filter(u => (u.username && u.username.toLowerCase().includes(searchTerm)) || (u.first_name && u.first_name.toLowerCase().includes(searchTerm)) || (u.telegram_id && u.telegram_id.toString().includes(searchTerm)));
+            filtered.sort((a, b) => { let aVal = a[sortColumn] || 0, bVal = b[sortColumn] || 0; if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); } if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1; if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1; return 0; });
             const tbody = document.getElementById('usersBody');
-            
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = filtered.map(user => `
-                <tr>
-                    <td>${user.id}</td>
-                    <td>${user.username ? '@' + user.username : '-'}</td>
-                    <td>${user.first_name || ''} ${user.last_name || ''}</td>
-                    <td class="tier-${user.tier || 'Fresher'}">${user.tier || 'Fresher'}</td>
-                    <td>${(user.points || 0).toLocaleString()}</td>
-                    <td>${user.referrals || 0}</td>
-                    <td><code style="font-size: 11px;">${user.referral_code || '-'}</code></td>
-                    <td>
-                        <code style="font-size: 11px;">${user.wallet_address ? user.wallet_address.substring(0, 15) + '...' : '-'}</code>
-                        ${user.wallet_address ? `<button class="copy-btn" onclick="copyToClipboard('${user.wallet_address}')">📋 Copy</button>` : ''}
-                    </td>
-                    <td>
-                        <button class="action-btn" onclick="addPoints(${user.id}, '${user.first_name || ''}')">➕ Add</button>
-                        <button class="action-btn warning" onclick="deductPoints(${user.id}, '${user.first_name || ''}')">➖ Deduct</button>
-                        <button class="action-btn danger" onclick="deleteUser(${user.id}, '${user.first_name || ''}')">🗑️ Delete</button>
-                    </td>
-                </tr>
-            `).join('');
+            if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="loading">No users found</td></tr>'; return; }
+            tbody.innerHTML = filtered.map(user => `<tr><td>${user.id}</td><td>${user.username ? '@' + user.username : '-'}</td><td>${user.first_name || ''} ${user.last_name || ''}</td><td class="tier-${user.tier || 'Fresher'}">${user.tier || 'Fresher'}</td><td>${(user.points || 0).toLocaleString()}</td><td>${user.referrals || 0}</td><td><code style="font-size:11px;">${user.referral_code || '-'}</code></td><td><code style="font-size:11px;">${user.wallet_address ? user.wallet_address.substring(0,15)+'...' : '-'}</code>${user.wallet_address ? `<button class="copy-btn" onclick="copyToClipboard('${user.wallet_address}')">Copy</button>` : ''}</td><td><button class="action-btn" onclick="addPoints(${user.id}, '${user.first_name || ''}')">➕ Add</button><button class="action-btn warning" onclick="deductPoints(${user.id}, '${user.first_name || ''}')">➖ Deduct</button><button class="action-btn danger" onclick="deleteUser(${user.id}, '${user.first_name || ''}')">🗑️ Delete</button></td></tr>`).join('');
         }
-        
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text);
-            showMessage('✅ Wallet address copied!');
-        }
-        
-        function filterUsers() {
-            displayUsers();
-        }
-        
-        function sortBy(column) {
-            if (sortColumn === column) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = column;
-                sortDirection = 'asc';
-            }
-            displayUsers();
-        }
-        
+
+        function copyToClipboard(text) { navigator.clipboard.writeText(text); showMessage('✅ Wallet address copied!'); }
+        function filterUsers() { displayUsers(); }
+        function sortBy(column) { if (sortColumn === column) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'; else { sortColumn = column; sortDirection = 'asc'; } displayUsers(); }
+
         async function addPoints(userId, userName) {
             const amount = prompt(`Enter points to ADD for ${userName || 'user'}:`);
             if (!amount || isNaN(amount)) return;
-            
             try {
-                const response = await fetch('/api/admin/add-points', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer admin123'
-                    },
-                    body: JSON.stringify({ userId, points: parseInt(amount) })
-                });
-                
-                if (response.ok) {
-                    showMessage(`✅ Added ${parseInt(amount).toLocaleString()} points to ${userName || 'user'}!`);
-                    await loadUsers();
-                } else {
-                    showMessage('❌ Failed to add points', true);
-                }
-            } catch (err) {
-                showMessage('❌ Error: ' + err.message, true);
-            }
+                const response = await fetch('/api/admin/add-points', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin123' }, body: JSON.stringify({ userId, points: parseInt(amount) }) });
+                if (response.ok) { showMessage(`✅ Added ${parseInt(amount).toLocaleString()} points!`); await loadUsers(); }
+                else { showMessage('❌ Failed to add points', true); }
+            } catch (err) { showMessage('❌ Error: ' + err.message, true); }
         }
-        
+
         async function deductPoints(userId, userName) {
             const amount = prompt(`Enter points to DEDUCT from ${userName || 'user'}:`);
             if (!amount || isNaN(amount)) return;
-            
             try {
-                const response = await fetch('/api/admin/deduct-points', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer admin123'
-                    },
-                    body: JSON.stringify({ userId, points: parseInt(amount) })
-                });
-                
-                if (response.ok) {
-                    showMessage(`✅ Deducted ${parseInt(amount).toLocaleString()} points from ${userName || 'user'}!`);
-                    await loadUsers();
-                } else {
-                    showMessage('❌ Failed to deduct points', true);
-                }
-            } catch (err) {
-                showMessage('❌ Error: ' + err.message, true);
-            }
+                const response = await fetch('/api/admin/deduct-points', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin123' }, body: JSON.stringify({ userId, points: parseInt(amount) }) });
+                if (response.ok) { showMessage(`✅ Deducted ${parseInt(amount).toLocaleString()} points!`); await loadUsers(); }
+                else { showMessage('❌ Failed to deduct points', true); }
+            } catch (err) { showMessage('❌ Error: ' + err.message, true); }
         }
-        
+
         async function deleteUser(userId, userName) {
-            if (!confirm(`⚠️ Are you sure you want to DELETE ${userName || 'user'}? This action cannot be undone!`)) return;
-            
+            if (!confirm(`⚠️ Are you sure you want to DELETE ${userName || 'user'}? This cannot be undone!`)) return;
             try {
-                const response = await fetch('/api/admin/delete-user', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer admin123'
-                    },
-                    body: JSON.stringify({ userId })
-                });
-                
-                if (response.ok) {
-                    showMessage(`✅ User ${userName || 'user'} has been deleted!`);
-                    await loadAllData();
-                } else {
-                    showMessage('❌ Failed to delete user', true);
-                }
-            } catch (err) {
-                showMessage('❌ Error: ' + err.message, true);
-            }
+                const response = await fetch('/api/admin/delete-user', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer admin123' }, body: JSON.stringify({ userId }) });
+                if (response.ok) { showMessage(`✅ User ${userName || 'user'} has been deleted!`); await loadAllData(); }
+                else { const error = await response.json(); showMessage(`❌ Failed to delete user: ${error.error || 'Unknown error'}`, true); }
+            } catch (err) { showMessage('❌ Error: ' + err.message, true); }
         }
-        
+
+        // Load bonus codes from localStorage or use default
+        const savedCodes = localStorage.getItem('adminBonusCodes');
+        if (savedCodes) bonusCodes = JSON.parse(savedCodes);
+        loadBonusCodes();
         loadAllData();
         setInterval(loadAllData, 30000);
     </script>
