@@ -19,7 +19,15 @@ bot.use(session());
 // Handle /start command with referral parameter
 bot.command('start', (ctx) => {
     const args = ctx.message.text.split(' ');
-    const referralCode = args[1]; // This captures the referral code like ?start=CODE
+    let referralCode = args[1]; // This captures the referral code like ?start=CODE
+    
+    // Remove any 'ref-' prefix if present to clean it
+    if (referralCode && referralCode.startsWith('ref-')) {
+        referralCode = referralCode.substring(4);
+    }
+    if (referralCode && referralCode.startsWith('YZEMAN-')) {
+        referralCode = referralCode.substring(7);
+    }
     
     // Store referral code in session
     if (referralCode) {
@@ -30,7 +38,7 @@ bot.command('start', (ctx) => {
     // Create keyboard with Mini App button that passes the referral code
     let webAppUrl = MINI_APP_URL;
     if (referralCode) {
-        webAppUrl = `${MINI_APP_URL}?start=${referralCode}`;
+        webAppUrl = `${MINI_APP_URL}?start=ref-${referralCode}`;
     }
     
     const keyboard = {
