@@ -12,6 +12,7 @@
             --secondary: #2575fc;
             --success: #00c853;
             --warning: #ffab00;
+            --danger: #ff5252;
             --dark: #1a1b25;
             --darker: #12131a;
             --gray: #6c757d;
@@ -29,11 +30,13 @@
         .prize-item { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; }
         .prize-rank { font-weight: bold; font-size: 14px; }
         .prize-points { font-size: 12px; color: #FFD700; }
-        .join-btn { background: var(--success); color: white; border: none; border-radius: 16px; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 20px; }
-        .join-btn.joined { background: var(--gray); cursor: default; }
+        .tournament-btn { background: var(--success); color: white; border: none; border-radius: 16px; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 20px; }
+        .tournament-btn.leave { background: var(--danger); }
+        .tournament-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .my-rank-card { background: var(--card-bg); border: 2px solid var(--secondary); border-radius: 16px; padding: 15px; text-align: center; margin-bottom: 20px; }
         .my-rank { font-size: 28px; font-weight: bold; color: var(--secondary); }
         .my-points { font-size: 20px; color: var(--success); }
+        .not-joined-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 20px; }
         .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
         .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
         .rank { width: 40px; font-weight: bold; font-size: 16px; }
@@ -67,19 +70,25 @@
 
         <div class="prize-section">
             <div class="prize-title">🏆 Weekly Prizes 🏆</div>
-            <div class="prize-grid" id="prizesGrid">
+            <div class="prize-grid">
                 <div class="prize-item"><div class="prize-rank">🥇 1st</div><div class="prize-points">100,000 pts</div></div>
                 <div class="prize-item"><div class="prize-rank">🥈 2nd</div><div class="prize-points">50,000 pts</div></div>
                 <div class="prize-item"><div class="prize-rank">🥉 3rd</div><div class="prize-points">25,000 pts</div></div>
             </div>
         </div>
 
-        <button class="join-btn" id="joinBtn">⚔️ Join Tournament</button>
+        <button class="tournament-btn" id="tournamentBtn">⚔️ Join Tournament</button>
 
         <div id="myRankCard" class="my-rank-card" style="display: none;">
-            <div>Your Current Rank</div>
+            <div>🏆 Your Rank</div>
             <div class="my-rank" id="myRank">-</div>
             <div class="my-points" id="myPoints">0 pts this week</div>
+        </div>
+
+        <div id="notJoinedCard" class="not-joined-card" style="display: none;">
+            <i class="fas fa-trophy" style="font-size: 48px; opacity: 0.5; margin-bottom: 15px;"></i>
+            <p>Join the tournament to compete and win prizes!</p>
+            <p style="font-size: 12px; color: var(--gray); margin-top: 10px;">Only participants appear on leaderboard</p>
         </div>
 
         <div class="leaderboard-list" id="standingsList">
@@ -116,18 +125,28 @@
                 body: JSON.stringify(data || { initData: tg.initData })
             };
             const response = await fetch(endpoint, options);
-            if (!response.ok) throw new Error(await response.text());
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Request failed');
+            }
             return response.json();
         }
 
         async function joinTournament() {
-            if (hasJoined) return;
             try {
                 await apiCall('/api/tournament/join', { initData: tg.initData });
-                hasJoined = true;
-                document.getElementById('joinBtn').textContent = '✅ Joined!';
-                document.getElementById('joinBtn').classList.add('joined');
-                showNotification('You joined the tournament! Start earning points!');
+                showNotification('✅ Joined tournament! Start earning points!');
+                loadStandings();
+            } catch (err) {
+                showNotification(err.message, true);
+            }
+        }
+
+        async function leaveTournament() {
+            if (!confirm('Leave tournament? You can rejoin anytime.')) return;
+            try {
+                await apiCall('/api/tournament/leave', { initData: tg.initData });
+                showNotification('👋 Left tournament');
                 loadStandings();
             } catch (err) {
                 showNotification(err.message, true);
@@ -138,32 +157,57 @@
             try {
                 const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
                 
-                if (data.my_rank) {
-                    document.getElementById('myRankCard').style.display = 'block';
-                    document.getElementById('myRank').textContent = `#${data.my_rank}`;
-                    document.getElementById('myPoints').textContent = `${data.my_points.toLocaleString()} pts this week`;
+                const btn = document.getElementById('tournamentBtn');
+                const myRankCard = document.getElementById('myRankCard');
+                const notJoinedCard = document.getElementById('notJoinedCard');
+                
+                if (data.has_joined) {
+                    // User joined tournament
+                    btn.textContent = '🚪 Leave Tournament';
+                    btn.classList.add('leave');
+                    btn.onclick = leaveTournament;
+                    notJoinedCard.style.display = 'none';
+                    
+                    if (data.my_rank) {
+                        myRankCard.style.display = 'block';
+                        document.getElementById('myRank').textContent = `#${data.my_rank}`;
+                        document.getElementById('myPoints').textContent = `${data.my_points.toLocaleString()} pts this week`;
+                    } else {
+                        myRankCard.style.display = 'none';
+                    }
+                } else {
+                    // User not joined
+                    btn.textContent = '⚔️ Join Tournament';
+                    btn.classList.remove('leave');
+                    btn.onclick = joinTournament;
+                    myRankCard.style.display = 'none';
+                    notJoinedCard.style.display = 'block';
                 }
                 
                 const container = document.getElementById('standingsList');
                 if (!data.standings || data.standings.length === 0) {
-                    container.innerHTML = '<div class="loading">No participants yet. Be the first!</div>';
+                    container.innerHTML = '<div class="loading">No participants yet.<br>Be the first to join!</div>';
                     return;
                 }
                 
-                container.innerHTML = data.standings.map((user, idx) => `
-                    <div class="leaderboard-item">
-                        <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
-                        <div class="avatar"><i class="fas fa-user"></i></div>
-                        <div class="info">
-                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
-                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
+                container.innerHTML = data.standings.map((user, idx) => {
+                    const isCurrentUser = user.id === tg?.initDataUnsafe?.user?.id;
+                    return `
+                        <div class="leaderboard-item" style="${isCurrentUser ? 'background: rgba(37, 117, 252, 0.1);' : ''}">
+                            <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
+                            <div class="avatar"><i class="fas fa-user"></i></div>
+                            <div class="info">
+                                <div class="name">${escapeHtml(user.first_name || user.username || 'User')} ${isCurrentUser ? '(You)' : ''}</div>
+                                <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
+                            </div>
+                            <div class="score">${(user.weekly_points || 0).toLocaleString()} pts</div>
                         </div>
-                        <div class="score">${(user.weekly_points || 0).toLocaleString()} pts</div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+                
             } catch (err) {
                 console.error(err);
-                document.getElementById('standingsList').innerHTML = '<div class="loading">Failed to load standings. Please refresh.</div>';
+                document.getElementById('standingsList').innerHTML = '<div class="loading">Failed to load. Please refresh.</div>';
             }
         }
 
@@ -177,8 +221,6 @@
             });
         }
 
-        document.getElementById('joinBtn').addEventListener('click', joinTournament);
-        
         loadStandings();
     </script>
 </body>
