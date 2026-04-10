@@ -364,7 +364,8 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       ]);
       user = result.rows[0];
     } else {
-      const userReferralCode = `YZEMAN-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      // FIXED: Changed from YZEMAN- to ref-
+      const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       
       const insertQuery = `
         INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code, wallet_address)
@@ -507,7 +508,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// DAILY REWARDS API - FIXED
+// DAILY REWARDS API
 // ============================================
 
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
