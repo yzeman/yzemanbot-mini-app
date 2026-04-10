@@ -110,7 +110,8 @@ bot.command('start', async (ctx) => {
         inline_keyboard: [
             [{ text: '🚀 Open Yzeman Bot App', web_app: { url: webAppUrl } }],
             [{ text: '❓ How it works', callback_data: 'help' }],
-            [{ text: '📊 My Stats', callback_data: 'stats' }]
+            [{ text: '📊 My Stats', callback_data: 'stats' }],
+            [{ text: '👥 My Referrals', callback_data: 'referrals' }]
         ]
     };
     
@@ -175,6 +176,110 @@ bot.action('help', async (ctx) => {
 bot.action('stats', async (ctx) => {
     ctx.answerCbQuery();
     
+    const userStats = await getUserByTelegramId(ctx.from.id);
+    
+    if (!userStats) {
+        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
+        return;
+    }
+    
+    let statsMessage = `<b>📊 Your YzemanBot Stats</b>\n\n`;
+    statsMessage += `💰 <b>Points:</b> ${userStats.points?.toLocaleString() || 0}\n`;
+    statsMessage += `💵 <b>USD Value:</b> $${((userStats.points || 0) / 100000).toFixed(2)}\n`;
+    statsMessage += `👥 <b>Referrals:</b> ${userStats.referrals || 0}\n`;
+    statsMessage += `🏆 <b>Tier:</b> ${userStats.tier || 'Fresher'}\n`;
+    statsMessage += `🔗 <b>Your Referral Link:</b>\n`;
+    statsMessage += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
+    statsMessage += `Share your link and earn points when friends join! 🚀`;
+    
+    ctx.reply(statsMessage, { parse_mode: 'HTML' });
+});
+
+// Handle referrals button - show list of people who joined using user's code
+bot.action('referrals', async (ctx) => {
+    ctx.answerCbQuery();
+    
+    const userStats = await getUserByTelegramId(ctx.from.id);
+    
+    if (!userStats) {
+        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
+        return;
+    }
+    
+    // Get detailed referral list
+    const referralsList = await pool.query(
+        `SELECT u.first_name, u.username, u.created_at 
+         FROM referrals r 
+         JOIN users u ON r.referred_id = u.id 
+         WHERE r.referrer_id = $1 
+         ORDER BY r.created_at DESC 
+         LIMIT 20`,
+        [userStats.id]
+    );
+    
+    let message = `<b>👥 Your Referrals</b>\n\n`;
+    message += `📊 <b>Total:</b> ${userStats.referrals || 0} people joined using your link\n\n`;
+    
+    if (referralsList.rows.length > 0) {
+        message += `<b>📜 Recent Referrals:</b>\n`;
+        referralsList.rows.slice(0, 10).forEach((ref, index) => {
+            const name = ref.first_name || ref.username || 'Someone';
+            const date = new Date(ref.created_at).toLocaleDateString();
+            message += `${index + 1}. ${name} (${date})\n`;
+        });
+    } else {
+        message += `No referrals yet.\n`;
+    }
+    
+    message += `\n🔗 <b>Your Referral Link:</b>\n`;
+    message += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
+    message += `Share your link and earn points when friends join! 🚀`;
+    
+    ctx.reply(message, { parse_mode: 'HTML' });
+});
+
+// Command to check referrals (alternative to button)
+bot.command('referrals', async (ctx) => {
+    const userStats = await getUserByTelegramId(ctx.from.id);
+    
+    if (!userStats) {
+        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
+        return;
+    }
+    
+    const referralsList = await pool.query(
+        `SELECT u.first_name, u.username, u.created_at 
+         FROM referrals r 
+         JOIN users u ON r.referred_id = u.id 
+         WHERE r.referrer_id = $1 
+         ORDER BY r.created_at DESC 
+         LIMIT 20`,
+        [userStats.id]
+    );
+    
+    let message = `<b>👥 Your Referrals</b>\n\n`;
+    message += `📊 <b>Total:</b> ${userStats.referrals || 0} people joined using your link\n\n`;
+    
+    if (referralsList.rows.length > 0) {
+        message += `<b>📜 Recent Referrals:</b>\n`;
+        referralsList.rows.slice(0, 10).forEach((ref, index) => {
+            const name = ref.first_name || ref.username || 'Someone';
+            const date = new Date(ref.created_at).toLocaleDateString();
+            message += `${index + 1}. ${name} (${date})\n`;
+        });
+    } else {
+        message += `No referrals yet.\n`;
+    }
+    
+    message += `\n🔗 <b>Your Referral Link:</b>\n`;
+    message += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
+    message += `Share your link and earn points when friends join! 🚀`;
+    
+    ctx.reply(message, { parse_mode: 'HTML' });
+});
+
+// Command to check stats (alternative to button)
+bot.command('stats', async (ctx) => {
     const userStats = await getUserByTelegramId(ctx.from.id);
     
     if (!userStats) {
