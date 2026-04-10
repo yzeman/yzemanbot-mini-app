@@ -9,12 +9,24 @@ if (tg) {
 }
 
 // ============================================================
-// REFERRAL CODE DETECTION
+// REFERRAL CODE DETECTION - FIXED
 // ============================================================
 
 let referralCode = null;
 const urlParams = new URLSearchParams(window.location.search);
-referralCode = urlParams.get('start');
+let rawReferralCode = urlParams.get('start');
+
+// Clean the referral code - remove 'ref-' prefix if present
+if (rawReferralCode) {
+    if (rawReferralCode.startsWith('ref-')) {
+        referralCode = rawReferralCode.substring(4);
+    } else if (rawReferralCode.startsWith('YZEMAN-')) {
+        referralCode = rawReferralCode.substring(7);
+    } else {
+        referralCode = rawReferralCode;
+    }
+    console.log('📝 Referral code detected:', referralCode);
+}
 
 let currentUser = null;
 let completedSocial = JSON.parse(localStorage.getItem('completedSocial') || '{}');
