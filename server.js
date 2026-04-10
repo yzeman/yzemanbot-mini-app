@@ -32,7 +32,6 @@ async function initDB() {
   try {
     await client.query('BEGIN');
     
-    // Users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -54,7 +53,6 @@ async function initDB() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_points_earned BIGINT DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER`);
 
-    // Tiers table
     await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
         name TEXT PRIMARY KEY,
@@ -73,7 +71,6 @@ async function initDB() {
         ('Platinum', 500, 3.0, 30000)
       ON CONFLICT (name) DO NOTHING`);
 
-    // Referrals table
     await client.query(`
       CREATE TABLE IF NOT EXISTS referrals (
         id SERIAL PRIMARY KEY,
@@ -83,7 +80,6 @@ async function initDB() {
         UNIQUE (referred_id)
       )`);
 
-    // Ad rewards table
     await client.query(`
       CREATE TABLE IF NOT EXISTS ad_rewards (
         id SERIAL PRIMARY KEY,
@@ -93,7 +89,6 @@ async function initDB() {
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`);
 
-    // Withdrawals table
     await client.query(`
       CREATE TABLE IF NOT EXISTS withdrawals (
         id SERIAL PRIMARY KEY,
@@ -105,7 +100,6 @@ async function initDB() {
         updated_at TIMESTAMP DEFAULT NOW()
       )`);
 
-    // Daily Rewards table
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_rewards (
         id SERIAL PRIMARY KEY,
@@ -118,7 +112,6 @@ async function initDB() {
         UNIQUE(user_id, reward_date)
       )`);
 
-    // Wheel Spins table
     await client.query(`
       CREATE TABLE IF NOT EXISTS wheel_spins (
         id SERIAL PRIMARY KEY,
@@ -130,7 +123,6 @@ async function initDB() {
         UNIQUE(user_id, spin_date)
       )`);
 
-    // Achievements tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS achievements (
         id SERIAL PRIMARY KEY,
@@ -150,7 +142,6 @@ async function initDB() {
         UNIQUE(user_id, achievement_id)
       )`);
 
-    // Weekly Tournaments tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS weekly_tournaments (
         id SERIAL PRIMARY KEY,
@@ -172,7 +163,6 @@ async function initDB() {
         UNIQUE(tournament_id, user_id)
       )`);
 
-    // Teams tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS teams (
         id SERIAL PRIMARY KEY,
@@ -200,7 +190,6 @@ async function initDB() {
         UNIQUE(month_year)
       )`);
 
-    // Insert default achievements
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
         ('Loyal User', '30 day login streak', '🔥', 30, 50000),
@@ -243,7 +232,6 @@ async function awardAchievement(userId, achievementName, notify = true) {
     const achievementId = achievement.rows[0].id;
     const pointsReward = achievement.rows[0].points_reward;
     
-    // Check if already awarded
     const existing = await client.query(
       'SELECT * FROM user_achievements WHERE user_id = $1 AND achievement_id = $2',
       [userId, achievementId]
@@ -253,13 +241,11 @@ async function awardAchievement(userId, achievementName, notify = true) {
     
     await client.query('BEGIN');
     
-    // Award achievement
     await client.query(
       'INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2)',
       [userId, achievementId]
     );
     
-    // Award points
     if (pointsReward > 0) {
       await client.query(
         'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
@@ -332,7 +318,7 @@ function verifyAdmin(req, res, next) {
 }
 
 // ============================================
-// USER API ENDPOINTS - WITH FIXED REFERRAL HANDLING
+// USER API ENDPOINTS
 // ============================================
 
 app.post('/api/user', verifyTelegramData, async (req, res) => {
@@ -364,7 +350,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       ]);
       user = result.rows[0];
     } else {
-      // Generate new referral code with ref- prefix
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       
       const insertQuery = `
@@ -450,7 +435,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
             );
           }
           
-          // Give bonus to new user
           await client.query(
             'UPDATE users SET points = points + 500 WHERE id = $1',
             [user.id]
@@ -511,7 +495,6 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
       [rewardAmount, userId]
     );
     
-    // Check for Points Millionaire achievement
     const userPoints = await client.query('SELECT points FROM users WHERE id = $1', [userId]);
     if (userPoints.rows[0].points >= 1000000) {
       await awardAchievement(userId, 'Points Millionaire');
@@ -600,12 +583,10 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
       [finalReward, today, userId]
     );
     
-    // Check for Daily Streak 7 achievement
     if (streak >= 7) {
       await awardAchievement(userId, 'Daily Streak 7');
     }
     
-    // Check for Loyal User achievement (30 day streak)
     if (streak >= 30) {
       await awardAchievement(userId, 'Loyal User');
     }
@@ -644,21 +625,11 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     const today = new Date().toISOString().split('T')[0];
     
-    // Check if claimed today
     const claimedToday = await pool.query(
       'SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2',
       [userId, today]
     );
     
-    // Get all daily rewards for this user
-    const allRewards = await pool.query(`
-      SELECT reward_date, streak_count, reward_points
-      FROM daily_rewards
-      WHERE user_id = $1
-      ORDER BY reward_date DESC
-    `, [userId]);
-    
-    // Get last 7 days for calendar
     const last7Days = await pool.query(`
       SELECT reward_date, streak_count, reward_points
       FROM daily_rewards
@@ -667,28 +638,21 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
       LIMIT 7
     `, [userId]);
     
-    // Get max streak
     const maxStreak = await pool.query(`
       SELECT COALESCE(MAX(streak_count), 0) as max_streak
       FROM daily_rewards
       WHERE user_id = $1
     `, [userId]);
     
-    // Calculate current streak properly
     let currentStreak = 0;
-    if (allRewards.rows.length > 0) {
-      const mostRecent = allRewards.rows[0];
-      const mostRecentDate = new Date(mostRecent.reward_date);
-      const todayDate = new Date();
+    if (last7Days.rows.length > 0) {
+      const mostRecent = last7Days.rows[0];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
       
-      const diffDays = Math.floor((todayDate - mostRecentDate) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays === 0) {
+      if (mostRecent.reward_date === today || mostRecent.reward_date === yesterdayStr) {
         currentStreak = mostRecent.streak_count;
-      } else if (diffDays === 1) {
-        currentStreak = mostRecent.streak_count;
-      } else {
-        currentStreak = 0;
       }
     }
     
