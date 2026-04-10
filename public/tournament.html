@@ -15,48 +15,175 @@
             --danger: #ff5252;
             --dark: #1a1b25;
             --darker: #12131a;
-            --gray: #6c757d;
+            --gray: #a0a0a0;
             --card-bg: #252836;
             --card-border: #2d3343;
+            --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
         .container { max-width: 500px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .prize-section { background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 20px; padding: 20px; text-align: center; margin-bottom: 20px; }
-        .prize-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-        .prize-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
-        .prize-item { background: rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; }
-        .prize-rank { font-weight: bold; font-size: 14px; }
-        .prize-points { font-size: 12px; color: #FFD700; }
-        .tournament-btn { background: var(--success); color: white; border: none; border-radius: 16px; padding: 15px; width: 100%; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 20px; }
-        .tournament-btn.leave { background: var(--danger); }
-        .tournament-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .my-rank-card { background: var(--card-bg); border: 2px solid var(--secondary); border-radius: 16px; padding: 15px; text-align: center; margin-bottom: 20px; }
-        .my-rank { font-size: 28px; font-weight: bold; color: var(--secondary); }
-        .my-points { font-size: 20px; color: var(--success); }
-        .not-joined-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 20px; }
-        .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
-        .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
-        .rank { width: 40px; font-weight: bold; font-size: 16px; }
-        .rank-1 { color: #FFD700; }
-        .rank-2 { color: #C0C0C0; }
-        .rank-3 { color: #CD7F32; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; }
-        .info { flex: 1; }
-        .name { font-weight: 600; font-size: 14px; }
-        .username { font-size: 11px; color: var(--gray); }
-        .score { font-weight: bold; color: var(--success); font-size: 13px; }
+        
+        /* Header */
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; background: linear-gradient(135deg, var(--gold), #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { color: var(--gray); font-size: 13px; margin-top: 5px; }
+        
+        /* Prize Banner - FIXED */
+        .prize-banner {
+            background: linear-gradient(135deg, rgba(106,17,203,0.3), rgba(37,117,252,0.3));
+            border: 1px solid var(--secondary);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .prize-banner h3 { 
+            font-size: 18px; 
+            margin-bottom: 15px; 
+            color: white;
+        }
+        .prize-row { 
+            display: flex; 
+            justify-content: center; 
+            gap: 25px; 
+            margin-top: 10px;
+        }
+        .prize-card { 
+            text-align: center; 
+            padding: 10px 15px;
+            border-radius: 16px;
+            background: rgba(0,0,0,0.3);
+            min-width: 90px;
+        }
+        .prize-card .place { 
+            font-size: 28px; 
+            font-weight: bold; 
+            margin-bottom: 8px;
+        }
+        .prize-card .points { 
+            font-size: 13px; 
+            font-weight: bold;
+        }
+        .prize-card .points span { 
+            font-size: 16px; 
+        }
+        /* Individual prize colors */
+        .prize-card.first .place { color: var(--gold); text-shadow: 0 0 5px rgba(255,215,0,0.3); }
+        .prize-card.first .points { color: var(--gold); }
+        .prize-card.second .place { color: var(--silver); }
+        .prize-card.second .points { color: var(--silver); }
+        .prize-card.third .place { color: var(--bronze); }
+        .prize-card.third .points { color: var(--bronze); }
+        
+        /* Tournament Button */
+        .tournament-btn {
+            background: linear-gradient(135deg, var(--success), #64dd17);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 16px;
+            width: 100%;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .tournament-btn.leave { background: linear-gradient(135deg, var(--danger), #ff1744); }
+        .tournament-btn:active { transform: scale(0.98); }
+        
+        /* My Rank Card */
+        .my-rank-card {
+            background: linear-gradient(135deg, rgba(37,117,252,0.15), rgba(106,17,203,0.15));
+            border: 1px solid var(--secondary);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .my-rank-label { font-size: 13px; color: var(--gray); margin-bottom: 8px; }
+        .my-rank-number { font-size: 36px; font-weight: bold; color: var(--secondary); }
+        .my-points { font-size: 16px; color: var(--success); margin-top: 8px; }
+        
+        /* Not Joined Card */
+        .not-joined-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 35px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .not-joined-card i { font-size: 48px; color: var(--gray); margin-bottom: 15px; display: block; }
+        .not-joined-card p { font-size: 14px; color: white; }
+        .not-joined-card small { font-size: 12px; color: var(--gray); }
+        
+        /* Leaderboard Header */
+        .leaderboard-header {
+            display: flex;
+            padding: 12px 15px;
+            background: rgba(37,117,252,0.15);
+            font-weight: bold;
+            font-size: 12px;
+            color: var(--gray);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .leaderboard-header .rank { width: 55px; }
+        .leaderboard-header .player { flex: 1; }
+        .leaderboard-header .points { width: 80px; text-align: right; }
+        
+        /* Leaderboard List */
+        .leaderboard-list {
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--card-border);
+            overflow: hidden;
+        }
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .leaderboard-item:last-child { border-bottom: none; }
+        .leaderboard-item .rank { width: 55px; font-weight: bold; font-size: 18px; }
+        .rank-1 { color: var(--gold); }
+        .rank-2 { color: var(--silver); }
+        .rank-3 { color: var(--bronze); }
+        .leaderboard-item .player-info { flex: 1; }
+        .player-name { font-size: 14px; font-weight: 600; color: white; }
+        .player-username { font-size: 11px; color: var(--gray); margin-top: 2px; }
+        .player-points { width: 80px; text-align: right; font-weight: bold; color: var(--success); font-size: 14px; }
+        .you-badge { background: var(--secondary); color: white; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+        
+        /* Loading & Empty States */
         .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        .empty-state i { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+        
+        /* Notification */
         .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
+        
+        /* Bottom Navigation */
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
-            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+            display: flex; justify-content: space-around; padding: 10px 12px; z-index: 100;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 6px 10px; border-radius: 12px; }
+        .nav-item i { font-size: 18px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37,117,252,0.1); }
+        
+        @media (max-width: 480px) {
+            body { padding: 15px; padding-bottom: 70px; }
+            .prize-row { gap: 12px; }
+            .prize-card { padding: 8px 10px; min-width: 75px; }
+            .prize-card .place { font-size: 22px; }
+            .prize-card .points { font-size: 11px; }
+            .prize-card .points span { font-size: 14px; }
+        }
     </style>
 </head>
 <body>
@@ -64,38 +191,60 @@
 
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-fist-raised"></i> Weekly Tournament</h1>
-            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Compete weekly for prizes!</p>
+            <h1><i class="fas fa-trophy"></i> Weekly Tournament</h1>
+            <p>Compete every week for bonus prizes!</p>
         </div>
 
-        <div class="prize-section">
-            <div class="prize-title">🏆 Weekly Prizes 🏆</div>
-            <div class="prize-grid">
-                <div class="prize-item"><div class="prize-rank">🥇 1st</div><div class="prize-points">100,000 pts</div></div>
-                <div class="prize-item"><div class="prize-rank">🥈 2nd</div><div class="prize-points">50,000 pts</div></div>
-                <div class="prize-item"><div class="prize-rank">🥉 3rd</div><div class="prize-points">25,000 pts</div></div>
+        <!-- Prize Banner - FIXED with proper colors -->
+        <div class="prize-banner">
+            <h3>🏆 Weekly Prizes 🏆</h3>
+            <div class="prize-row">
+                <div class="prize-card first">
+                    <div class="place">🥇 1st</div>
+                    <div class="points"><span>100,000</span> pts</div>
+                </div>
+                <div class="prize-card second">
+                    <div class="place">🥈 2nd</div>
+                    <div class="points"><span>50,000</span> pts</div>
+                </div>
+                <div class="prize-card third">
+                    <div class="place">🥉 3rd</div>
+                    <div class="points"><span>25,000</span> pts</div>
+                </div>
             </div>
         </div>
 
+        <!-- Tournament Button -->
         <button class="tournament-btn" id="tournamentBtn">⚔️ Join Tournament</button>
 
+        <!-- My Rank Card (shown only when joined) -->
         <div id="myRankCard" class="my-rank-card" style="display: none;">
-            <div>🏆 Your Rank</div>
-            <div class="my-rank" id="myRank">-</div>
-            <div class="my-points" id="myPoints">0 pts this week</div>
+            <div class="my-rank-label">🏆 YOUR CURRENT RANK</div>
+            <div class="my-rank-number" id="myRank">-</div>
+            <div class="my-points" id="myPoints">0 points this week</div>
         </div>
 
+        <!-- Not Joined Card (shown only when not joined) -->
         <div id="notJoinedCard" class="not-joined-card" style="display: none;">
-            <i class="fas fa-trophy" style="font-size: 48px; opacity: 0.5; margin-bottom: 15px;"></i>
-            <p>Join the tournament to compete and win prizes!</p>
-            <p style="font-size: 12px; color: var(--gray); margin-top: 10px;">Only participants appear on leaderboard</p>
+            <i class="fas fa-trophy"></i>
+            <p>Join the tournament to compete!</p>
+            <small>Only participants appear on leaderboard</small>
         </div>
 
-        <div class="leaderboard-list" id="standingsList">
-            <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading standings...</div>
+        <!-- Leaderboard -->
+        <div class="leaderboard-list">
+            <div class="leaderboard-header">
+                <div class="rank">#</div>
+                <div class="player">Player</div>
+                <div class="points">Points</div>
+            </div>
+            <div id="standingsList">
+                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading standings...</div>
+            </div>
         </div>
     </div>
 
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
@@ -107,8 +256,6 @@
     <script>
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.expand(); tg.ready(); }
-
-        let hasJoined = false;
 
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -153,64 +300,6 @@
             }
         }
 
-        async function loadStandings() {
-            try {
-                const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
-                
-                const btn = document.getElementById('tournamentBtn');
-                const myRankCard = document.getElementById('myRankCard');
-                const notJoinedCard = document.getElementById('notJoinedCard');
-                
-                if (data.has_joined) {
-                    // User joined tournament
-                    btn.textContent = '🚪 Leave Tournament';
-                    btn.classList.add('leave');
-                    btn.onclick = leaveTournament;
-                    notJoinedCard.style.display = 'none';
-                    
-                    if (data.my_rank) {
-                        myRankCard.style.display = 'block';
-                        document.getElementById('myRank').textContent = `#${data.my_rank}`;
-                        document.getElementById('myPoints').textContent = `${data.my_points.toLocaleString()} pts this week`;
-                    } else {
-                        myRankCard.style.display = 'none';
-                    }
-                } else {
-                    // User not joined
-                    btn.textContent = '⚔️ Join Tournament';
-                    btn.classList.remove('leave');
-                    btn.onclick = joinTournament;
-                    myRankCard.style.display = 'none';
-                    notJoinedCard.style.display = 'block';
-                }
-                
-                const container = document.getElementById('standingsList');
-                if (!data.standings || data.standings.length === 0) {
-                    container.innerHTML = '<div class="loading">No participants yet.<br>Be the first to join!</div>';
-                    return;
-                }
-                
-                container.innerHTML = data.standings.map((user, idx) => {
-                    const isCurrentUser = user.id === tg?.initDataUnsafe?.user?.id;
-                    return `
-                        <div class="leaderboard-item" style="${isCurrentUser ? 'background: rgba(37, 117, 252, 0.1);' : ''}">
-                            <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
-                            <div class="avatar"><i class="fas fa-user"></i></div>
-                            <div class="info">
-                                <div class="name">${escapeHtml(user.first_name || user.username || 'User')} ${isCurrentUser ? '(You)' : ''}</div>
-                                <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
-                            </div>
-                            <div class="score">${(user.weekly_points || 0).toLocaleString()} pts</div>
-                        </div>
-                    `;
-                }).join('');
-                
-            } catch (err) {
-                console.error(err);
-                document.getElementById('standingsList').innerHTML = '<div class="loading">Failed to load. Please refresh.</div>';
-            }
-        }
-
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, function(m) {
@@ -219,6 +308,79 @@
                 if (m === '>') return '&gt;';
                 return m;
             });
+        }
+
+        async function loadStandings() {
+            try {
+                const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
+                
+                const btn = document.getElementById('tournamentBtn');
+                const myRankCard = document.getElementById('myRankCard');
+                const notJoinedCard = document.getElementById('notJoinedCard');
+                const standingsContainer = document.getElementById('standingsList');
+                
+                if (data.has_joined) {
+                    btn.textContent = '🚪 Leave Tournament';
+                    btn.classList.add('leave');
+                    btn.onclick = leaveTournament;
+                    notJoinedCard.style.display = 'none';
+                    
+                    if (data.my_rank) {
+                        myRankCard.style.display = 'block';
+                        document.getElementById('myRank').textContent = `#${data.my_rank}`;
+                        document.getElementById('myPoints').textContent = `${data.my_points.toLocaleString()} points this week`;
+                    } else {
+                        myRankCard.style.display = 'none';
+                    }
+                } else {
+                    btn.textContent = '⚔️ Join Tournament';
+                    btn.classList.remove('leave');
+                    btn.onclick = joinTournament;
+                    myRankCard.style.display = 'none';
+                    notJoinedCard.style.display = 'block';
+                }
+                
+                if (!data.standings || data.standings.length === 0) {
+                    standingsContainer.innerHTML = '<div class="empty-state"><i class="fas fa-users-slash"></i><br>No participants yet<br><small>Be the first to join!</small></div>';
+                    return;
+                }
+                
+                standingsContainer.innerHTML = data.standings.map((user, idx) => {
+                    const isCurrentUser = user.id === tg?.initDataUnsafe?.user?.id;
+                    let rankDisplay = '';
+                    let rankClass = '';
+                    if (idx === 0) {
+                        rankDisplay = '🥇';
+                        rankClass = 'rank-1';
+                    } else if (idx === 1) {
+                        rankDisplay = '🥈';
+                        rankClass = 'rank-2';
+                    } else if (idx === 2) {
+                        rankDisplay = '🥉';
+                        rankClass = 'rank-3';
+                    } else {
+                        rankDisplay = `#${idx + 1}`;
+                    }
+                    
+                    return `
+                        <div class="leaderboard-item" style="${isCurrentUser ? 'background: rgba(37, 117, 252, 0.08);' : ''}">
+                            <div class="rank ${rankClass}">${rankDisplay}</div>
+                            <div class="player-info">
+                                <div class="player-name">
+                                    ${escapeHtml(user.first_name || user.username || 'User')}
+                                    ${isCurrentUser ? '<span class="you-badge">You</span>' : ''}
+                                </div>
+                                <div class="player-username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
+                            </div>
+                            <div class="player-points">${(user.weekly_points || 0).toLocaleString()}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error(err);
+                document.getElementById('standingsList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Please refresh.</div>';
+            }
         }
 
         loadStandings();
