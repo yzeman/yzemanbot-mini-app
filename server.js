@@ -1094,7 +1094,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API
+// TEAM API - ALL ENDPOINTS (FIXED TO POST)
 // ============================================
 
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
@@ -1104,7 +1104,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     const telegramId = req.telegramUser.id;
     
     const userResult = await client.query(
-      'SELECT id FROM users WHERE telegram_id = $1',
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
       [telegramId]
     );
     
@@ -1114,13 +1114,19 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
+    // Check if user is already in a team
+    if (userResult.rows[0].team_id) {
+      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
+    }
+    
+    // Check if user already created a team (even if empty)
     const existingTeam = await client.query(
       'SELECT id FROM teams WHERE created_by = $1',
       [userId]
     );
     
     if (existingTeam.rows.length > 0) {
-      return res.status(400).json({ error: 'You already created a team' });
+      return res.status(400).json({ error: 'You already created a team. You cannot create another one.' });
     }
     
     const teamCode = crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -1140,6 +1146,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
     
+    // Check for Team Player achievement
     const teamAchievement = await client.query("SELECT id FROM achievements WHERE name = 'Team Player'");
     if (teamAchievement.rows.length > 0) {
       await client.query(`INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, [userId, teamAchievement.rows[0].id]);
@@ -1176,22 +1183,32 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     
     if (userResult.rows[0].team_id) {
-      return res.status(400).json({ error: 'You are already in a team' });
+      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
     const teamResult = await client.query(
-      'SELECT id FROM teams WHERE code = $1',
+      'SELECT id, created_by FROM teams WHERE code = $1',
       [teamCode.toUpperCase()]
     );
     
     if (teamResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found' });
+      return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
     }
     
     const teamId = teamResult.rows[0].id;
     
+    // Check if already a member
+    const existingMember = await client.query(
+      'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
+      [teamId, userId]
+    );
+    
+    if (existingMember.rows.length > 0) {
+      return res.status(400).json({ error: 'You are already a member of this team' });
+    }
+    
     await client.query(
-      'INSERT INTO team_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      'INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)',
       [teamId, userId]
     );
     
@@ -1215,7 +1232,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.get('/api/team/info', verifyTelegramData, async (req, res) => {
+app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
     
@@ -1276,7 +1293,7 @@ app.get('/api/team/info', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.get('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
+app.post('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1301,7 +1318,7 @@ app.get('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.get('/api/team/monthly-competition', verifyTelegramData, async (req, res) => {
+app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
       WITH monthly_stats AS (
@@ -1339,10 +1356,6 @@ app.get('/api/team/monthly-competition', verifyTelegramData, async (req, res) =>
     res.status(500).json({ error: 'Failed to fetch monthly competition' });
   }
 });
-
-// ============================================
-// LEAVE TEAM API
-// ============================================
 
 app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
