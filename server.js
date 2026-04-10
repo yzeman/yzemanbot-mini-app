@@ -1635,6 +1635,50 @@ app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
   }
 });
 
+app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  try {
+    await pool.query('UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1', [points, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Deduct points error:', err);
+    res.status(500).json({ error: 'Failed to deduct points' });
+  }
+});
+
+// ============================================
+// DELETE USER (ADMIN ONLY)
+// ============================================
+
+app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
+  const { userId } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Delete from all related tables
+    await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
+    await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  } finally {
+    client.release();
+  }
+});
+
 // ============================================
 // START SERVER
 // ============================================
