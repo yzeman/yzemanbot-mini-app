@@ -1,4 +1,4 @@
-const { Telegraf, session } = require('telegraf');
+const { Telegraf } = require('telegraf');
 require('dotenv').config();
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -9,11 +9,11 @@ if (!BOT_TOKEN) {
     process.exit(1);
 }
 
-// Initialize bot
+// Initialize bot (without session - we'll use a simple variable instead)
 const bot = new Telegraf(BOT_TOKEN);
 
-// Enable session to store referral codes temporarily
-bot.use(session());
+// Simple in-memory storage for referral codes (no session needed)
+const referralStorage = new Map();
 
 // Handle /start command with referral parameter
 bot.command('start', (ctx) => {
@@ -34,9 +34,9 @@ bot.command('start', (ctx) => {
         console.log('Cleaned referral code (removed YZEMAN-):', referralCode);
     }
     
-    // Store referral code in session
+    // Store referral code in memory
     if (referralCode) {
-        ctx.session.referralCode = referralCode;
+        referralStorage.set(ctx.from.id.toString(), referralCode);
         console.log(`📝 Referral code stored: ${referralCode} for user ${ctx.from.id}`);
     }
     
@@ -65,7 +65,7 @@ bot.command('start', (ctx) => {
         ]
     };
     
-    // Welcome message - using HTML instead of Markdown to avoid parsing errors
+    // Welcome message using HTML (more reliable than Markdown)
     let message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
     message += `Earn points by referring friends and watching ads.\n\n`;
     
@@ -118,11 +118,11 @@ bot.action('help', async (ctx) => {
 
 // Error handling
 bot.catch((err, ctx) => {
-    console.error(`❌ Bot error for user ${ctx.from?.id}:`, err);
+    console.error(`❌ Bot error for user ${ctx.from?.id}:`, err.message);
     ctx.reply('Sorry, something went wrong. Please try again later.');
 });
 
-// Start the bot using polling
+// Start the bot using polling (no webhook needed)
 console.log('🤖 Starting bot in polling mode...');
 bot.launch().then(() => {
     console.log('✅ Bot is running and listening for commands!');
@@ -143,5 +143,3 @@ process.once('SIGTERM', () => {
     bot.stop('SIGTERM');
     process.exit(0);
 });
-
-console.log('🤖 Yzeman Bot is running in polling mode...');
