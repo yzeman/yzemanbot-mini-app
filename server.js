@@ -749,7 +749,7 @@ app.get('/api/wheel-status', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// LEADERBOARD API - FIXED: CHANGED FROM GET TO POST
+// LEADERBOARD API
 // ============================================
 
 app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
@@ -887,7 +887,7 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TOURNAMENT API
+// TOURNAMENT API - FIXED VERSION
 // ============================================
 
 app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
@@ -932,14 +932,24 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
     
     const tournamentId = tournament.rows[0].id;
     
+    // Check if already joined
+    const existing = await client.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+    
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Already joined this tournament' });
+    }
+    
     await client.query(
       `INSERT INTO tournament_participants (tournament_id, user_id) 
-       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+       VALUES ($1, $2)`,
       [tournamentId, userId]
     );
     
     await client.query('COMMIT');
-    res.json({ success: true, message: 'Joined weekly tournament!' });
+    res.json({ success: true, message: 'Joined tournament!' });
     
   } catch (err) {
     await client.query('ROLLBACK');
@@ -950,50 +960,131 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
+app.post('/api/tournament/leave', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
   try {
+    const telegramId = req.telegramUser.id;
+    
+    const userResult = await client.query(
+      'SELECT id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userId = userResult.rows[0].id;
+    
     const today = new Date();
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
     weekStart.setHours(0, 0, 0, 0);
     const weekStartStr = weekStart.toISOString().split('T')[0];
     
-    const result = await pool.query(`
+    const tournament = await client.query(
+      'SELECT id FROM weekly_tournaments WHERE week_start = $1',
+      [weekStartStr]
+    );
+    
+    if (tournament.rows.length === 0) {
+      return res.status(404).json({ error: 'No active tournament' });
+    }
+    
+    const tournamentId = tournament.rows[0].id;
+    
+    await client.query(
+      'DELETE FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Left tournament' });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Tournament leave error:', err);
+    res.status(500).json({ error: 'Failed to leave tournament' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userId = userResult.rows[0].id;
+    
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    
+    // Get tournament
+    const tournament = await pool.query(
+      'SELECT id FROM weekly_tournaments WHERE week_start = $1',
+      [weekStartStr]
+    );
+    
+    if (tournament.rows.length === 0) {
+      return res.json({ standings: [], my_rank: null, my_points: 0, has_joined: false });
+    }
+    
+    const tournamentId = tournament.rows[0].id;
+    
+    // Check if user has joined
+    const userJoined = await pool.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+    const hasJoined = userJoined.rows.length > 0;
+    
+    // Get standings - ONLY participants
+    const standings = await pool.query(`
       SELECT 
         u.id,
         u.username,
         u.first_name,
         u.photo_url,
         COALESCE(SUM(ar.reward_amount), 0) as weekly_points,
-        COUNT(DISTINCT r.id) as weekly_referrals,
-        u.tier
+        u.tier,
+        ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
       FROM tournament_participants tp
       JOIN users u ON tp.user_id = u.id
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at > NOW() - INTERVAL '7 days'
-      LEFT JOIN referrals r ON u.id = r.referrer_id 
-        AND r.created_at > NOW() - INTERVAL '7 days'
-      WHERE tp.tournament_id = (SELECT id FROM weekly_tournaments WHERE week_start = $1)
+      WHERE tp.tournament_id = $1
       GROUP BY u.id
       ORDER BY weekly_points DESC
-      LIMIT 100
-    `, [weekStartStr]);
+    `, [tournamentId]);
     
-    const currentUser = await pool.query(`
-      SELECT u.id, COALESCE(SUM(ar.reward_amount), 0) as weekly_points,
-             RANK() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
-      FROM users u
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
-        AND ar.created_at > NOW() - INTERVAL '7 days'
-      WHERE u.telegram_id = $1
-      GROUP BY u.id
-    `, [req.telegramUser.id]);
+    // Find current user's rank
+    let myRank = null;
+    let myPoints = 0;
+    for (const row of standings.rows) {
+      if (row.id === userId) {
+        myRank = row.rank;
+        myPoints = parseInt(row.weekly_points);
+        break;
+      }
+    }
     
     res.json({
-      standings: result.rows,
-      my_rank: currentUser.rows[0]?.rank || null,
-      my_points: currentUser.rows[0]?.weekly_points || 0,
-      week_start: weekStartStr
+      standings: standings.rows,
+      my_rank: myRank,
+      my_points: myPoints,
+      has_joined: hasJoined
     });
     
   } catch (err) {
