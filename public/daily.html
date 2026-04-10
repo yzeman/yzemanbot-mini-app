@@ -15,86 +15,241 @@
             --danger: #ff5252;
             --dark: #1a1b25;
             --darker: #12131a;
-            --gray: #6c757d;
+            --gray: #a0a0a0;
             --card-bg: #252836;
             --card-border: #2d3343;
+            --gold: #FFD700;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
         body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
-        .container { max-width: 500px; margin: 0 auto; text-align: center; }
-        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
-        .streak-card { background: linear-gradient(135deg, #FF9800, #FF5722); border-radius: 20px; padding: 25px; margin: 20px 0; }
-        .streak-number { font-size: 48px; font-weight: bold; margin: 10px 0; }
-        .streak-label { font-size: 14px; opacity: 0.9; }
-        .claim-btn { background: linear-gradient(45deg, var(--success), #64dd17); color: white; border: none; border-radius: 50px; padding: 18px 40px; font-size: 18px; font-weight: bold; cursor: pointer; margin: 20px 0; width: 100%; }
-        .claim-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .reward-preview { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; margin: 15px 0; }
-        .reward-amount { font-size: 32px; color: var(--success); font-weight: bold; }
-        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin: 20px 0; }
-        .calendar-day { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 5px; text-align: center; font-size: 12px; }
-        .calendar-day.claimed { background: var(--success); border-color: var(--success); }
-        .calendar-day.today { border-color: var(--warning); border-width: 2px; }
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
-            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+        .container { max-width: 500px; margin: 0 auto; }
+        
+        /* Header */
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; background: linear-gradient(135deg, var(--gold), #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header p { color: var(--gray); font-size: 13px; margin-top: 5px; }
+        
+        /* Streak Card */
+        .streak-card {
+            background: linear-gradient(135deg, #FF9800, #FF5722);
+            border-radius: 24px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
+        .streak-card::before {
+            content: "🔥";
+            position: absolute;
+            font-size: 80px;
+            opacity: 0.1;
+            bottom: -10px;
+            right: -10px;
+        }
+        .streak-label { font-size: 14px; opacity: 0.9; letter-spacing: 1px; }
+        .streak-number { font-size: 56px; font-weight: bold; margin: 10px 0; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .streak-unit { font-size: 14px; opacity: 0.8; }
+        
+        /* Reward Card */
+        .reward-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .reward-label { font-size: 13px; color: var(--gray); margin-bottom: 8px; }
+        .reward-amount { font-size: 36px; font-weight: bold; color: var(--success); }
+        .reward-bonus { font-size: 12px; color: var(--gray); margin-top: 5px; }
+        
+        /* Claim Button */
+        .claim-btn {
+            background: linear-gradient(135deg, var(--success), #64dd17);
+            color: white;
+            border: none;
+            border-radius: 60px;
+            padding: 18px;
+            width: 100%;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .claim-btn:active { transform: scale(0.98); }
+        .claim-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        /* Stats Row */
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-number { font-size: 24px; font-weight: bold; color: var(--success); }
+        .stat-label { font-size: 11px; color: var(--gray); margin-top: 5px; }
+        
+        /* Calendar */
+        .calendar-title { font-size: 14px; margin-bottom: 12px; color: var(--gray); }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 15px;
+        }
+        .calendar-day {
+            text-align: center;
+            padding: 10px 5px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.03);
+            transition: all 0.2s;
+        }
+        .calendar-day.claimed {
+            background: linear-gradient(135deg, var(--success), #64dd17);
+            color: white;
+        }
+        .calendar-day.today {
+            border: 2px solid var(--warning);
+            background: rgba(255,171,0,0.15);
+        }
+        .calendar-day .day-name { font-size: 11px; font-weight: 600; margin-bottom: 5px; }
+        .calendar-day .day-date { font-size: 14px; font-weight: bold; }
+        .calendar-day .check-icon { font-size: 10px; margin-top: 3px; color: white; }
+        
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            z-index: 1000;
+            display: none;
+            font-size: 14px;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border-top: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 12px;
+            z-index: 100;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 10px;
+            padding: 6px 10px;
+            border-radius: 12px;
+        }
+        .nav-item i { font-size: 18px; }
+        .nav-item.active { color: var(--secondary); background: rgba(37,117,252,0.1); }
+        
+        @media (max-width: 480px) {
+            body { padding: 15px; padding-bottom: 70px; }
+            .streak-number { font-size: 44px; }
+            .reward-amount { font-size: 28px; }
+            .calendar-grid { gap: 5px; padding: 10px; }
+            .calendar-day { padding: 8px 3px; }
+            .calendar-day .day-date { font-size: 12px; }
+        }
     </style>
 </head>
 <body>
     <div class="notification" id="notification"></div>
 
     <div class="container">
+        <!-- Header -->
         <div class="header">
             <h1><i class="fas fa-calendar-alt"></i> Daily Rewards</h1>
-            <p style="color: var(--gray);">Claim daily bonus and build your streak!</p>
+            <p>Claim every day to build your streak!</p>
         </div>
 
+        <!-- Streak Card -->
         <div class="streak-card">
-            <div class="streak-label">🔥 Current Streak</div>
+            <div class="streak-label">🔥 CURRENT STREAK</div>
             <div class="streak-number" id="streakCount">0</div>
-            <div class="streak-label">days in a row!</div>
+            <div class="streak-unit">days in a row!</div>
         </div>
 
-        <div class="reward-preview">
-            <div>Today's Reward</div>
+        <!-- Today's Reward -->
+        <div class="reward-card">
+            <div class="reward-label">🎁 TODAY'S REWARD</div>
             <div class="reward-amount" id="todayReward">-</div>
-            <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">+ streak bonus every 7 days</div>
+            <div class="reward-bonus">✨ +5,000 bonus every 7 days! ✨</div>
         </div>
 
+        <!-- Claim Button -->
         <button class="claim-btn" id="claimBtn">🎁 Claim Daily Reward</button>
 
-        <div class="reward-preview">
-            <div>📊 Your Stats</div>
-            <div style="display: flex; justify-content: space-around; margin-top: 15px;">
-                <div><strong id="totalDays">0</strong><br><small>Total Days</small></div>
-                <div><strong id="maxStreak">0</strong><br><small>Max Streak</small></div>
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-number" id="totalDays">0</div>
+                <div class="stat-label">Total Claims</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="maxStreak">0</div>
+                <div class="stat-label">Best Streak</div>
             </div>
         </div>
 
-        <div class="calendar" id="calendar"></div>
+        <!-- Calendar -->
+        <div class="calendar-title">📅 Last 7 Days</div>
+        <div class="calendar-grid" id="calendar"></div>
     </div>
 
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="daily.html" class="nav-item active"><i class="fas fa-calendar-alt"></i><span>Daily</span></a>
+        <a href="wheel.html" class="nav-item"><i class="fas fa-circle-notch"></i><span>Wheel</span></a>
         <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
         <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
-        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
     </div>
 
     <script>
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.expand(); tg.ready(); }
 
-        // Simple fetch with timeout
+        function showMessage(msg, isError = false) {
+            const el = document.getElementById('notification');
+            el.textContent = msg;
+            el.style.background = isError ? '#ff5252' : '#00c853';
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+
         async function fetchJSON(url, options = {}) {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000);
-            
             try {
                 const response = await fetch(url, {
                     ...options,
@@ -102,7 +257,6 @@
                     headers: { 'Content-Type': 'application/json' }
                 });
                 clearTimeout(timeout);
-                
                 if (!response.ok) {
                     const text = await response.text();
                     throw new Error(text || `HTTP ${response.status}`);
@@ -114,14 +268,6 @@
             }
         }
 
-        function showMessage(msg, isError = false) {
-            const el = document.getElementById('notification');
-            el.textContent = msg;
-            el.style.background = isError ? '#ff5252' : '#00c853';
-            el.style.display = 'block';
-            setTimeout(() => el.style.display = 'none', 3000);
-        }
-
         async function loadStats() {
             try {
                 const data = await fetchJSON('/api/daily-stats', {
@@ -129,41 +275,74 @@
                     body: JSON.stringify({ initData: tg.initData })
                 });
                 
-                document.getElementById('streakCount').textContent = data.current_streak || 0;
+                // Update streak display
+                const currentStreak = data.current_streak || 0;
+                document.getElementById('streakCount').textContent = currentStreak;
                 document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
                 document.getElementById('maxStreak').textContent = data.max_streak || 0;
                 
+                // Calculate today's reward
                 const baseReward = 1000;
-                const streakBonus = Math.floor((data.current_streak || 0) / 7) * 5000;
-                document.getElementById('todayReward').textContent = `${(baseReward + streakBonus).toLocaleString()} points`;
+                const streakBonus = Math.floor(currentStreak / 7) * 5000;
+                const todayReward = baseReward + streakBonus;
+                document.getElementById('todayReward').textContent = `${todayReward.toLocaleString()} points`;
                 
+                // Update claim button
                 const btn = document.getElementById('claimBtn');
                 if (data.claimed_today) {
                     btn.disabled = true;
-                    btn.textContent = '✅ Already Claimed';
+                    btn.textContent = '✅ Already Claimed Today';
                 } else {
                     btn.disabled = false;
                     btn.textContent = '🎁 Claim Daily Reward';
                 }
                 
-                // Render calendar
-                const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                const claimedDates = new Set((data.last_7_days || []).map(d => d.reward_date));
-                const today = new Date().toISOString().split('T')[0];
-                
-                document.getElementById('calendar').innerHTML = days.map((day, i) => {
-                    const date = new Date();
-                    date.setDate(date.getDate() - (6 - i));
-                    const dateStr = date.toISOString().split('T')[0];
-                    const isClaimed = claimedDates.has(dateStr);
-                    const isToday = dateStr === today;
-                    return `<div class="calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}"><div>${day}</div><div style="font-size:10px;margin-top:5px;">${date.getDate()}</div>${isClaimed ? '<i class="fas fa-check" style="font-size:10px;margin-top:3px;"></i>' : ''}</div>`;
-                }).join('');
+                // Render calendar with CORRECT dates
+                renderCalendar(data);
                 
             } catch (err) {
-                console.error(err);
+                console.error('Load error:', err);
                 showMessage('⚠️ Failed to load. Pull to refresh.', true);
             }
+        }
+
+        function renderCalendar(data) {
+            const calendar = document.getElementById('calendar');
+            const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            const claimedDates = new Set((data.last_7_days || []).map(d => d.reward_date));
+            
+            // Get today's date
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Generate last 7 days (from 6 days ago to today)
+            const last7Days = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(today.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayOfWeek = daysOfWeek[date.getDay()];
+                const dayNumber = date.getDate();
+                const isClaimed = claimedDates.has(dateStr);
+                const isToday = dateStr === todayStr;
+                
+                last7Days.push({
+                    dayName: dayOfWeek,
+                    dayNumber: dayNumber,
+                    dateStr: dateStr,
+                    isClaimed: isClaimed,
+                    isToday: isToday
+                });
+            }
+            
+            // Render calendar
+            calendar.innerHTML = last7Days.map(day => `
+                <div class="calendar-day ${day.isClaimed ? 'claimed' : ''} ${day.isToday ? 'today' : ''}">
+                    <div class="day-name">${day.dayName}</div>
+                    <div class="day-date">${day.dayNumber}</div>
+                    ${day.isClaimed ? '<div class="check-icon"><i class="fas fa-check"></i></div>' : ''}
+                </div>
+            `).join('');
         }
 
         async function claim() {
@@ -176,14 +355,16 @@
                     method: 'POST',
                     body: JSON.stringify({ initData: tg.initData })
                 });
-                showMessage(`🎉 +${result.reward.toLocaleString()} points!`);
+                showMessage(`🎉 +${result.reward.toLocaleString()} points! Streak: ${result.streak} days 🔥`);
                 await loadStats();
             } catch (err) {
                 let msg = err.message;
                 if (msg.includes('Already claimed')) {
-                    msg = '✅ Already claimed today!';
+                    msg = '✅ You already claimed today! Come back tomorrow.';
+                } else if (msg.includes('streak')) {
+                    msg = '🔥 Streak updated! Keep going!';
                 } else {
-                    msg = '❌ Failed. Try again.';
+                    msg = '❌ Failed. Please try again.';
                 }
                 showMessage(msg, true);
                 btn.disabled = false;
