@@ -125,11 +125,6 @@
             margin-left: 5px;
         }
         
-        .points-value {
-            font-size: 14px;
-            color: var(--gray);
-        }
-        
         .progress-section {
             margin-top: 15px;
         }
@@ -458,60 +453,6 @@
             color: white;
         }
         
-        .bonus-section {
-            margin-top: 20px;
-        }
-        
-        .bonus-input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        
-        .bonus-input {
-            flex: 1;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid var(--gray);
-            background: rgba(0,0,0,0.3);
-            color: white;
-            font-size: 14px;
-            text-transform: uppercase;
-        }
-        
-        .bonus-list {
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .bonus-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            margin-bottom: 8px;
-        }
-        
-        .bonus-code {
-            font-weight: bold;
-            color: var(--gold);
-        }
-        
-        .bonus-reward {
-            color: var(--success);
-            font-size: 12px;
-        }
-        
-        .redeemed-badge {
-            background: var(--success);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 10px;
-        }
-        
         .history-list {
             max-height: 300px;
             overflow-y: auto;
@@ -645,7 +586,6 @@
                     <span class="balance-coin">COINS</span>
                 </div>
             </div>
-            <div class="points-value" id="pointsValue">0 points</div>
             
             <div class="progress-section">
                 <div class="progress-label">
@@ -714,7 +654,6 @@
         <div class="tab active" data-tab="earn">💰 Earn</div>
         <div class="tab" data-tab="refer">👥 Refer</div>
         <div class="tab" data-tab="wallet">💳 Wallet</div>
-        <div class="tab" data-tab="bonus">🎁 Bonus</div>
     </div>
     
     <!-- Earn Tab -->
@@ -907,34 +846,8 @@
                     <span>Withdrawal History</span>
                 </div>
                 <div class="history-list" id="withdrawalHistoryList">
-                    <div style="text-align:center; padding:20px;">Loading...</div>
+                    <div style="text-align:center; padding:20px;">No withdrawal requests yet</div>
                 </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Bonus Tab -->
-    <div class="tab-content" id="bonusTab">
-        <div class="bonus-section">
-            <div class="section-title">
-                <i class="fas fa-gift"></i>
-                <span>Redeem Bonus Code</span>
-            </div>
-            
-            <div class="bonus-input-group">
-                <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code" />
-                <button class="btn btn-primary" id="redeemBonusBtn" style="width: auto; padding: 15px 25px;">
-                    Redeem
-                </button>
-            </div>
-            
-            <div class="section-title" style="margin-top: 25px;">
-                <i class="fas fa-list"></i>
-                <span>Available Codes</span>
-            </div>
-            
-            <div class="bonus-list" id="bonusList">
-                <div style="text-align:center; padding:20px;">Loading...</div>
             </div>
         </div>
     </div>
@@ -976,37 +889,25 @@
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
                 
-                // Remove active class from all tabs and contents
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 
-                // Add active class to clicked tab and corresponding content
                 tab.classList.add('active');
                 document.getElementById(tabName + 'Tab').classList.add('active');
             });
         });
         
-        // Update display values with new economy
+        // Update display values
         document.addEventListener('DOMContentLoaded', function() {
-            // Update daily goal display
-            const dailyGoalEl = document.getElementById('dailyAdGoal');
-            if (dailyGoalEl) dailyGoalEl.textContent = '20';
+            document.getElementById('dailyAdGoal').textContent = '20';
+            document.getElementById('dailyGoalReward').textContent = '0.5';
+            document.getElementById('weeklyAdGoal').textContent = '100';
+            document.getElementById('weeklyGoalReward').textContent = '5';
             
-            const dailyGoalRewardEl = document.getElementById('dailyGoalReward');
-            if (dailyGoalRewardEl) dailyGoalRewardEl.textContent = '0.5';
-            
-            // Update weekly goal display
-            const weeklyGoalEl = document.getElementById('weeklyAdGoal');
-            if (weeklyGoalEl) weeklyGoalEl.textContent = '100';
-            
-            const weeklyGoalRewardEl = document.getElementById('weeklyGoalReward');
-            if (weeklyGoalRewardEl) weeklyGoalRewardEl.textContent = '5';
-            
-            // Update tier requirement display
             const nextTierReqEl = document.getElementById('nextTierReq');
             if (nextTierReqEl) nextTierReqEl.textContent = '150';
             
-            console.log('✅ Index.html loaded - Telegram WebApp ready');
+            console.log('✅ YzemanBot loaded - Ready to earn COINS!');
         });
     </script>
 </body>
