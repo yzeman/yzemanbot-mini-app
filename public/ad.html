@@ -11,7 +11,7 @@
             box-sizing: border-box;
         }
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -27,7 +27,7 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 4px solid rgba(255,255,255,0.2);
+            border: 4px solid rgba(255,255,255,0.15);
             border-top-color: #4CAF50;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -61,7 +61,7 @@
         }
     </style>
     
-    <!-- Ad SDKs -->
+    <!-- Unity Ads SDK -->
     <script src="https://webgl.unity3d.com/unity-ads/4.12.0/unity-ads.js"></script>
 </head>
 <body>
@@ -73,14 +73,11 @@
 
     <script>
         // ============================================
-        // CONFIGURATION - VERIFY THESE VALUES
+        // CONFIGURATION
         // ============================================
         const CONFIG = {
-            // AdsGram Block ID from your dashboard
             adsgramBlockId: '27428',
-            // Unity Game ID from your dashboard
             unityGameId: '6087630',
-            // Unity Placement ID - EXACT name from dashboard
             unityPlacementId: 'Rewarded_Video_-_Telegram'
         };
         
@@ -93,12 +90,11 @@
         
         let tg = null;
         let rewardGiven = false;
-        let adCompleted = false;
         
         // ============================================
         // UI HELPER FUNCTIONS
         // ============================================
-        function updateStatus(message, type = 'info') {
+        function updateStatus(message, type) {
             document.getElementById('statusText').textContent = message;
             const container = document.getElementById('container');
             container.classList.remove('error', 'success');
@@ -131,14 +127,12 @@
             
             if (tg) {
                 tg.sendData(rewardData);
-                setTimeout(() => tg.close(), 800);
+                setTimeout(function() { tg.close(); }, 800);
             } else if (window.opener) {
                 window.opener.postMessage(JSON.parse(rewardData), '*');
-                setTimeout(() => window.close(), 800);
+                setTimeout(function() { window.close(); }, 800);
             } else {
-                // Fallback - redirect back to main app
-                debug('No opener found, redirecting...');
-                setTimeout(() => {
+                setTimeout(function() {
                     window.location.href = '/';
                 }, 1500);
             }
@@ -150,17 +144,17 @@
             debug('❌ Error: ' + errorMsg);
             updateStatus(errorMsg, 'error');
             
-            const errorData = JSON.stringify({ 
+            var errorData = JSON.stringify({ 
                 event: 'ad-failed', 
                 error: errorMsg 
             });
             
             if (tg) {
                 tg.sendData(errorData);
-                setTimeout(() => tg.close(), 2000);
+                setTimeout(function() { tg.close(); }, 2000);
             } else if (window.opener) {
                 window.opener.postMessage(JSON.parse(errorData), '*');
-                setTimeout(() => window.close(), 2000);
+                setTimeout(function() { window.close(); }, 2000);
             }
         }
         
@@ -170,14 +164,14 @@
         function initTelegram() {
             debug('Checking Telegram WebApp...');
             
-            if (window.Telegram?.WebApp) {
+            if (window.Telegram && window.Telegram.WebApp) {
                 tg = window.Telegram.WebApp;
                 tg.ready();
                 tg.expand();
                 debug('✅ Telegram WebApp ready');
                 return true;
             } else {
-                debug('⚠️ Not in Telegram WebApp (testing in browser)');
+                debug('⚠️ Not in Telegram (testing mode)');
                 return false;
             }
         }
@@ -185,12 +179,11 @@
         // ============================================
         // ADSGRAM IMPLEMENTATION
         // ============================================
-        async function tryAdsGram() {
-            return new Promise(async (resolve) => {
+        function tryAdsGram() {
+            return new Promise(function(resolve) {
                 debug('📺 Trying AdsGram...');
-                updateStatus('Loading AdsGram...');
+                updateStatus('Loading AdsGram...', 'info');
                 
-                // Check if AdsGram is available
                 if (typeof window.AdsGram === 'undefined') {
                     debug('❌ AdsGram SDK not loaded');
                     resolve(false);
@@ -198,26 +191,31 @@
                 }
                 
                 try {
-                    const adsgram = new window.AdsGram({ 
+                    var adsgram = new window.AdsGram({ 
                         blockId: CONFIG.adsgramBlockId 
                     });
                     
                     debug('AdsGram initialized, showing ad...');
                     
-                    const result = await adsgram.showRewardedVideo();
+                    adsgram.showRewardedVideo()
+                        .then(function(result) {
+                            debug('AdsGram result: ' + JSON.stringify(result));
+                            
+                            if (result && (result.completed === true || result.done === true)) {
+                                debug('✅ AdsGram ad completed');
+                                resolve(true);
+                            } else {
+                                debug('❌ AdsGram ad not completed');
+                                resolve(false);
+                            }
+                        })
+                        .catch(function(error) {
+                            debug('❌ AdsGram error: ' + (error.message || error.code || 'unknown'));
+                            resolve(false);
+                        });
                     
-                    debug('AdsGram result: ' + JSON.stringify(result));
-                    
-                    if (result && (result.completed === true || result.done === true)) {
-                        debug('✅ AdsGram ad completed');
-                        resolve(true);
-                    } else {
-                        debug('❌ AdsGram ad not completed');
-                        resolve(false);
-                    }
-                    
-                } catch (error) {
-                    debug('❌ AdsGram error: ' + (error.message || error.code || 'unknown'));
+                } catch (err) {
+                    debug('❌ AdsGram exception: ' + err.message);
                     resolve(false);
                 }
             });
@@ -227,9 +225,9 @@
         // UNITY ADS IMPLEMENTATION
         // ============================================
         function tryUnityAds() {
-            return new Promise((resolve) => {
+            return new Promise(function(resolve) {
                 debug('🎮 Trying Unity Ads...');
-                updateStatus('Loading Unity Ads...');
+                updateStatus('Loading Unity Ads...', 'info');
                 
                 if (typeof window.UnityAds === 'undefined') {
                     debug('❌ Unity Ads SDK not loaded');
@@ -237,10 +235,9 @@
                     return;
                 }
                 
-                let resolved = false;
+                var resolved = false;
                 
-                // Timeout after 25 seconds
-                const timeout = setTimeout(() => {
+                var timeout = setTimeout(function() {
                     if (!resolved) {
                         resolved = true;
                         debug('❌ Unity Ads timeout');
@@ -248,18 +245,15 @@
                     }
                 }, 25000);
                 
-                // Initialize Unity Ads
                 window.UnityAds.initialize(CONFIG.unityGameId, false);
                 
-                // Ad loaded successfully
-                window.UnityAds.addListener('onUnityAdsAdLoaded', (placementId) => {
+                window.UnityAds.addListener('onUnityAdsAdLoaded', function(placementId) {
                     debug('✅ Unity ad loaded: ' + placementId);
-                    updateStatus('Ad ready! Starting video...');
+                    updateStatus('Ad ready! Starting video...', 'info');
                     window.UnityAds.show(userId, placementId);
                 });
                 
-                // Ad completed
-                window.UnityAds.addListener('onUnityAdsShowComplete', (placementId, state) => {
+                window.UnityAds.addListener('onUnityAdsShowComplete', function(placementId, state) {
                     clearTimeout(timeout);
                     if (resolved) return;
                     resolved = true;
@@ -275,8 +269,7 @@
                     }
                 });
                 
-                // Ad show failed
-                window.UnityAds.addListener('onUnityAdsShowFailed', (placementId, error, message) => {
+                window.UnityAds.addListener('onUnityAdsShowFailed', function(placementId, error, message) {
                     clearTimeout(timeout);
                     if (resolved) return;
                     resolved = true;
@@ -284,8 +277,7 @@
                     resolve(false);
                 });
                 
-                // Ad failed to load
-                window.UnityAds.addListener('onUnityAdsFailedToLoad', (placementId, error, message) => {
+                window.UnityAds.addListener('onUnityAdsFailedToLoad', function(placementId, error, message) {
                     clearTimeout(timeout);
                     if (resolved) return;
                     resolved = true;
@@ -293,30 +285,30 @@
                     resolve(false);
                 });
                 
-                // Start loading
                 debug('Loading placement: ' + CONFIG.unityPlacementId);
                 window.UnityAds.load(CONFIG.unityPlacementId);
             });
         }
         
         // ============================================
-        // DYNAMICALLY LOAD ADSGRAM SDK
+        // LOAD ADSGRAM SDK
         // ============================================
         function loadAdsGramSDK() {
-            return new Promise((resolve) => {
+            return new Promise(function(resolve) {
                 if (typeof window.AdsGram !== 'undefined') {
+                    debug('✅ AdsGram already loaded');
                     resolve(true);
                     return;
                 }
                 
                 debug('Loading AdsGram SDK...');
-                const script = document.createElement('script');
+                var script = document.createElement('script');
                 script.src = 'https://sdk.adsgram.ai/js/adsgram.min.js';
-                script.onload = () => {
+                script.onload = function() {
                     debug('✅ AdsGram SDK loaded');
                     resolve(true);
                 };
-                script.onerror = () => {
+                script.onerror = function() {
                     debug('❌ Failed to load AdsGram SDK');
                     resolve(false);
                 };
@@ -328,16 +320,13 @@
         // MAIN AD FLOW
         // ============================================
         async function startAdFlow() {
-            // Initialize Telegram
-            const inTelegram = initTelegram();
+            initTelegram();
             
-            // Load AdsGram SDK
-            const adsgramLoaded = await loadAdsGramSDK();
+            var adsgramLoaded = await loadAdsGramSDK();
             debug('AdsGram SDK loaded: ' + adsgramLoaded);
             
-            // Try AdsGram first
             if (adsgramLoaded) {
-                const adsGramSuccess = await tryAdsGram();
+                var adsGramSuccess = await tryAdsGram();
                 if (adsGramSuccess) {
                     sendReward();
                     return;
@@ -345,26 +334,23 @@
                 debug('AdsGram failed, falling back to Unity...');
             }
             
-            // Try Unity Ads as backup
-            const unitySuccess = await tryUnityAds();
+            var unitySuccess = await tryUnityAds();
             if (unitySuccess) {
                 sendReward();
                 return;
             }
             
-            // Both failed
             sendError('No ads available. Please try again in a few minutes.');
         }
         
         // ============================================
-        // START EVERYTHING
+        // START
         // ============================================
         startAdFlow();
         
-        // Emergency fallback timeout (60 seconds)
-        setTimeout(() => {
-            if (!rewardGiven && !adCompleted) {
-                debug('⏰ Emergency timeout reached');
+        setTimeout(function() {
+            if (!rewardGiven) {
+                debug('⏰ Emergency timeout');
                 sendError('Ad loading timeout. Please try again.');
             }
         }, 60000);
