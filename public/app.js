@@ -201,10 +201,12 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING - TEST MODE (USES test.html)
+// ============================================================
+// AD WATCHING - IFRAME OVERLAY (STAYS IN APP)
 // ============================================================
 
 let isWatchingAd = false;
+let adOverlay = null;
 
 function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
@@ -215,68 +217,63 @@ function getBaseUrl() {
     return window.location.origin;
 }
 
-// Check for pending ad reward when user returns to app
-function checkPendingAdReward() {
-    const pendingReward = localStorage.getItem('pendingAdReward');
-    const adStartTime = localStorage.getItem('adStartTime');
-    
-    if (pendingReward && adStartTime) {
-        const timeAway = Date.now() - parseInt(adStartTime);
-        console.log('⏱️ Time away:', timeAway, 'ms');
-        
-        // If user was away for more than 5 seconds, assume they completed the ad
-        if (timeAway > 5000) {
-            const reward = parseInt(pendingReward);
-            console.log('✅ Awarding pending reward:', reward);
-            addPoints(reward);
-            showNotification(`🎉 +${reward} points earned!`);
-        } else {
-            console.log('❌ Not enough time for ad completion');
-        }
-        
-        // Clear pending
-        localStorage.removeItem('pendingAdReward');
-        localStorage.removeItem('adStartTime');
-    }
-}
-
-// Listen for messages from ad page (for iframe method)
 function setupAdMessageListener() {
     window.addEventListener('message', async (event) => {
         if (event.origin !== window.location.origin) return;
         
-        if (event.data && event.data.event) {
-            console.log('📨 Ad message received:', event.data);
-            
-            if (event.data.event === 'reward-earned') {
-                const reward = event.data.amount || getRewardAmount();
-                
-                if (adOverlay) {
-                    adOverlay.remove();
-                    adOverlay = null;
-                }
-                
-                showNotification(`🎉 +${reward} points earned!`);
-                await addPoints(reward);
-                isWatchingAd = false;
-                
-            } else if (event.data.event === 'ad-failed') {
-                if (adOverlay) {
-                    adOverlay.remove();
-                    adOverlay = null;
-                }
-                
-                showNotification(event.data.error || 'Ad failed', true);
-                isWatchingAd = false;
+        const data = event.data;
+        console.log('📨 Ad message:', data);
+        
+        if (data && data.event === 'reward-earned') {
+            if (adOverlay) {
+                adOverlay.remove();
+                adOverlay = null;
             }
+            const reward = data.amount || getRewardAmount();
+            showNotification(`🎉 +${reward} points earned!`);
+            await addPoints(reward);
+            isWatchingAd = false;
+        } else if (data && data.event === 'ad-failed') {
+            if (adOverlay) {
+                adOverlay.remove();
+                adOverlay = null;
+            }
+            showNotification(data.error || 'Ad failed', true);
+            isWatchingAd = false;
+        } else if (data && data.event === 'close-ad') {
+            if (adOverlay) {
+                adOverlay.remove();
+                adOverlay = null;
+            }
+            isWatchingAd = false;
         }
     });
 }
 
-// TEST MODE: Open test.html in external browser
+function createAdOverlay() {
+    if (adOverlay) adOverlay.remove();
+    
+    adOverlay = document.createElement('div');
+    adOverlay.id = 'adOverlay';
+    adOverlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #0f0f1a; z-index: 9999;
+    `;
+    
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+    iframe.allow = 'autoplay; fullscreen';
+    iframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals';
+    
+    adOverlay.appendChild(iframe);
+    document.body.appendChild(adOverlay);
+    
+    return iframe;
+}
+
 window.watchAd = async function() {
     if (isWatchingAd) {
-        showNotification('Please wait...', true);
+        showNotification('Ad already playing', true);
         return;
     }
     
@@ -289,32 +286,22 @@ window.watchAd = async function() {
     
     const reward = getRewardAmount();
     const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
-    const baseUrl = getBaseUrl();
+    const adUrl = `${getBaseUrl()}/ad.html?userId=${userId}&reward=${reward}`;
     
-    // USING TEST.HTML INSTEAD OF AD.HTML
-    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
+    console.log('🎬 Loading ad in iframe:', adUrl);
     
-    console.log('🎬 Opening test page:', adUrl);
+    const iframe = createAdOverlay();
+    iframe.src = adUrl;
     
-    // Save pending reward
-    localStorage.setItem('pendingAdReward', reward);
-    localStorage.setItem('adStartTime', Date.now());
-    
-    // Open in Telegram browser
-    if (tg) {
-        tg.openLink(adUrl);
-        showNotification('📱 Test page opened. Complete action and return!');
-    } else {
-        window.open(adUrl, '_blank');
-        showNotification('📱 Test page opened in new tab.');
-    }
-    
-    // Reset watching state
-    isWatchingAd = false;
+    // Safety timeout
+    setTimeout(() => {
+        if (isWatchingAd && adOverlay) {
+            adOverlay.remove();
+            adOverlay = null;
+            isWatchingAd = false;
+        }
+    }, 90000);
 };
-
-// For iframe overlay (not used in test mode, but kept for later)
-let adOverlay = null;
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
