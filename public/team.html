@@ -2,472 +2,539 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Teams - YzemanBot</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Team - YzemanBot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --primary: #6a11cb;
-            --secondary: #2575fc;
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
             --success: #00c853;
-            --warning: #ffab00;
-            --danger: #ff5252;
-            --dark: #1a1b25;
-            --darker: #12131a;
-            --light: #f8f9fa;
-            --gray: #a0a0a0;
-            --card-bg: #252836;
-            --card-border: #2d3343;
+            --gold: #FFD700;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
-        .container { max-width: 500px; margin: 0 auto; }
         
-        /* Header */
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { font-size: 28px; background: linear-gradient(135deg, #FFD700, #FFA500); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .header p { color: var(--gray); font-size: 13px; margin-top: 5px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        /* Info Banner */
-        .info-banner {
-            background: linear-gradient(135deg, rgba(106,17,203,0.2), rgba(37,117,252,0.2));
-            border: 1px solid var(--secondary);
-            border-radius: 16px;
-            padding: 15px;
-            margin-bottom: 20px;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            padding: 20px 15px 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
         }
-        .info-banner i { font-size: 28px; color: var(--secondary); margin-bottom: 8px; display: block; }
-        .info-banner h3 { font-size: 15px; margin-bottom: 5px; }
-        .info-banner p { font-size: 11px; color: var(--gray); }
-        .prize-row { display: flex; justify-content: center; gap: 15px; margin-top: 10px; }
-        .prize-badge { text-align: center; font-size: 12px; }
         
-        /* Tabs - Fixed height tabs */
-        .tabs { 
-            display: flex; 
-            background: var(--card-bg); 
-            border-radius: 16px; 
-            margin-bottom: 20px; 
-            border: 1px solid var(--card-border);
-            overflow: hidden;
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
         }
-        .tab { 
-            flex: 1; 
-            padding: 14px 8px; 
-            text-align: center; 
-            font-weight: 600; 
-            cursor: pointer; 
-            font-size: 13px; 
-            transition: all 0.2s; 
-            background: transparent;
+        
+        .header i {
+            color: var(--gold);
+            margin-right: 8px;
+        }
+        
+        .header p {
+            color: var(--gray);
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            background: var(--darker);
+            padding: 5px;
+            border-radius: 30px;
+            margin: 20px 15px;
+        }
+        
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 0 15px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .team-card {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .team-name {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--gold);
+        }
+        
+        .team-code {
+            background: rgba(0,0,0,0.3);
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .team-code strong {
+            font-family: monospace;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+        
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .team-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .team-stat {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        
+        .team-stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .team-stat-label {
+            font-size: 11px;
             color: var(--gray);
         }
-        .tab.active { 
-            background: linear-gradient(135deg, var(--primary), var(--secondary)); 
-            color: white; 
-        }
         
-        /* Tab Content - Only active shows */
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        /* Team Card */
-        .team-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .team-name { font-size: 22px; font-weight: bold; color: #FFD700; margin-bottom: 5px; }
-        .team-stats { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
-        .stat-chip { background: rgba(255,255,255,0.08); padding: 6px 12px; border-radius: 20px; font-size: 12px; }
-        .stat-chip i { margin-right: 6px; color: var(--secondary); }
-        .team-code-box {
-            background: rgba(37,117,252,0.1);
-            border-radius: 16px;
-            padding: 12px;
-            text-align: center;
-            margin: 15px 0;
-            border: 1px dashed var(--secondary);
-        }
-        .team-code { font-family: monospace; font-size: 20px; letter-spacing: 3px; font-weight: bold; color: var(--secondary); }
-        .copy-btn { background: rgba(37,117,252,0.2); border: none; border-radius: 8px; padding: 5px 12px; margin-left: 10px; cursor: pointer; color: var(--secondary); font-size: 12px; }
-        .member-list { margin-top: 15px; max-height: 250px; overflow-y: auto; }
-        .member-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
-        .member-name { font-size: 14px; color: white; }
-        .member-points { font-size: 13px; color: var(--success); }
-        .leader-tag { background: var(--warning); color: #1a1a2e; padding: 2px 8px; border-radius: 20px; font-size: 10px; margin-left: 8px; font-weight: bold; }
-        .leave-btn {
-            background: linear-gradient(135deg, var(--danger), #ff1744);
-            color: white;
-            border: none;
-            border-radius: 16px;
-            padding: 14px;
-            width: 100%;
-            font-weight: bold;
-            cursor: pointer;
+        .member-list {
             margin-top: 15px;
-            font-size: 14px;
         }
         
-        /* Form Cards - Fixed input visibility */
-        .form-card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
+        .member-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .leader-badge {
+            background: var(--gold);
+            color: var(--dark);
+            padding: 2px 8px;
             border-radius: 20px;
-            padding: 20px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .input-group {
             margin-bottom: 20px;
         }
-        .form-title { font-size: 18px; font-weight: bold; margin-bottom: 8px; color: white; }
-        .form-desc { font-size: 12px; color: var(--gray); margin-bottom: 15px; }
-        .form-input {
-            width: 100%;
-            padding: 14px;
-            background: #1e1e2e;
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            color: white;
+        
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--gray);
             font-size: 14px;
-            margin-bottom: 12px;
-            text-align: center;
         }
-        .form-input:focus { outline: none; border-color: var(--secondary); }
-        .form-input::placeholder { color: #888; }
+        
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid var(--gray);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 16px;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
         .btn {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
             border: none;
-            border-radius: 16px;
-            padding: 14px;
-            width: 100%;
-            font-weight: bold;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .leaderboard-list {
+            margin-bottom: 20px;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: var(--darker);
+            border-radius: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .rank {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-right: 15px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA000);
+            color: var(--dark);
+        }
+        
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+            color: var(--dark);
+        }
+        
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #B87333);
+            color: var(--dark);
+        }
+        
+        .info {
+            flex: 1;
+        }
+        
+        .name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+        
+        .username {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .score {
+            font-weight: bold;
+            color: var(--gold);
+            font-size: 16px;
+            text-align: right;
+        }
+        
+        .prize-banner {
+            background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
+            color: var(--dark);
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .prize-banner h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .prize-banner .prize-amount {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .info-box p {
+            color: var(--gray);
             font-size: 14px;
+            margin-bottom: 5px;
         }
-        .btn-create { background: linear-gradient(135deg, #00c853, #64dd17); }
         
-        /* Leaderboard List - Compact and visible */
-        .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
-        .leaderboard-header { display: flex; padding: 12px 15px; background: rgba(37,117,252,0.15); font-weight: bold; font-size: 12px; border-bottom: 1px solid var(--card-border); color: var(--gray); }
-        .leaderboard-header .rank { width: 50px; }
-        .leaderboard-header .team { flex: 1; }
-        .leaderboard-header .points { width: 70px; text-align: right; }
-        .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); }
-        .leaderboard-item .rank { width: 50px; font-weight: bold; font-size: 16px; }
-        .leaderboard-item .rank-1 { color: #FFD700; }
-        .leaderboard-item .rank-2 { color: #C0C0C0; }
-        .leaderboard-item .rank-3 { color: #CD7F32; }
-        .leaderboard-item .team-info { flex: 1; }
-        .leaderboard-item .team-name { font-size: 14px; font-weight: 600; color: white; background: none; -webkit-text-fill-color: white; }
-        .leaderboard-item .team-leader { font-size: 10px; color: var(--gray); margin-top: 2px; }
-        .leaderboard-item .team-points { width: 70px; text-align: right; font-weight: bold; color: var(--success); font-size: 13px; }
+        .info-box i {
+            color: var(--secondary);
+            margin-right: 8px;
+        }
         
-        /* Monthly Card */
-        .monthly-card { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
-        .monthly-header { padding: 12px; background: linear-gradient(135deg, rgba(106,17,203,0.3), rgba(37,117,252,0.3)); text-align: center; }
-        .monthly-header h3 { font-size: 15px; color: white; }
-        .monthly-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); }
-        .monthly-rank { font-weight: bold; width: 45px; font-size: 14px; }
-        .monthly-name { flex: 1; font-size: 14px; color: white; }
-        .monthly-name small { font-size: 10px; }
-        .monthly-points { color: var(--success); font-weight: bold; font-size: 13px; }
-        .monthly-footer { padding: 12px; text-align: center; font-size: 11px; color: var(--gray); border-top: 1px solid var(--card-border); }
-        
-        .empty-state { text-align: center; padding: 30px; color: var(--gray); }
-        .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.5; }
-        .empty-state p { font-size: 14px; }
-        
-        .loading { text-align: center; padding: 30px; color: var(--gray); }
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
-        
-        /* Bottom Nav */
         .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
-            display: flex; justify-content: space-around; padding: 10px 12px; z-index: 100;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            display: flex;
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 6px 10px; border-radius: 12px; }
-        .nav-item i { font-size: 18px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37,117,252,0.1); }
         
-        @media (max-width: 480px) {
-            body { padding: 15px; padding-bottom: 70px; }
-            .team-stats { gap: 8px; }
-            .stat-chip { padding: 5px 10px; font-size: 11px; }
-            .team-code { font-size: 16px; letter-spacing: 2px; }
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item i {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            z-index: 10;
         }
     </style>
 </head>
 <body>
-    <div class="notification" id="notification"></div>
-
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-users"></i> Teams</h1>
-            <p>Join a team and compete monthly!</p>
+    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    
+    <div class="header">
+        <h1><i class="fas fa-users"></i> Team Battles</h1>
+        <p>Join or create a team to compete for massive prizes!</p>
+    </div>
+    
+    <div class="tabs">
+        <div class="tab active" data-tab="myteam">👤 My Team</div>
+        <div class="tab" data-tab="join">🔗 Join Team</div>
+        <div class="tab" data-tab="create">✨ Create Team</div>
+        <div class="tab" data-tab="leaderboard">🏆 Leaderboard</div>
+        <div class="tab" data-tab="monthly">📅 Monthly</div>
+    </div>
+    
+    <!-- My Team Tab -->
+    <div class="tab-content active" id="myteamTab">
+        <div id="myTeamInfo">
+            <div class="loading">Loading your team...</div>
         </div>
-
-        <!-- Info Banner -->
-        <div class="info-banner">
-            <i class="fas fa-trophy"></i>
-            <h3>🏆 Monthly Team Competition</h3>
-            <p>Top 3 teams win bonus points at month end!</p>
-            <div class="prize-row">
-                <span class="prize-badge">🥇 1st Place</span>
-                <span class="prize-badge">🥈 2nd Place</span>
-                <span class="prize-badge">🥉 3rd Place</span>
-            </div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="tabs">
-            <div class="tab active" data-tab="myteam">👥 My Team</div>
-            <div class="tab" data-tab="leaderboard">🏆 Rankings</div>
-            <div class="tab" data-tab="monthly">📅 Monthly</div>
-        </div>
-
-        <!-- My Team Tab -->
-        <div id="myteamTab" class="tab-content active">
-            <div id="myTeamInfo">
-                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading...</div>
-            </div>
-            
-            <div class="form-card" id="joinForm">
-                <div class="form-title">🔗 Join a Team</div>
-                <div class="form-desc">Enter the 8-character team code</div>
-                <input type="text" class="form-input" id="teamCodeInput" placeholder="Enter Team Code" maxlength="8" autocomplete="off">
-                <button class="btn" id="joinTeamBtn">Join Team</button>
-            </div>
-            
-            <div class="form-card" id="createForm">
-                <div class="form-title">✨ Create a Team</div>
-                <div class="form-desc">Start your own team and invite friends</div>
-                <input type="text" class="form-input" id="teamNameInput" placeholder="Team Name" maxlength="30">
-                <button class="btn btn-create" id="createTeamBtn">Create Team</button>
-            </div>
-        </div>
-
-        <!-- Team Leaderboard Tab -->
-        <div id="leaderboardTab" class="tab-content">
-            <div class="leaderboard-list" id="teamLeaderboardList">
-                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading rankings...</div>
-            </div>
-        </div>
-
-        <!-- Monthly Competition Tab -->
-        <div id="monthlyTab" class="tab-content">
-            <div id="monthlyInfo">
-                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading monthly standings...</div>
-            </div>
+        
+        <div class="info-box">
+            <p><i class="fas fa-info-circle"></i> <strong>Team Benefits:</strong></p>
+            <p>• Work together to earn COINS!</p>
+            <p>• Monthly winning team gets 2,500 COINS split among members!</p>
+            <p>• Top teams get special badges and recognition!</p>
         </div>
     </div>
-
-    <!-- Bottom Navigation -->
+    
+    <!-- Join Team Tab -->
+    <div class="tab-content" id="joinTab">
+        <div class="team-card">
+            <h3 style="margin-bottom: 20px;"><i class="fas fa-sign-in-alt"></i> Join Existing Team</h3>
+            
+            <div class="input-group">
+                <label class="input-label">Team Code</label>
+                <input type="text" class="input-field" id="teamCodeInput" placeholder="Enter team code" maxlength="8" />
+            </div>
+            
+            <button class="btn btn-primary" id="joinTeamBtn">
+                <i class="fas fa-users"></i> Join Team
+            </button>
+            
+            <p style="color: var(--gray); font-size: 13px; margin-top: 15px; text-align: center;">
+                Ask your team leader for the team code!
+            </p>
+        </div>
+    </div>
+    
+    <!-- Create Team Tab -->
+    <div class="tab-content" id="createTab">
+        <div class="team-card">
+            <h3 style="margin-bottom: 20px;"><i class="fas fa-plus-circle"></i> Create New Team</h3>
+            
+            <div class="input-group">
+                <label class="input-label">Team Name</label>
+                <input type="text" class="input-field" id="teamNameInput" placeholder="Enter team name" maxlength="30" />
+            </div>
+            
+            <button class="btn btn-secondary" id="createTeamBtn">
+                <i class="fas fa-plus"></i> Create Team
+            </button>
+            
+            <p style="color: var(--gray); font-size: 13px; margin-top: 15px; text-align: center;">
+                Creating a team makes you the leader! Share your team code to invite others.
+            </p>
+        </div>
+    </div>
+    
+    <!-- Leaderboard Tab -->
+    <div class="tab-content" id="leaderboardTab">
+        <div class="prize-banner">
+            <h3><i class="fas fa-trophy"></i> Team Rankings</h3>
+            <p style="font-size: 14px; opacity: 0.9;">Top teams earn more COINS!</p>
+        </div>
+        
+        <div class="leaderboard-list" id="teamLeaderboardList">
+            <div class="loading">Loading teams...</div>
+        </div>
+    </div>
+    
+    <!-- Monthly Competition Tab -->
+    <div class="tab-content" id="monthlyTab">
+        <div class="prize-banner">
+            <h3><i class="fas fa-calendar-alt"></i> Monthly Competition</h3>
+            <div class="prize-amount">2,500 COINS</div>
+            <p style="font-size: 14px;">Grand Prize for Winning Team!</p>
+        </div>
+        
+        <div id="monthlyInfo">
+            <div class="loading">Loading monthly competition...</div>
+        </div>
+        
+        <div class="info-box" style="margin-top: 20px;">
+            <p><i class="fas fa-star"></i> <strong>How to Win:</strong></p>
+            <p>• Earn points by watching ads and completing tasks</p>
+            <p>• Refer new users to earn bonus team points</p>
+            <p>• The team with most combined points wins!</p>
+            <p>• Prize is split equally among all team members</p>
+        </div>
+    </div>
+    
     <div class="bottom-nav">
-        <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
-        <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
-        <a href="team.html" class="nav-item active"><i class="fas fa-users"></i><span>Teams</span></a>
+        <a href="/" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/daily.html" class="nav-item">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="nav-item">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="nav-item">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="nav-item active">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
     </div>
-
+    
+    <div class="notification" id="notification"></div>
+    
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.expand(); tg.ready(); }
-
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.style.background = isError ? '#ff5252' : '#00c853';
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
-        }
-
-        async function apiCall(endpoint, data = null) {
-            const options = { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data || { initData: tg.initData })
-            };
-            const response = await fetch(endpoint, options);
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Request failed');
-            }
-            return response.json();
-        }
-
-        async function leaveTeam() {
-            if (!confirm('Leave your current team? You can join or create another team anytime.')) return;
-            try {
-                await apiCall('/api/team/leave', { initData: tg.initData });
-                showNotification('👋 You left the team');
-                loadMyTeam();
-                loadTeamLeaderboard();
-                loadMonthlyCompetition();
-            } catch (err) {
-                showNotification(err.message, true);
-            }
-        }
-
-        async function loadMyTeam() {
-            try {
-                const data = await apiCall('/api/team/info', { initData: tg.initData });
-                const container = document.getElementById('myTeamInfo');
-                
-                if (!data.has_team) {
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-users-slash"></i>
-                            <p>You're not in a team yet</p>
-                            <small style="color: var(--gray);">Create a team or join using a code</small>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                container.innerHTML = `
-                    <div class="team-card">
-                        <div class="team-name">🏠 ${escapeHtml(data.team.name)}</div>
-                        <div class="team-stats">
-                            <span class="stat-chip"><i class="fas fa-crown"></i> ${escapeHtml(data.team.leader_name || 'You')}</span>
-                            <span class="stat-chip"><i class="fas fa-users"></i> ${data.team.member_count} Members</span>
-                            <span class="stat-chip"><i class="fas fa-coins"></i> ${(data.team.total_points || 0).toLocaleString()} pts</span>
-                        </div>
-                        <div class="team-code-box">
-                            <span style="font-size: 11px; opacity: 0.7;">TEAM CODE</span>
-                            <div class="team-code">${data.team.code}</div>
-                            <button class="copy-btn" onclick="copyCode('${data.team.code}')"><i class="fas fa-copy"></i> Copy</button>
-                        </div>
-                        <div class="member-list">
-                            <div style="font-size: 12px; margin-bottom: 8px; opacity: 0.7;">📜 MEMBERS</div>
-                            ${data.members.map(m => `
-                                <div class="member-item">
-                                    <span class="member-name">${escapeHtml(m.first_name || m.username || 'User')} ${m.is_leader ? '<span class="leader-tag">Leader</span>' : ''}</span>
-                                    <span class="member-points">${(m.points || 0).toLocaleString()} pts</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button class="leave-btn" id="leaveTeamBtn"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
-                    </div>
-                `;
-                
-                document.getElementById('leaveTeamBtn')?.addEventListener('click', leaveTeam);
-            } catch (err) {
-                console.error(err);
-                document.getElementById('myTeamInfo').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load</div>';
-            }
-        }
-
-        async function loadTeamLeaderboard() {
-            try {
-                const data = await apiCall('/api/team/leaderboard', { initData: tg.initData });
-                const container = document.getElementById('teamLeaderboardList');
-                if (!data.length) { 
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><br>No teams created yet<br><small>Be the first to create a team!</small></div>'; 
-                    return; 
-                }
-                container.innerHTML = `
-                    <div class="leaderboard-header">
-                        <div class="rank">#</div>
-                        <div class="team">Team</div>
-                        <div class="points">Points</div>
-                    </div>
-                    ${data.map((team, idx) => `
-                        <div class="leaderboard-item">
-                            <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</div>
-                            <div class="team-info">
-                                <div class="team-name">${escapeHtml(team.name)}</div>
-                                <div class="team-leader"><i class="fas fa-crown"></i> ${escapeHtml(team.leader_name || 'Unknown')} • ${team.member_count} members</div>
-                            </div>
-                            <div class="team-points">${(team.total_points || 0).toLocaleString()}</div>
-                        </div>
-                    `).join('')}
-                `;
-            } catch (err) { 
-                console.error(err);
-                document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load rankings</div>';
-            }
-        }
-
-        async function loadMonthlyCompetition() {
-            try {
-                const data = await apiCall('/api/team/monthly-competition', { initData: tg.initData });
-                const container = document.getElementById('monthlyInfo');
-                if (!data.standings || data.standings.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-alt"></i><br>No teams competing this month<br><small>Join a team to compete!</small></div>';
-                    return;
-                }
-                container.innerHTML = `
-                    <div class="monthly-card">
-                        <div class="monthly-header">
-                            <h3><i class="fas fa-calendar-alt"></i> ${data.month}</h3>
-                        </div>
-                        ${data.standings.map((team, idx) => `
-                            <div class="monthly-item">
-                                <div class="monthly-rank">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</div>
-                                <div class="monthly-name">${escapeHtml(team.name)}<br><small style="color: var(--gray);">${team.member_count} members</small></div>
-                                <div class="monthly-points">${(team.team_points || 0).toLocaleString()} pts</div>
-                            </div>
-                        `).join('')}
-                        <div class="monthly-footer">
-                            <i class="fas fa-gift"></i> Winners receive bonus points at month end!
-                        </div>
-                    </div>
-                `;
-            } catch (err) { 
-                console.error(err);
-                document.getElementById('monthlyInfo').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load monthly standings</div>';
-            }
-        }
-
-        async function createTeam() {
-            const teamName = document.getElementById('teamNameInput').value.trim();
-            if (!teamName) { showNotification('Enter a team name', true); return; }
-            if (teamName.length < 3) { showNotification('Team name must be at least 3 characters', true); return; }
-            try {
-                const result = await apiCall('/api/team/create', { initData: tg.initData, teamName });
-                showNotification(`✅ Team "${teamName}" created! Share your code: ${result.team.code}`);
-                document.getElementById('teamNameInput').value = '';
-                loadMyTeam();
-                loadTeamLeaderboard();
-                loadMonthlyCompetition();
-            } catch (err) { showNotification(err.message, true); }
-        }
-
-        async function joinTeam() {
-            const teamCode = document.getElementById('teamCodeInput').value.trim().toUpperCase();
-            if (!teamCode) { showNotification('Enter a team code', true); return; }
-            if (teamCode.length !== 8) { showNotification('Team code must be 8 characters', true); return; }
-            try {
-                await apiCall('/api/team/join', { initData: tg.initData, teamCode });
-                showNotification('✅ Joined team successfully!');
-                document.getElementById('teamCodeInput').value = '';
-                loadMyTeam();
-                loadTeamLeaderboard();
-                loadMonthlyCompetition();
-            } catch (err) { showNotification(err.message, true); }
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-
-        window.copyCode = (code) => {
-            navigator.clipboard.writeText(code);
-            showNotification('📋 Team code copied!');
-        };
-
-        // Tab switching - each tab shows only its content
+        // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -475,20 +542,10 @@
                 tab.classList.add('active');
                 const tabId = tab.dataset.tab + 'Tab';
                 document.getElementById(tabId).classList.add('active');
-                
-                // Refresh content when tab is clicked
-                if (tab.dataset.tab === 'leaderboard') loadTeamLeaderboard();
-                if (tab.dataset.tab === 'monthly') loadMonthlyCompetition();
-                if (tab.dataset.tab === 'myteam') loadMyTeam();
             });
         });
-
-        document.getElementById('joinTeamBtn')?.addEventListener('click', joinTeam);
-        document.getElementById('createTeamBtn')?.addEventListener('click', createTeam);
-
-        loadMyTeam();
-        loadTeamLeaderboard();
-        loadMonthlyCompetition();
     </script>
+    
+    <script src="/app.js"></script>
 </body>
 </html>
