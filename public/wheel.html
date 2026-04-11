@@ -9,10 +9,14 @@
     <style>
         :root {
             --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
             --dark: #1a1a2e;
             --darker: #16213e;
             --light: #ffffff;
             --gray: #888888;
+            --success: #00c853;
             --gold: #FFD700;
         }
         
@@ -23,223 +27,393 @@
             background: var(--dark);
             color: var(--light);
             min-height: 100vh;
-            padding: 20px;
             padding-bottom: 80px;
         }
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px;
-            border-radius: 30px;
+            padding: 20px 15px 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
-            margin-bottom: 20px;
+            position: relative;
         }
         
-        .debug-box {
-            background: #000;
-            color: #0f0;
-            padding: 15px;
-            border-radius: 10px;
-            font-family: monospace;
-            font-size: 12px;
-            margin: 20px 0;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
+        .header h1 { font-size: 24px; margin-bottom: 10px; }
+        .header i { color: var(--gold); margin-right: 8px; }
+        .header p { color: var(--gray); font-size: 14px; }
+        
+        .back-btn-header {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: white; font-size: 24px;
+            text-decoration: none; z-index: 10;
         }
         
-        .btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 10px;
+        .wheel-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 15px;
+            position: relative;
         }
         
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+        .wheel-wrapper { position: relative; width: 100%; max-width: 350px; }
+        #wheelCanvas { width: 100%; height: auto; display: block; }
         
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            text-decoration: none;
+        .wheel-pointer {
+            position: absolute; top: -15px; left: 50%;
+            transform: translateX(-50%); font-size: 40px;
+            color: var(--gold); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
             z-index: 10;
         }
         
+        .spin-btn-container { text-align: center; margin: 20px 15px; }
+        
+        .spin-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
+            color: white; border: none; padding: 18px 50px;
+            border-radius: 50px; font-size: 20px; font-weight: bold;
+            cursor: pointer; transition: transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            width: 100%; max-width: 300px;
+        }
+        
+        .spin-btn:disabled {
+            background: var(--gray); box-shadow: none;
+            cursor: not-allowed; transform: none; opacity: 0.7;
+        }
+        
+        .status-card {
+            background: var(--darker); border-radius: 20px;
+            padding: 20px; margin: 20px 15px; text-align: center;
+        }
+        
+        .status-text { font-size: 18px; margin-bottom: 10px; }
+        .timer-text { font-size: 32px; font-weight: bold; color: var(--gold); margin: 10px 0; }
+        .last-reward { color: var(--gray); font-size: 14px; }
+        
+        .prizes-section {
+            background: var(--darker); border-radius: 20px;
+            padding: 20px; margin: 20px 15px;
+        }
+        
+        .prizes-title {
+            font-size: 18px; font-weight: 600; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        
+        .prizes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        
+        .prize-item {
+            background: rgba(255,255,255,0.05); border-radius: 10px;
+            padding: 10px; text-align: center;
+        }
+        
+        .prize-color {
+            width: 20px; height: 20px; border-radius: 5px;
+            margin: 0 auto 8px;
+        }
+        
+        .prize-value { font-size: 14px; font-weight: bold; color: var(--gold); }
+        .prize-label { font-size: 10px; color: var(--gray); }
+        
+        .info-box {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 15px; padding: 15px; margin: 20px 15px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .info-box p { color: var(--gray); font-size: 14px; margin-bottom: 5px; }
+        .info-box i { color: var(--secondary); margin-right: 8px; }
+        
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--darker); display: flex; padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
+        }
+        
+        .nav-item {
+            flex: 1; text-align: center; color: var(--gray);
+            text-decoration: none; font-size: 12px; padding: 8px;
+            border-radius: 10px; transition: all 0.2s ease;
+        }
+        
+        .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
+        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
+        
         .notification {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: var(--primary);
-            color: white;
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-            display: none;
+            position: fixed; bottom: 90px; left: 20px; right: 20px;
+            background: var(--success); color: white; padding: 15px 20px;
+            border-radius: 12px; text-align: center; font-weight: 500;
+            display: none; z-index: 1000; animation: slideUp 0.3s ease;
+        }
+        
+        .notification.error { background: var(--danger); }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
     </style>
 </head>
 <body>
-    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
-        <h1><i class="fas fa-dharmachakra"></i> Wheel Debug</h1>
-        <p>Testing connection to backend</p>
+        <h1><i class="fas fa-dharmachakra"></i> Wheel of Fortune</h1>
+        <p>Spin every 3 days to win COINS!</p>
     </div>
     
-    <div class="debug-box" id="debugLog">
-        Ready to test...
+    <div class="wheel-container">
+        <div class="wheel-wrapper">
+            <div class="wheel-pointer">▼</div>
+            <canvas id="wheelCanvas" width="400" height="400"></canvas>
+        </div>
     </div>
     
-    <button class="btn" id="testConnectionBtn">🔌 Test Connection</button>
-    <button class="btn" id="testStatusBtn">📊 Test Wheel Status</button>
-    <button class="btn" id="testSpinBtn">🎡 Test Spin</button>
+    <div class="spin-btn-container">
+        <button class="spin-btn" id="spinBtn">🎡 SPIN NOW</button>
+    </div>
+    
+    <div class="status-card">
+        <div class="status-text" id="statusText">Loading...</div>
+        <div class="timer-text" id="timerText"></div>
+        <div class="last-reward" id="lastRewardText">No spins yet!</div>
+    </div>
+    
+    <div class="prizes-section">
+        <div class="prizes-title">
+            <i class="fas fa-gift" style="color: var(--gold);"></i>
+            <span>Available Prizes</span>
+        </div>
+        <div class="prizes-grid" id="prizesGrid"></div>
+    </div>
+    
+    <div class="info-box">
+        <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
+        <p>• Spin the wheel every 3 days for free!</p>
+        <p>• Your tier multiplier applies to all wins!</p>
+        <p>• Win up to 10 COINS in a single spin!</p>
+    </div>
+    
+    <div class="bottom-nav">
+        <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
+        <a href="/wheel.html" class="nav-item active"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
+        <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
+        <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
+    </div>
     
     <div class="notification" id="notification"></div>
     
     <script>
         const tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.ready();
-            tg.expand();
-        }
+        if (tg) { tg.ready(); tg.expand(); }
         
-        const debugEl = document.getElementById('debugLog');
+        const POINTS_PER_COIN = 1000000;
         
-        function log(message) {
-            console.log(message);
-            debugEl.textContent += '\n' + (typeof message === 'object' ? JSON.stringify(message, null, 2) : message);
-            debugEl.scrollTop = debugEl.scrollHeight;
-        }
+        const PRIZES = [
+            { value: 50000, label: '0.05', color: '#FF6B6B' },
+            { value: 100000, label: '0.10', color: '#4ECDC4' },
+            { value: 250000, label: '0.25', color: '#45B7D1' },
+            { value: 500000, label: '0.50', color: '#96CEB4' },
+            { value: 1000000, label: '1.00', color: '#FFEAA7' },
+            { value: 2500000, label: '2.50', color: '#DDA0DD' },
+            { value: 5000000, label: '5.00', color: '#98D8C8' },
+            { value: 10000000, label: '10.00', color: '#F7B05E' }
+        ];
+        
+        let wheelSpinning = false;
+        let wheelAnimationFrame = null;
+        let wheelCurrentAngle = 0;
+        let canSpin = false;
         
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
-            notif.style.background = isError ? '#f44336' : '#4CAF50';
+            notif.className = 'notification' + (isError ? ' error' : '');
             notif.style.display = 'block';
             setTimeout(() => notif.style.display = 'none', 4000);
         }
         
-        // Clear log
-        log('=== WHEEL DEBUG STARTED ===');
-        log('Time: ' + new Date().toLocaleString());
-        log('Telegram WebApp: ' + (tg ? '✅ Available' : '❌ Not available'));
-        
-        if (tg) {
-            log('User ID: ' + (tg.initDataUnsafe?.user?.id || 'Not available'));
-            log('InitData: ' + (tg.initData ? '✅ Present' : '❌ Missing'));
+        function renderPrizesGrid() {
+            const grid = document.getElementById('prizesGrid');
+            grid.innerHTML = PRIZES.map(prize => `
+                <div class="prize-item">
+                    <div class="prize-color" style="background: ${prize.color};"></div>
+                    <div class="prize-value">${prize.label}</div>
+                    <div class="prize-label">COINS</div>
+                </div>
+            `).join('');
         }
         
-        // Test connection
-        document.getElementById('testConnectionBtn').addEventListener('click', async () => {
-            log('\n--- Testing Connection ---');
+        function drawWheel(currentAngle) {
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width;
+            const center = size / 2;
+            const radius = size / 2 - 10;
+            const anglePerSegment = (Math.PI * 2) / PRIZES.length;
             
-            try {
-                const response = await fetch('/health');
-                const data = await response.json();
-                log('✅ Health check: ' + JSON.stringify(data));
-                showNotification('Backend is online!');
-            } catch (err) {
-                log('❌ Health check failed: ' + err.message);
-                showNotification('Backend offline', true);
+            ctx.clearRect(0, 0, size, size);
+            
+            for (let i = 0; i < PRIZES.length; i++) {
+                const startAngle = currentAngle + i * anglePerSegment;
+                const endAngle = startAngle + anglePerSegment;
+                
+                ctx.beginPath();
+                ctx.fillStyle = PRIZES[i].color;
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, startAngle, endAngle);
+                ctx.fill();
+                ctx.strokeStyle = '#1a1a2e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(startAngle + anglePerSegment / 2);
+                ctx.fillStyle = "#1a1a2e";
+                ctx.font = "bold 14px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(PRIZES[i].label, radius * 0.65, 0);
+                ctx.restore();
             }
-        });
-        
-        // Test wheel status
-        document.getElementById('testStatusBtn').addEventListener('click', async () => {
-            log('\n--- Testing Wheel Status ---');
             
+            ctx.beginPath();
+            ctx.fillStyle = "#FFD700";
+            ctx.arc(center, center, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#1a1a2e";
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🎡", center, center);
+        }
+        
+        async function loadWheelStatus() {
             if (!tg?.initData) {
-                log('❌ No Telegram initData');
-                showNotification('Open from Telegram', true);
+                showNotification('Please open from Telegram', true);
                 return;
             }
             
             try {
-                log('Sending request to /api/wheel-status...');
-                log('InitData length: ' + tg.initData.length);
+                // FIXED: Use query parameter instead of body for GET request
+                const response = await fetch(`/api/wheel-status?initData=${encodeURIComponent(tg.initData)}`);
+                const data = await response.json();
                 
-                const response = await fetch('/api/wheel-status', {
-                    method: 'GET',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-Telegram-Init-Data': tg.initData
-                    },
-                    body: JSON.stringify({ initData: tg.initData })
-                });
+                const statusDiv = document.getElementById('statusText');
+                const timerDiv = document.getElementById('timerText');
+                const lastRewardDiv = document.getElementById('lastRewardText');
+                const spinBtn = document.getElementById('spinBtn');
                 
-                log('Response status: ' + response.status);
+                canSpin = data.can_spin;
                 
-                const text = await response.text();
-                log('Raw response: ' + text);
-                
-                try {
-                    const data = JSON.parse(text);
-                    log('✅ Parsed data: ' + JSON.stringify(data, null, 2));
-                    showNotification('Status loaded!');
-                } catch (e) {
-                    log('❌ Failed to parse JSON: ' + e.message);
-                    showNotification('Invalid response', true);
+                if (statusDiv) {
+                    statusDiv.innerHTML = data.can_spin 
+                        ? '<span style="color: var(--success);">✅ Ready to spin!</span>'
+                        : '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
                 }
                 
-            } catch (err) {
-                log('❌ Request failed: ' + err.message);
-                showNotification('Request failed', true);
-            }
-        });
-        
-        // Test spin
-        document.getElementById('testSpinBtn').addEventListener('click', async () => {
-            log('\n--- Testing Spin ---');
-            
-            if (!tg?.initData) {
-                log('❌ No Telegram initData');
-                showNotification('Open from Telegram', true);
-                return;
-            }
-            
-            try {
-                log('Sending spin request...');
+                if (timerDiv && !data.can_spin) {
+                    timerDiv.innerHTML = `${data.days_left} day${data.days_left !== 1 ? 's' : ''}`;
+                } else if (timerDiv) {
+                    timerDiv.innerHTML = '';
+                }
                 
+                if (lastRewardDiv && data.last_reward > 0) {
+                    const coins = (data.last_reward / POINTS_PER_COIN).toFixed(2);
+                    lastRewardDiv.innerHTML = `Last spin: ${coins} COINS!`;
+                }
+                
+                if (spinBtn) spinBtn.disabled = !data.can_spin;
+                
+                drawWheel(wheelCurrentAngle);
+                
+            } catch (err) {
+                console.error('Wheel status error:', err);
+                showNotification('Failed to load wheel status', true);
+            }
+        }
+        
+        async function spinWheel() {
+            if (wheelSpinning) return;
+            if (!canSpin) { showNotification('Next spin not available yet!', true); return; }
+            if (!tg?.initData) { showNotification('Please open from Telegram', true); return; }
+            
+            wheelSpinning = true;
+            const spinBtn = document.getElementById('spinBtn');
+            spinBtn.disabled = true;
+            spinBtn.textContent = '🎡 SPINNING...';
+            
+            const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
+            const startTime = performance.now();
+            const duration = 3000;
+            
+            function animateSpin(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(1, elapsed / duration);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const angle = spinAngle * easeOut;
+                wheelCurrentAngle = (wheelCurrentAngle + angle) % (Math.PI * 2);
+                drawWheel(wheelCurrentAngle);
+                
+                if (progress < 1) {
+                    wheelAnimationFrame = requestAnimationFrame(animateSpin);
+                } else {
+                    wheelAnimationFrame = null;
+                    const finalAngle = wheelCurrentAngle % (Math.PI * 2);
+                    const segmentIndex = Math.floor(((Math.PI * 2) - finalAngle) / ((Math.PI * 2) / PRIZES.length)) % PRIZES.length;
+                    const prize = PRIZES[segmentIndex].value;
+                    wheelSpinning = false;
+                    submitSpin(prize);
+                }
+            }
+            
+            if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
+            wheelAnimationFrame = requestAnimationFrame(animateSpin);
+        }
+        
+        async function submitSpin(prize) {
+            try {
                 const response = await fetch('/api/wheel-spin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ initData: tg.initData })
                 });
                 
-                log('Response status: ' + response.status);
+                const data = await response.json();
                 
-                const text = await response.text();
-                log('Raw response: ' + text);
-                
-                try {
-                    const data = JSON.parse(text);
-                    log('✅ Spin result: ' + JSON.stringify(data, null, 2));
-                    showNotification('Spin successful!');
-                } catch (e) {
-                    log('❌ Failed to parse JSON: ' + e.message);
-                    showNotification('Invalid response', true);
+                if (response.ok) {
+                    const coins = (data.reward / POINTS_PER_COIN).toFixed(2);
+                    showNotification(`🎡 You won ${coins} COINS!`);
+                    await loadWheelStatus();
+                } else {
+                    showNotification(data.error || 'Failed to spin', true);
                 }
                 
+                const spinBtn = document.getElementById('spinBtn');
+                spinBtn.textContent = '🎡 SPIN NOW';
+                
             } catch (err) {
-                log('❌ Request failed: ' + err.message);
-                showNotification('Request failed', true);
+                showNotification('Network error', true);
+                const spinBtn = document.getElementById('spinBtn');
+                spinBtn.textContent = '🎡 SPIN NOW';
+                await loadWheelStatus();
             }
-        });
+        }
         
-        log('\n✅ Debug page ready. Click buttons to test.');
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPrizesGrid();
+            drawWheel(0);
+            loadWheelStatus();
+            
+            const spinBtn = document.getElementById('spinBtn');
+            const newSpinBtn = spinBtn.cloneNode(true);
+            spinBtn.parentNode.replaceChild(newSpinBtn, spinBtn);
+            newSpinBtn.addEventListener('click', spinWheel);
+        });
     </script>
 </body>
-</html>
+            </html>
