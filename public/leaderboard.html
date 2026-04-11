@@ -13,13 +13,10 @@
         :root {
             --primary: #4CAF50;
             --secondary: #2196F3;
-            --warning: #FF9800;
-            --danger: #f44336;
             --dark: #1a1a2e;
             --darker: #16213e;
             --light: #ffffff;
             --gray: #888888;
-            --success: #00c853;
             --gold: #FFD700;
             --silver: #C0C0C0;
             --bronze: #CD7F32;
@@ -37,7 +34,7 @@
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 25px;
+            padding: 25px 15px 30px;
             border-radius: 0 0 30px 30px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
@@ -45,7 +42,7 @@
         }
         
         .header h1 {
-            font-size: 26px;
+            font-size: 28px;
             margin-bottom: 8px;
             display: flex;
             align-items: center;
@@ -63,49 +60,60 @@
             text-decoration: none; z-index: 10;
         }
         
-        /* Podium Styles */
+        /* Prize Label */
+        .prize-label {
+            background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
+            color: var(--dark);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 15px;
+        }
+        
+        /* Podium Section */
         .podium-section {
-            padding: 20px 15px 0;
+            padding: 30px 15px 10px;
         }
-        
-        .podium-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .podium-title i { color: var(--gold); }
         
         .podium-container {
             display: flex;
             align-items: flex-end;
             justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 20px;
         }
         
         .podium-item {
             text-align: center;
             flex: 1;
-            max-width: 100px;
+            max-width: 110px;
         }
         
         .podium-avatar {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
-            margin: 0 auto 8px;
+            margin: 0 auto 10px;
             border: 3px solid;
             overflow: hidden;
             background: var(--darker);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
+            font-size: 32px;
+            font-weight: bold;
         }
+        
+        .podium-1 .podium-avatar { 
+            border-color: var(--gold); 
+            width: 85px; 
+            height: 85px; 
+            font-size: 38px;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+        .podium-2 .podium-avatar { border-color: var(--silver); }
+        .podium-3 .podium-avatar { border-color: var(--bronze); }
         
         .podium-avatar img {
             width: 100%;
@@ -113,33 +121,39 @@
             object-fit: cover;
         }
         
-        .podium-1 .podium-avatar { border-color: var(--gold); width: 70px; height: 70px; font-size: 32px; }
-        .podium-2 .podium-avatar { border-color: var(--silver); }
-        .podium-3 .podium-avatar { border-color: var(--bronze); }
-        
         .podium-name {
             font-weight: 600;
             font-size: 14px;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
         
-        .podium-score {
-            font-weight: bold;
-            color: var(--gold);
-            font-size: 14px;
+        .podium-position {
+            font-size: 13px;
+            color: var(--gray);
+            margin-bottom: 3px;
         }
+        
+        .podium-coins {
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        
+        .podium-1 .podium-coins { color: var(--gold); }
+        .podium-2 .podium-coins { color: var(--silver); }
+        .podium-3 .podium-coins { color: var(--bronze); }
         
         .podium-bar {
             height: 8px;
             border-radius: 4px;
-            margin-top: 8px;
+            margin-top: 10px;
         }
         
-        .podium-1 .podium-bar { background: var(--gold); height: 60px; border-radius: 8px 8px 0 0; }
-        .podium-2 .podium-bar { background: var(--silver); height: 40px; border-radius: 8px 8px 0 0; }
+        .podium-1 .podium-bar { background: var(--gold); height: 50px; border-radius: 8px 8px 0 0; }
+        .podium-2 .podium-bar { background: var(--silver); height: 35px; border-radius: 8px 8px 0 0; }
         .podium-3 .podium-bar { background: var(--bronze); height: 25px; border-radius: 8px 8px 0 0; }
         
         /* Tabs */
@@ -147,39 +161,50 @@
             display: flex;
             background: var(--darker);
             padding: 5px;
-            border-radius: 30px;
+            border-radius: 40px;
             margin: 20px 15px;
         }
         
         .tab {
             flex: 1;
             text-align: center;
-            padding: 12px 8px;
-            border-radius: 25px;
-            font-size: 13px;
-            font-weight: 500;
+            padding: 14px 10px;
+            border-radius: 35px;
+            font-size: 15px;
+            font-weight: 600;
             color: var(--gray);
             cursor: pointer;
             transition: all 0.3s ease;
         }
         
-        .tab i { margin-right: 5px; }
+        .tab i { margin-right: 6px; }
         
         .tab.active {
             background: var(--primary);
             color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
-        
-        .tab-content {
-            display: none;
-            padding: 0 15px;
-        }
-        
-        .tab-content.active { display: block; }
         
         /* Leaderboard List */
-        .leaderboard-list {
+        .leaderboard-container {
+            padding: 0 15px;
             margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title i { color: var(--gold); }
+        
+        .leaderboard-list {
+            max-height: 400px;
+            overflow-y: auto;
         }
         
         .leaderboard-item {
@@ -198,15 +223,15 @@
         }
         
         .rank {
-            width: 35px;
-            height: 35px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
             font-size: 14px;
             margin-right: 12px;
-            border-radius: 10px;
+            border-radius: 12px;
             background: rgba(255,255,255,0.05);
             color: var(--gray);
         }
@@ -216,8 +241,8 @@
         .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: var(--dark); }
         
         .avatar {
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             border-radius: 50%;
             background: var(--primary);
             display: flex;
@@ -227,6 +252,7 @@
             margin-right: 12px;
             color: white;
             overflow: hidden;
+            font-weight: bold;
         }
         
         .avatar img {
@@ -239,7 +265,7 @@
         
         .name {
             font-weight: 600;
-            font-size: 14px;
+            font-size: 15px;
             margin-bottom: 3px;
         }
         
@@ -256,88 +282,73 @@
             border-radius: 20px;
             font-size: 9px;
             font-weight: bold;
-            margin-left: 5px;
+            margin-left: 6px;
         }
         
         .score {
             font-weight: bold;
             color: var(--gold);
-            font-size: 15px;
+            font-size: 16px;
             text-align: right;
         }
         
-        .score-label {
-            font-size: 9px;
+        .score small {
+            font-size: 10px;
             color: var(--gray);
+            font-weight: normal;
         }
         
         /* My Rank Card */
         .my-rank-card {
             background: linear-gradient(135deg, var(--secondary) 0%, #1976D2 100%);
             border-radius: 20px;
-            padding: 20px;
+            padding: 18px 20px;
             margin: 20px 15px;
-            display: none;
-        }
-        
-        .my-rank-title {
-            font-size: 14px;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
         }
         
-        .my-rank-value {
-            font-size: 40px;
-            font-weight: bold;
+        .my-rank-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .my-rank-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .my-rank-info h4 {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
             margin-bottom: 5px;
         }
         
-        .my-rank-points {
-            font-size: 14px;
-            color: rgba(255,255,255,0.8);
-        }
-        
-        /* Prize Info */
-        .prize-info {
-            background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
-            border-radius: 15px;
-            padding: 15px;
-            margin: 20px 15px;
-            color: var(--dark);
-        }
-        
-        .prize-info h3 {
-            font-size: 16px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .prize-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        
-        .prize-card {
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 10px;
-            text-align: center;
-        }
-        
-        .prize-position {
-            font-size: 18px;
-            margin-bottom: 3px;
-        }
-        
-        .prize-amount {
-            font-size: 14px;
+        .my-rank-value {
+            font-size: 28px;
             font-weight: bold;
+        }
+        
+        .my-rank-right {
+            text-align: right;
+        }
+        
+        .my-rank-coins {
+            font-size: 22px;
+            font-weight: bold;
+        }
+        
+        .my-rank-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
         }
         
         .loading {
@@ -350,11 +361,11 @@
             background: var(--secondary);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 8px 16px;
             border-radius: 20px;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
-            margin-top: 10px;
+            margin-left: 10px;
         }
         
         .bottom-nav {
@@ -374,16 +385,26 @@
         
         .notification {
             position: fixed; bottom: 90px; left: 20px; right: 20px;
-            background: var(--success); color: white; padding: 15px 20px;
+            background: #00c853; color: white; padding: 15px 20px;
             border-radius: 12px; text-align: center; font-weight: 500;
             display: none; z-index: 1000; animation: slideUp 0.3s ease;
         }
         
-        .notification.error { background: var(--danger); }
-        
         @keyframes slideUp {
             from { transform: translateY(100px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray);
+        }
+        
+        .empty-state i {
+            font-size: 50px;
+            margin-bottom: 15px;
+            opacity: 0.5;
         }
     </style>
 </head>
@@ -393,91 +414,65 @@
     <div class="header">
         <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
         <p>Compete with others and climb the ranks!</p>
+        <div class="prize-label" id="prizeLabel">
+            <i class="fas fa-gift"></i> Monthly Prizes: 500 • 250 • 100 COINS
+        </div>
     </div>
     
     <!-- Podium Section -->
-    <div class="podium-section" id="podiumSection">
-        <div class="podium-title">
-            <i class="fas fa-crown"></i>
-            <span>Top 3 Earners</span>
-        </div>
+    <div class="podium-section">
         <div class="podium-container" id="podiumContainer">
-            <div class="loading" style="grid-column: 1/-1;">Loading...</div>
+            <div class="loading">Loading...</div>
         </div>
     </div>
     
     <!-- Tabs -->
     <div class="tabs">
         <div class="tab active" data-tab="earners"><i class="fas fa-coins"></i> Top Earners</div>
-        <div class="tab" data-tab="referrals"><i class="fas fa-users"></i> Referrals</div>
-        <div class="tab" data-tab="weekly"><i class="fas fa-calendar-week"></i> Weekly</div>
+        <div class="tab" data-tab="referrals"><i class="fas fa-users"></i> Top Referrals</div>
     </div>
     
-    <!-- Top Earners Tab -->
-    <div class="tab-content active" id="earnersTab">
-        <div class="prize-info">
-            <h3><i class="fas fa-gift"></i> Monthly Prizes</h3>
-            <div class="prize-grid">
-                <div class="prize-card">
-                    <div class="prize-position">🥇</div>
-                    <div class="prize-amount">500 COINS</div>
-                </div>
-                <div class="prize-card">
-                    <div class="prize-position">🥈</div>
-                    <div class="prize-amount">250 COINS</div>
-                </div>
-                <div class="prize-card">
-                    <div class="prize-position">🥉</div>
-                    <div class="prize-amount">100 COINS</div>
-                </div>
+    <!-- Top Earners Content -->
+    <div id="earnersContent">
+        <div class="leaderboard-container">
+            <div class="section-title">
+                <i class="fas fa-list-ol"></i>
+                <span>All Time Rankings</span>
+            </div>
+            <div class="leaderboard-list" id="topEarnersList">
+                <div class="loading">Loading top earners...</div>
             </div>
         </div>
-        
-        <div class="leaderboard-list" id="topEarnersList">
-            <div class="loading">Loading top earners...</div>
-        </div>
     </div>
     
-    <!-- Top Referrers Tab -->
-    <div class="tab-content" id="referralsTab">
-        <div class="prize-info">
-            <h3><i class="fas fa-gift"></i> Weekly Prizes</h3>
-            <div class="prize-grid">
-                <div class="prize-card">
-                    <div class="prize-position">🥇</div>
-                    <div class="prize-amount">100 COINS</div>
-                </div>
-                <div class="prize-card">
-                    <div class="prize-position">🥈</div>
-                    <div class="prize-amount">50 COINS</div>
-                </div>
-                <div class="prize-card">
-                    <div class="prize-position">🥉</div>
-                    <div class="prize-amount">25 COINS</div>
-                </div>
+    <!-- Top Referrals Content (Hidden initially) -->
+    <div id="referralsContent" style="display:none;">
+        <div class="leaderboard-container">
+            <div class="section-title">
+                <i class="fas fa-list-ol"></i>
+                <span>Weekly Referral Rankings</span>
             </div>
-        </div>
-        
-        <div class="leaderboard-list" id="topReferrersList">
-            <div class="loading">Loading top referrers...</div>
-        </div>
-    </div>
-    
-    <!-- Weekly Earnings Tab -->
-    <div class="tab-content" id="weeklyTab">
-        <div class="leaderboard-list" id="weeklyEarningsList">
-            <div class="loading">Loading weekly earnings...</div>
+            <div class="leaderboard-list" id="topReferrersList">
+                <div class="loading">Loading referrals...</div>
+            </div>
         </div>
     </div>
     
     <!-- My Rank Card -->
-    <div class="my-rank-card" id="myRankCard">
-        <div class="my-rank-title">
-            <i class="fas fa-user"></i>
-            <span>Your Rank</span>
+    <div class="my-rank-card" id="myRankCard" style="display:none;">
+        <div class="my-rank-left">
+            <div class="my-rank-icon">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="my-rank-info">
+                <h4>Your Rank</h4>
+                <div class="my-rank-value" id="myRank">--</div>
+            </div>
         </div>
-        <div class="my-rank-value" id="myRank">--</div>
-        <div class="my-rank-points" id="myPoints">0 COINS</div>
+        <div class="my-rank-right">
+            <div class="my-rank-coins" id="myCoins">0</div>
+            <div class="my-rank-label" id="myCoinsLabel">COINS</div>
+        </div>
     </div>
     
     <!-- Bottom Navigation -->
@@ -496,13 +491,15 @@
         if (tg) { tg.ready(); tg.expand(); }
         
         const POINTS_PER_COIN = 1000000;
+        let currentTab = 'earners';
+        let topEarnersData = [];
+        let topReferrersData = [];
         
-        function showNotification(msg, isError = false) {
+        function showNotification(msg) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
             notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 4000);
+            setTimeout(() => notif.style.display = 'none', 3000);
         }
         
         async function apiCall(endpoint) {
@@ -516,35 +513,54 @@
                 body: JSON.stringify({ initData: tg.initData })
             });
             
-            if (!response.ok) {
-                throw new Error(`Status ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(`Status ${response.status}`);
             return response.json();
         }
         
-        function renderPodium(data) {
+        function renderPodium(data, type) {
             const container = document.getElementById('podiumContainer');
-            if (!data || data.length < 3) {
-                container.innerHTML = '<div class="loading" style="grid-column:1/-1;">Not enough users</div>';
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column:1/-1;">
+                        <i class="fas fa-users"></i>
+                        <p>No users yet</p>
+                    </div>
+                `;
                 return;
             }
             
             const top3 = data.slice(0, 3);
+            
+            // Pad with empty if less than 3
+            while (top3.length < 3) {
+                top3.push({ first_name: '---', points: 0, referral_count: 0 });
+            }
+            
             const ordered = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
             
             container.innerHTML = ordered.map((user, idx) => {
                 const position = idx === 0 ? 2 : idx === 1 ? 1 : 3;
-                const coins = ((user.points || 0) / POINTS_PER_COIN).toFixed(1);
-                const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
+                const posLabel = position === 1 ? '1st' : position === 2 ? '2nd' : '3rd';
+                
+                let coinValue;
+                if (type === 'earners') {
+                    coinValue = ((user.points || 0) / POINTS_PER_COIN).toFixed(1);
+                } else {
+                    coinValue = user.referral_count || 0;
+                }
+                
+                const initial = (user.first_name || user.username || '?')[0].toUpperCase();
+                const displayName = user.first_name || user.username || '---';
                 
                 return `
                     <div class="podium-item podium-${position}">
                         <div class="podium-avatar">
-                            ${user.photo_url ? `<img src="${user.photo_url}" alt="${user.first_name}">` : initial}
+                            ${user.photo_url ? `<img src="${user.photo_url}" alt="${displayName}">` : initial}
                         </div>
-                        <div class="podium-name">${user.first_name || user.username || 'User'}</div>
-                        <div class="podium-score">${coins} COINS</div>
+                        <div class="podium-position">${posLabel} Place</div>
+                        <div class="podium-name">${displayName}</div>
+                        <div class="podium-coins">${type === 'earners' ? coinValue + ' COINS' : coinValue + ' refs'}</div>
                         <div class="podium-bar"></div>
                     </div>
                 `;
@@ -553,8 +569,14 @@
         
         function renderLeaderboard(containerId, data, type) {
             const container = document.getElementById(containerId);
+            
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="loading">No users yet</div>';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>No users yet</p>
+                    </div>
+                `;
                 return;
             }
             
@@ -563,15 +585,13 @@
                 const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
                 const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
                 
-                let score;
+                let score, scoreLabel;
                 if (type === 'referrals') {
-                    score = `${user.referral_count || 0} refs`;
-                } else if (type === 'weekly') {
-                    const coins = ((user.weekly_earnings || 0) / POINTS_PER_COIN).toFixed(2);
-                    score = `${coins} COINS`;
+                    score = user.referral_count || 0;
+                    scoreLabel = 'refs';
                 } else {
-                    const coins = ((user.points || 0) / POINTS_PER_COIN).toFixed(2);
-                    score = `${coins} COINS`;
+                    score = ((user.points || 0) / POINTS_PER_COIN).toFixed(2);
+                    scoreLabel = 'COINS';
                 }
                 
                 return `
@@ -587,17 +607,51 @@
                             </div>
                             <div class="username">${user.username ? '@' + user.username : ''}</div>
                         </div>
-                        <div class="score">${score}</div>
+                        <div class="score">${score} <small>${scoreLabel}</small></div>
                     </div>
                 `;
             }).join('');
         }
         
+        function updateMyRankCard(data, type) {
+            const userId = tg?.initDataUnsafe?.user?.id;
+            if (!userId) return;
+            
+            const myData = data.find(u => u.telegram_id === userId);
+            if (myData) {
+                const rank = data.findIndex(u => u.telegram_id === userId) + 1;
+                document.getElementById('myRank').textContent = `#${rank}`;
+                
+                if (type === 'earners') {
+                    const coins = ((myData.points || 0) / POINTS_PER_COIN).toFixed(2);
+                    document.getElementById('myCoins').textContent = coins;
+                    document.getElementById('myCoinsLabel').textContent = 'COINS';
+                } else {
+                    document.getElementById('myCoins').textContent = myData.referral_count || 0;
+                    document.getElementById('myCoinsLabel').textContent = 'REFERRALS';
+                }
+                
+                document.getElementById('myRankCard').style.display = 'flex';
+            } else {
+                document.getElementById('myRankCard').style.display = 'none';
+            }
+        }
+        
         async function loadTopEarners() {
             try {
                 const data = await apiCall('/api/leaderboard/top-earners');
-                renderPodium(data);
-                renderLeaderboard('topEarnersList', data, 'earners');
+                topEarnersData = data;
+                
+                if (currentTab === 'earners') {
+                    renderPodium(data, 'earners');
+                    renderLeaderboard('topEarnersList', data, 'earners');
+                    updateMyRankCard(data, 'earners');
+                }
+                
+                // Update prize label
+                document.getElementById('prizeLabel').innerHTML = 
+                    '<i class="fas fa-gift"></i> Monthly Prizes: 500 • 250 • 100 COINS';
+                    
             } catch (err) {
                 console.error('Top earners error:', err);
                 document.getElementById('topEarnersList').innerHTML = 
@@ -608,7 +662,13 @@
         async function loadTopReferrers() {
             try {
                 const data = await apiCall('/api/leaderboard/weekly-referrers');
-                renderLeaderboard('topReferrersList', data, 'referrals');
+                topReferrersData = data;
+                
+                if (currentTab === 'referrals') {
+                    renderPodium(data, 'referrals');
+                    renderLeaderboard('topReferrersList', data, 'referrals');
+                    updateMyRankCard(data, 'referrals');
+                }
             } catch (err) {
                 console.error('Top referrers error:', err);
                 document.getElementById('topReferrersList').innerHTML = 
@@ -616,60 +676,51 @@
             }
         }
         
-        async function loadWeeklyEarnings() {
-            try {
-                const data = await apiCall('/api/leaderboard/weekly-earnings');
-                renderLeaderboard('weeklyEarningsList', data, 'weekly');
-            } catch (err) {
-                console.error('Weekly earnings error:', err);
-                document.getElementById('weeklyEarningsList').innerHTML = 
-                    '<div class="loading">Failed to load <button class="retry-btn" onclick="loadWeeklyEarnings()">Retry</button></div>';
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab active states
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+            
+            // Show/hide content
+            document.getElementById('earnersContent').style.display = tab === 'earners' ? 'block' : 'none';
+            document.getElementById('referralsContent').style.display = tab === 'referrals' ? 'block' : 'none';
+            
+            // Update prize label
+            if (tab === 'earners') {
+                document.getElementById('prizeLabel').innerHTML = 
+                    '<i class="fas fa-gift"></i> Monthly Prizes: 500 • 250 • 100 COINS';
+            } else {
+                document.getElementById('prizeLabel').innerHTML = 
+                    '<i class="fas fa-gift"></i> Weekly Prizes: 100 • 50 • 25 COINS';
             }
-        }
-        
-        async function loadMyRank() {
-            try {
-                // For now, use top earners to find user's rank
-                const data = await apiCall('/api/leaderboard/top-earners');
-                const userId = tg?.initDataUnsafe?.user?.id;
-                
-                if (userId) {
-                    const myData = data.find(u => u.telegram_id === userId);
-                    if (myData) {
-                        const rank = data.findIndex(u => u.telegram_id === userId) + 1;
-                        const coins = ((myData.points || 0) / POINTS_PER_COIN).toFixed(2);
-                        
-                        document.getElementById('myRank').textContent = `#${rank}`;
-                        document.getElementById('myPoints').textContent = `${coins} COINS`;
-                        document.getElementById('myRankCard').style.display = 'block';
-                    }
-                }
-            } catch (err) {
-                console.error('My rank error:', err);
+            
+            // Render appropriate data
+            if (tab === 'earners' && topEarnersData.length) {
+                renderPodium(topEarnersData, 'earners');
+                renderLeaderboard('topEarnersList', topEarnersData, 'earners');
+                updateMyRankCard(topEarnersData, 'earners');
+            } else if (tab === 'referrals' && topReferrersData.length) {
+                renderPodium(topReferrersData, 'referrals');
+                renderLeaderboard('topReferrersList', topReferrersData, 'referrals');
+                updateMyRankCard(topReferrersData, 'referrals');
             }
         }
         
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+                switchTab(tab.dataset.tab);
             });
         });
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🏆 Leaderboard loading...');
-            
             loadTopEarners();
-            loadMyRank();
-            
-            // Pre-load other tabs
             loadTopReferrers();
-            loadWeeklyEarnings();
         });
     </script>
 </body>
-    </html>
+            </html>
