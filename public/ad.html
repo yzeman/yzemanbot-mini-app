@@ -8,327 +8,294 @@
         body {
             margin: 0;
             padding: 0;
-            background: #000;
+            background: #1a1a2e;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         #status {
             color: white;
             text-align: center;
             padding: 20px;
+            max-width: 300px;
         }
         .spinner {
             width: 40px;
             height: 40px;
             border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: #fff;
+            border-top-color: #4CAF50;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            margin: 0 auto 20px;
         }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        .reward-text {
-            font-size: 18px;
+        .debug {
+            font-size: 12px;
+            color: #888;
             margin-top: 20px;
-            color: #4CAF50;
-        }
-        .error-text {
-            font-size: 14px;
-            margin-top: 20px;
-            color: #ff5252;
-        }
-        .countdown {
-            font-size: 48px;
-            font-weight: bold;
-            color: #FFD700;
-            margin: 20px 0;
-        }
-        .close-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: #ff5252;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            z-index: 100;
         }
     </style>
-    <!-- AdsGram SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@adsgram/telegram-sdk@latest/dist/adsgram.umd.js"></script>
-    <!-- Unity Ads SDK (backup) -->
-    <script src="https://webgl.unity3d.com/unity-ads/4.12.0/unity-ads.js"></script>
 </head>
 <body>
-    <button class="close-btn" onclick="closeAd()">✕ Close</button>
     <div id="status">
         <div class="spinner"></div>
-        <div>Loading advertisement...</div>
+        <div id="statusText">Initializing...</div>
+        <div class="debug" id="debug"></div>
     </div>
 
     <script>
         // ============================================
-        // AD CONFIGURATION
+        // CONFIGURATION
         // ============================================
-        const ADSGRAM_BLOCK_ID = '27428';
-        const UNITY_GAME_ID = '6087630';
-        const UNITY_PLACEMENT_ID = 'Rewarded_Video_-_Telegram';
+        const CONFIG = {
+            adsgramBlockId: '27428',
+            unityGameId: '6087630',
+            unityPlacementId: 'Rewarded_Video_-_Telegram'
+        };
         
         // Get user info from URL
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('userId') || 'guest';
-        const rewardAmount = parseInt(urlParams.get('reward')) || 100;
+        const rewardAmount = parseInt(urlParams.get('reward')) || 557;
         
         let rewardGiven = false;
+        let tg = null;
         
-        function closeAd() {
-            if (!rewardGiven) {
-                // Send message that ad was closed without reward
-                window.parent.postMessage({ event: 'ad-failed', error: 'User closed ad' }, '*');
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        function updateStatus(message, isError = false) {
+            document.getElementById('statusText').textContent = message;
+            if (isError) {
+                document.querySelector('.spinner').style.borderTopColor = '#ff5252';
             }
-            // Remove the iframe or close
-            if (window.parent !== window) {
-                window.parent.postMessage({ event: 'ad-closed' }, '*');
-            }
+        }
+        
+        function debug(message) {
+            console.log('[Ad Debug]', message);
+            document.getElementById('debug').textContent = message;
         }
         
         function sendReward() {
             if (rewardGiven) return;
             rewardGiven = true;
             
-            // Send reward to parent window
-            window.parent.postMessage({ 
-                event: 'reward-earned', 
-                amount: rewardAmount 
-            }, '*');
+            debug('Sending reward: ' + rewardAmount);
             
-            // Show success message
-            const statusDiv = document.getElementById('status');
-            if (statusDiv) {
-                statusDiv.innerHTML = '<div class="reward-text">✅ Reward earned!</div><div>Closing in 2 seconds...</div>';
+            if (tg) {
+                tg.sendData(JSON.stringify({ 
+                    event: 'reward-earned', 
+                    amount: rewardAmount 
+                }));
+                setTimeout(() => tg.close(), 500);
+            } else {
+                window.opener?.postMessage({ event: 'reward-earned', amount: rewardAmount }, '*');
+                setTimeout(() => window.close(), 500);
             }
-            
-            // Close after delay
-            setTimeout(() => {
-                if (window.parent !== window) {
-                    window.parent.postMessage({ event: 'ad-closed' }, '*');
-                }
-            }, 2000);
         }
         
         function sendError(errorMsg) {
-            window.parent.postMessage({ 
-                event: 'ad-failed', 
-                error: errorMsg 
-            }, '*');
+            debug('Error: ' + errorMsg);
+            updateStatus(errorMsg, true);
             
-            const statusDiv = document.getElementById('status');
-            if (statusDiv) {
-                statusDiv.innerHTML = `<div class="error-text">❌ ${errorMsg}</div><div>Closing in 3 seconds...</div>`;
-            }
-            
-            setTimeout(() => {
-                if (window.parent !== window) {
-                    window.parent.postMessage({ event: 'ad-closed' }, '*');
-                }
-            }, 3000);
-        }
-        
-        function updateStatus(message, isError = false) {
-            const statusDiv = document.getElementById('status');
-            if (statusDiv) {
-                if (isError) {
-                    statusDiv.innerHTML = `<div class="error-text">❌ ${message}</div>`;
-                } else {
-                    statusDiv.innerHTML = `<div class="spinner"></div><div>${message}</div>`;
-                }
+            if (tg) {
+                tg.sendData(JSON.stringify({ 
+                    event: 'ad-failed', 
+                    error: errorMsg 
+                }));
+                setTimeout(() => tg.close(), 2000);
             }
         }
         
         // ============================================
-        // ADSGRAM IMPLEMENTATION (Primary)
+        // INITIALIZE TELEGRAM
         // ============================================
-        async function tryAdsGram() {
+        function initTelegram() {
             return new Promise((resolve) => {
-                try {
-                    if (typeof AdsGram === 'undefined') {
-                        console.log('AdsGram not available');
-                        resolve(false);
-                        return;
-                    }
-                    
-                    const adsgram = new AdsGram({ blockId: ADSGRAM_BLOCK_ID });
-                    
-                    updateStatus('Loading ad from AdsGram...');
-                    
-                    adsgram.showRewardedVideo().then((result) => {
-                        console.log('AdsGram ad completed:', result);
-                        if (result && result.done) {
-                            sendReward();
-                            resolve(true);
-                        } else {
-                            resolve(false);
-                        }
-                    }).catch((error) => {
-                        console.log('AdsGram error:', error);
-                        resolve(false);
-                    });
-                    
-                    // Timeout after 30 seconds
-                    setTimeout(() => {
-                        resolve(false);
-                    }, 30000);
-                    
-                } catch (err) {
-                    console.log('AdsGram exception:', err);
+                if (window.Telegram?.WebApp) {
+                    tg = window.Telegram.WebApp;
+                    tg.ready();
+                    tg.expand();
+                    debug('Telegram ready');
+                    resolve(true);
+                } else {
+                    debug('Not in Telegram WebApp');
                     resolve(false);
                 }
             });
         }
         
         // ============================================
-        // UNITY ADS IMPLEMENTATION (Backup)
+        // ADSGRAM IMPLEMENTATION
         // ============================================
-        function tryUnityAds() {
-            return new Promise((resolve) => {
+        async function tryAdsGram() {
+            return new Promise(async (resolve) => {
                 try {
-                    if (typeof UnityAds === 'undefined') {
-                        console.log('Unity Ads not available');
+                    updateStatus('Loading AdsGram...');
+                    
+                    // Wait for AdsGram to be available
+                    let attempts = 0;
+                    while (typeof AdsGram === 'undefined' && attempts < 20) {
+                        await new Promise(r => setTimeout(r, 250));
+                        attempts++;
+                    }
+                    
+                    if (typeof AdsGram === 'undefined') {
+                        debug('AdsGram not loaded');
                         resolve(false);
                         return;
                     }
                     
-                    updateStatus('Loading backup ad from Unity...');
+                    debug('AdsGram initializing...');
+                    const adsgram = new AdsGram({ blockId: CONFIG.adsgramBlockId });
                     
-                    let adShown = false;
-                    let timeoutId = setTimeout(() => {
-                        if (!adShown) {
-                            console.log('Unity Ads timeout');
+                    // Set timeout for ad loading
+                    const timeout = setTimeout(() => {
+                        debug('AdsGram timeout');
+                        resolve(false);
+                    }, 20000);
+                    
+                    try {
+                        const result = await adsgram.showRewardedVideo();
+                        clearTimeout(timeout);
+                        
+                        debug('AdsGram result: ' + JSON.stringify(result));
+                        
+                        if (result && (result.completed || result.done)) {
+                            sendReward();
+                            resolve(true);
+                        } else {
                             resolve(false);
                         }
-                    }, 30000);
+                    } catch (err) {
+                        clearTimeout(timeout);
+                        debug('AdsGram error: ' + (err.message || err.code || 'unknown'));
+                        resolve(false);
+                    }
                     
-                    UnityAds.initialize(UNITY_GAME_ID, false);
+                } catch (err) {
+                    debug('AdsGram exception: ' + err.message);
+                    resolve(false);
+                }
+            });
+        }
+        
+        // ============================================
+        // UNITY ADS IMPLEMENTATION
+        // ============================================
+        function tryUnityAds() {
+            return new Promise((resolve) => {
+                try {
+                    updateStatus('Loading Unity Ads...');
+                    
+                    if (typeof UnityAds === 'undefined') {
+                        debug('Unity Ads SDK not loaded');
+                        resolve(false);
+                        return;
+                    }
+                    
+                    debug('Unity initializing...');
+                    
+                    let resolved = false;
+                    const timeout = setTimeout(() => {
+                        if (!resolved) {
+                            debug('Unity timeout');
+                            resolved = true;
+                            resolve(false);
+                        }
+                    }, 25000);
+                    
+                    UnityAds.initialize(CONFIG.unityGameId, false);
                     
                     UnityAds.addListener('onUnityAdsAdLoaded', (placementId) => {
-                        console.log('Unity ad loaded:', placementId);
+                        debug('Unity ad loaded: ' + placementId);
                         updateStatus('Ad ready! Starting...');
                         UnityAds.show(userId, placementId);
-                        adShown = true;
                     });
                     
                     UnityAds.addListener('onUnityAdsShowComplete', (placementId, state) => {
-                        clearTimeout(timeoutId);
+                        clearTimeout(timeout);
+                        if (resolved) return;
+                        resolved = true;
+                        
+                        debug('Unity complete: ' + state);
                         if (state === 'complete') {
                             sendReward();
                             resolve(true);
                         } else {
-                            console.log('Unity ad not completed:', state);
                             resolve(false);
                         }
                     });
                     
                     UnityAds.addListener('onUnityAdsShowFailed', (placementId, error, message) => {
-                        clearTimeout(timeoutId);
-                        console.log('Unity ad failed:', error, message);
+                        clearTimeout(timeout);
+                        if (resolved) return;
+                        resolved = true;
+                        debug('Unity show failed: ' + message);
                         resolve(false);
                     });
                     
                     UnityAds.addListener('onUnityAdsFailedToLoad', (placementId, error, message) => {
-                        clearTimeout(timeoutId);
-                        console.log('Unity ad failed to load:', error, message);
+                        clearTimeout(timeout);
+                        if (resolved) return;
+                        resolved = true;
+                        debug('Unity load failed: ' + message);
                         resolve(false);
                     });
                     
-                    UnityAds.load(UNITY_PLACEMENT_ID);
+                    debug('Loading Unity placement: ' + CONFIG.unityPlacementId);
+                    UnityAds.load(CONFIG.unityPlacementId);
                     
                 } catch (err) {
-                    console.log('Unity Ads exception:', err);
+                    debug('Unity exception: ' + err.message);
                     resolve(false);
                 }
             });
         }
         
         // ============================================
-        // FALLBACK: Simulated ad for testing
-        // ============================================
-        function trySimulatedAd() {
-            return new Promise((resolve) => {
-                updateStatus('Test mode: Simulating ad...');
-                
-                let seconds = 5;
-                const statusDiv = document.getElementById('status');
-                
-                const interval = setInterval(() => {
-                    seconds--;
-                    if (statusDiv) {
-                        statusDiv.innerHTML = `<div class="countdown">${seconds}</div><div>Test ad in progress...</div>`;
-                    }
-                    if (seconds <= 0) {
-                        clearInterval(interval);
-                        updateStatus('Ad completed! Processing reward...');
-                        sendReward();
-                        resolve(true);
-                    }
-                }, 1000);
-                
-                setTimeout(() => {
-                    clearInterval(interval);
-                    resolve(false);
-                }, 60000);
-            });
-        }
-        
-        // ============================================
-        // MAIN AD FLOW
+        // MAIN FLOW
         // ============================================
         async function startAdFlow() {
-            updateStatus('Loading advertisement...');
+            await initTelegram();
+            
+            debug('Starting ad flow...');
             
             // Try AdsGram first
             const adsGramSuccess = await tryAdsGram();
             if (adsGramSuccess) {
-                console.log('Ad completed successfully via AdsGram');
+                debug('✅ AdsGram success');
                 return;
             }
             
-            // If AdsGram fails, try Unity Ads as backup
-            updateStatus('Trying backup ad source...');
+            debug('AdsGram failed, trying Unity...');
+            
+            // Try Unity as backup
             const unitySuccess = await tryUnityAds();
             if (unitySuccess) {
-                console.log('Ad completed successfully via Unity Ads');
+                debug('✅ Unity success');
                 return;
             }
             
-            // If both fail, use simulated ad for testing
-            updateStatus('Using test ad mode...');
-            const simulatedSuccess = await trySimulatedAd();
-            if (simulatedSuccess) {
-                console.log('Ad completed successfully via simulation');
-                return;
-            }
-            
-            // All failed
+            // Both failed
+            debug('❌ Both ad networks failed');
             sendError('No ads available. Please try again later.');
         }
         
-        // Start the ad flow
+        // Start everything
         startAdFlow();
         
-        // Fallback timeout - close after 90 seconds if something hangs
+        // Emergency timeout
         setTimeout(() => {
             if (!rewardGiven) {
+                debug('Emergency timeout');
                 sendError('Ad loading timeout');
             }
-        }, 90000);
+        }, 60000);
     </script>
 </body>
 </html>
