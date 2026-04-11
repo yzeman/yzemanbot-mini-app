@@ -856,7 +856,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.get('/api/wheel-status', verifyTelegramData, async (req, res) => {
+app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
     
