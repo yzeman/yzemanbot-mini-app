@@ -112,6 +112,7 @@
         .reward-card.disabled {
             background: var(--gray);
             cursor: not-allowed;
+            pointer-events: none;
         }
         
         .reward-card.disabled:hover {
@@ -181,6 +182,7 @@
         
         .calendar-day.today {
             border: 2px solid var(--gold);
+            background: rgba(255, 215, 0, 0.15);
         }
         
         .streak-info {
@@ -348,7 +350,7 @@
             console.warn('⚠️ Daily page: Not running in Telegram');
         }
         
-        // Show notification function (fallback if app.js not loaded)
+        // Show notification function
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             if (notif) {
@@ -359,7 +361,7 @@
             }
         }
         
-        // Load daily stats directly if needed
+        // Load daily stats
         async function loadDailyStatsDirect() {
             if (!tg?.initData) {
                 console.log('No Telegram initData available');
@@ -404,12 +406,10 @@
             if (claimBtn) {
                 if (data.claimed_today) {
                     claimBtn.classList.add('disabled');
-                    claimBtn.style.pointerEvents = 'none';
                     claimBtn.querySelector('.reward-title').textContent = '✅ Already Claimed Today';
                 } else {
                     claimBtn.classList.remove('disabled');
-                    claimBtn.style.pointerEvents = 'auto';
-                    claimBtn.querySelector('.reward-title').textContent = 'Claim Daily Reward';
+                    claimBtn.querySelector('.reward-title').textContent = '🎁 Claim Daily Reward';
                 }
             }
             
@@ -420,27 +420,43 @@
             const calendar = document.getElementById('calendar');
             if (!calendar) return;
             
-            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            // Use actual current date
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            
+            // Get day names starting from Sunday (0) to Saturday (6)
+            const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+            
             const claimedDays = data?.last_7_days || [];
             const claimedDates = new Set(claimedDays.map(d => d.reward_date));
             
-            const today = new Date().toISOString().split('T')[0];
+            // Calculate the start date (6 days ago from today)
+            const startDate = new Date(today);
+            startDate.setDate(today.getDate() - 6);
             
-            calendar.innerHTML = days.map((day, i) => {
-                const date = new Date();
-                date.setDate(date.getDate() - (6 - i));
-                const dateStr = date.toISOString().split('T')[0];
-                const isClaimed = claimedDates.has(dateStr);
-                const isToday = dateStr === today;
+            calendar.innerHTML = '';
+            
+            // Create 7 days
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
                 
-                return `
-                    <div class="calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}">
-                        <div>${day}</div>
-                        <div style="font-size: 10px; margin-top: 5px;">${date.getDate()}</div>
-                        ${isClaimed ? '<i class="fas fa-check" style="font-size: 10px; margin-top: 3px;"></i>' : ''}
-                    </div>
+                const dateStr = date.toISOString().split('T')[0];
+                const dayOfWeek = date.getDay(); // 0 = Sunday, 6 = Saturday
+                const dayName = dayNames[dayOfWeek];
+                const dayNumber = date.getDate();
+                const isClaimed = claimedDates.has(dateStr);
+                const isToday = dateStr === todayStr;
+                
+                const dayDiv = document.createElement('div');
+                dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}`;
+                dayDiv.innerHTML = `
+                    <div>${dayName}</div>
+                    <div style="font-size: 10px; margin-top: 5px;">${dayNumber}</div>
+                    ${isClaimed ? '<i class="fas fa-check" style="font-size: 10px; margin-top: 3px;"></i>' : ''}
                 `;
-            }).join('');
+                calendar.appendChild(dayDiv);
+            }
         }
         
         async function claimDailyRewardDirect() {
@@ -451,9 +467,13 @@
             
             const claimBtn = document.getElementById('claimBtn');
             if (claimBtn.classList.contains('disabled')) {
-                showNotification('Already claimed today!', true);
+                showNotification('You already claimed your reward today!', true);
                 return;
             }
+            
+            // Disable button during request
+            claimBtn.style.pointerEvents = 'none';
+            claimBtn.style.opacity = '0.7';
             
             try {
                 const response = await fetch('/api/daily-reward', {
@@ -465,14 +485,28 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    const coins = (data.reward / 1000000).toFixed(2);
-                    showNotification(`🎁 +${coins} COINS! Streak: ${data.streak} days 🔥`);
-                    loadDailyStatsDirect();
+                    const POINTS_PER_COIN = 1000000;
+                    const coins = (data.reward / POINTS_PER_COIN).toFixed(2);
+                    showNotification(`🎁 Daily reward claimed! +${coins} COINS! Streak: ${data.streak} days 🔥`);
+                    
+                    // Reload stats to update UI
+                    await loadDailyStatsDirect();
                 } else {
-                    showNotification(data.error || 'Failed to claim', true);
+                    // Show proper error message
+                    const errorMsg = data.error || 'Failed to claim daily reward';
+                    showNotification(errorMsg, true);
+                    
+                    // Re-enable button if not already claimed
+                    if (!errorMsg.includes('Already claimed')) {
+                        claimBtn.style.pointerEvents = 'auto';
+                        claimBtn.style.opacity = '1';
+                    }
                 }
             } catch (err) {
-                showNotification('Network error', true);
+                console.error('Claim error:', err);
+                showNotification('Network error. Please try again.', true);
+                claimBtn.style.pointerEvents = 'auto';
+                claimBtn.style.opacity = '1';
             }
         }
         
@@ -487,7 +521,7 @@
                 claimBtn.addEventListener('click', claimDailyRewardDirect);
             }
             
-            console.log('✅ Daily page initialized');
+            console.log('✅ Daily page initialized - Today is ' + new Date().toDateString());
         });
     </script>
 </body>
