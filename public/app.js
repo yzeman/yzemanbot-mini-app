@@ -1,5 +1,5 @@
 // ============================================================
-// YZEMANBOT - COMPLETE APP WITH TEST MODE
+// YZEMANBOT - COMPLETE APP WITH IFRAME ADS
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -201,7 +201,6 @@ function updateUI() {
 }
 
 // ============================================================
-// ============================================================
 // AD WATCHING - IFRAME OVERLAY (STAYS IN APP)
 // ============================================================
 
@@ -293,7 +292,6 @@ window.watchAd = async function() {
     const iframe = createAdOverlay();
     iframe.src = adUrl;
     
-    // Safety timeout
     setTimeout(() => {
         if (isWatchingAd && adOverlay) {
             adOverlay.remove();
@@ -302,6 +300,19 @@ window.watchAd = async function() {
         }
     }, 90000);
 };
+
+// ============================================================
+// PENDING AD REWARD CHECK (NOT USED IN IFRAME MODE - KEPT FOR COMPATIBILITY)
+// ============================================================
+
+function checkPendingAdReward() {
+    // This function is kept for compatibility but not used in iframe mode
+    const pendingReward = localStorage.getItem('pendingAdReward');
+    if (pendingReward) {
+        localStorage.removeItem('pendingAdReward');
+        localStorage.removeItem('adStartTime');
+    }
+}
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
@@ -1112,7 +1123,7 @@ function initTabs() {
 async function initApp() {
     setupAdMessageListener();
     
-    // Check for pending ad reward when app starts
+    // Check for pending ad reward (compatibility)
     checkPendingAdReward();
     
     currentUser = await registerUser();
@@ -1155,7 +1166,7 @@ async function initApp() {
         const watchAdBtn = document.getElementById('watchAdBtn');
         if (watchAdBtn) {
             watchAdBtn.addEventListener('click', window.watchAd);
-            console.log('✅ Watch ad button connected (TEST MODE)');
+            console.log('✅ Watch ad button connected (IFRAME MODE)');
         }
         
         const youtubeTaskBtn = document.getElementById('youtubeTaskBtn');
@@ -1223,11 +1234,9 @@ async function initApp() {
     }
 }
 
-// Listen for app resume (when user returns from ad)
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-        console.log('📱 App resumed - checking for pending rewards');
-        checkPendingAdReward();
+        console.log('📱 App resumed');
     }
 });
 
