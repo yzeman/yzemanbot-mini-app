@@ -201,99 +201,101 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING - OPEN WITHIN MINI APP USING IFRAME MODAL
+// AD WATCHING WITH ADSGRAM + UNITY ADS BACKUP
 // ============================================================
 
 let isWatchingAd = false;
+let adWindow = null;
 
 function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
     return adRewards[currentUser?.tier] || 557;
 }
 
-// Create modal overlay for ad
-function showAdModal() {
-    const reward = getRewardAmount();
-    const userId = currentUser?.id || 'guest';
-    const baseUrl = window.location.origin;
-    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
-    
-    // Create modal container
-    const modal = document.createElement('div');
-    modal.id = 'adModal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: #000;
-        z-index: 10001;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    `;
-    
-    // Create close button
-    const closeBtn = document.createElement('button');
-    closeBtn.innerHTML = '✕ Close';
-    closeBtn.style.cssText = `
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        background: #ff5252;
-        color: white;
-        border: none;
-        border-radius: 20px;
-        padding: 8px 16px;
-        font-size: 14px;
-        cursor: pointer;
-        z-index: 10002;
-    `;
-    closeBtn.onclick = () => {
-        document.body.removeChild(modal);
-        isWatchingAd = false;
-        showNotification('Ad closed. No reward earned.', true);
-    };
-    
-    // Create iframe to load ad
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = `
-        width: 100%;
-        height: 100%;
-        border: none;
-    `;
-    iframe.src = adUrl;
-    
-    modal.appendChild(closeBtn);
-    modal.appendChild(iframe);
-    document.body.appendChild(modal);
-    
-    // Listen for messages from iframe
-    window.addEventListener('message', function adMessageHandler(event) {
-        if (event.data && event.data.event === 'reward-earned') {
-            const rewardAmount = event.data.amount || reward;
-            showNotification(`🎉 +${rewardAmount} points earned!`);
-            addPoints(rewardAmount);
+// Get the base URL of your deployed app
+function getBaseUrl() {
+    // Update this to your actual deployed URL
+    // For Render: https://your-app-name.onrender.com
+    // For Vercel: https://your-app-name.vercel.app
+    return window.location.origin; // This automatically gets the current domain
+}
+
+// Listen for messages from the ad page
+function setupAdMessageListener() {
+    // For Telegram WebApp sendData
+    if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.onEvent('sendData', async (data) => {
+            console.log('📨 Ad data received:', data);
             
-            // Remove modal
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
+            try {
+                const parsed = JSON.parse(data);
+                
+                if (parsed.event === 'reward-earned') {
+                    const reward = parsed.amount || getRewardAmount();
+                    showNotification(`🎉 +${reward} points earned!`);
+                    await addPoints(reward);
+                    isWatchingAd = false;
+                } else if (parsed.event === 'ad-failed') {
+                    showNotification('Ad failed: ' + (parsed.error || 'Please try again'), true);
+                    isWatchingAd = false;
+                } else if (parsed.event === 'ad-timeout') {
+                    showNotification('Ad took too long. Please try again.', true);
+                    isWatchingAd = false;
+                }
+            } catch (e) {
+                console.error('Failed to parse ad data:', e);
             }
-            isWatchingAd = false;
+        });
+    }
+    
+    // For regular browser testing (postMessage)
+    window.addEventListener('message', async (event) => {
+        // Accept messages from same origin
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data && event.data.event) {
+            console.log('📨 Browser ad message:', event.data);
             
-            // Remove listener
-            window.removeEventListener('message', adMessageHandler);
-        } else if (event.data && event.data.event === 'ad-failed') {
-            showNotification('Ad failed. Please try again.', true);
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
+            if (event.data.event === 'reward-earned') {
+                const reward = event.data.amount || getRewardAmount();
+                showNotification(`🎉 +${reward} points earned!`);
+                await addPoints(reward);
+                isWatchingAd = false;
+            } else if (event.data.event === 'ad-failed') {
+                showNotification('Ad failed: ' + (event.data.error || 'Please try again'), true);
+                isWatchingAd = false;
             }
-            isWatchingAd = false;
-            window.removeEventListener('message', adMessageHandler);
         }
     });
+}
+
+// Open ad page
+function openAdPage() {
+    const reward = getRewardAmount();
+    const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
+    
+    // Build the ad URL
+    const baseUrl = getBaseUrl();
+    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
+    
+    console.log('🎬 Opening ad:', adUrl);
+    
+    // Use Telegram's openLink method for best compatibility
+    if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.openLink(adUrl);
+    } else {
+        // Fallback for browser testing
+        const width = 400;
+        const height = 600;
+        const left = (screen.width - width) / 2;
+        const top = (screen.height - height) / 2;
+        const features = `width=${width},height=${height},left=${left},top=${top},popup=yes`;
+        adWindow = window.open(adUrl, 'WatchAd', features);
+        
+        if (!adWindow) {
+            adWindow = window.open(adUrl, '_blank');
+        }
+    }
 }
 
 // Main watch ad function
@@ -309,8 +311,31 @@ window.watchAd = async function() {
     }
     
     isWatchingAd = true;
-    showAdModal();
+    showNotification('Opening ad... Please watch to earn points!', false);
+    
+    // Reset watching state after 2 minutes (safety timeout)
+    setTimeout(() => {
+        if (isWatchingAd) {
+            isWatchingAd = false;
+            console.log('Ad watching state reset due to timeout');
+        }
+    }, 120000);
+    
+    // Open the ad page
+    openAdPage();
 };
+
+// Initialize message listener when app starts
+setupAdMessageListener();
+
+// Handle visibility change for when user returns from ad
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        // User returned to app
+        console.log('📱 Returned to app');
+        // We don't auto-reward - reward comes from ad page message
+    }
+});
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
