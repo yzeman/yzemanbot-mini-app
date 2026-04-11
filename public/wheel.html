@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wheel of Fortune - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- TELEGRAM WEB APP SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <style>
         :root {
             --primary: #4CAF50;
@@ -39,6 +43,7 @@
             border-radius: 0 0 30px 30px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
+            position: relative;
         }
         
         .header h1 {
@@ -54,6 +59,16 @@
         .header p {
             color: var(--gray);
             font-size: 14px;
+        }
+        
+        .back-btn-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            z-index: 10;
         }
         
         .wheel-container {
@@ -115,6 +130,7 @@
             box-shadow: none;
             cursor: not-allowed;
             transform: none;
+            opacity: 0.7;
         }
         
         .status-card {
@@ -258,24 +274,24 @@
             animation: slideUp 0.3s ease;
         }
         
+        .notification.error {
+            background: var(--danger);
+        }
+        
         @keyframes slideUp {
             from { transform: translateY(100px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
         
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            text-decoration: none;
-            z-index: 10;
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
         }
     </style>
 </head>
 <body>
-    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
         <h1><i class="fas fa-dharmachakra"></i> Wheel of Fortune</h1>
@@ -304,9 +320,7 @@
             <i class="fas fa-gift" style="color: var(--gold);"></i>
             <span>Available Prizes</span>
         </div>
-        <div class="prizes-grid" id="prizesGrid">
-            <!-- Prizes will be rendered here -->
-        </div>
+        <div class="prizes-grid" id="prizesGrid"></div>
     </div>
     
     <div class="info-box">
@@ -343,7 +357,20 @@
     <div class="notification" id="notification"></div>
     
     <script>
-        // Prize configuration with COINS display
+        // ============================================
+        // WHEEL PAGE - COMPLETE STANDALONE SCRIPT
+        // ============================================
+        
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            console.log('✅ Wheel page: Telegram WebApp ready');
+        }
+        
+        const POINTS_PER_COIN = 1000000;
+        
+        // Prize configuration
         const PRIZES = [
             { value: 50000, label: '0.05', color: '#FF6B6B' },
             { value: 100000, label: '0.10', color: '#4ECDC4' },
@@ -355,7 +382,35 @@
             { value: 10000000, label: '10.00', color: '#F7B05E' }
         ];
         
-        // Render prizes grid
+        let wheelSpinning = false;
+        let wheelAnimationFrame = null;
+        let wheelCurrentAngle = 0;
+        let canSpin = false;
+        
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            if (notif) {
+                notif.textContent = msg;
+                notif.className = 'notification' + (isError ? ' error' : '');
+                notif.style.display = 'block';
+                setTimeout(() => notif.style.display = 'none', 4000);
+            }
+        }
+        
+        async function apiCall(endpoint, data = null) {
+            const options = {
+                method: data ? 'POST' : 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(endpoint, options);
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error);
+            }
+            return response.json();
+        }
+        
         function renderPrizesGrid() {
             const grid = document.getElementById('prizesGrid');
             if (!grid) return;
@@ -369,12 +424,231 @@
             `).join('');
         }
         
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        function drawWheel(currentAngle) {
+            const canvas = document.getElementById('wheelCanvas');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width;
+            const center = size / 2;
+            const radius = size / 2 - 10;
+            const anglePerSegment = (Math.PI * 2) / PRIZES.length;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            for (let i = 0; i < PRIZES.length; i++) {
+                const startAngle = currentAngle + i * anglePerSegment;
+                const endAngle = startAngle + anglePerSegment;
+                
+                ctx.beginPath();
+                ctx.fillStyle = PRIZES[i].color;
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, startAngle, endAngle);
+                ctx.fill();
+                ctx.strokeStyle = '#1a1a2e';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(startAngle + anglePerSegment / 2);
+                ctx.fillStyle = "#1a1a2e";
+                ctx.font = "bold 14px 'Segoe UI'";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(PRIZES[i].label, radius * 0.65, 0);
+                ctx.restore();
+            }
+            
+            // Center circle
+            ctx.beginPath();
+            ctx.fillStyle = "#FFD700";
+            ctx.arc(center, center, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#1a1a2e";
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🎡", center, center);
+        }
+        
+        async function loadWheelStatus() {
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                return;
+            }
+            
+            try {
+                const data = await apiCall('/api/wheel-status', { initData: tg.initData });
+                
+                const statusDiv = document.getElementById('statusText');
+                const timerDiv = document.getElementById('timerText');
+                const lastRewardDiv = document.getElementById('lastRewardText');
+                const spinBtn = document.getElementById('spinBtn');
+                
+                canSpin = data.can_spin;
+                
+                if (statusDiv) {
+                    if (data.can_spin) {
+                        statusDiv.innerHTML = '<span style="color: var(--success);">✅ Ready to spin!</span>';
+                    } else {
+                        statusDiv.innerHTML = '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
+                    }
+                }
+                
+                if (timerDiv && !data.can_spin) {
+                    timerDiv.innerHTML = `${data.days_left} day${data.days_left !== 1 ? 's' : ''}`;
+                } else if (timerDiv) {
+                    timerDiv.innerHTML = '';
+                }
+                
+                if (lastRewardDiv && data.last_reward > 0) {
+                    const coins = (data.last_reward / POINTS_PER_COIN).toFixed(2);
+                    lastRewardDiv.innerHTML = `Last spin: ${coins} COINS!`;
+                } else if (lastRewardDiv) {
+                    lastRewardDiv.innerHTML = 'No spins yet!';
+                }
+                
+                if (spinBtn) {
+                    spinBtn.disabled = !data.can_spin;
+                }
+                
+                drawWheel(wheelCurrentAngle);
+                
+            } catch (err) {
+                console.error('Wheel status error:', err);
+                showNotification('Failed to load wheel status', true);
+            }
+        }
+        
+        async function spinWheel() {
+            if (wheelSpinning) return;
+            if (!canSpin) {
+                showNotification('Next spin not available yet!', true);
+                return;
+            }
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                return;
+            }
+            
+            wheelSpinning = true;
+            const spinBtn = document.getElementById('spinBtn');
+            if (spinBtn) {
+                spinBtn.disabled = true;
+                spinBtn.textContent = '🎡 SPINNING...';
+            }
+            
+            // Random spin angle (5-8 full rotations)
+            const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
+            const startTime = performance.now();
+            const duration = 3000;
+            
+            function animateSpin(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(1, elapsed / duration);
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const angle = spinAngle * easeOut;
+                wheelCurrentAngle = (wheelCurrentAngle + angle) % (Math.PI * 2);
+                drawWheel(wheelCurrentAngle);
+                
+                if (progress < 1) {
+                    wheelAnimationFrame = requestAnimationFrame(animateSpin);
+                } else {
+                    wheelAnimationFrame = null;
+                    
+                    // Calculate prize
+                    const finalAngle = wheelCurrentAngle % (Math.PI * 2);
+                    const segmentIndex = Math.floor(((Math.PI * 2) - finalAngle) / ((Math.PI * 2) / PRIZES.length)) % PRIZES.length;
+                    const prize = PRIZES[segmentIndex].value;
+                    
+                    wheelSpinning = false;
+                    submitSpin(prize);
+                }
+            }
+            
+            if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
+            wheelAnimationFrame = requestAnimationFrame(animateSpin);
+        }
+        
+        async function submitSpin(prize) {
+            try {
+                const data = await apiCall('/api/wheel-spin', { initData: tg.initData });
+                
+                const coins = (data.reward / POINTS_PER_COIN).toFixed(2);
+                showNotification(`🎡 You won ${coins} COINS!`);
+                
+                // Add points to user
+                await addPointsToUser(data.reward);
+                
+                // Reload status
+                await loadWheelStatus();
+                
+                const spinBtn = document.getElementById('spinBtn');
+                if (spinBtn) {
+                    spinBtn.textContent = '🎡 SPIN NOW';
+                }
+                
+            } catch (err) {
+                let errorMsg = err.message;
+                
+                try {
+                    const parsed = JSON.parse(errorMsg);
+                    errorMsg = parsed.error || errorMsg;
+                } catch (e) {}
+                
+                if (errorMsg.includes('Next spin available')) {
+                    showNotification(errorMsg, true);
+                } else {
+                    showNotification('Failed to process spin', true);
+                }
+                
+                wheelSpinning = false;
+                const spinBtn = document.getElementById('spinBtn');
+                if (spinBtn) {
+                    spinBtn.textContent = '🎡 SPIN NOW';
+                }
+                
+                await loadWheelStatus();
+            }
+        }
+        
+        async function addPointsToUser(points) {
+            if (!tg?.initData) return;
+            
+            try {
+                await fetch('/api/ad-reward', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        initData: tg.initData,
+                        rewardAmount: points,
+                        adType: 'wheel'
+                    })
+                });
+            } catch (err) {
+                console.error('Failed to add points:', err);
+            }
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎡 Wheel page loading...');
+            
             renderPrizesGrid();
+            drawWheel(0);
+            loadWheelStatus();
+            
+            const spinBtn = document.getElementById('spinBtn');
+            if (spinBtn) {
+                const newSpinBtn = spinBtn.cloneNode(true);
+                spinBtn.parentNode.replaceChild(newSpinBtn, spinBtn);
+                newSpinBtn.addEventListener('click', spinWheel);
+            }
+            
+            console.log('✅ Wheel page initialized');
         });
     </script>
-    
-    <script src="/app.js"></script>
 </body>
 </html>
