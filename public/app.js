@@ -1,7 +1,7 @@
 // ============================================================
 // YZEMANBOT - COMPLETE APP WITH FUN AD SYSTEM
-// POINT ECONOMY: 1,000,000 points = 1 coin
-// WITHDRAWAL: 100,000 coins minimum
+// POINT ECONOMY: 1,000,000 points = 1 COIN
+// WITHDRAWAL: 100,000 COINS minimum
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -16,8 +16,8 @@ if (tg) {
 
 const POINT_ECONOMY = {
     // Conversion
-    POINTS_PER_COIN: 1000000,           // 1,000,000 points = 1 coin
-    MIN_WITHDRAWAL_COINS: 100000,       // 100,000 coins to withdraw
+    POINTS_PER_COIN: 1000000,           // 1,000,000 points = 1 COIN
+    MIN_WITHDRAWAL_COINS: 100000,       // 100,000 COINS to withdraw
     
     // Base Ad Rewards by Tier
     AD_REWARDS: {
@@ -209,7 +209,7 @@ Object.entries(POINT_ECONOMY.BONUS_CODES).forEach(([code, points]) => {
     bonusCodesList[code] = { 
         points: points, 
         dollars: 0, 
-        description: `${(points / 1000000).toFixed(2)} coins` 
+        description: `${(points / 1000000).toFixed(2)} COINS` 
     };
 });
 
@@ -228,7 +228,6 @@ function showNotification(msg, isError = false) {
 }
 
 function showCelebration(msg, points) {
-    // Create celebration overlay
     const celebration = document.createElement('div');
     celebration.style.cssText = `
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -289,7 +288,22 @@ async function registerUser() {
     
     if (nameEl) nameEl.textContent = `${user.first_name} ${user.last_name || ''}`;
     if (idEl) idEl.textContent = `ID: ${user.id}`;
-    if (avatarEl && user.photo_url) avatarEl.src = user.photo_url;
+    
+    // FIXED: Properly set the avatar image
+    if (avatarEl) {
+        if (user.photo_url) {
+            avatarEl.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = user.photo_url;
+            img.alt = user.first_name;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            avatarEl.appendChild(img);
+        } else {
+            avatarEl.innerHTML = '<i class="fas fa-user"></i>';
+        }
+    }
 
     try {
         const result = await apiCall('/api/user', {
@@ -411,6 +425,10 @@ function updateUI() {
         if (tierProgressBar) tierProgressBar.style.width = Math.min(tierProgress, 100) + '%';
     }
     
+    // Update current tier display
+    const currentTierEl = document.getElementById('currentTier');
+    if (currentTierEl) currentTierEl.textContent = currentUser.tier || 'Fresher';
+    
     displayBonusList();
 }
 
@@ -420,10 +438,14 @@ function updateAdStreakDisplay() {
     const todayAdsEl = document.getElementById('adsWatchedToday');
     const dailyProgressEl = document.getElementById('dailyAdProgress');
     const weeklyProgressEl = document.getElementById('weeklyAdProgress');
+    const streakDisplayEl = document.getElementById('adStreakDisplay');
+    const weekDisplayEl = document.getElementById('adsWatchedWeekDisplay');
     
     if (streakEl) streakEl.textContent = adStreak;
     if (totalAdsEl) totalAdsEl.textContent = totalAdsWatched;
     if (todayAdsEl) todayAdsEl.textContent = adsWatchedToday;
+    if (streakDisplayEl) streakDisplayEl.textContent = adStreak;
+    if (weekDisplayEl) weekDisplayEl.textContent = adsWatchedWeek;
     
     if (dailyProgressEl) {
         const dailyProgress = (adsWatchedToday / POINT_ECONOMY.DAILY_AD_GOAL) * 100;
@@ -443,7 +465,6 @@ function updateAdStreakDisplay() {
 function calculateAdReward() {
     const baseReward = POINT_ECONOMY.AD_REWARDS[currentUser?.tier] || 5000;
     
-    // Check for lucky multipliers
     const rand = Math.random();
     let multiplier = 1;
     let luckyType = 'normal';
@@ -495,20 +516,12 @@ function checkAndAwardMilestones() {
 }
 
 function updateAdStats() {
-    // Update streak
     adStreak++;
-    
-    // Update total
     totalAdsWatched++;
-    
-    // Update daily
     adsWatchedToday++;
     lastAdDate = today;
-    
-    // Update weekly
     adsWatchedWeek++;
     
-    // Save to localStorage
     localStorage.setItem('adStreak', adStreak);
     localStorage.setItem('totalAdsWatched', totalAdsWatched);
     localStorage.setItem('adsWatchedToday', adsWatchedToday);
@@ -517,6 +530,7 @@ function updateAdStats() {
     
     updateAdStreakDisplay();
 }
+
 // ============================================================
 // AD WATCHING - IFRAME OVERLAY WITH FUN FEATURES
 // ============================================================
@@ -542,22 +556,14 @@ function setupAdMessageListener() {
                 adOverlay = null;
             }
             
-            // Calculate reward with lucky bonuses
             const { finalReward, luckyType } = calculateAdReward();
-            
-            // Update ad stats
             updateAdStats();
             
-            // Check streak bonus
             const streakBonus = checkAndAwardStreakBonus();
-            
-            // Check milestone bonus
             const milestoneBonus = checkAndAwardMilestones();
             
-            // Total points to award
             let totalPoints = finalReward + streakBonus + milestoneBonus;
             
-            // Check daily goal
             let dailyGoalBonus = 0;
             if (adsWatchedToday >= POINT_ECONOMY.DAILY_AD_GOAL && !dailyGoalClaimed) {
                 dailyGoalBonus = POINT_ECONOMY.DAILY_AD_GOAL_REWARD;
@@ -565,7 +571,6 @@ function setupAdMessageListener() {
                 localStorage.setItem('dailyGoalClaimed', 'true');
             }
             
-            // Check weekly goal
             let weeklyGoalBonus = 0;
             if (adsWatchedWeek >= POINT_ECONOMY.WEEKLY_AD_GOAL && !weeklyGoalClaimed) {
                 weeklyGoalBonus = POINT_ECONOMY.WEEKLY_AD_GOAL_REWARD;
@@ -575,25 +580,19 @@ function setupAdMessageListener() {
             
             totalPoints += dailyGoalBonus + weeklyGoalBonus;
             
-            // Build celebration message
             let celebrationMsg = 'Ad Completed!';
             if (luckyType === 'mega') celebrationMsg = '🌟 MEGA AD! 10x REWARD! 🌟';
             else if (luckyType === 'golden') celebrationMsg = '⭐ GOLDEN AD! 5x REWARD! ⭐';
             else if (luckyType === 'lucky') celebrationMsg = '✨ LUCKY AD! 2x REWARD! ✨';
             
-            // Show celebration
             showCelebration(celebrationMsg, totalPoints);
-            
-            // Add points to database
             await addPoints(totalPoints, 'ad');
             
-            // Show streak notification
             if (streakBonus > 0) {
                 const streakCoins = (streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3);
                 showNotification(`🔥 ${adStreak} Ad Streak! +${streakCoins} COINS bonus!`);
             }
             
-            // Show goal notifications
             if (dailyGoalBonus > 0) {
                 const goalCoins = (dailyGoalBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1);
                 showNotification(`🎯 Daily Goal Complete! +${goalCoins} COINS!`);
@@ -612,7 +611,6 @@ function setupAdMessageListener() {
             isWatchingAd = false;
             
         } else if (data && data.event === 'ad-failed') {
-            // Reset streak on ad failure
             adStreak = 0;
             localStorage.setItem('adStreak', '0');
             updateAdStreakDisplay();
@@ -625,7 +623,6 @@ function setupAdMessageListener() {
             isWatchingAd = false;
             
         } else if (data && data.event === 'close-ad') {
-            // Reset streak if user closes ad early
             adStreak = 0;
             localStorage.setItem('adStreak', '0');
             updateAdStreakDisplay();
@@ -650,7 +647,6 @@ function createAdOverlay() {
         background: #0f0f1a; z-index: 9999;
     `;
     
-    // Add streak indicator to overlay
     const streakIndicator = document.createElement('div');
     streakIndicator.style.cssText = `
         position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
@@ -694,7 +690,6 @@ window.watchAd = async function() {
     const iframe = createAdOverlay();
     iframe.src = adUrl;
     
-    // Safety timeout
     setTimeout(() => {
         if (isWatchingAd && adOverlay) {
             adStreak = 0;
@@ -709,7 +704,6 @@ window.watchAd = async function() {
     }, 90000);
 };
 
-// Reset streak function (can be called from UI)
 window.resetAdStreak = function() {
     adStreak = 0;
     localStorage.setItem('adStreak', '0');
@@ -761,8 +755,79 @@ async function completeSocialTask(taskName, reward) {
 }
 
 // ============================================================
-// BONUS CODES
+// BONUS CODES & HISTORY
 // ============================================================
+
+async function loadBonusHistory() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch('/api/bonus-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
+        
+        if (response.ok) {
+            const history = await response.json();
+            displayBonusHistoryUI(history);
+        }
+    } catch (err) {
+        console.error('Failed to load bonus history:', err);
+    }
+}
+
+function displayBonusHistoryUI(history) {
+    const container = document.getElementById('bonusHistoryList');
+    if (!container) return;
+    
+    if (!history || history.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
+        return;
+    }
+    
+    container.innerHTML = history.map(item => {
+        const redeemedDate = new Date(item.redeemed_at);
+        const expiryDate = new Date(item.redeemed_at);
+        expiryDate.setHours(expiryDate.getHours() + 24);
+        
+        const isExpired = new Date() > expiryDate;
+        const rewardCoins = (item.reward_points / 1000000).toFixed(2);
+        
+        return `
+            <div class="bonus-history-item">
+                <div>
+                    <div class="bonus-code-display">${item.bonus_code}</div>
+                    <div class="bonus-expiry">Redeemed: ${redeemedDate.toLocaleString()}</div>
+                    <div class="bonus-expiry">Expires: ${expiryDate.toLocaleString()}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="bonus-reward-display">+${rewardCoins} COINS</div>
+                    ${isExpired ? 
+                        '<span class="bonus-expired-badge">Expired</span>' : 
+                        '<span class="bonus-used-badge">Active</span>'
+                    }
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function saveBonusRedemption(code, points) {
+    try {
+        await fetch('/api/bonus-redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                initData: tg.initData,
+                bonusCode: code,
+                points: points
+            })
+        });
+    } catch (err) {
+        console.error('Failed to save bonus redemption:', err);
+    }
+}
 
 async function redeemBonus() {
     const codeInput = document.getElementById('bonusCodeInput');
@@ -776,7 +841,7 @@ async function redeemBonus() {
     
     const bonus = bonusCodesList[code];
     if (!bonus) {
-        showNotification(`Invalid bonus code "${code}"`, true);
+        showNotification(`Invalid bonus code`, true);
         return;
     }
     
@@ -794,33 +859,22 @@ async function redeemBonus() {
     usedBonusCodes[code] = today;
     localStorage.setItem('usedBonusCodes', JSON.stringify(usedBonusCodes));
     
+    await saveBonusRedemption(code, totalPoints);
     await addPoints(totalPoints, 'bonus');
     
     const coins = (totalPoints / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
     showNotification(`Bonus code redeemed! +${coins} COINS`);
     codeInput.value = '';
-    displayBonusList();
+    
+    await loadBonusHistory();
 }
 
 function displayBonusList() {
-    const today = new Date().toDateString();
+    // This function intentionally left mostly empty - we don't show the list to users
+    // Only used for admin purposes or if needed elsewhere
     const list = document.getElementById('bonusList');
     if (!list) return;
-    
-    list.innerHTML = '';
-    for (const [code, bonus] of Object.entries(bonusCodesList)) {
-        const rewardCoins = (bonus.points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
-        const isUsed = usedBonusCodes[code] === today;
-        
-        const item = document.createElement('div');
-        item.className = 'bonus-item';
-        item.innerHTML = `
-            <span class="bonus-code">${code}</span>
-            <span class="bonus-reward">${rewardCoins} COINS</span>
-            ${isUsed ? '<span class="redeemed-badge">Used Today</span>' : '<span style="color:#888;">Available</span>'}
-        `;
-        list.appendChild(item);
-    }
+    list.innerHTML = ''; // Hide the list from users
 }
 
 // ============================================================
@@ -959,7 +1013,6 @@ async function claimDailyReward() {
     try {
         const result = await apiCall('/api/daily-reward', { initData: tg.initData });
         
-        // Override reward with new economy
         const streak = result.streak || 1;
         const baseReward = POINT_ECONOMY.DAILY_BASE_REWARD;
         const streakBonus = streak * POINT_ECONOMY.DAILY_STREAK_BONUS;
@@ -1022,14 +1075,14 @@ function renderCalendar(data) {
     const claimedDays = data?.last_7_days || [];
     const claimedDates = new Set(claimedDays.map(d => d.reward_date));
     
-    const today = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
     
     calendar.innerHTML = days.map((day, i) => {
         const date = new Date();
         date.setDate(date.getDate() - (6 - i));
         const dateStr = date.toISOString().split('T')[0];
         const isClaimed = claimedDates.has(dateStr);
-        const isToday = dateStr === today;
+        const isToday = dateStr === todayStr;
         
         return `
             <div class="calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}">
@@ -1040,6 +1093,7 @@ function renderCalendar(data) {
         `;
     }).join('');
 }
+
 // ============================================================
 // WHEEL OF FORTUNE FUNCTIONS
 // ============================================================
@@ -1139,7 +1193,6 @@ async function submitSpin(prize) {
     try {
         const result = await apiCall('/api/wheel-spin', { initData: tg.initData });
         
-        // Override with new prize
         await addPoints(prize, 'wheel');
         
         const coins = (prize / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
@@ -1377,7 +1430,6 @@ async function loadTournamentStandings() {
             }
         }
         
-        // Display prizes
         if (prizesList) {
             const prizes = POINT_ECONOMY.TOURNAMENT_PRIZES;
             prizesList.innerHTML = `
@@ -1566,6 +1618,11 @@ function initTabs() {
             const tabId = tab.dataset.tab + 'Tab';
             const tabContent = document.getElementById(tabId);
             if (tabContent) tabContent.classList.add('active');
+            
+            // Load bonus history when bonus tab is clicked
+            if (tab.dataset.tab === 'bonus') {
+                loadBonusHistory();
+            }
         });
     });
 }
@@ -1586,14 +1643,12 @@ async function initApp() {
     setupAdMessageListener();
     checkPendingAdReward();
     
-    // Update ad streak display
     updateAdStreakDisplay();
     
     currentUser = await registerUser();
     if (currentUser) {
         updateUI();
         loadWithdrawalHistory();
-        displayBonusList();
         
         const socialButtons = [
             { id: 'youtube1Btn', task: 'youtube1', url: 'https://youtube.com/@yzeupdates', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.youtube1 },
