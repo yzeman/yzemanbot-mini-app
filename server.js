@@ -318,7 +318,7 @@ function verifyAdmin(req, res, next) {
 }
 
 // ============================================
-// USER API ENDPOINTS - WITH FIXED REFERRAL HANDLING
+// USER API ENDPOINTS
 // ============================================
 
 app.post('/api/user', verifyTelegramData, async (req, res) => {
@@ -339,7 +339,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     let user;
     
     if (existingUser.rows.length > 0) {
-      // USER ALREADY EXISTS - UPDATE ONLY, NO REFERRAL BONUS
       const updateQuery = `
         UPDATE users 
         SET first_name = $1, last_name = $2, username = $3, photo_url = $4,
@@ -352,11 +351,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       ]);
       user = result.rows[0];
       
-      // IMPORTANT: NO REFERRAL BONUS FOR EXISTING USERS
-      console.log(`🔄 Existing user logged in: ${first_name} (${id}) - No referral bonus`);
-      
     } else {
-      // NEW USER - CREATE ACCOUNT AND PROCESS REFERRAL
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       
       const insertQuery = `
@@ -369,22 +364,11 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       ]);
       user = result.rows[0];
       
-      console.log(`✨ New user registered: ${first_name} (${id}) - Referral code: ${userReferralCode}`);
-      
-      // ONLY PROCESS REFERRAL FOR NEW USERS
       if (referralCode && referralCode !== userReferralCode) {
-        // Clean the referral code - remove any prefixes
         let cleanReferralCode = referralCode;
-        if (cleanReferralCode.startsWith('ref-')) {
-          cleanReferralCode = cleanReferralCode.substring(4);
-        }
-        if (cleanReferralCode.startsWith('YZEMAN-')) {
-          cleanReferralCode = cleanReferralCode.substring(7);
-        }
+        if (cleanReferralCode.startsWith('ref-')) cleanReferralCode = cleanReferralCode.substring(4);
+        if (cleanReferralCode.startsWith('YZEMAN-')) cleanReferralCode = cleanReferralCode.substring(7);
         
-        console.log(`📝 Referral code received: ${referralCode} -> Cleaned: ${cleanReferralCode}`);
-        
-        // Try to find referrer in multiple formats
         let referrerResult = await client.query(
           'SELECT id, tier, username, first_name, telegram_id FROM users WHERE referral_code = $1',
           [cleanReferralCode]
@@ -404,7 +388,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
           );
         }
         
-        // Make sure referrer exists AND is not the same as the new user
         if (referrerResult.rows.length > 0 && referrerResult.rows[0].id !== user.id) {
           const referrerId = referrerResult.rows[0].id;
           const referrerTier = referrerResult.rows[0].tier;
@@ -416,29 +399,24 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
             [referrerTier]
           );
           
-          // Reward for referrer (based on their tier)
           const referrerReward = tierResult.rows[0]?.referral_reward || 5000;
           
-          // Check if this referral already exists (prevent duplicate)
           const existingReferral = await client.query(
             'SELECT * FROM referrals WHERE referrer_id = $1 AND referred_id = $2',
             [referrerId, user.id]
           );
           
           if (existingReferral.rows.length === 0) {
-            // Record the referral
             await client.query(
               'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
               [referrerId, user.id]
             );
             
-            // Give points to referrer
             await client.query(
               'UPDATE users SET points = points + $1, referrals = referrals + 1 WHERE id = $2',
               [referrerReward, referrerId]
             );
             
-            // Update referrer's tier if needed
             const newReferralCount = await client.query(
               'SELECT COUNT(*) FROM referrals WHERE referrer_id = $1',
               [referrerId]
@@ -462,15 +440,11 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               );
             }
             
-            // Give bonus to new user (500 points)
             await client.query(
               'UPDATE users SET points = points + 500 WHERE id = $1',
               [user.id]
             );
             
-            console.log(`✅ REFERRAL SUCCESS: ${first_name} (${user.id}) used code from ${referrerName} (${referrerId}) - Referrer +${referrerReward}, New user +500`);
-            
-            // Send notification to referrer via Telegram Bot
             try {
               const BOT_TOKEN = process.env.BOT_TOKEN;
               if (BOT_TOKEN && referrerTelegramId) {
@@ -497,11 +471,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
             } catch (notifyErr) {
               console.error('Failed to send referral notification:', notifyErr.message);
             }
-          } else {
-            console.log(`⚠️ Duplicate referral ignored: ${first_name} already referred by ${referrerName}`);
           }
-        } else {
-          console.log(`⚠️ Invalid referral code: ${referralCode} - No referrer found`);
         }
       }
     }
@@ -530,6 +500,10 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     client.release();
   }
 });
+
+// ============================================
+// AD REWARD ENDPOINT - Used by the new ad system
+// ============================================
 
 app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -688,12 +662,12 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     const today = new Date().toISOString().split('T')[0];
     
-    const claimedToday = await client.query(
+    const claimedToday = await pool.query(
       'SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2',
       [userId, today]
     );
     
-    const last7Days = await client.query(`
+    const last7Days = await pool.query(`
       SELECT reward_date, streak_count, reward_points
       FROM daily_rewards
       WHERE user_id = $1
@@ -701,7 +675,7 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
       LIMIT 7
     `, [userId]);
     
-    const maxStreak = await client.query(`
+    const maxStreak = await pool.query(`
       SELECT COALESCE(MAX(streak_count), 0) as max_streak
       FROM daily_rewards
       WHERE user_id = $1
