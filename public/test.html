@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page</title>
+    <style>
+        body {
+            background: #1a1a2e;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .box {
+            text-align: center;
+            padding: 30px;
+            background: #0f0f1a;
+            border-radius: 15px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .close-btn {
+            background: #ff5252;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>✅ Test Page Loaded!</h1>
+        <p>If you can see this, the iframe is working.</p>
+        <p>User ID: <span id="userId"></span></p>
+        <p>Reward: <span id="reward"></span></p>
+        <button onclick="sendReward()">🎁 Send Test Reward</button>
+        <button class="close-btn" onclick="sendError()">❌ Send Error</button>
+    </div>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId') || 'guest';
+        const reward = urlParams.get('reward') || '557';
+        
+        document.getElementById('userId').textContent = userId;
+        document.getElementById('reward').textContent = reward;
+        
+        function sendToParent(data) {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage(data, '*');
+                console.log('Sent to parent:', data);
+            } else {
+                alert('No parent window! Data: ' + JSON.stringify(data));
+            }
+        }
+        
+        function sendReward() {
+            sendToParent({ event: 'reward-earned', amount: parseInt(reward) });
+            alert('Reward sent! You can close this.');
+        }
+        
+        function sendError() {
+            sendToParent({ event: 'ad-failed', error: 'User cancelled' });
+            alert('Error sent! You can close this.');
+        }
+        
+        console.log('Test page loaded successfully');
+    </script>
+</body>
+</html>
