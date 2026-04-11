@@ -1432,6 +1432,72 @@ app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) =
   }
 });
 
+// Remove member from team (leader only)
+app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { memberTelegramId } = req.body;
+    const leaderTelegramId = req.telegramUser.id;
+    
+    // Get leader info
+    const leaderResult = await client.query(
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      [leaderTelegramId]
+    );
+    
+    if (leaderResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Leader not found' });
+    }
+    
+    const leaderId = leaderResult.rows[0].id;
+    const teamId = leaderResult.rows[0].team_id;
+    
+    if (!teamId) {
+      return res.status(400).json({ error: 'You are not in a team' });
+    }
+    
+    // Verify leader
+    const teamCheck = await client.query(
+      'SELECT created_by FROM teams WHERE id = $1',
+      [teamId]
+    );
+    
+    if (teamCheck.rows[0]?.created_by !== leaderId) {
+      return res.status(403).json({ error: 'Only team leader can remove members' });
+    }
+    
+    // Get member to remove
+    const memberResult = await client.query(
+      'SELECT id FROM users WHERE telegram_id = $1 AND team_id = $2',
+      [memberTelegramId, teamId]
+    );
+    
+    if (memberResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Member not found in your team' });
+    }
+    
+    const memberId = memberResult.rows[0].id;
+    
+    if (memberId === leaderId) {
+      return res.status(400).json({ error: 'Cannot remove yourself. Use leave team instead.' });
+    }
+    
+    // Remove member
+    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
+    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [memberId]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Member removed from team' });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Remove member error:', err);
+    res.status(500).json({ error: 'Failed to remove member' });
+  } finally {
+    client.release();
+  }
+});
+
 // ============================================
 // BONUS REDEMPTION API
 // ============================================
