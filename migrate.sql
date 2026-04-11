@@ -40,12 +40,15 @@ CREATE TABLE IF NOT EXISTS tiers (
 -- Insert tier data
 INSERT INTO tiers (name, refs_required, multiplier, referral_reward) 
 VALUES 
-    ('Fresher', 0, 1.0, 5000),
-    ('Brute', 50, 1.2, 10000),
-    ('Silver', 150, 1.5, 15000),
-    ('Gold', 300, 2.0, 20000),
-    ('Platinum', 500, 3.0, 30000)
-ON CONFLICT (name) DO NOTHING;
+    ('Fresher', 0, 1.0, 500000),
+    ('Brute', 150, 1.5, 750000),
+    ('Silver', 350, 2.0, 1000000),
+    ('Gold', 700, 2.5, 1500000),
+    ('Platinum', 1500, 3.0, 2500000)
+ON CONFLICT (name) DO UPDATE SET
+    refs_required = EXCLUDED.refs_required,
+    multiplier = EXCLUDED.multiplier,
+    referral_reward = EXCLUDED.referral_reward;
 
 -- Referrals table
 CREATE TABLE IF NOT EXISTS referrals (
@@ -144,7 +147,7 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
 -- 5. Teams & Monthly Competition
 CREATE TABLE IF NOT EXISTS teams (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     code TEXT UNIQUE NOT NULL,
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT NOW()
@@ -152,9 +155,18 @@ CREATE TABLE IF NOT EXISTS teams (
 
 CREATE TABLE IF NOT EXISTS team_members (
     id SERIAL PRIMARY KEY,
-    team_id INTEGER NOT NULL REFERENCES teams(id),
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id),
     joined_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
+
+-- 6. Team banned members (prevents removed members from rejoining)
+CREATE TABLE IF NOT EXISTS team_banned_members (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    banned_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(team_id, user_id)
 );
 
@@ -166,22 +178,44 @@ CREATE TABLE IF NOT EXISTS monthly_competitions (
     UNIQUE(month_year)
 );
 
+-- 7. Ad Statistics
+CREATE TABLE IF NOT EXISTS ad_statistics (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    ad_streak INTEGER DEFAULT 0,
+    total_ads INTEGER DEFAULT 0,
+    ads_today INTEGER DEFAULT 0,
+    ads_week INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 8. Bonus Redemptions
+CREATE TABLE IF NOT EXISTS bonus_redemptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    bonus_code TEXT NOT NULL,
+    reward_points INTEGER NOT NULL,
+    redeemed_at TIMESTAMP DEFAULT NOW()
+);
+
 -- ============================================
 -- INSERT DEFAULT ACHIEVEMENTS
 -- ============================================
 
 INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
-    ('Loyal User', '30 day login streak', '🔥', 30, 50000),
-    ('Referral Master', 'Get 100 referrals', '👑', 100, 100000),
-    ('Points Millionaire', 'Earn 1,000,000 points', '💰', 1000000, 200000),
-    ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 25000),
-    ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 50000),
-    ('Team Player', 'Join a team', '🤝', 1, 10000),
-    ('Platinum Elite', 'Reach Platinum tier', '💎', 500, 150000),
-    ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000),
-    ('Daily Streak 7', '7 day login streak', '📅', 7, 10000),
-    ('Super Referrer', 'Get 500 referrals', '⭐', 500, 500000)
-ON CONFLICT (name) DO NOTHING;
+    ('Loyal User', '30 day login streak', '🔥', 30, 50000000),
+    ('Referral Master', 'Get 100 referrals', '👑', 100, 100000000),
+    ('Points Millionaire', 'Earn 1,000,000,000 points', '💰', 1000000000, 1000000000),
+    ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 25000000),
+    ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 50000000),
+    ('Team Player', 'Join a team', '🤝', 1, 10000000),
+    ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 200000000),
+    ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000000),
+    ('Daily Streak 7', '7 day login streak', '📅', 7, 5000000),
+    ('Super Referrer', 'Get 500 referrals', '⭐', 500, 500000000),
+    ('Ad Master', 'Watch 1000 ads', '📺', 1000, 50000000)
+ON CONFLICT (name) DO UPDATE SET
+    description = EXCLUDED.description,
+    points_reward = EXCLUDED.points_reward;
 
 -- ============================================
 -- CREATE INDEXES FOR PERFORMANCE
@@ -202,7 +236,9 @@ CREATE INDEX IF NOT EXISTS idx_wheel_spins_user_date ON wheel_spins(user_id, spi
 CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
 CREATE INDEX IF NOT EXISTS idx_tournament_participants_tournament ON tournament_participants(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_banned_members_team_id ON team_banned_members(team_id);
 CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);
+CREATE INDEX IF NOT EXISTS idx_bonus_redemptions_user_id ON bonus_redemptions(user_id);
 
 -- ============================================
 -- VERIFY ALL TABLES WERE CREATED
@@ -212,7 +248,7 @@ CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);
 DO $$
 DECLARE
     missing_tables TEXT[] := ARRAY[]::TEXT[];
-    expected_tables TEXT[] := ARRAY['daily_rewards', 'wheel_spins', 'achievements', 'user_achievements', 'weekly_tournaments', 'tournament_participants', 'teams', 'team_members', 'monthly_competitions'];
+    expected_tables TEXT[] := ARRAY['daily_rewards', 'wheel_spins', 'achievements', 'user_achievements', 'weekly_tournaments', 'tournament_participants', 'teams', 'team_members', 'team_banned_members', 'monthly_competitions', 'ad_statistics', 'bonus_redemptions'];
     t TEXT;
 BEGIN
     FOREACH t IN ARRAY expected_tables
