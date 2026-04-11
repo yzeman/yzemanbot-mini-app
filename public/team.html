@@ -132,7 +132,6 @@
         }
         
         .action-btn i { font-size: 28px; }
-        
         .action-btn.secondary { background: var(--secondary); }
         
         .action-btn:hover {
@@ -345,9 +344,7 @@
             transition: all 0.3s ease;
         }
         
-        .prize-info-box.dismissed {
-            display: none;
-        }
+        .prize-info-box.dismissed { display: none; }
         
         .prize-info-header {
             display: flex;
@@ -446,6 +443,17 @@
         
         .loading { text-align: center; padding: 40px; color: var(--gray); }
         .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        
+        .retry-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
         
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
@@ -614,7 +622,7 @@
         // Check if info box was dismissed this month
         function shouldShowPrizeInfo() {
             const dismissedMonth = localStorage.getItem('prizeInfoDismissedMonth');
-            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+            const currentMonth = new Date().toISOString().slice(0, 7);
             return dismissedMonth !== currentMonth;
         }
         
@@ -625,7 +633,6 @@
             showNotification('Info hidden until next month');
         }
         
-        // Show/hide info box based on dismissal
         function updatePrizeInfoVisibility() {
             const infoBox = document.getElementById('prizeInfoBox');
             if (!shouldShowPrizeInfo()) {
@@ -647,18 +654,22 @@
             if (!tg?.initData) throw new Error('Not in Telegram');
             
             const options = {
-                method: data ? 'POST' : 'GET',
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             };
             if (data) options.body = JSON.stringify({ ...data, initData: tg.initData });
             else options.body = JSON.stringify({ initData: tg.initData });
             
             const response = await fetch(endpoint, options);
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
+            
+            // Handle non-JSON responses gracefully
+            const text = await response.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Invalid JSON response:', text);
+                throw new Error('Invalid server response');
             }
-            return response.json();
         }
         
         function openCreateModal() { document.getElementById('createTeamModal').style.display = 'flex'; }
@@ -731,7 +742,7 @@
             
             const team = data.team;
             const members = data.members;
-            const totalCoins = (team.total_points / POINTS_PER_COIN).toFixed(2);
+            const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(2);
             const totalRefs = team.total_referrals || 0;
             
             container.innerHTML = `
@@ -748,7 +759,7 @@
                     
                     <div class="team-stats">
                         <div class="team-stat">
-                            <div class="team-stat-value">${team.member_count}</div>
+                            <div class="team-stat-value">${team.member_count || 0}</div>
                             <div class="team-stat-label">Members</div>
                         </div>
                         <div class="team-stat">
@@ -777,7 +788,7 @@
                 
                 <div class="members-list">
                     ${members.map(m => {
-                        const memberCoins = (m.points / POINTS_PER_COIN).toFixed(2);
+                        const memberCoins = ((m.points || 0) / POINTS_PER_COIN).toFixed(2);
                         const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
                         return `
                             <div class="member-item">
@@ -801,14 +812,14 @@
             const container = document.getElementById('teamLeaderboardList');
             
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet</p></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Be the first to create one!</p></div>';
                 return;
             }
             
             container.innerHTML = data.map((team, idx) => {
                 const rank = idx + 1;
                 const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-                const totalCoins = (team.total_points / POINTS_PER_COIN).toFixed(2);
+                const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(2);
                 const initial = (team.name || 'T')[0].toUpperCase();
                 
                 return `
@@ -817,7 +828,7 @@
                         <div class="team-avatar-small">${initial}</div>
                         <div class="info">
                             <div class="name">${team.name}</div>
-                            <div class="members">👑 ${team.leader_name || 'Unknown'} • ${team.member_count} members</div>
+                            <div class="members">👑 ${team.leader_name || 'Unknown'} • ${team.member_count || 0} members</div>
                         </div>
                         <div class="score">${totalCoins} COINS</div>
                     </div>
@@ -841,7 +852,7 @@
                 ${data.standings.map((team, idx) => {
                     const rank = idx + 1;
                     const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-                    const teamCoins = (team.team_points / POINTS_PER_COIN).toFixed(2);
+                    const teamCoins = ((team.team_points || 0) / POINTS_PER_COIN).toFixed(2);
                     const initial = (team.name || 'T')[0].toUpperCase();
                     
                     const prize = MONTHLY_PRIZES[rank];
@@ -858,7 +869,7 @@
                             <div class="team-avatar-small">${initial}</div>
                             <div class="info">
                                 <div class="name">${team.name}</div>
-                                <div class="members">👑 ${team.leader_name || 'Unknown'} • ${team.member_count} members</div>
+                                <div class="members">👑 ${team.leader_name || 'Unknown'} • ${team.member_count || 0} members</div>
                                 ${prizeInfo}
                             </div>
                             <div class="score">${teamCoins} COINS</div>
@@ -869,33 +880,40 @@
         }
         
         async function loadMyTeam() {
+            const container = document.getElementById('myTeamContent');
+            
             try {
                 const data = await apiCall('/api/team/info');
                 teamData = data;
                 renderMyTeam(data);
             } catch (err) {
                 console.error('Load team error:', err);
-                document.getElementById('myTeamContent').innerHTML = '<div class="empty-state">Failed to load team</div>';
+                // Show "no team" state instead of error
+                renderMyTeam({ has_team: false });
             }
         }
         
         async function loadTeamLeaderboard() {
+            const container = document.getElementById('teamLeaderboardList');
+            
             try {
                 const data = await apiCall('/api/team/leaderboard');
                 renderTeamLeaderboard(data);
             } catch (err) {
                 console.error('Leaderboard error:', err);
-                document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state">Failed to load</div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Be the first to create one!</p></div>';
             }
         }
         
         async function loadMonthlyCompetition() {
+            const container = document.getElementById('monthlyContent');
+            
             try {
                 const data = await apiCall('/api/team/monthly-competition');
                 renderMonthlyCompetition(data);
             } catch (err) {
                 console.error('Monthly error:', err);
-                document.getElementById('monthlyContent').innerHTML = '<div class="empty-state">Failed to load</div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing this month</p></div>';
             }
         }
         
