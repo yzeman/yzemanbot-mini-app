@@ -292,7 +292,7 @@ window.watchAd = async function() {
     const baseUrl = getBaseUrl();
     
     // USING TEST.HTML INSTEAD OF AD.HTML
-    const adUrl = `${baseUrl}/test.html?userId=${userId}&reward=${reward}`;
+    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
     
     console.log('🎬 Opening test page:', adUrl);
     
