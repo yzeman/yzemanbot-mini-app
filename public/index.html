@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>YzemanBot - Earn COINS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- TELEGRAM WEB APP SDK - CRITICAL! -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <style>
         :root {
             --primary: #4CAF50;
@@ -179,12 +183,46 @@
             margin-top: 5px;
         }
         
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 20px 15px;
+        }
+        
+        .feature-card {
+            background: var(--darker);
+            border-radius: 15px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--light);
+        }
+        
+        .feature-card:hover {
+            background: #1e2a4a;
+            transform: translateY(-2px);
+        }
+        
+        .feature-card i {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: var(--gold);
+        }
+        
+        .feature-card span {
+            font-size: 12px;
+            display: block;
+        }
+        
         .tabs {
             display: flex;
             background: var(--darker);
             padding: 5px;
             border-radius: 30px;
-            margin: 20px 15px;
+            margin: 0 15px 20px;
         }
         
         .tab {
@@ -420,17 +458,6 @@
             color: white;
         }
         
-        .btn-warning {
-            background: var(--warning);
-            color: white;
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
-        }
-        
         .bonus-section {
             margin-top: 20px;
         }
@@ -520,14 +547,19 @@
             font-size: 12px;
         }
         
-        .status-failed {
-            color: var(--danger);
-            font-size: 12px;
+        .tier-progress-section {
+            margin-top: 20px;
         }
         
-        .status-processing {
-            color: var(--secondary);
-            font-size: 12px;
+        .reset-streak-btn {
+            background: transparent;
+            border: 1px solid var(--warning);
+            color: var(--warning);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 10px;
+            cursor: pointer;
+            margin-left: 10px;
         }
         
         .notification {
@@ -590,21 +622,6 @@
             padding: 40px;
             color: var(--gray);
         }
-        
-        .tier-progress-section {
-            margin-top: 20px;
-        }
-        
-        .reset-streak-btn {
-            background: transparent;
-            border: 1px solid var(--warning);
-            color: var(--warning);
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 10px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
     </style>
 </head>
 <body>
@@ -654,6 +671,42 @@
                     <div class="stat-label">Ad Streak 🔥</div>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Feature Grid - Quick Access -->
+    <div class="feature-grid">
+        <a href="/daily.html" class="feature-card">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="feature-card">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="feature-card">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="feature-card">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+        <a href="/achievements.html" class="feature-card">
+            <i class="fas fa-medal"></i>
+            <span>Achieve</span>
+        </a>
+        <a href="/tournament.html" class="feature-card">
+            <i class="fas fa-crown"></i>
+            <span>Tourney</span>
+        </a>
+        <a href="/admin.html" class="feature-card">
+            <i class="fas fa-shield-alt"></i>
+            <span>Admin</span>
+        </a>
+        <div class="feature-card" onclick="window.location.reload()">
+            <i class="fas fa-sync"></i>
+            <span>Refresh</span>
         </div>
     </div>
     
@@ -824,7 +877,8 @@
             </div>
         </div>
     </div>
-        <!-- Wallet Tab -->
+    
+    <!-- Wallet Tab -->
     <div class="tab-content" id="walletTab">
         <div class="wallet-section">
             <div class="section-title">
@@ -917,6 +971,21 @@
     <script src="/app.js"></script>
     
     <script>
+        // Tab switching functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                // Remove active class from all tabs and contents
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+            });
+        });
+        
         // Update display values with new economy
         document.addEventListener('DOMContentLoaded', function() {
             // Update daily goal display
@@ -936,26 +1005,9 @@
             // Update tier requirement display
             const nextTierReqEl = document.getElementById('nextTierReq');
             if (nextTierReqEl) nextTierReqEl.textContent = '150';
-        });
-        
-        // Update ad streak display function (called from app.js)
-        function updateAdStreakDisplayLocal(streak, total, today) {
-            const streakEl = document.getElementById('adStreak');
-            const totalEl = document.getElementById('totalAdsWatched');
-            const todayEl = document.getElementById('adsWatchedToday');
-            const streakDisplayEl = document.getElementById('adStreakDisplay');
             
-            if (streakEl) streakEl.textContent = streak || 0;
-            if (totalEl) totalEl.textContent = total || 0;
-            if (todayEl) todayEl.textContent = today || 0;
-            if (streakDisplayEl) streakDisplayEl.textContent = streak || 0;
-        }
-        
-        // Update weekly ad display
-        function updateWeeklyAdDisplay(week) {
-            const weekEl = document.getElementById('adsWatchedWeekDisplay');
-            if (weekEl) weekEl.textContent = week || 0;
-        }
+            console.log('✅ Index.html loaded - Telegram WebApp ready');
+        });
     </script>
 </body>
 </html>
