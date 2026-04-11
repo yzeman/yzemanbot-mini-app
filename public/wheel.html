@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wheel of Fortune - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- TELEGRAM WEB APP SDK - MUST BE FIRST -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <style>
         :root {
             --primary: #4CAF50;
@@ -154,6 +157,17 @@
             from { transform: translateY(100px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
+        
+        .retry-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -172,13 +186,14 @@
     </div>
     
     <div class="spin-btn-container">
-        <button class="spin-btn" id="spinBtn">🎡 SPIN NOW</button>
+        <button class="spin-btn" id="spinBtn" disabled>🎡 SPIN NOW</button>
     </div>
     
     <div class="status-card">
         <div class="status-text" id="statusText">Loading...</div>
         <div class="timer-text" id="timerText"></div>
         <div class="last-reward" id="lastRewardText">No spins yet!</div>
+        <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
     </div>
     
     <div class="prizes-section">
@@ -207,8 +222,32 @@
     <div class="notification" id="notification"></div>
     
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.ready(); tg.expand(); }
+        // Wait for Telegram WebApp to be fully ready
+        let tg = null;
+        let initDataAvailable = false;
+        
+        // Try to get Telegram WebApp - with retry logic
+        function initTelegram() {
+            console.log('🔍 Checking Telegram WebApp...');
+            
+            if (window.Telegram?.WebApp) {
+                tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                
+                if (tg.initData) {
+                    initDataAvailable = true;
+                    console.log('✅ Telegram WebApp ready with initData');
+                    console.log('📝 InitData length:', tg.initData.length);
+                } else {
+                    console.warn('⚠️ Telegram WebApp ready but no initData');
+                }
+                return true;
+            } else {
+                console.error('❌ Telegram WebApp not available');
+                return false;
+            }
+        }
         
         const POINTS_PER_COIN = 1000000;
         
@@ -249,6 +288,8 @@
         
         function drawWheel(currentAngle) {
             const canvas = document.getElementById('wheelCanvas');
+            if (!canvas) return;
+            
             const ctx = canvas.getContext('2d');
             const size = canvas.width;
             const center = size / 2;
@@ -293,38 +334,71 @@
         }
         
         async function loadWheelStatus() {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
-                return;
+            // Re-check Telegram on each load attempt
+            if (!tg || !tg.initData) {
+                if (!initTelegram()) {
+                    document.getElementById('statusText').textContent = '❌ Not in Telegram';
+                    document.getElementById('retryBtn').style.display = 'block';
+                    return;
+                }
             }
             
+            const statusDiv = document.getElementById('statusText');
+            const spinBtn = document.getElementById('spinBtn');
+            const retryBtn = document.getElementById('retryBtn');
+            
+            statusDiv.textContent = 'Loading status...';
+            spinBtn.disabled = true;
+            retryBtn.style.display = 'none';
+            
             try {
-                // FIXED: Use query parameter instead of body for GET request
-                const response = await fetch(`/api/wheel-status?initData=${encodeURIComponent(tg.initData)}`);
-                const data = await response.json();
+                console.log('📡 Fetching wheel status...');
                 
-                const statusDiv = document.getElementById('statusText');
-                const timerDiv = document.getElementById('timerText');
-                const lastRewardDiv = document.getElementById('lastRewardText');
-                const spinBtn = document.getElementById('spinBtn');
+                const response = await fetch('/api/wheel-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                
+                console.log('📡 Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Status error:', response.status, errorText);
+                    throw new Error(`Status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Wheel status loaded:', data);
                 
                 canSpin = data.can_spin;
                 
                 if (statusDiv) {
-                    statusDiv.innerHTML = data.can_spin 
-                        ? '<span style="color: var(--success);">✅ Ready to spin!</span>'
-                        : '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
+                    if (data.can_spin) {
+                        statusDiv.innerHTML = '<span style="color: var(--success);">✅ Ready to spin!</span>';
+                    } else {
+                        statusDiv.innerHTML = '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
+                    }
                 }
                 
-                if (timerDiv && !data.can_spin) {
-                    timerDiv.innerHTML = `${data.days_left} day${data.days_left !== 1 ? 's' : ''}`;
-                } else if (timerDiv) {
-                    timerDiv.innerHTML = '';
+                const timerDiv = document.getElementById('timerText');
+                if (timerDiv) {
+                    if (!data.can_spin && data.days_left !== undefined) {
+                        const daysLeft = data.days_left;
+                        timerDiv.innerHTML = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
+                    } else {
+                        timerDiv.innerHTML = '';
+                    }
                 }
                 
-                if (lastRewardDiv && data.last_reward > 0) {
-                    const coins = (data.last_reward / POINTS_PER_COIN).toFixed(2);
-                    lastRewardDiv.innerHTML = `Last spin: ${coins} COINS!`;
+                const lastRewardDiv = document.getElementById('lastRewardText');
+                if (lastRewardDiv) {
+                    if (data.last_reward && data.last_reward > 0) {
+                        const coins = (data.last_reward / POINTS_PER_COIN).toFixed(2);
+                        lastRewardDiv.innerHTML = `Last spin: ${coins} COINS!`;
+                    } else {
+                        lastRewardDiv.innerHTML = 'No spins yet!';
+                    }
                 }
                 
                 if (spinBtn) spinBtn.disabled = !data.can_spin;
@@ -332,15 +406,23 @@
                 drawWheel(wheelCurrentAngle);
                 
             } catch (err) {
-                console.error('Wheel status error:', err);
-                showNotification('Failed to load wheel status', true);
+                console.error('❌ Wheel status error:', err);
+                statusDiv.textContent = '❌ Failed to load status';
+                retryBtn.style.display = 'block';
+                showNotification('Failed to load wheel status. Tap Retry.', true);
             }
         }
         
         async function spinWheel() {
             if (wheelSpinning) return;
-            if (!canSpin) { showNotification('Next spin not available yet!', true); return; }
-            if (!tg?.initData) { showNotification('Please open from Telegram', true); return; }
+            if (!canSpin) { 
+                showNotification('Next spin not available yet!', true); 
+                return; 
+            }
+            if (!tg?.initData) { 
+                showNotification('Please open from Telegram', true); 
+                return; 
+            }
             
             wheelSpinning = true;
             const spinBtn = document.getElementById('spinBtn');
@@ -391,29 +473,55 @@
                     await loadWheelStatus();
                 } else {
                     showNotification(data.error || 'Failed to spin', true);
+                    await loadWheelStatus();
                 }
-                
-                const spinBtn = document.getElementById('spinBtn');
-                spinBtn.textContent = '🎡 SPIN NOW';
                 
             } catch (err) {
                 showNotification('Network error', true);
-                const spinBtn = document.getElementById('spinBtn');
-                spinBtn.textContent = '🎡 SPIN NOW';
                 await loadWheelStatus();
             }
         }
         
+        // Initialize everything
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎡 Wheel page DOM loaded');
+            
+            // Initialize Telegram
+            initTelegram();
+            
+            // Render UI
             renderPrizesGrid();
             drawWheel(0);
-            loadWheelStatus();
             
+            // Load status after a short delay to ensure Telegram is ready
+            setTimeout(() => {
+                loadWheelStatus();
+            }, 300);
+            
+            // Set up spin button
             const spinBtn = document.getElementById('spinBtn');
             const newSpinBtn = spinBtn.cloneNode(true);
             spinBtn.parentNode.replaceChild(newSpinBtn, spinBtn);
             newSpinBtn.addEventListener('click', spinWheel);
+            
+            // Set up retry button
+            const retryBtn = document.getElementById('retryBtn');
+            retryBtn.addEventListener('click', () => {
+                initTelegram();
+                loadWheelStatus();
+            });
+        });
+        
+        // Also try when page becomes visible
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && !canSpin) {
+                console.log('📱 Page became visible, retrying...');
+                setTimeout(() => {
+                    initTelegram();
+                    loadWheelStatus();
+                }, 200);
+            }
         });
     </script>
 </body>
-            </html>
+                                                                                         </html>
