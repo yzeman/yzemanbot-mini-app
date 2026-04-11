@@ -453,6 +453,27 @@
             color: white;
         }
         
+        .bonus-section {
+            margin-top: 20px;
+        }
+        
+        .bonus-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .bonus-input {
+            flex: 1;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--gray);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
         .history-list {
             max-height: 300px;
             overflow-y: auto;
@@ -563,6 +584,20 @@
             padding: 40px;
             color: var(--gray);
         }
+        
+        .bonus-info-note {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 20px;
+            text-align: center;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .bonus-info-note i {
+            color: var(--secondary);
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -654,6 +689,7 @@
         <div class="tab active" data-tab="earn">💰 Earn</div>
         <div class="tab" data-tab="refer">👥 Refer</div>
         <div class="tab" data-tab="wallet">💳 Wallet</div>
+        <div class="tab" data-tab="bonus">🎁 Bonus</div>
     </div>
     
     <!-- Earn Tab -->
@@ -848,6 +884,32 @@
                 <div class="history-list" id="withdrawalHistoryList">
                     <div style="text-align:center; padding:20px;">No withdrawal requests yet</div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bonus Tab - Redeem Input Only (Codes Hidden) -->
+    <div class="tab-content" id="bonusTab">
+        <div class="bonus-section">
+            <div class="section-title">
+                <i class="fas fa-gift"></i>
+                <span>Redeem Bonus Code</span>
+            </div>
+            
+            <p style="margin-bottom: 15px; color: var(--gray);">
+                Enter a special bonus code to earn extra COINS!
+            </p>
+            
+            <div class="bonus-input-group">
+                <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code" />
+                <button class="btn btn-primary" id="redeemBonusBtn" style="width: auto; padding: 15px 25px;">
+                    Redeem
+                </button>
+            </div>
+            
+            <div class="bonus-info-note">
+                <i class="fas fa-info-circle"></i>
+                <span>Bonus codes are given out during special events, contests, or by admins. Keep an eye on announcements!</span>
             </div>
         </div>
     </div>
