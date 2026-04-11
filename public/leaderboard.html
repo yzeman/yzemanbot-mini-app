@@ -66,10 +66,24 @@
             margin-top: 12px;
         }
         
-        .prize-label span {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
+        /* Reward Info Box */
+        .reward-info {
+            background: rgba(255,215,0,0.1);
+            border: 1px solid var(--gold);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 15px 15px 0;
+            font-size: 13px;
+            color: var(--gray);
+        }
+        
+        .reward-info i {
+            color: var(--gold);
+            margin-right: 8px;
+        }
+        
+        .reward-info strong {
+            color: var(--light);
         }
         
         /* Three Buttons */
@@ -104,7 +118,7 @@
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
         
-        /* Tier Dropdown - Only visible when Tier is active */
+        /* Tier Dropdown */
         .tier-selector {
             padding: 0 15px 15px;
             display: none;
@@ -158,11 +172,11 @@
         }
         
         .leaderboard-list {
-            max-height: 400px;
+            max-height: 350px;
             overflow-y: auto;
         }
         
-        /* Top 3 Winners Row */
+        /* Winners Row */
         .winners-row {
             display: flex;
             align-items: flex-end;
@@ -339,6 +353,17 @@
             color: var(--gray);
         }
         
+        .retry-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--darker); display: flex; padding: 10px 20px;
@@ -360,7 +385,6 @@
             border-radius: 12px; text-align: center; display: none; z-index: 1000;
         }
         
-        /* Tier colors for items */
         .leaderboard-item.tier-Fresher { border-left: 4px solid #888; }
         .leaderboard-item.tier-Brute { border-left: 4px solid #FF9800; }
         .leaderboard-item.tier-Silver { border-left: 4px solid #C0C0C0; }
@@ -379,6 +403,12 @@
         </div>
     </div>
     
+    <!-- Reward Distribution Info -->
+    <div class="reward-info" id="rewardInfo">
+        <i class="fas fa-info-circle"></i>
+        <span id="rewardInfoText"><strong>Monthly Rewards:</strong> Distributed on the 1st of every month to top 3 earners.</span>
+    </div>
+    
     <!-- Three Buttons -->
     <div class="button-row">
         <button class="action-btn active" data-view="earnings"><i class="fas fa-coins"></i> Top Earnings</button>
@@ -386,7 +416,7 @@
         <button class="action-btn" data-view="tier"><i class="fas fa-layer-group"></i> Tier</button>
     </div>
     
-    <!-- Tier Selector (only visible when Tier is active) -->
+    <!-- Tier Selector -->
     <div class="tier-selector" id="tierSelector">
         <button class="tier-select-btn" id="tierSelectBtn">
             <span><i class="fas fa-filter"></i> <span id="selectedTierText">All Tiers</span></span>
@@ -402,13 +432,13 @@
         </div>
     </div>
     
-    <!-- Winners Row (Top 3 - only for Earnings/Referrals) -->
+    <!-- Winners Row -->
     <div class="winners-row" id="winnersRow"></div>
     
     <!-- Leaderboard List -->
     <div class="leaderboard-container">
         <div class="leaderboard-list" id="leaderboardList">
-            <div class="loading">Loading...</div>
+            <div class="loading">Loading rankings...</div>
         </div>
     </div>
     
@@ -457,14 +487,30 @@
         }
         
         async function apiCall(endpoint) {
-            if (!tg?.initData) throw new Error('Not in Telegram');
+            if (!tg?.initData) {
+                console.error('No initData available');
+                throw new Error('Not in Telegram');
+            }
+            
+            console.log(`📡 Calling ${endpoint}...`);
+            
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ initData: tg.initData })
             });
-            if (!response.ok) throw new Error(`Status ${response.status}`);
-            return response.json();
+            
+            console.log(`📡 ${endpoint} status:`, response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ ${endpoint} error:`, errorText);
+                throw new Error(`Status ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`✅ ${endpoint} data:`, data.length, 'items');
+            return data;
         }
         
         function filterByTier(data, tier) {
@@ -474,13 +520,22 @@
         
         function renderWinnersRow(data, type) {
             const container = document.getElementById('winnersRow');
-            if (!data || data.length < 3) {
-                container.innerHTML = '';
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding:10px;"><p>No users yet</p></div>';
                 return;
             }
             
+            if (data.length < 3) {
+                // Still show what we have
+                const padded = [...data];
+                while (padded.length < 3) {
+                    padded.push({ first_name: '---', points: 0, referral_count: 0 });
+                }
+                data = padded;
+            }
+            
             const top3 = data.slice(0, 3);
-            const ordered = [top3[1], top3[0], top3[2]]; // 2nd, 1st, 3rd
+            const ordered = [top3[1], top3[0], top3[2]];
             
             container.innerHTML = ordered.map((user, idx) => {
                 const position = idx === 0 ? 2 : idx === 1 ? 1 : 3;
@@ -510,10 +565,16 @@
         
         function renderLeaderboard(data, type, showMedals = true) {
             const container = document.getElementById('leaderboardList');
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No users yet. Start earning to appear here!</p></div>`;
+                return;
+            }
+            
             const filteredData = filterByTier(data, currentTier);
             
             if (!filteredData || filteredData.length === 0) {
-                container.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No users found</p></div>`;
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-users"></i><p>No users found in ${currentTier === 'all' ? 'any' : currentTier} tier</p></div>`;
                 return;
             }
             
@@ -521,7 +582,11 @@
             const displayData = showMedals ? filteredData.slice(3) : filteredData;
             
             if (displayData.length === 0) {
-                container.innerHTML = '';
+                if (showMedals) {
+                    container.innerHTML = '<div class="empty-state"><p>Only top 3 users so far!</p></div>';
+                } else {
+                    container.innerHTML = '<div class="empty-state"><p>No users in this tier</p></div>';
+                }
                 return;
             }
             
@@ -565,9 +630,9 @@
             const userId = tg?.initDataUnsafe?.user?.id;
             if (!userId) return;
             
-            const myData = data.find(u => u.telegram_id === userId);
+            const myData = data.find(u => u.telegram_id == userId);
             if (myData) {
-                const rank = data.findIndex(u => u.telegram_id === userId) + 1;
+                const rank = data.findIndex(u => u.telegram_id == userId) + 1;
                 document.getElementById('myRank').textContent = `#${rank}`;
                 
                 if (type === 'earnings') {
@@ -586,9 +651,11 @@
         function refreshDisplay() {
             const winnersRow = document.getElementById('winnersRow');
             const tierSelector = document.getElementById('tierSelector');
+            const rewardInfo = document.getElementById('rewardInfoText');
             
             if (currentView === 'earnings') {
                 document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-gift"></i> Monthly Prizes: 🥇500 • 🥈250 • 🥉100 COINS</span>';
+                rewardInfo.innerHTML = '<strong>Monthly Rewards:</strong> Distributed on the 1st of every month to top 3 earners.';
                 tierSelector.classList.remove('show');
                 winnersRow.style.display = 'flex';
                 
@@ -599,6 +666,7 @@
                 }
             } else if (currentView === 'referrals') {
                 document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-gift"></i> Weekly Prizes: 🥇100 • 🥈50 • 🥉25 COINS</span>';
+                rewardInfo.innerHTML = '<strong>Weekly Rewards:</strong> Distributed every Sunday to top 3 referrers.';
                 tierSelector.classList.remove('show');
                 winnersRow.style.display = 'flex';
                 
@@ -609,6 +677,7 @@
                 }
             } else if (currentView === 'tier') {
                 document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-layer-group"></i> Tier Rankings</span>';
+                rewardInfo.innerHTML = '<strong>Tier Rankings:</strong> See how you rank within your tier. No prizes for tier rankings.';
                 tierSelector.classList.add('show');
                 winnersRow.style.display = 'none';
                 
@@ -621,22 +690,46 @@
         }
         
         async function loadTopEarners() {
+            const container = document.getElementById('leaderboardList');
+            container.innerHTML = '<div class="loading">Loading top earners...</div>';
+            
             try {
                 const data = await apiCall('/api/leaderboard/top-earners');
                 topEarnersData = data;
                 if (currentView === 'earnings' || currentView === 'tier') refreshDisplay();
             } catch (err) {
                 console.error('Top earners error:', err);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load rankings</p>
+                        <button class="retry-btn" onclick="loadTopEarners()">Retry</button>
+                    </div>
+                `;
             }
         }
         
         async function loadTopReferrers() {
+            if (currentView === 'referrals') {
+                const container = document.getElementById('leaderboardList');
+                container.innerHTML = '<div class="loading">Loading top referrers...</div>';
+            }
+            
             try {
                 const data = await apiCall('/api/leaderboard/weekly-referrers');
                 topReferrersData = data;
                 if (currentView === 'referrals') refreshDisplay();
             } catch (err) {
                 console.error('Top referrers error:', err);
+                if (currentView === 'referrals') {
+                    document.getElementById('leaderboardList').innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-circle"></i>
+                            <p>Failed to load rankings</p>
+                            <button class="retry-btn" onclick="loadTopReferrers()">Retry</button>
+                        </div>
+                    `;
+                }
             }
         }
         
@@ -649,6 +742,11 @@
             });
             
             refreshDisplay();
+            
+            // Load data if needed
+            if (view === 'referrals' && !topReferrersData.length) {
+                loadTopReferrers();
+            }
         }
         
         function switchTier(tier) {
@@ -688,6 +786,7 @@
         
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('🏆 Leaderboard loading...');
             loadTopEarners();
             loadTopReferrers();
         });
