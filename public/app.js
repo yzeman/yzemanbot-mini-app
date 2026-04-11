@@ -1,5 +1,5 @@
 // ============================================================
-// YZEMANBOT - COMPLETE APP WITH ALL FEATURES
+// YZEMANBOT - COMPLETE APP WITH TEST MODE
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -201,12 +201,10 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING - EMBEDDED IFRAME METHOD (STAYS IN APP)
+// AD WATCHING - TEST MODE (USES test.html)
 // ============================================================
 
 let isWatchingAd = false;
-let adIframe = null;
-let adOverlay = null;
 
 function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
@@ -217,46 +215,34 @@ function getBaseUrl() {
     return window.location.origin;
 }
 
-function createAdOverlay() {
-    // Remove existing overlay if any
-    if (adOverlay) {
-        adOverlay.remove();
+// Check for pending ad reward when user returns to app
+function checkPendingAdReward() {
+    const pendingReward = localStorage.getItem('pendingAdReward');
+    const adStartTime = localStorage.getItem('adStartTime');
+    
+    if (pendingReward && adStartTime) {
+        const timeAway = Date.now() - parseInt(adStartTime);
+        console.log('⏱️ Time away:', timeAway, 'ms');
+        
+        // If user was away for more than 5 seconds, assume they completed the ad
+        if (timeAway > 5000) {
+            const reward = parseInt(pendingReward);
+            console.log('✅ Awarding pending reward:', reward);
+            addPoints(reward);
+            showNotification(`🎉 +${reward} points earned!`);
+        } else {
+            console.log('❌ Not enough time for ad completion');
+        }
+        
+        // Clear pending
+        localStorage.removeItem('pendingAdReward');
+        localStorage.removeItem('adStartTime');
     }
-    
-    // Create overlay container
-    adOverlay = document.createElement('div');
-    adOverlay.id = 'adOverlay';
-    adOverlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: #0f0f1a;
-        z-index: 9999;
-        display: flex;
-        flex-direction: column;
-    `;
-    
-    // Create iframe for ad
-    adIframe = document.createElement('iframe');
-    adIframe.style.cssText = `
-        width: 100%;
-        height: 100%;
-        border: none;
-    `;
-    adIframe.allow = 'autoplay; fullscreen';
-    adIframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals';
-    
-    adOverlay.appendChild(adIframe);
-    document.body.appendChild(adOverlay);
-    
-    return adIframe;
 }
 
+// Listen for messages from ad page (for iframe method)
 function setupAdMessageListener() {
     window.addEventListener('message', async (event) => {
-        // Accept messages from same origin
         if (event.origin !== window.location.origin) return;
         
         if (event.data && event.data.event) {
@@ -265,7 +251,6 @@ function setupAdMessageListener() {
             if (event.data.event === 'reward-earned') {
                 const reward = event.data.amount || getRewardAmount();
                 
-                // Close overlay
                 if (adOverlay) {
                     adOverlay.remove();
                     adOverlay = null;
@@ -276,56 +261,27 @@ function setupAdMessageListener() {
                 isWatchingAd = false;
                 
             } else if (event.data.event === 'ad-failed') {
-                // Close overlay
                 if (adOverlay) {
                     adOverlay.remove();
                     adOverlay = null;
                 }
                 
-                showNotification(event.data.error || 'Ad failed. Please try again.', true);
+                showNotification(event.data.error || 'Ad failed', true);
                 isWatchingAd = false;
             }
         }
     });
-    
-    // Also listen for Telegram sendData (fallback)
-    if (tg) {
-        tg.onEvent('sendData', async (data) => {
-            console.log('📨 Telegram ad data:', data);
-            try {
-                const parsed = JSON.parse(data);
-                if (parsed.event === 'reward-earned') {
-                    const reward = parsed.amount || getRewardAmount();
-                    if (adOverlay) {
-                        adOverlay.remove();
-                        adOverlay = null;
-                    }
-                    showNotification(`🎉 +${reward} points earned!`);
-                    await addPoints(reward);
-                    isWatchingAd = false;
-                } else if (parsed.event === 'ad-failed') {
-                    if (adOverlay) {
-                        adOverlay.remove();
-                        adOverlay = null;
-                    }
-                    showNotification(parsed.error || 'Ad failed', true);
-                    isWatchingAd = false;
-                }
-            } catch (e) {
-                console.error('Parse error:', e);
-            }
-        });
-    }
 }
 
+// TEST MODE: Open test.html in external browser
 window.watchAd = async function() {
     if (isWatchingAd) {
-        showNotification('Please wait, an ad is already playing.', true);
+        showNotification('Please wait...', true);
         return;
     }
     
     if (!currentUser) {
-        showNotification('Please log in to watch ads.', true);
+        showNotification('Please log in first', true);
         return;
     }
     
@@ -334,24 +290,31 @@ window.watchAd = async function() {
     const reward = getRewardAmount();
     const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
     const baseUrl = getBaseUrl();
-    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
     
-    console.log('🎬 Loading ad in iframe:', adUrl);
+    // USING TEST.HTML INSTEAD OF AD.HTML
+    const adUrl = `${baseUrl}/test.html?userId=${userId}&reward=${reward}`;
     
-    // Create embedded overlay
-    const iframe = createAdOverlay();
-    iframe.src = adUrl;
+    console.log('🎬 Opening test page:', adUrl);
     
-    // Safety timeout - auto close after 2 minutes
-    setTimeout(() => {
-        if (isWatchingAd && adOverlay) {
-            adOverlay.remove();
-            adOverlay = null;
-            isWatchingAd = false;
-            showNotification('Ad timeout. Please try again.', true);
-        }
-    }, 120000);
+    // Save pending reward
+    localStorage.setItem('pendingAdReward', reward);
+    localStorage.setItem('adStartTime', Date.now());
+    
+    // Open in Telegram browser
+    if (tg) {
+        tg.openLink(adUrl);
+        showNotification('📱 Test page opened. Complete action and return!');
+    } else {
+        window.open(adUrl, '_blank');
+        showNotification('📱 Test page opened in new tab.');
+    }
+    
+    // Reset watching state
+    isWatchingAd = false;
 };
+
+// For iframe overlay (not used in test mode, but kept for later)
+let adOverlay = null;
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
@@ -1162,6 +1125,9 @@ function initTabs() {
 async function initApp() {
     setupAdMessageListener();
     
+    // Check for pending ad reward when app starts
+    checkPendingAdReward();
+    
     currentUser = await registerUser();
     if (currentUser) {
         updateUI();
@@ -1202,7 +1168,7 @@ async function initApp() {
         const watchAdBtn = document.getElementById('watchAdBtn');
         if (watchAdBtn) {
             watchAdBtn.addEventListener('click', window.watchAd);
-            console.log('✅ Watch ad button connected');
+            console.log('✅ Watch ad button connected (TEST MODE)');
         }
         
         const youtubeTaskBtn = document.getElementById('youtubeTaskBtn');
@@ -1269,6 +1235,14 @@ async function initApp() {
         });
     }
 }
+
+// Listen for app resume (when user returns from ad)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        console.log('📱 App resumed - checking for pending rewards');
+        checkPendingAdReward();
+    }
+});
 
 setInterval(() => { if (currentUser) refreshUser(); }, 30000);
 
