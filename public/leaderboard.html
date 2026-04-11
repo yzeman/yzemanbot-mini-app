@@ -2,262 +2,423 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Leaderboard - YzemanBot</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --primary: #6a11cb;
-            --secondary: #2575fc;
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
             --success: #00c853;
-            --warning: #ffab00;
-            --dark: #1a1b25;
-            --darker: #12131a;
-            --light: #f8f9fa;
-            --gray: #6c757d;
-            --card-bg: #252836;
-            --card-border: #2d3343;
+            --gold: #FFD700;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
-        .container { max-width: 500px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .tabs { display: flex; background: var(--card-bg); border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--card-border); }
-        .tab { flex: 1; padding: 14px; text-align: center; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; font-size: 13px; }
-        .tab.active { border-bottom: 3px solid var(--secondary); background: rgba(37, 117, 252, 0.1); }
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .leaderboard-list { background: var(--card-bg); border-radius: 16px; border: 1px solid var(--card-border); overflow: hidden; }
-        .leaderboard-item { display: flex; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--card-border); gap: 12px; }
-        .rank { width: 40px; font-weight: bold; font-size: 18px; }
-        .rank-1 { color: #FFD700; }
-        .rank-2 { color: #C0C0C0; }
-        .rank-3 { color: #CD7F32; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-size: 18px; }
-        .info { flex: 1; }
-        .name { font-weight: 600; font-size: 14px; }
-        .username { font-size: 11px; color: var(--gray); }
-        .score { font-weight: bold; color: var(--success); font-size: 14px; }
-        .tier-badge { font-size: 10px; padding: 2px 8px; border-radius: 12px; background: var(--primary); display: inline-block; margin-top: 3px; }
-        .empty-state { text-align: center; padding: 40px; color: var(--gray); }
-        .empty-state i { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
-        .your-rank-card { background: linear-gradient(135deg, rgba(106,17,203,0.2), rgba(37,117,252,0.2)); border: 1px solid var(--secondary); border-radius: 16px; padding: 15px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
-        .your-rank-label { font-size: 12px; color: var(--gray); }
-        .your-rank-value { font-size: 24px; font-weight: bold; color: var(--secondary); }
-        .loading { text-align: center; padding: 40px; color: var(--gray); }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            padding: 20px 15px 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .header i {
+            color: var(--gold);
+            margin-right: 8px;
+        }
+        
+        .header p {
+            color: var(--gray);
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            background: var(--darker);
+            padding: 5px;
+            border-radius: 30px;
+            margin: 20px 15px;
+        }
+        
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 0 15px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .leaderboard-list {
+            margin-bottom: 20px;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: var(--darker);
+            border-radius: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .rank {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin-right: 15px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .rank-1 {
+            background: linear-gradient(135deg, #FFD700, #FFA000);
+            color: var(--dark);
+        }
+        
+        .rank-2 {
+            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+            color: var(--dark);
+        }
+        
+        .rank-3 {
+            background: linear-gradient(135deg, #CD7F32, #B87333);
+            color: var(--dark);
+        }
+        
+        .avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-right: 15px;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .info {
+            flex: 1;
+        }
+        
+        .name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+        
+        .username {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .tier-badge {
+            display: inline-block;
+            background: var(--gold);
+            color: var(--dark);
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .score {
+            font-weight: bold;
+            color: var(--gold);
+            font-size: 16px;
+            text-align: right;
+        }
+        
+        .score-label {
+            font-size: 10px;
+            color: var(--gray);
+        }
+        
+        .my-rank-card {
+            background: linear-gradient(135deg, var(--secondary) 0%, #1976D2 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 15px;
+            display: none;
+        }
+        
+        .my-rank-title {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 10px;
+        }
+        
+        .my-rank-value {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .my-rank-points {
+            font-size: 14px;
+            color: rgba(255,255,255,0.8);
+        }
+        
+        .prize-info {
+            background: var(--darker);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 20px 15px;
+        }
+        
+        .prize-info h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: var(--gold);
+        }
+        
+        .prize-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .prize-item:last-child {
+            border-bottom: none;
+        }
+        
+        .prize-rank {
+            color: var(--gray);
+        }
+        
+        .prize-value {
+            color: var(--gold);
+            font-weight: bold;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
         .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
-            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            display: flex;
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; }
+        
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item i {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
-    <div class="notification" id="notification"></div>
-
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
-            <p style="color: var(--gray); font-size: 13px; margin-top: 5px;">Compete with others and climb the ranks!</p>
-        </div>
-
-        <!-- Your Rank Card -->
-        <div class="your-rank-card" id="yourRankCard" style="display: none;">
-            <div>
-                <div class="your-rank-label">🏆 Your Tier</div>
-                <div class="your-rank-value" id="yourTier">-</div>
+    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    
+    <div class="header">
+        <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
+        <p>Compete with others and climb the ranks!</p>
+    </div>
+    
+    <div class="tabs">
+        <div class="tab active" data-tab="earners">💰 Top Earners</div>
+        <div class="tab" data-tab="referrals">👥 Top Referrers</div>
+        <div class="tab" data-tab="weekly">📈 Weekly</div>
+    </div>
+    
+    <div class="tab-content active" id="earnersTab">
+        <div class="prize-info">
+            <h3><i class="fas fa-crown"></i> Top Earner Prizes (Monthly)</h3>
+            <div class="prize-item">
+                <span class="prize-rank">🥇 1st Place</span>
+                <span class="prize-value">500 COINS</span>
             </div>
-            <div>
-                <div class="your-rank-label">📊 Your Points</div>
-                <div class="your-rank-value" id="yourPoints">-</div>
+            <div class="prize-item">
+                <span class="prize-rank">🥈 2nd Place</span>
+                <span class="prize-value">250 COINS</span>
             </div>
-        </div>
-
-        <div class="tabs">
-            <div class="tab active" data-tab="earners">💰 Top Earners</div>
-            <div class="tab" data-tab="referrers">👥 Top Referrers</div>
-            <div class="tab" data-tab="weekly">📈 Weekly Earnings</div>
-        </div>
-
-        <div id="earnersTab" class="tab-content active">
-            <div class="leaderboard-list" id="topEarnersList">
-                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading top earners...</div>
+            <div class="prize-item">
+                <span class="prize-rank">🥉 3rd Place</span>
+                <span class="prize-value">100 COINS</span>
             </div>
         </div>
-
-        <div id="referrersTab" class="tab-content">
-            <div class="leaderboard-list" id="topReferrersList">
-                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading top referrers...</div>
-            </div>
-        </div>
-
-        <div id="weeklyTab" class="tab-content">
-            <div class="leaderboard-list" id="weeklyEarningsList">
-                <div class="loading"><i class="fas fa-spinner fa-pulse"></i> Loading weekly earnings...</div>
-            </div>
+        <div class="leaderboard-list" id="topEarnersList">
+            <div class="loading">Loading...</div>
         </div>
     </div>
-
+    
+    <div class="tab-content" id="referralsTab">
+        <div class="prize-info">
+            <h3><i class="fas fa-users"></i> Top Referrer Prizes (Weekly)</h3>
+            <div class="prize-item">
+                <span class="prize-rank">🥇 1st Place</span>
+                <span class="prize-value">100 COINS</span>
+            </div>
+            <div class="prize-item">
+                <span class="prize-rank">🥈 2nd Place</span>
+                <span class="prize-value">50 COINS</span>
+            </div>
+            <div class="prize-item">
+                <span class="prize-rank">🥉 3rd Place</span>
+                <span class="prize-value">25 COINS</span>
+            </div>
+        </div>
+        <div class="leaderboard-list" id="topReferrersList">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+    
+    <div class="tab-content" id="weeklyTab">
+        <div class="leaderboard-list" id="weeklyEarningsList">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+    
     <div class="bottom-nav">
-        <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="leaderboard.html" class="nav-item active"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
-        <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
-        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
+        <a href="/" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/daily.html" class="nav-item">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="nav-item">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="nav-item active">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
     </div>
-
+    
+    <div class="notification" id="notification"></div>
+    
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.expand(); tg.ready(); }
-
-        let currentUser = null;
-
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.style.background = isError ? '#ff5252' : '#00c853';
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
-        }
-
-        async function apiCall(endpoint, data = null) {
-            const options = { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data || { initData: tg.initData })
-            };
-            const response = await fetch(endpoint, options);
-            if (!response.ok) throw new Error(await response.text());
-            return response.json();
-        }
-
-        async function loadUser() {
-            if (!tg?.initDataUnsafe?.user) return;
-            try {
-                const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
-                currentUser = result;
-                
-                if (currentUser) {
-                    document.getElementById('yourRankCard').style.display = 'flex';
-                    document.getElementById('yourTier').textContent = currentUser.tier || 'Fresher';
-                    document.getElementById('yourPoints').textContent = `${(currentUser.points || 0).toLocaleString()} pts`;
-                }
-            } catch (err) { 
-                console.error(err); 
-            }
-        }
-
-        async function loadTopEarners() {
-            try {
-                const data = await apiCall('/api/leaderboard/top-earners', { initData: tg.initData });
-                const container = document.getElementById('topEarnersList');
-                if (!data.length) { 
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><br>No users yet<br><small>Be the first to earn points!</small></div>'; 
-                    return; 
-                }
-                container.innerHTML = data.map((user, idx) => `
-                    <div class="leaderboard-item">
-                        <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
-                        <div class="avatar"><i class="fas fa-user"></i></div>
-                        <div class="info">
-                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
-                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
-                            <div class="tier-badge">${user.tier || 'Fresher'}</div>
-                        </div>
-                        <div class="score">${(user.points || 0).toLocaleString()} pts</div>
-                    </div>
-                `).join('');
-            } catch (err) { 
-                console.error(err);
-                document.getElementById('topEarnersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Try again.</div>';
-            }
-        }
-
-        async function loadTopReferrers() {
-            try {
-                const data = await apiCall('/api/leaderboard/weekly-referrers', { initData: tg.initData });
-                const container = document.getElementById('topReferrersList');
-                if (!data.length) { 
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><br>No referrals yet<br><small>Invite friends to earn!</small></div>'; 
-                    return; 
-                }
-                container.innerHTML = data.map((user, idx) => `
-                    <div class="leaderboard-item">
-                        <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
-                        <div class="avatar"><i class="fas fa-user"></i></div>
-                        <div class="info">
-                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
-                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
-                            <div class="tier-badge">${user.tier || 'Fresher'}</div>
-                        </div>
-                        <div class="score">${(user.referral_count || 0)} referrals</div>
-                    </div>
-                `).join('');
-            } catch (err) { 
-                console.error(err);
-                document.getElementById('topReferrersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Try again.</div>';
-            }
-        }
-
-        async function loadWeeklyEarnings() {
-            try {
-                const data = await apiCall('/api/leaderboard/weekly-earnings', { initData: tg.initData });
-                const container = document.getElementById('weeklyEarningsList');
-                if (!data.length) { 
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar-week"></i><br>No earnings this week<br><small>Watch ads to earn!</small></div>'; 
-                    return; 
-                }
-                container.innerHTML = data.map((user, idx) => `
-                    <div class="leaderboard-item">
-                        <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
-                        <div class="avatar"><i class="fas fa-user"></i></div>
-                        <div class="info">
-                            <div class="name">${escapeHtml(user.first_name || user.username || 'User')}</div>
-                            <div class="username">${user.username ? '@' + escapeHtml(user.username) : ''}</div>
-                            <div class="tier-badge">${user.tier || 'Fresher'}</div>
-                        </div>
-                        <div class="score">${(user.weekly_earnings || 0).toLocaleString()} pts</div>
-                    </div>
-                `).join('');
-            } catch (err) { 
-                console.error(err);
-                document.getElementById('weeklyEarningsList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><br>Failed to load. Try again.</div>';
-            }
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
-                document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+                const tabId = tab.dataset.tab + 'Tab';
+                document.getElementById(tabId).classList.add('active');
             });
         });
-
-        async function init() {
-            await loadUser();
-            await loadTopEarners();
-            await loadTopReferrers();
-            await loadWeeklyEarnings();
-        }
-        init();
     </script>
+    
+    <script src="/app.js"></script>
 </body>
 </html>
