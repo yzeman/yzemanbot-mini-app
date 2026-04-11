@@ -11,17 +11,18 @@
             box-sizing: border-box;
         }
         body {
-            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+            background: #0f0f1a;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             padding: 20px;
+            color: white;
         }
         .container {
             text-align: center;
-            max-width: 350px;
+            max-width: 400px;
             width: 100%;
         }
         .spinner {
@@ -37,27 +38,56 @@
             to { transform: rotate(360deg); }
         }
         #statusText {
-            color: white;
             font-size: 18px;
             font-weight: 500;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
-        #debug {
-            color: #888;
-            font-size: 13px;
-            margin-top: 20px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
+        .log-box {
+            background: rgba(0,0,0,0.4);
             border-radius: 8px;
-            word-break: break-word;
+            padding: 15px;
+            text-align: left;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
         }
-        .error .spinner {
-            border-top-color: #ff5252;
-            animation: none;
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            color: #aaa;
         }
-        .success .spinner {
-            border-top-color: #4CAF50;
-            animation: none;
+        .log-entry.success {
+            color: #4CAF50;
+        }
+        .log-entry.error {
+            color: #ff5252;
+        }
+        .log-entry.warning {
+            color: #FFC107;
+        }
+        .close-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10000;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .test-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            margin-top: 20px;
+            cursor: pointer;
         }
     </style>
     
@@ -65,10 +95,15 @@
     <script src="https://webgl.unity3d.com/unity-ads/4.12.0/unity-ads.js"></script>
 </head>
 <body>
-    <div class="container" id="container">
+    <button class="close-btn" id="closeBtn">✕ Close</button>
+    
+    <div class="container">
         <div class="spinner" id="spinner"></div>
-        <div id="statusText">Initializing...</div>
-        <div id="debug">Starting ad system...</div>
+        <div id="statusText">Testing ad systems...</div>
+        <div class="log-box" id="logBox">
+            <div class="log-entry">🚀 Starting diagnostics...</div>
+        </div>
+        <button class="test-btn" id="testRewardBtn" style="display:none;">🎁 Test Reward (Skip Ad)</button>
     </div>
 
     <script>
@@ -81,176 +116,151 @@
             unityPlacementId: 'Rewarded_Video_-_Telegram'
         };
         
-        // ============================================
-        // GLOBAL VARIABLES
-        // ============================================
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('userId') || 'guest';
         const rewardAmount = parseInt(urlParams.get('reward')) || 557;
         
-        let tg = null;
         let rewardGiven = false;
+        let logs = [];
         
         // ============================================
-        // UI HELPER FUNCTIONS
+        // LOGGING FUNCTIONS
         // ============================================
-        function updateStatus(message, type) {
-            document.getElementById('statusText').textContent = message;
-            const container = document.getElementById('container');
-            container.classList.remove('error', 'success');
-            if (type === 'error') container.classList.add('error');
-            if (type === 'success') container.classList.add('success');
+        function addLog(message, type) {
+            console.log('[Ad]', message);
+            logs.push({ message, type, time: new Date().toLocaleTimeString() });
+            
+            const logBox = document.getElementById('logBox');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + (type || '');
+            entry.textContent = message;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
         }
         
-        function debug(message) {
-            console.log('[Ad Debug]', message);
-            const debugEl = document.getElementById('debug');
-            if (debugEl) {
-                debugEl.textContent = message;
+        function updateStatus(message, type) {
+            document.getElementById('statusText').textContent = message;
+            const spinner = document.getElementById('spinner');
+            if (type === 'error') {
+                spinner.style.borderTopColor = '#ff5252';
+            } else if (type === 'success') {
+                spinner.style.borderTopColor = '#4CAF50';
             }
         }
         
         // ============================================
-        // REWARD FUNCTIONS
+        // SEND TO PARENT
         // ============================================
+        function sendToParent(data) {
+            addLog('📤 Sending to parent: ' + JSON.stringify(data), 'success');
+            
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage(data, '*');
+                addLog('✅ Sent via postMessage', 'success');
+            } else {
+                addLog('⚠️ No parent window found', 'warning');
+            }
+        }
+        
         function sendReward() {
             if (rewardGiven) return;
             rewardGiven = true;
-            
-            debug('✅ Sending reward: ' + rewardAmount + ' points');
-            updateStatus('Ad completed! +' + rewardAmount + ' points', 'success');
-            
-            const rewardData = JSON.stringify({ 
-                event: 'reward-earned', 
-                amount: rewardAmount 
-            });
-            
-            if (tg) {
-                tg.sendData(rewardData);
-                setTimeout(function() { tg.close(); }, 800);
-            } else if (window.opener) {
-                window.opener.postMessage(JSON.parse(rewardData), '*');
-                setTimeout(function() { window.close(); }, 800);
-            } else {
-                setTimeout(function() {
-                    window.location.href = '/';
-                }, 1500);
-            }
+            addLog('🎉 REWARD EARNED: ' + rewardAmount + ' points', 'success');
+            updateStatus('✅ Ad completed!', 'success');
+            sendToParent({ event: 'reward-earned', amount: rewardAmount });
         }
         
         function sendError(errorMsg) {
             if (rewardGiven) return;
-            
-            debug('❌ Error: ' + errorMsg);
-            updateStatus(errorMsg, 'error');
-            
-            var errorData = JSON.stringify({ 
-                event: 'ad-failed', 
-                error: errorMsg 
-            });
-            
-            if (tg) {
-                tg.sendData(errorData);
-                setTimeout(function() { tg.close(); }, 2000);
-            } else if (window.opener) {
-                window.opener.postMessage(JSON.parse(errorData), '*');
-                setTimeout(function() { window.close(); }, 2000);
-            }
+            addLog('❌ Error: ' + errorMsg, 'error');
+            updateStatus('❌ ' + errorMsg, 'error');
+            sendToParent({ event: 'ad-failed', error: errorMsg });
         }
         
         // ============================================
-        // TELEGRAM INITIALIZATION
+        // TEST REWARD BUTTON (BYPASS ADS FOR TESTING)
         // ============================================
-        function initTelegram() {
-            debug('Checking Telegram WebApp...');
+        document.getElementById('testRewardBtn').addEventListener('click', function() {
+            addLog('🧪 Test reward triggered', 'success');
+            sendReward();
+        });
+        
+        document.getElementById('closeBtn').addEventListener('click', function() {
+            addLog('User closed ad manually', 'warning');
+            sendError('Ad closed by user');
+        });
+        
+        // ============================================
+        // ENVIRONMENT CHECKS
+        // ============================================
+        function checkEnvironment() {
+            addLog('📱 Checking environment...');
             
-            if (window.Telegram && window.Telegram.WebApp) {
-                tg = window.Telegram.WebApp;
-                tg.ready();
-                tg.expand();
-                debug('✅ Telegram WebApp ready');
-                return true;
+            // Check if in iframe
+            if (window.parent && window.parent !== window) {
+                addLog('✅ Running in iframe', 'success');
             } else {
-                debug('⚠️ Not in Telegram (testing mode)');
-                return false;
+                addLog('⚠️ Not in iframe', 'warning');
+            }
+            
+            // Check Telegram
+            if (window.Telegram && window.Telegram.WebApp) {
+                addLog('✅ Telegram WebApp detected', 'success');
+                const tg = window.Telegram.WebApp;
+                addLog('   Platform: ' + tg.platform, 'info');
+                addLog('   Version: ' + tg.version, 'info');
+            } else {
+                addLog('⚠️ Not in Telegram WebApp', 'warning');
+            }
+            
+            // Check SDKs
+            addLog('📦 Checking SDKs...');
+            
+            if (typeof window.UnityAds !== 'undefined') {
+                addLog('✅ Unity Ads SDK loaded', 'success');
+            } else {
+                addLog('❌ Unity Ads SDK NOT loaded', 'error');
             }
         }
         
         // ============================================
-        // ADSGRAM IMPLEMENTATION
+        // UNITY ADS TEST
         // ============================================
-        function tryAdsGram() {
+        function testUnityAds() {
             return new Promise(function(resolve) {
-                debug('📺 Trying AdsGram...');
-                updateStatus('Loading AdsGram...', 'info');
-                
-                if (typeof window.AdsGram === 'undefined') {
-                    debug('❌ AdsGram SDK not loaded');
-                    resolve(false);
-                    return;
-                }
-                
-                try {
-                    var adsgram = new window.AdsGram({ 
-                        blockId: CONFIG.adsgramBlockId 
-                    });
-                    
-                    debug('AdsGram initialized, showing ad...');
-                    
-                    adsgram.showRewardedVideo()
-                        .then(function(result) {
-                            debug('AdsGram result: ' + JSON.stringify(result));
-                            
-                            if (result && (result.completed === true || result.done === true)) {
-                                debug('✅ AdsGram ad completed');
-                                resolve(true);
-                            } else {
-                                debug('❌ AdsGram ad not completed');
-                                resolve(false);
-                            }
-                        })
-                        .catch(function(error) {
-                            debug('❌ AdsGram error: ' + (error.message || error.code || 'unknown'));
-                            resolve(false);
-                        });
-                    
-                } catch (err) {
-                    debug('❌ AdsGram exception: ' + err.message);
-                    resolve(false);
-                }
-            });
-        }
-        
-        // ============================================
-        // UNITY ADS IMPLEMENTATION
-        // ============================================
-        function tryUnityAds() {
-            return new Promise(function(resolve) {
-                debug('🎮 Trying Unity Ads...');
-                updateStatus('Loading Unity Ads...', 'info');
+                addLog('🎮 Testing Unity Ads...');
+                updateStatus('Testing Unity Ads...');
                 
                 if (typeof window.UnityAds === 'undefined') {
-                    debug('❌ Unity Ads SDK not loaded');
+                    addLog('❌ Unity Ads SDK not available', 'error');
                     resolve(false);
                     return;
                 }
                 
-                var resolved = false;
+                addLog('   Game ID: ' + CONFIG.unityGameId);
+                addLog('   Placement: ' + CONFIG.unityPlacementId);
                 
-                var timeout = setTimeout(function() {
+                let resolved = false;
+                
+                const timeout = setTimeout(function() {
                     if (!resolved) {
                         resolved = true;
-                        debug('❌ Unity Ads timeout');
+                        addLog('❌ Unity Ads timeout (25s)', 'error');
                         resolve(false);
                     }
                 }, 25000);
                 
                 window.UnityAds.initialize(CONFIG.unityGameId, false);
+                addLog('   Unity initialized', 'info');
                 
                 window.UnityAds.addListener('onUnityAdsAdLoaded', function(placementId) {
-                    debug('✅ Unity ad loaded: ' + placementId);
-                    updateStatus('Ad ready! Starting video...', 'info');
+                    addLog('✅ Unity ad LOADED: ' + placementId, 'success');
+                    updateStatus('Showing Unity ad...');
                     window.UnityAds.show(userId, placementId);
+                });
+                
+                window.UnityAds.addListener('onUnityAdsShowStart', function(placementId) {
+                    addLog('▶️ Unity ad STARTED', 'success');
                 });
                 
                 window.UnityAds.addListener('onUnityAdsShowComplete', function(placementId, state) {
@@ -258,13 +268,13 @@
                     if (resolved) return;
                     resolved = true;
                     
-                    debug('Unity complete: ' + state);
+                    addLog('   Unity state: ' + state, 'info');
                     
                     if (state === 'complete') {
-                        debug('✅ Unity ad completed');
+                        addLog('✅ Unity ad COMPLETED', 'success');
                         resolve(true);
                     } else {
-                        debug('❌ Unity ad skipped: ' + state);
+                        addLog('⚠️ Unity ad SKIPPED: ' + state, 'warning');
                         resolve(false);
                     }
                 });
@@ -273,7 +283,7 @@
                     clearTimeout(timeout);
                     if (resolved) return;
                     resolved = true;
-                    debug('❌ Unity show failed: ' + message);
+                    addLog('❌ Unity show FAILED: ' + message, 'error');
                     resolve(false);
                 });
                 
@@ -281,77 +291,132 @@
                     clearTimeout(timeout);
                     if (resolved) return;
                     resolved = true;
-                    debug('❌ Unity load failed: ' + message);
+                    addLog('❌ Unity load FAILED: ' + message, 'error');
                     resolve(false);
                 });
                 
-                debug('Loading placement: ' + CONFIG.unityPlacementId);
+                addLog('   Calling UnityAds.load()...');
                 window.UnityAds.load(CONFIG.unityPlacementId);
             });
         }
         
         // ============================================
-        // LOAD ADSGRAM SDK
+        // ADSGRAM TEST
         // ============================================
         function loadAdsGramSDK() {
             return new Promise(function(resolve) {
                 if (typeof window.AdsGram !== 'undefined') {
-                    debug('✅ AdsGram already loaded');
+                    addLog('✅ AdsGram already loaded', 'success');
                     resolve(true);
                     return;
                 }
                 
-                debug('Loading AdsGram SDK...');
+                addLog('📥 Loading AdsGram SDK...');
                 var script = document.createElement('script');
                 script.src = 'https://sdk.adsgram.ai/js/adsgram.min.js';
                 script.onload = function() {
-                    debug('✅ AdsGram SDK loaded');
+                    addLog('✅ AdsGram SDK loaded', 'success');
                     resolve(true);
                 };
                 script.onerror = function() {
-                    debug('❌ Failed to load AdsGram SDK');
+                    addLog('❌ Failed to load AdsGram SDK', 'error');
                     resolve(false);
                 };
                 document.head.appendChild(script);
             });
         }
         
-        // ============================================
-        // MAIN AD FLOW
-        // ============================================
-        async function startAdFlow() {
-            initTelegram();
-            
-            var adsgramLoaded = await loadAdsGramSDK();
-            debug('AdsGram SDK loaded: ' + adsgramLoaded);
-            
-            if (adsgramLoaded) {
-                var adsGramSuccess = await tryAdsGram();
-                if (adsGramSuccess) {
-                    sendReward();
+        function testAdsGram() {
+            return new Promise(async function(resolve) {
+                addLog('📺 Testing AdsGram...');
+                updateStatus('Testing AdsGram...');
+                
+                const loaded = await loadAdsGramSDK();
+                if (!loaded) {
+                    resolve(false);
                     return;
                 }
-                debug('AdsGram failed, falling back to Unity...');
-            }
+                
+                if (typeof window.AdsGram === 'undefined') {
+                    addLog('❌ AdsGram not available', 'error');
+                    resolve(false);
+                    return;
+                }
+                
+                addLog('   Block ID: ' + CONFIG.adsgramBlockId);
+                
+                try {
+                    var adsgram = new window.AdsGram({ 
+                        blockId: CONFIG.adsgramBlockId 
+                    });
+                    
+                    addLog('   Calling showRewardedVideo()...');
+                    
+                    var result = await adsgram.showRewardedVideo();
+                    
+                    addLog('   Result: ' + JSON.stringify(result), 'info');
+                    
+                    if (result && (result.completed === true || result.done === true)) {
+                        addLog('✅ AdsGram ad COMPLETED', 'success');
+                        resolve(true);
+                    } else {
+                        addLog('⚠️ AdsGram ad NOT completed', 'warning');
+                        resolve(false);
+                    }
+                    
+                } catch (error) {
+                    addLog('❌ AdsGram error: ' + (error.message || error.code || 'unknown'), 'error');
+                    resolve(false);
+                }
+            });
+        }
+        
+        // ============================================
+        // MAIN TEST FLOW
+        // ============================================
+        async function runTests() {
+            checkEnvironment();
             
-            var unitySuccess = await tryUnityAds();
-            if (unitySuccess) {
+            // Show test button after 5 seconds (for manual testing)
+            setTimeout(function() {
+                document.getElementById('testRewardBtn').style.display = 'block';
+            }, 5000);
+            
+            // Test AdsGram first
+            addLog('--- Testing AdsGram ---');
+            var adsGramSuccess = await testAdsGram();
+            
+            if (adsGramSuccess) {
+                addLog('🏆 AdsGram SUCCESS!', 'success');
                 sendReward();
                 return;
             }
             
-            sendError('No ads available. Please try again in a few minutes.');
+            addLog('--- AdsGram failed, testing Unity ---');
+            
+            // Test Unity Ads
+            var unitySuccess = await testUnityAds();
+            
+            if (unitySuccess) {
+                addLog('🏆 Unity Ads SUCCESS!', 'success');
+                sendReward();
+                return;
+            }
+            
+            // Both failed
+            addLog('--- BOTH AD NETWORKS FAILED ---', 'error');
+            addLog('💡 Click "Test Reward" button to simulate success', 'warning');
+            updateStatus('No ads available', 'error');
         }
         
-        // ============================================
-        // START
-        // ============================================
-        startAdFlow();
+        // Start tests
+        runTests();
         
+        // Emergency timeout
         setTimeout(function() {
             if (!rewardGiven) {
-                debug('⏰ Emergency timeout');
-                sendError('Ad loading timeout. Please try again.');
+                addLog('⏰ Emergency timeout (60s)', 'error');
+                updateStatus('Timeout', 'error');
             }
         }, 60000);
     </script>
