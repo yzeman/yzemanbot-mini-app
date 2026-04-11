@@ -9,7 +9,7 @@ if (tg) {
 }
 
 // ============================================================
-// REFERRAL CODE DETECTION
+// REFERRAL CODE DETECTION - FIXED
 // ============================================================
 
 let referralCode = null;
@@ -205,26 +205,19 @@ function updateUI() {
 // ============================================================
 
 let isWatchingAd = false;
-let adWindow = null;
 
 function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
     return adRewards[currentUser?.tier] || 557;
 }
 
-// Get the base URL of your deployed app
 function getBaseUrl() {
-    // Update this to your actual deployed URL
-    // For Render: https://your-app-name.onrender.com
-    // For Vercel: https://your-app-name.vercel.app
-    return window.location.origin; // This automatically gets the current domain
+    return window.location.origin;
 }
 
-// Listen for messages from the ad page
 function setupAdMessageListener() {
-    // For Telegram WebApp sendData
-    if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.onEvent('sendData', async (data) => {
+    if (tg) {
+        tg.onEvent('sendData', async (data) => {
             console.log('📨 Ad data received:', data);
             
             try {
@@ -248,9 +241,7 @@ function setupAdMessageListener() {
         });
     }
     
-    // For regular browser testing (postMessage)
     window.addEventListener('message', async (event) => {
-        // Accept messages from same origin
         if (event.origin !== window.location.origin) return;
         
         if (event.data && event.data.event) {
@@ -269,36 +260,22 @@ function setupAdMessageListener() {
     });
 }
 
-// Open ad page
 function openAdPage() {
     const reward = getRewardAmount();
     const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
     
-    // Build the ad URL
     const baseUrl = getBaseUrl();
     const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
     
     console.log('🎬 Opening ad:', adUrl);
     
-    // Use Telegram's openLink method for best compatibility
-    if (window.Telegram?.WebApp) {
-        window.Telegram.WebApp.openLink(adUrl);
+    if (tg) {
+        tg.openLink(adUrl);
     } else {
-        // Fallback for browser testing
-        const width = 400;
-        const height = 600;
-        const left = (screen.width - width) / 2;
-        const top = (screen.height - height) / 2;
-        const features = `width=${width},height=${height},left=${left},top=${top},popup=yes`;
-        adWindow = window.open(adUrl, 'WatchAd', features);
-        
-        if (!adWindow) {
-            adWindow = window.open(adUrl, '_blank');
-        }
+        window.open(adUrl, '_blank');
     }
 }
 
-// Main watch ad function
 window.watchAd = async function() {
     if (isWatchingAd) {
         showNotification('Please wait, an ad is already playing.', true);
@@ -313,7 +290,6 @@ window.watchAd = async function() {
     isWatchingAd = true;
     showNotification('Opening ad... Please watch to earn points!', false);
     
-    // Reset watching state after 2 minutes (safety timeout)
     setTimeout(() => {
         if (isWatchingAd) {
             isWatchingAd = false;
@@ -321,21 +297,8 @@ window.watchAd = async function() {
         }
     }, 120000);
     
-    // Open the ad page
     openAdPage();
 };
-
-// Initialize message listener when app starts
-setupAdMessageListener();
-
-// Handle visibility change for when user returns from ad
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-        // User returned to app
-        console.log('📱 Returned to app');
-        // We don't auto-reward - reward comes from ad page message
-    }
-});
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
@@ -1123,7 +1086,7 @@ window.copyTeamCode = (code) => {
 };
 
 // ============================================================
-// TAB SWITCHING (for index.html)
+// TAB SWITCHING
 // ============================================================
 
 function initTabs() {
@@ -1144,6 +1107,8 @@ function initTabs() {
 // ============================================================
 
 async function initApp() {
+    setupAdMessageListener();
+    
     currentUser = await registerUser();
     if (currentUser) {
         updateUI();
@@ -1182,7 +1147,10 @@ async function initApp() {
         if (withdrawBtn) withdrawBtn.addEventListener('click', requestWithdrawal);
         
         const watchAdBtn = document.getElementById('watchAdBtn');
-        if (watchAdBtn) watchAdBtn.addEventListener('click', window.watchAd);
+        if (watchAdBtn) {
+            watchAdBtn.addEventListener('click', window.watchAd);
+            console.log('✅ Watch ad button connected');
+        }
         
         const youtubeTaskBtn = document.getElementById('youtubeTaskBtn');
         if (youtubeTaskBtn) youtubeTaskBtn.addEventListener('click', startYoutubeTask);
@@ -1214,7 +1182,7 @@ async function initApp() {
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 const tabId = tab.dataset.tab + 'Tab';
-                document.getElementById(tabId).classList.add('active');
+                document.getElementById(tabId)?.classList.add('active');
             });
         });
     }
@@ -1241,7 +1209,7 @@ async function initApp() {
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 tab.classList.add('active');
                 const tabId = tab.dataset.tab + 'Tab';
-                document.getElementById(tabId).classList.add('active');
+                document.getElementById(tabId)?.classList.add('active');
                 if (tab.dataset.tab === 'leaderboard') loadTeamLeaderboard();
                 if (tab.dataset.tab === 'monthly') loadMonthlyCompetition();
             });
@@ -1250,4 +1218,5 @@ async function initApp() {
 }
 
 setInterval(() => { if (currentUser) refreshUser(); }, 30000);
+
 document.addEventListener('DOMContentLoaded', initApp);
