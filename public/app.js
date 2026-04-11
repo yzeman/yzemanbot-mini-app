@@ -9,14 +9,13 @@ if (tg) {
 }
 
 // ============================================================
-// REFERRAL CODE DETECTION - FIXED
+// REFERRAL CODE DETECTION
 // ============================================================
 
 let referralCode = null;
 const urlParams = new URLSearchParams(window.location.search);
 let rawReferralCode = urlParams.get('start');
 
-// Clean the referral code - remove 'ref-' prefix if present
 if (rawReferralCode) {
     if (rawReferralCode.startsWith('ref-')) {
         referralCode = rawReferralCode.substring(4);
@@ -171,7 +170,6 @@ function updateUI() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
     if (adReward) adReward.textContent = adRewards[currentUser.tier] || 557;
     
-    // FIXED: referral_code already contains "ref-", so use it directly
     if (referralLink && currentUser.referral_code) {
         referralLink.textContent = `https://t.me/YzemanBot?start=${currentUser.referral_code}`;
     }
@@ -184,7 +182,6 @@ function updateUI() {
         walletInput.value = currentUser.wallet_address;
     }
     
-    // Update tier progress if on refer tab
     const currentRefs = document.getElementById('currentRefs');
     const nextTierReq = document.getElementById('nextTierReq');
     const tierProgressBar = document.getElementById('tierProgressBar');
@@ -204,78 +201,83 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING WITH ADSGRAM + UNITY ADS BACKUP
+// AD WATCHING WITH ADSGRAM + UNITY ADS BACKUP (FIXED)
 // ============================================================
 
 let isWatchingAd = false;
-let adWindow = null;
 
 function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
     return adRewards[currentUser?.tier] || 557;
 }
 
-// Listen for messages from the ad popup window
+// Listen for return from ad page (when user closes the ad)
 function setupAdMessageListener() {
-    window.addEventListener('message', async (event) => {
-        // Check if the message is from our ad window
-        if (event.data && event.data.event) {
-            console.log('Ad message received:', event.data);
+    // Listen for visibility change (user returns from external link)
+    document.addEventListener('visibilitychange', async () => {
+        if (!document.hidden && isWatchingAd) {
+            console.log('User returned from ad');
             
-            if (event.data.event === 'reward-earned') {
-                const reward = event.data.amount || getRewardAmount();
+            // Check if we have a pending reward from sessionStorage
+            const pendingReward = sessionStorage.getItem('pendingAdReward');
+            if (pendingReward) {
+                sessionStorage.removeItem('pendingAdReward');
+                const reward = parseInt(pendingReward);
                 showNotification(`🎉 +${reward} points earned!`);
                 await addPoints(reward);
                 isWatchingAd = false;
-            } else if (event.data.event === 'ad-failed') {
-                showNotification('Ad failed to load. Please try again.', true);
+            } else {
+                // No reward found, ad may have been skipped
                 isWatchingAd = false;
-            } else if (event.data.event === 'ad-timeout') {
-                showNotification('Ad took too long. Please try again.', true);
+            }
+        }
+    });
+    
+    // Also listen for page focus (alternative to visibilitychange)
+    window.addEventListener('focus', async () => {
+        if (isWatchingAd) {
+            const pendingReward = sessionStorage.getItem('pendingAdReward');
+            if (pendingReward) {
+                sessionStorage.removeItem('pendingAdReward');
+                const reward = parseInt(pendingReward);
+                showNotification(`🎉 +${reward} points earned!`);
+                await addPoints(reward);
                 isWatchingAd = false;
             }
         }
     });
 }
 
-// Open ad in a popup window
-async function openAdInWindow() {
+// Open ad using Telegram's openLink method
+async function openAdWithTelegram() {
     const reward = getRewardAmount();
     const userId = currentUser?.id || 'guest';
     
-    // Create a popup window for the ad
-    const adUrl = `/ad.html?userId=${userId}&reward=${reward}`;
-    const width = 400;
-    const height = 600;
-    const left = (screen.width - width) / 2;
-    const top = (screen.height - height) / 2;
+    // Get the base URL of your app
+    const baseUrl = window.location.origin;
+    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
     
-    const features = `width=${width},height=${height},left=${left},top=${top},popup=yes,noopener=yes`;
+    console.log('Opening ad URL:', adUrl);
     
-    adWindow = window.open(adUrl, 'WatchAd', features);
+    // Store the reward amount in sessionStorage to retrieve when user returns
+    sessionStorage.setItem('pendingAdReward', reward);
     
-    if (!adWindow) {
-        // Popup blocked - try opening in new tab
-        adWindow = window.open(adUrl, '_blank');
-        showNotification('Ad opened in new tab. Return here after watching.', false);
+    // Use Telegram WebApp to open the link
+    if (tg && typeof tg.openLink === 'function') {
+        tg.openLink(adUrl);
+    } else if (tg && typeof tg.openTelegramLink === 'function') {
+        tg.openTelegramLink(adUrl);
+    } else {
+        // Fallback for browser testing
+        window.open(adUrl, '_blank');
     }
     
-    // Check if window is closed periodically
-    const checkInterval = setInterval(() => {
-        if (adWindow && adWindow.closed) {
-            clearInterval(checkInterval);
-            console.log('Ad window closed');
-        }
-    }, 1000);
-    
-    // Timeout to reset watching state after 2 minutes
+    // Set timeout to reset watching state after 2 minutes
     setTimeout(() => {
         if (isWatchingAd) {
+            sessionStorage.removeItem('pendingAdReward');
             isWatchingAd = false;
             showNotification('Ad session expired. Please try again.', true);
-        }
-        if (adWindow && !adWindow.closed) {
-            adWindow.close();
         }
     }, 120000);
 }
@@ -287,32 +289,19 @@ window.watchAd = async function() {
         return;
     }
     
-    // Check if user is logged in
     if (!currentUser) {
         showNotification('Please log in to watch ads.', true);
         return;
     }
     
     isWatchingAd = true;
-    
-    // Show notification that ad is starting
     showNotification('Opening ad... Please watch the full video to earn points.', false);
     
-    // Open the ad
-    await openAdInWindow();
+    await openAdWithTelegram();
 };
 
-// Initialize message listener when app starts
+// Initialize message listener
 setupAdMessageListener();
-
-// Handle visibility change for when user returns from ad
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && isWatchingAd) {
-        // User returned to app - we don't auto-reward here
-        // Reward will be given via message from ad page
-        console.log('Returned to app, waiting for ad completion message');
-    }
-});
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
@@ -769,7 +758,6 @@ async function loadWheelStatus() {
             spinBtn.disabled = !data.can_spin;
         }
         
-        // Initialize wheel if on wheel page
         const canvas = document.getElementById('wheelCanvas');
         if (canvas) {
             const segments = [
@@ -1128,7 +1116,6 @@ async function initApp() {
         loadWithdrawalHistory();
         displayBonusList();
         
-        // Initialize social task buttons
         const socialButtons = [
             { id: 'youtube1Btn', task: 'youtube1', url: 'https://youtube.com/@yzeupdates' },
             { id: 'youtube2Btn', task: 'youtube2', url: 'https://youtube.com/@codingappwithhtml' },
@@ -1148,39 +1135,30 @@ async function initApp() {
             }
         });
         
-        // Bonus redeem button
         const redeemBtn = document.getElementById('redeemBonusBtn');
         if (redeemBtn) redeemBtn.addEventListener('click', redeemBonus);
         
-        // Copy button
         const copyBtn = document.getElementById('copyBtn');
         if (copyBtn) copyBtn.addEventListener('click', copyReferralLink);
         
-        // Save wallet button
         const saveWalletBtn = document.getElementById('saveWalletBtn');
         if (saveWalletBtn) saveWalletBtn.addEventListener('click', saveWallet);
         
-        // Withdraw button
         const withdrawBtn = document.getElementById('withdrawBtn');
         if (withdrawBtn) withdrawBtn.addEventListener('click', requestWithdrawal);
         
-        // Watch ad button
         const watchAdBtn = document.getElementById('watchAdBtn');
         if (watchAdBtn) watchAdBtn.addEventListener('click', window.watchAd);
         
-        // YouTube task button
         const youtubeTaskBtn = document.getElementById('youtubeTaskBtn');
         if (youtubeTaskBtn) youtubeTaskBtn.addEventListener('click', startYoutubeTask);
         
-        // Website task button
         const websiteTaskBtn = document.getElementById('websiteTaskBtn');
         if (websiteTaskBtn) websiteTaskBtn.addEventListener('click', startWebsiteTask);
         
-        // Initialize tabs
         initTabs();
     }
     
-    // Page-specific initializations
     if (document.getElementById('claimBtn')) {
         loadDailyStats();
         document.getElementById('claimBtn')?.addEventListener('click', claimDailyReward);
@@ -1196,7 +1174,6 @@ async function initApp() {
         loadTopReferrers();
         loadWeeklyEarnings();
         
-        // Tab switching for leaderboard
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1224,7 +1201,6 @@ async function initApp() {
         document.getElementById('joinTeamBtn')?.addEventListener('click', joinTeam);
         document.getElementById('createTeamBtn')?.addEventListener('click', createTeam);
         
-        // Tab switching for teams
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1239,8 +1215,5 @@ async function initApp() {
     }
 }
 
-// Auto-refresh every 30 seconds
 setInterval(() => { if (currentUser) refreshUser(); }, 30000);
-
-// Start app when DOM ready
 document.addEventListener('DOMContentLoaded', initApp);
