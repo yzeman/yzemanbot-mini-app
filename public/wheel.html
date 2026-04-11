@@ -2,245 +2,379 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wheel of Fortune - YzemanBot</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --primary: #6a11cb;
-            --secondary: #2575fc;
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
             --success: #00c853;
-            --warning: #ffab00;
-            --dark: #1a1b25;
-            --darker: #12131a;
-            --gray: #6c757d;
-            --card-bg: #252836;
-            --card-border: #2d3343;
+            --gold: #FFD700;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background: linear-gradient(135deg, var(--darker), var(--dark)); color: var(--light); min-height: 100vh; padding: 20px; padding-bottom: 80px; }
-        .container { max-width: 500px; margin: 0 auto; text-align: center; }
-        .header h1 { font-size: 28px; background: linear-gradient(to right, #ff9a9e, #fad0c4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
-        .wheel-container { margin: 30px 0; position: relative; }
-        canvas { max-width: 100%; height: auto; background: var(--card-bg); border-radius: 50%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
-        .spin-btn { background: linear-gradient(45deg, #FF9800, #FF5722); color: white; border: none; border-radius: 50px; padding: 18px 40px; font-size: 20px; font-weight: bold; cursor: pointer; margin: 20px 0; transition: transform 0.2s; }
-        .spin-btn:active { transform: scale(0.95); }
-        .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .info-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 20px; margin-top: 20px; }
-        .timer { font-size: 32px; font-weight: bold; color: var(--warning); margin: 10px 0; }
-        .last-reward { color: var(--success); font-size: 18px; margin-top: 10px; }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            padding: 20px 15px 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .header i {
+            color: var(--gold);
+            margin-right: 8px;
+        }
+        
+        .header p {
+            color: var(--gray);
+            font-size: 14px;
+        }
+        
+        .wheel-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 15px;
+            position: relative;
+        }
+        
+        .wheel-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+        }
+        
+        #wheelCanvas {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .wheel-pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            color: var(--gold);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            z-index: 10;
+        }
+        
+        .spin-btn-container {
+            text-align: center;
+            margin: 20px 15px;
+        }
+        
+        .spin-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .spin-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .spin-btn:disabled {
+            background: var(--gray);
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status-card {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
+            text-align: center;
+        }
+        
+        .status-text {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .timer-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--gold);
+            margin: 10px 0;
+        }
+        
+        .last-reward {
+            color: var(--gray);
+            font-size: 14px;
+        }
+        
+        .prizes-section {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
+        }
+        
+        .prizes-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .prizes-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        
+        .prize-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .prize-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            margin: 0 auto 8px;
+        }
+        
+        .prize-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .prize-label {
+            font-size: 10px;
+            color: var(--gray);
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 20px 15px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .info-box p {
+            color: var(--gray);
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .info-box i {
+            color: var(--secondary);
+            margin-right: 8px;
+        }
+        
         .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); border-top: 1px solid var(--card-border);
-            display: flex; justify-content: space-around; padding: 12px 16px; z-index: 100;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            display: flex;
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
         }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--gray); text-decoration: none; font-size: 10px; padding: 8px 12px; border-radius: 12px; }
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--secondary); background: rgba(37, 117, 252, 0.1); }
-        .notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--success); color: white; padding: 12px 24px; border-radius: 12px; z-index: 1000; display: none; font-size: 14px; white-space: nowrap; }
+        
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item i {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
-    <div class="notification" id="notification"></div>
-
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-circle-notch"></i> Wheel of Fortune</h1>
-            <p style="color: var(--gray);">Spin every 3 days to win up to 10,000 points!</p>
-        </div>
-
-        <div class="wheel-container">
+    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    
+    <div class="header">
+        <h1><i class="fas fa-dharmachakra"></i> Wheel of Fortune</h1>
+        <p>Spin every 3 days to win COINS!</p>
+    </div>
+    
+    <div class="wheel-container">
+        <div class="wheel-wrapper">
+            <div class="wheel-pointer">▼</div>
             <canvas id="wheelCanvas" width="400" height="400"></canvas>
         </div>
-
-        <button class="spin-btn" id="spinBtn">🎡 SPIN THE WHEEL 🎡</button>
-
-        <div class="info-card" id="infoCard">
-            <div id="statusText">Loading...</div>
-            <div class="timer" id="timerText"></div>
-            <div class="last-reward" id="lastRewardText"></div>
+    </div>
+    
+    <div class="spin-btn-container">
+        <button class="spin-btn" id="spinBtn">🎡 SPIN NOW</button>
+    </div>
+    
+    <div class="status-card">
+        <div class="status-text" id="statusText">Loading...</div>
+        <div class="timer-text" id="timerText"></div>
+        <div class="last-reward" id="lastRewardText">No spins yet!</div>
+    </div>
+    
+    <div class="prizes-section">
+        <div class="prizes-title">
+            <i class="fas fa-gift" style="color: var(--gold);"></i>
+            <span>Available Prizes</span>
+        </div>
+        <div class="prizes-grid" id="prizesGrid">
+            <!-- Prizes will be rendered here -->
         </div>
     </div>
-
-    <div class="bottom-nav">
-        <a href="index.html" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
-        <a href="leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Leaderboard</span></a>
-        <a href="achievements.html" class="nav-item"><i class="fas fa-medal"></i><span>Achievements</span></a>
-        <a href="tournament.html" class="nav-item"><i class="fas fa-fist-raised"></i><span>Tournament</span></a>
-        <a href="team.html" class="nav-item"><i class="fas fa-users"></i><span>Teams</span></a>
+    
+    <div class="info-box">
+        <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
+        <p>• Spin the wheel every 3 days for free!</p>
+        <p>• Your tier multiplier applies to all wins!</p>
+        <p>• Win up to 10 COINS in a single spin!</p>
+        <p>• Higher tiers get even more COINS!</p>
     </div>
-
+    
+    <div class="bottom-nav">
+        <a href="/" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/daily.html" class="nav-item">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="nav-item active">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="nav-item">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+    
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.expand(); tg.ready(); }
-
-        const SEGMENTS = [
-            { label: "100", value: 100, color: "#FF6B6B" },
-            { label: "250", value: 250, color: "#4ECDC4" },
-            { label: "500", value: 500, color: "#45B7D1" },
-            { label: "1000", value: 1000, color: "#96CEB4" },
-            { label: "2500", value: 2500, color: "#FFEAA7" },
-            { label: "5000", value: 5000, color: "#DDA0DD" },
-            { label: "7500", value: 7500, color: "#98D8C8" },
-            { label: "10000", value: 10000, color: "#F7B05E" }
+        // Prize configuration with COINS display
+        const PRIZES = [
+            { value: 50000, label: '0.05', color: '#FF6B6B' },
+            { value: 100000, label: '0.10', color: '#4ECDC4' },
+            { value: 250000, label: '0.25', color: '#45B7D1' },
+            { value: 500000, label: '0.50', color: '#96CEB4' },
+            { value: 1000000, label: '1.00', color: '#FFEAA7' },
+            { value: 2500000, label: '2.50', color: '#DDA0DD' },
+            { value: 5000000, label: '5.00', color: '#98D8C8' },
+            { value: 10000000, label: '10.00', color: '#F7B05E' }
         ];
-
-        let canvas = document.getElementById('wheelCanvas');
-        let ctx = canvas.getContext('2d');
-        let spinning = false;
-        let currentAngle = 0;
-        let animationFrame = null;
-
-        function drawWheel() {
-            const size = canvas.width;
-            const center = size / 2;
-            const radius = size / 2 - 10;
-            const anglePerSegment = (Math.PI * 2) / SEGMENTS.length;
-            
-            for (let i = 0; i < SEGMENTS.length; i++) {
-                const startAngle = currentAngle + i * anglePerSegment;
-                const endAngle = startAngle + anglePerSegment;
-                
-                ctx.beginPath();
-                ctx.fillStyle = SEGMENTS[i].color;
-                ctx.moveTo(center, center);
-                ctx.arc(center, center, radius, startAngle, endAngle);
-                ctx.fill();
-                
-                ctx.save();
-                ctx.translate(center, center);
-                ctx.rotate(startAngle + anglePerSegment / 2);
-                ctx.fillStyle = "#1a1a2e";
-                ctx.font = "bold 16px 'Segoe UI'";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(SEGMENTS[i].label, radius * 0.65, 0);
-                ctx.restore();
-            }
-            
-            ctx.beginPath();
-            ctx.fillStyle = "#FFD700";
-            ctx.arc(center, center, 15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#1a1a2e";
-            ctx.font = "bold 20px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🎡", center, center);
-        }
-
-        function spinWheel() {
-            if (spinning) return;
-            
-            const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
-            const startTime = performance.now();
-            const duration = 3000;
-            
-            spinning = true;
-            document.getElementById('spinBtn').disabled = true;
-            
-            function animateSpin(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(1, elapsed / duration);
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                const angle = spinAngle * easeOut;
-                currentAngle = (currentAngle + angle) % (Math.PI * 2);
-                drawWheel();
-                
-                if (progress < 1) {
-                    animationFrame = requestAnimationFrame(animateSpin);
-                } else {
-                    animationFrame = null;
-                    const finalAngle = currentAngle % (Math.PI * 2);
-                    const segmentIndex = Math.floor(((Math.PI * 2) - finalAngle) / ((Math.PI * 2) / SEGMENTS.length)) % SEGMENTS.length;
-                    const prize = SEGMENTS[segmentIndex].value;
-                    spinning = false;
-                    submitSpin(prize);
-                }
-            }
-            
-            if (animationFrame) cancelAnimationFrame(animationFrame);
-            animationFrame = requestAnimationFrame(animateSpin);
-        }
-
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.style.background = isError ? '#ff5252' : '#00c853';
-            notif.style.display = 'block';
-            setTimeout(() => {
-                notif.style.display = 'none';
-            }, 3000);
-        }
-
-        async function submitSpin(prize) {
-            try {
-                const response = await fetch('/api/wheel-spin', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: tg.initData })
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error);
-                }
-                
-                const result = await response.json();
-                showNotification(result.message);
-                loadStatus();
-            } catch (err) {
-                showNotification(err.message, true);
-                drawWheel();
-                document.getElementById('spinBtn').disabled = false;
-            }
-        }
-
-        async function loadStatus() {
-            try {
-                const response = await fetch('/api/wheel-status', {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                
-                const statusDiv = document.getElementById('statusText');
-                const timerDiv = document.getElementById('timerText');
-                const lastRewardDiv = document.getElementById('lastRewardText');
-                
-                // Check if user can spin (first time or after 3 days)
-                if (data.can_spin === true) {
-                    statusDiv.innerHTML = '<span style="color: var(--success);">✅ Ready to spin!</span>';
-                    timerDiv.innerHTML = '';
-                    document.getElementById('spinBtn').disabled = false;
-                } else {
-                    statusDiv.innerHTML = '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
-                    // Fix: Check if days_left exists, otherwise show 3 days
-                    const daysLeft = data.days_left !== undefined ? data.days_left : 3;
-                    timerDiv.innerHTML = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
-                    document.getElementById('spinBtn').disabled = true;
-                }
-                
-                // Show last reward if exists
-                if (data.last_reward && data.last_reward > 0) {
-                    lastRewardDiv.innerHTML = `Last spin: ${data.last_reward.toLocaleString()} points!`;
-                } else {
-                    lastRewardDiv.innerHTML = '✨ Your first spin awaits! ✨';
-                }
-            } catch (err) {
-                console.error(err);
-                // On error, still allow spin (first time users)
-                document.getElementById('statusText').innerHTML = '<span style="color: var(--success);">✅ Ready to spin!</span>';
-                document.getElementById('spinBtn').disabled = false;
-                document.getElementById('timerText').innerHTML = '';
-                document.getElementById('lastRewardText').innerHTML = '✨ Your first spin awaits! ✨';
-            }
-        }
-
-        document.getElementById('spinBtn').addEventListener('click', spinWheel);
         
-        drawWheel();
-        loadStatus();
+        // Render prizes grid
+        function renderPrizesGrid() {
+            const grid = document.getElementById('prizesGrid');
+            if (!grid) return;
+            
+            grid.innerHTML = PRIZES.map(prize => `
+                <div class="prize-item">
+                    <div class="prize-color" style="background: ${prize.color};"></div>
+                    <div class="prize-value">${prize.label}</div>
+                    <div class="prize-label">COINS</div>
+                </div>
+            `).join('');
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            renderPrizesGrid();
+        });
     </script>
+    
+    <script src="/app.js"></script>
 </body>
 </html>
