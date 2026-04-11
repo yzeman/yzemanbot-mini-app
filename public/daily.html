@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Daily Rewards - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- TELEGRAM WEB APP SDK - CRITICAL! -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <style>
         :root {
             --primary: #4CAF50;
@@ -54,6 +58,16 @@
         .header p {
             color: var(--gray);
             font-size: 14px;
+        }
+        
+        .back-btn-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-decoration: none;
+            z-index: 10;
         }
         
         .stats-container {
@@ -242,19 +256,15 @@
             to { transform: translateY(0); opacity: 1; }
         }
         
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            text-decoration: none;
-            z-index: 10;
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
         }
     </style>
 </head>
 <body>
-    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
         <h1><i class="fas fa-calendar-check"></i> Daily Rewards</h1>
@@ -295,7 +305,7 @@
             <span>Last 7 Days</span>
         </div>
         <div class="calendar" id="calendar">
-            <!-- Calendar will be rendered here -->
+            <div class="loading">Loading...</div>
         </div>
     </div>
     
@@ -324,6 +334,161 @@
     
     <div class="notification" id="notification"></div>
     
+    <!-- Scripts -->
     <script src="/app.js"></script>
+    
+    <script>
+        // Check if Telegram WebApp is available
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            console.log('✅ Daily page: Telegram WebApp ready');
+        } else {
+            console.warn('⚠️ Daily page: Not running in Telegram');
+        }
+        
+        // Show notification function (fallback if app.js not loaded)
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            if (notif) {
+                notif.textContent = msg;
+                notif.style.background = isError ? '#ff5252' : '#00c853';
+                notif.style.display = 'block';
+                setTimeout(() => notif.style.display = 'none', 4000);
+            }
+        }
+        
+        // Load daily stats directly if needed
+        async function loadDailyStatsDirect() {
+            if (!tg?.initData) {
+                console.log('No Telegram initData available');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/daily-stats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateDailyUI(data);
+                }
+            } catch (err) {
+                console.error('Failed to load daily stats:', err);
+            }
+        }
+        
+        function updateDailyUI(data) {
+            const streakCount = document.getElementById('streakCount');
+            const totalDays = document.getElementById('totalDays');
+            const maxStreak = document.getElementById('maxStreak');
+            const todayReward = document.getElementById('todayReward');
+            const claimBtn = document.getElementById('claimBtn');
+            
+            if (streakCount) streakCount.textContent = data.current_streak || 0;
+            if (totalDays) totalDays.textContent = data.last_7_days?.length || 0;
+            if (maxStreak) maxStreak.textContent = data.max_streak || 0;
+            
+            const POINTS_PER_COIN = 1000000;
+            const baseReward = 100000;
+            const streakBonus = (data.current_streak || 0) * 50000;
+            const totalReward = baseReward + streakBonus;
+            const coins = (totalReward / POINTS_PER_COIN).toFixed(2);
+            
+            if (todayReward) todayReward.textContent = coins;
+            
+            if (claimBtn) {
+                if (data.claimed_today) {
+                    claimBtn.classList.add('disabled');
+                    claimBtn.style.pointerEvents = 'none';
+                    claimBtn.querySelector('.reward-title').textContent = '✅ Already Claimed Today';
+                } else {
+                    claimBtn.classList.remove('disabled');
+                    claimBtn.style.pointerEvents = 'auto';
+                    claimBtn.querySelector('.reward-title').textContent = 'Claim Daily Reward';
+                }
+            }
+            
+            renderCalendar(data);
+        }
+        
+        function renderCalendar(data) {
+            const calendar = document.getElementById('calendar');
+            if (!calendar) return;
+            
+            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            const claimedDays = data?.last_7_days || [];
+            const claimedDates = new Set(claimedDays.map(d => d.reward_date));
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            calendar.innerHTML = days.map((day, i) => {
+                const date = new Date();
+                date.setDate(date.getDate() - (6 - i));
+                const dateStr = date.toISOString().split('T')[0];
+                const isClaimed = claimedDates.has(dateStr);
+                const isToday = dateStr === today;
+                
+                return `
+                    <div class="calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}">
+                        <div>${day}</div>
+                        <div style="font-size: 10px; margin-top: 5px;">${date.getDate()}</div>
+                        ${isClaimed ? '<i class="fas fa-check" style="font-size: 10px; margin-top: 3px;"></i>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function claimDailyRewardDirect() {
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                return;
+            }
+            
+            const claimBtn = document.getElementById('claimBtn');
+            if (claimBtn.classList.contains('disabled')) {
+                showNotification('Already claimed today!', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/daily-reward', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const coins = (data.reward / 1000000).toFixed(2);
+                    showNotification(`🎁 +${coins} COINS! Streak: ${data.streak} days 🔥`);
+                    loadDailyStatsDirect();
+                } else {
+                    showNotification(data.error || 'Failed to claim', true);
+                }
+            } catch (err) {
+                showNotification('Network error', true);
+            }
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load stats
+            loadDailyStatsDirect();
+            
+            // Set up claim button
+            const claimBtn = document.getElementById('claimBtn');
+            if (claimBtn) {
+                claimBtn.addEventListener('click', claimDailyRewardDirect);
+            }
+            
+            console.log('✅ Daily page initialized');
+        });
+    </script>
 </body>
 </html>
