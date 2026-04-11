@@ -190,6 +190,16 @@ async function initDB() {
       )`);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS team_banned_members (
+        id SERIAL PRIMARY KEY,
+        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        banned_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(team_id, user_id)
+      )
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS monthly_competitions (
         id SERIAL PRIMARY KEY,
         month_year DATE NOT NULL,
@@ -1115,341 +1125,9 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API - COMPLETE WITH ALL FEATURES
-// ============================================
-
-// Create Team (with duplicate name check)
-app.post('/api/team/create', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { teamName } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!teamName || teamName.trim().length === 0) {
-      return res.status(400).json({ error: 'Team name is required' });
-    }
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    
-    if (userResult.rows[0].team_id) {
-      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
-    }
-    
-    // Check if team name already exists
-    const existingName = await client.query('SELECT id FROM teams WHERE LOWER(name) = LOWER($1)', [teamName.trim()]);
-    if (existingName.rows.length > 0) {
-      return res.status(400).json({ error: 'Team name already taken. Choose another name.' });
-    }
-    
-    // Check if user already created a team
-    const existingTeam = await client.query('SELECT id FROM teams WHERE created_by = $1', [userId]);
-    if (existingTeam.rows.length > 0) {
-      return res.status(400).json({ error: 'You already created a team. You cannot create another one.' });
-    }
-    
-    // Generate unique team code
-    let teamCode;
-    let codeExists;
-    do {
-      teamCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-      codeExists = await client.query('SELECT id FROM teams WHERE code = $1', [teamCode]);
-    } while (codeExists.rows.length > 0);
-    
-    const result = await client.query(
-      `INSERT INTO teams (name, code, created_by) VALUES ($1, $2, $3) RETURNING *`,
-      [teamName.trim(), teamCode, userId]
-    );
-    
-    const teamId = result.rows[0].id;
-    
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
-    await awardAchievement(userId, 'Team Player');
-    
-    await client.query('COMMIT');
-    res.json({ success: true, team: result.rows[0] });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team creation error:', err);
-    res.status(500).json({ error: 'Failed to create team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Join Team
-app.post('/api/team/join', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { teamCode } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!teamCode) {
-      return res.status(400).json({ error: 'Team code is required' });
-    }
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    
-    if (userResult.rows[0].team_id) {
-      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
-    }
-    
-    const teamResult = await client.query(
-      'SELECT id FROM teams WHERE code = $1',
-      [teamCode.toUpperCase()]
-    );
-    
-    if (teamResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
-    }
-    
-    const teamId = teamResult.rows[0].id;
-    
-    const existingMember = await client.query(
-      'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
-      [teamId, userId]
-    );
-    
-    if (existingMember.rows.length > 0) {
-      return res.status(400).json({ error: 'You are already a member of this team' });
-    }
-    
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
-    await awardAchievement(userId, 'Team Player');
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Joined team successfully!' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team join error:', err);
-    res.status(500).json({ error: 'Failed to join team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Leave Team (with auto-transfer leadership and auto-delete)
-app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const telegramId = req.telegramUser.id;
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.status(400).json({ error: 'You are not in a team' });
-    }
-    
-    // Check if user is the leader
-    const teamInfo = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
-    const isLeader = teamInfo.rows[0]?.created_by === userId;
-    
-    await client.query('BEGIN');
-    
-    // Remove user from team
-    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-    
-    if (isLeader) {
-      // Find the oldest member to become new leader
-      const nextLeader = await client.query(
-        'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
-        [teamId]
-      );
-      
-      if (nextLeader.rows.length > 0) {
-        const newLeaderId = nextLeader.rows[0].user_id;
-        await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [newLeaderId, teamId]);
-        console.log(`Team ${teamId} leadership transferred to user ${newLeaderId}`);
-      }
-    }
-    
-    // Check if team has any members left
-    const memberCount = await client.query('SELECT COUNT(*) FROM team_members WHERE team_id = $1', [teamId]);
-    
-    if (parseInt(memberCount.rows[0].count) === 0) {
-      // Delete the team if no members left
-      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-      console.log(`Team ${teamId} deleted - no members left`);
-    }
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Left team successfully' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team leave error:', err);
-    res.status(500).json({ error: 'Failed to leave team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Get Team Info
-app.post('/api/team/info', verifyTelegramData, async (req, res) => {
-  try {
-    const telegramId = req.telegramUser.id;
-    
-    const userResult = await pool.query(
-      'SELECT id, team_id, username FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.json({ has_team: false });
-    }
-    
-    const teamInfo = await pool.query(`
-      SELECT 
-        t.id, t.name, t.code, t.created_at,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COALESCE(SUM(u.referrals), 0) as total_referrals,
-        u2.username as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      LEFT JOIN users u2 ON t.created_by = u2.id
-      WHERE t.id = $1
-      GROUP BY t.id, u2.username
-    `, [teamId]);
-    
-    const members = await pool.query(`
-      SELECT u.username, u.first_name, u.points, u.referrals, u.tier,
-             CASE WHEN u.id = t.created_by THEN true ELSE false END as is_leader
-      FROM team_members tm
-      JOIN users u ON tm.user_id = u.id
-      JOIN teams t ON tm.team_id = t.id
-      WHERE tm.team_id = $1
-      ORDER BY u.points DESC
-    `, [teamId]);
-    
-    res.json({
-      has_team: true,
-      team: teamInfo.rows[0],
-      members: members.rows,
-      is_leader: teamInfo.rows[0]?.leader_name === userResult.rows[0]?.username
-    });
-    
-  } catch (err) {
-    console.error('Team info error:', err);
-    res.status(500).json({ error: 'Failed to fetch team info' });
-  }
-});
-
-// Team Leaderboard
-app.post('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COALESCE(SUM(u.referrals), 0) as total_referrals,
-        u2.username as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      LEFT JOIN users u2 ON t.created_by = u2.id
-      GROUP BY t.id, u2.username
-      ORDER BY total_points DESC
-      LIMIT 50
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Team leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to fetch team leaderboard' });
-  }
-});
-
-// Monthly Competition
-app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      WITH monthly_stats AS (
-        SELECT 
-          u.team_id,
-          SUM(u.points) as team_points,
-          SUM(u.referrals) as team_referrals,
-          COUNT(u.id) as member_count
-        FROM users u
-        WHERE u.team_id IS NOT NULL
-        GROUP BY u.team_id
-      )
-      SELECT 
-        t.id, t.name, ms.team_points, ms.team_referrals, ms.member_count,
-        u.username as leader_name
-      FROM teams t
-      JOIN monthly_stats ms ON t.id = ms.team_id
-      LEFT JOIN users u ON t.created_by = u.id
-      ORDER BY ms.team_points DESC
-      LIMIT 20
-    `);
-    
-    const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-    res.json({ month: currentMonth, standings: result.rows });
-  } catch (err) {
-    console.error('Monthly competition error:', err);
-    res.status(500).json({ error: 'Failed to fetch monthly competition' });
-  }
-});
-
-// Remove member from team (leader only)
-app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { memberTelegramId } = req.body;
-    const leaderTelegramId = req.telegramUser.id;
-    
-    // Get leader info
-    const leaderResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [leaderTelegramId]
-    );
-    
-// ============================================
 // TEAM API - COMPLETE WITH BAN FEATURE
 // ============================================
 
-// Create Team (with duplicate name check)
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1462,7 +1140,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     const userResult = await client.query(
       'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
+      [String(telegramId)]
     );
     
     if (userResult.rows.length === 0) {
@@ -1475,19 +1153,16 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
-    // Check if team name already exists
     const existingName = await client.query('SELECT id FROM teams WHERE LOWER(name) = LOWER($1)', [teamName.trim()]);
     if (existingName.rows.length > 0) {
       return res.status(400).json({ error: 'Team name already taken. Choose another name.' });
     }
     
-    // Check if user already created a team
     const existingTeam = await client.query('SELECT id FROM teams WHERE created_by = $1', [userId]);
     if (existingTeam.rows.length > 0) {
       return res.status(400).json({ error: 'You already created a team. You cannot create another one.' });
     }
     
-    // Generate unique team code
     let teamCode;
     let codeExists;
     do {
@@ -1520,7 +1195,6 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Join Team (with ban check)
 app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1533,7 +1207,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const userResult = await client.query(
       'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
+      [String(telegramId)]
     );
     
     if (userResult.rows.length === 0) {
@@ -1557,7 +1231,6 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const teamId = teamResult.rows[0].id;
     
-    // Check if user is banned from this team
     const bannedCheck = await client.query(
       'SELECT * FROM team_banned_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
@@ -1594,393 +1267,6 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Leave Team (clears ban if user left voluntarily)
-app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const telegramId = req.telegramUser.id;
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.status(400).json({ error: 'You are not in a team' });
-    }
-    
-    // Check if user is the leader
-    const teamInfo = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
-    const isLeader = teamInfo.rows[0]?.created_by === userId;
-    
-    await client.query('BEGIN');
-    
-    // Remove user from team
-    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-    
-    // Clear any ban record (since user left voluntarily)
-    await client.query('DELETE FROM team_banned_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
-    
-    if (isLeader) {
-      // Find the oldest member to become new leader
-      const nextLeader = await client.query(
-        'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
-        [teamId]
-      );
-      
-      if (nextLeader.rows.length > 0) {
-        const newLeaderId = nextLeader.rows[0].user_id;
-        await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [newLeaderId, teamId]);
-        console.log(`Team ${teamId} leadership transferred to user ${newLeaderId}`);
-      }
-    }
-    
-    // Check if team has any members left
-    const memberCount = await client.query('SELECT COUNT(*) FROM team_members WHERE team_id = $1', [teamId]);
-    
-    if (parseInt(memberCount.rows[0].count) === 0) {
-      // Delete the team if no members left
-      await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
-      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-      console.log(`Team ${teamId} deleted - no members left`);
-    }
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Left team successfully' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team leave error:', err);
-    res.status(500).json({ error: 'Failed to leave team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Remove member from team (leader only - adds to banned list)
-app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { memberTelegramId } = req.body;
-    const leaderTelegramId = req.telegramUser.id;
-    
-    if (!memberTelegramId) {
-      return res.status(400).json({ error: 'Member ID is required' });
-    }
-    
-    // Get leader info
-    const leaderResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [leaderTelegramId]
-    );
-    
-    if (leaderResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Leader not found' });
-    }
-    
-    const leaderId = leaderResult.rows[0].id;
-    const teamId = leaderResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.status(400).json({ error: 'You are not in a team' });
-    }
-    
-    // Verify leader
-    const teamCheck = await client.query(
-      'SELECT created_by FROM teams WHERE id = $1',
-      [teamId]
-    );
-    
-    if (teamCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found' });
-    }
-    
-    if (teamCheck.rows[0].created_by !== leaderId) {
-      return res.status(403).json({ error: 'Only team leader can remove members' });
-    }
-    
-    // Get member to remove
-    const memberResult = await client.query(
-      'SELECT id FROM users WHERE telegram_id = $1 AND team_id = $2',
-      [memberTelegramId, teamId]
-    );
-    
-    if (memberResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Member not found in your team' });
-    }
-    
-    const memberId = memberResult.rows[0].id;
-    
-    if (memberId === leaderId) {
-      return res.status(400).json({ error: 'Cannot remove yourself. Use leave team instead.' });
-    }
-    
-    await client.query('BEGIN');
-    
-    // Remove member from team
-    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
-    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [memberId]);
-    
-    // Add to banned list so they cannot rejoin
-    await client.query(
-      'INSERT INTO team_banned_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-      [teamId, memberId]
-    );
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Member removed from team and banned from rejoining' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Remove member error:', err);
-    res.status(500).json({ error: 'Failed to remove member' });
-  } finally {
-    client.release();
-  }
-});
-
-// Get Team Info
-app.post('/api/team/info', verifyTelegramData, async (req, res) => {
-  try {
-    const telegramId = req.telegramUser.id;
-    
-    const userResult = await pool.query(
-      'SELECT id, team_id, username FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.json({ has_team: false });
-    }
-    
-    const teamInfo = await pool.query(`
-      SELECT 
-        t.id, t.name, t.code, t.created_at,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COALESCE(SUM(u.referrals), 0) as total_referrals,
-        u2.username as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      LEFT JOIN users u2 ON t.created_by = u2.id
-      WHERE t.id = $1
-      GROUP BY t.id, u2.username
-    `, [teamId]);
-    
-    const members = await pool.query(`
-      SELECT u.telegram_id, u.username, u.first_name, u.photo_url, u.points, u.referrals, u.tier,
-             CASE WHEN u.id = t.created_by THEN true ELSE false END as is_leader
-      FROM team_members tm
-      JOIN users u ON tm.user_id = u.id
-      JOIN teams t ON tm.team_id = t.id
-      WHERE tm.team_id = $1
-      ORDER BY u.points DESC
-    `, [teamId]);
-    
-    res.json({
-      has_team: true,
-      team: teamInfo.rows[0],
-      members: members.rows,
-      is_leader: teamInfo.rows[0]?.leader_name === userResult.rows[0]?.username
-    });
-    
-  } catch (err) {
-    console.error('Team info error:', err);
-    res.status(500).json({ error: 'Failed to fetch team info' });
-  }
-});
-
-// Team Leaderboard
-app.post('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COALESCE(SUM(u.referrals), 0) as total_referrals,
-        u2.username as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      LEFT JOIN users u2 ON t.created_by = u2.id
-      GROUP BY t.id, u2.username
-      ORDER BY total_points DESC
-      LIMIT 50
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Team leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to fetch team leaderboard' });
-  }
-});
-
-// ============================================
-// TEAM API - COMPLETE WITH BAN FEATURE
-// ============================================
-
-// Create Team (with duplicate name check)
-app.post('/api/team/create', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { teamName } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!teamName || teamName.trim().length === 0) {
-      return res.status(400).json({ error: 'Team name is required' });
-    }
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [String(telegramId)]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    
-    if (userResult.rows[0].team_id) {
-      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
-    }
-    
-    // Check if team name already exists
-    const existingName = await client.query('SELECT id FROM teams WHERE LOWER(name) = LOWER($1)', [teamName.trim()]);
-    if (existingName.rows.length > 0) {
-      return res.status(400).json({ error: 'Team name already taken. Choose another name.' });
-    }
-    
-    // Check if user already created a team
-    const existingTeam = await client.query('SELECT id FROM teams WHERE created_by = $1', [userId]);
-    if (existingTeam.rows.length > 0) {
-      return res.status(400).json({ error: 'You already created a team. You cannot create another one.' });
-    }
-    
-    // Generate unique team code
-    let teamCode;
-    let codeExists;
-    do {
-      teamCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-      codeExists = await client.query('SELECT id FROM teams WHERE code = $1', [teamCode]);
-    } while (codeExists.rows.length > 0);
-    
-    await client.query('BEGIN');
-    
-    const result = await client.query(
-      `INSERT INTO teams (name, code, created_by) VALUES ($1, $2, $3) RETURNING *`,
-      [teamName.trim(), teamCode, userId]
-    );
-    
-    const teamId = result.rows[0].id;
-    
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
-    await awardAchievement(userId, 'Team Player');
-    
-    await client.query('COMMIT');
-    res.json({ success: true, team: result.rows[0] });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team creation error:', err);
-    res.status(500).json({ error: 'Failed to create team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Join Team (with ban check)
-app.post('/api/team/join', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { teamCode } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!teamCode) {
-      return res.status(400).json({ error: 'Team code is required' });
-    }
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [String(telegramId)]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    
-    if (userResult.rows[0].team_id) {
-      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
-    }
-    
-    const teamResult = await client.query(
-      'SELECT id FROM teams WHERE code = $1',
-      [teamCode.toUpperCase()]
-    );
-    
-    if (teamResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
-    }
-    
-    const teamId = teamResult.rows[0].id;
-    
-    // Check if user is banned from this team
-    const bannedCheck = await client.query(
-      'SELECT * FROM team_banned_members WHERE team_id = $1 AND user_id = $2',
-      [teamId, userId]
-    );
-    
-    if (bannedCheck.rows.length > 0) {
-      return res.status(403).json({ error: 'You were removed from this team and cannot rejoin.' });
-    }
-    
-    const existingMember = await client.query(
-      'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
-      [teamId, userId]
-    );
-    
-    if (existingMember.rows.length > 0) {
-      return res.status(400).json({ error: 'You are already a member of this team' });
-    }
-    
-    await client.query('BEGIN');
-    
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
-    await awardAchievement(userId, 'Team Player');
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Joined team successfully!' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team join error:', err);
-    res.status(500).json({ error: 'Failed to join team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Leave Team (clears ban if user left voluntarily)
 app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -2002,21 +1288,16 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'You are not in a team' });
     }
     
-    // Check if user is the leader
     const teamInfo = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
     const isLeader = teamInfo.rows[0]?.created_by === userId;
     
     await client.query('BEGIN');
     
-    // Remove user from team
     await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
     await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-    
-    // Clear any ban record (since user left voluntarily)
     await client.query('DELETE FROM team_banned_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
     
     if (isLeader) {
-      // Find the oldest member to become new leader
       const nextLeader = await client.query(
         'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
         [teamId]
@@ -2025,18 +1306,14 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       if (nextLeader.rows.length > 0) {
         const newLeaderId = nextLeader.rows[0].user_id;
         await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [newLeaderId, teamId]);
-        console.log(`Team ${teamId} leadership transferred to user ${newLeaderId}`);
       }
     }
     
-    // Check if team has any members left
     const memberCount = await client.query('SELECT COUNT(*) FROM team_members WHERE team_id = $1', [teamId]);
     
     if (parseInt(memberCount.rows[0].count) === 0) {
-      // Delete the team if no members left
       await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
       await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-      console.log(`Team ${teamId} deleted - no members left`);
     }
     
     await client.query('COMMIT');
@@ -2051,20 +1328,16 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Remove member from team (leader only - adds to banned list)
 app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
     const { memberTelegramId } = req.body;
     const leaderTelegramId = req.telegramUser.id;
     
-    console.log('🗑️ Remove request - Leader TG:', leaderTelegramId, 'Member TG:', memberTelegramId);
-    
     if (!memberTelegramId) {
       return res.status(400).json({ error: 'Member ID is required' });
     }
     
-    // Get leader info
     const leaderResult = await client.query(
       'SELECT id, team_id FROM users WHERE telegram_id = $1',
       [String(leaderTelegramId)]
@@ -2077,17 +1350,11 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
     const leaderId = leaderResult.rows[0].id;
     const teamId = leaderResult.rows[0].team_id;
     
-    console.log('👑 Leader ID:', leaderId, 'Team ID:', teamId);
-    
     if (!teamId) {
       return res.status(400).json({ error: 'You are not in a team' });
     }
     
-    // Verify leader
-    const teamCheck = await client.query(
-      'SELECT created_by FROM teams WHERE id = $1',
-      [teamId]
-    );
+    const teamCheck = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
     
     if (teamCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Team not found' });
@@ -2097,7 +1364,6 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
       return res.status(403).json({ error: 'Only team leader can remove members' });
     }
     
-    // Get ALL members of this team
     const allMembers = await client.query(
       `SELECT u.id, u.telegram_id, u.first_name, u.username 
        FROM users u 
@@ -2105,16 +1371,13 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
        WHERE tm.team_id = $1`,
       [teamId]
     );
-    console.log('👥 Team members:', allMembers.rows.map(m => ({ id: m.id, tg: m.telegram_id, name: m.first_name })));
     
-    // Find the member by telegram_id (try both string and number comparison)
     const member = allMembers.rows.find(m => 
       String(m.telegram_id) === String(memberTelegramId) || 
       String(m.id) === String(memberTelegramId)
     );
     
     if (!member) {
-      console.log('❌ Member not found. Looking for:', memberTelegramId);
       return res.status(404).json({ error: 'Member not found in your team' });
     }
     
@@ -2126,18 +1389,14 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    // Remove member from team
     await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
     await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [memberId]);
-    
-    // Add to banned list so they cannot rejoin
     await client.query(
       'INSERT INTO team_banned_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [teamId, memberId]
     );
     
     await client.query('COMMIT');
-    console.log('✅ Member', member.first_name, 'removed successfully');
     res.json({ success: true, message: 'Member removed from team and banned from rejoining' });
     
   } catch (err) {
@@ -2149,7 +1408,6 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Get Team Info
 app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
@@ -2208,7 +1466,6 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Team Leaderboard
 app.post('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2234,7 +1491,6 @@ app.post('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Monthly Competition
 app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -2265,7 +1521,7 @@ app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) =
     res.status(500).json({ error: 'Failed to fetch monthly competition' });
   }
 });
-    
+
 // ============================================
 // BONUS REDEMPTION API
 // ============================================
@@ -2320,7 +1576,7 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
     const { amount, walletAddress } = req.body;
     const telegramId = req.telegramUser.id;
     
-    const userResult = await client.query('SELECT id, points FROM users WHERE telegram_id = $1', [telegramId]);
+    const userResult = await client.query('SELECT id, points FROM users WHERE telegram_id = $1', [String(telegramId)]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     
     const user = userResult.rows[0];
@@ -2398,13 +1654,11 @@ app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
 
 app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
   const { withdrawalId, status } = req.body;
-  
   try {
     const withdrawalResult = await pool.query('SELECT user_id, amount FROM withdrawals WHERE id = $1', [withdrawalId]);
     if (withdrawalResult.rows.length === 0) return res.status(404).json({ error: 'Withdrawal not found' });
     
     const withdrawal = withdrawalResult.rows[0];
-    
     if (status === 'rejected' || status === 'failed') {
       const pointsToRefund = withdrawal.amount * POINTS_PER_COIN;
       await pool.query('UPDATE users SET points = points + $1 WHERE id = $2', [pointsToRefund, withdrawal.user_id]);
