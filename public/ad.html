@@ -12,7 +12,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         #status {
@@ -48,6 +48,19 @@
             color: #FFD700;
             margin: 20px 0;
         }
+        .close-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #ff5252;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            z-index: 100;
+        }
     </style>
     <!-- AdsGram SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@adsgram/telegram-sdk@latest/dist/adsgram.umd.js"></script>
@@ -55,6 +68,7 @@
     <script src="https://webgl.unity3d.com/unity-ads/4.12.0/unity-ads.js"></script>
 </head>
 <body>
+    <button class="close-btn" onclick="closeAd()">✕ Close</button>
     <div id="status">
         <div class="spinner"></div>
         <div>Loading advertisement...</div>
@@ -73,30 +87,28 @@
         const userId = urlParams.get('userId') || 'guest';
         const rewardAmount = parseInt(urlParams.get('reward')) || 100;
         
-        const tg = window.Telegram?.WebApp;
         let rewardGiven = false;
         
-        // Initialize Telegram WebApp
-        if (tg) {
-            tg.ready();
-            tg.expand();
+        function closeAd() {
+            if (!rewardGiven) {
+                // Send message that ad was closed without reward
+                window.parent.postMessage({ event: 'ad-failed', error: 'User closed ad' }, '*');
+            }
+            // Remove the iframe or close
+            if (window.parent !== window) {
+                window.parent.postMessage({ event: 'ad-closed' }, '*');
+            }
         }
         
-        // Store reward in localStorage so main app can retrieve it
-        function storeRewardAndClose() {
+        function sendReward() {
             if (rewardGiven) return;
             rewardGiven = true;
             
-            // Store the reward in localStorage before closing
-            localStorage.setItem('pendingAdReward', rewardAmount.toString());
-            
-            // Also try to send via Telegram WebApp
-            if (tg) {
-                tg.sendData(JSON.stringify({ 
-                    event: 'reward-earned', 
-                    amount: rewardAmount 
-                }));
-            }
+            // Send reward to parent window
+            window.parent.postMessage({ 
+                event: 'reward-earned', 
+                amount: rewardAmount 
+            }, '*');
             
             // Show success message
             const statusDiv = document.getElementById('status');
@@ -106,21 +118,17 @@
             
             // Close after delay
             setTimeout(() => {
-                if (tg) {
-                    tg.close();
-                } else {
-                    window.close();
+                if (window.parent !== window) {
+                    window.parent.postMessage({ event: 'ad-closed' }, '*');
                 }
             }, 2000);
         }
         
         function sendError(errorMsg) {
-            if (tg) {
-                tg.sendData(JSON.stringify({ 
-                    event: 'ad-failed', 
-                    error: errorMsg 
-                }));
-            }
+            window.parent.postMessage({ 
+                event: 'ad-failed', 
+                error: errorMsg 
+            }, '*');
             
             const statusDiv = document.getElementById('status');
             if (statusDiv) {
@@ -128,10 +136,8 @@
             }
             
             setTimeout(() => {
-                if (tg) {
-                    tg.close();
-                } else {
-                    window.close();
+                if (window.parent !== window) {
+                    window.parent.postMessage({ event: 'ad-closed' }, '*');
                 }
             }, 3000);
         }
@@ -166,7 +172,7 @@
                     adsgram.showRewardedVideo().then((result) => {
                         console.log('AdsGram ad completed:', result);
                         if (result && result.done) {
-                            storeRewardAndClose();
+                            sendReward();
                             resolve(true);
                         } else {
                             resolve(false);
@@ -222,7 +228,7 @@
                     UnityAds.addListener('onUnityAdsShowComplete', (placementId, state) => {
                         clearTimeout(timeoutId);
                         if (state === 'complete') {
-                            storeRewardAndClose();
+                            sendReward();
                             resolve(true);
                         } else {
                             console.log('Unity ad not completed:', state);
@@ -269,7 +275,7 @@
                     if (seconds <= 0) {
                         clearInterval(interval);
                         updateStatus('Ad completed! Processing reward...');
-                        storeRewardAndClose();
+                        sendReward();
                         resolve(true);
                     }
                 }, 1000);
