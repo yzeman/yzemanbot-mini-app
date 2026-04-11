@@ -289,6 +289,11 @@
         .loading { text-align: center; padding: 25px; color: var(--gray); }
         .empty-state { text-align: center; padding: 25px; color: var(--gray); font-size: 12px; }
         
+        .retry-btn {
+            background: var(--secondary); color: white; border: none;
+            padding: 8px 16px; border-radius: 15px; font-size: 12px; cursor: pointer; margin-top: 10px;
+        }
+        
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--darker); display: flex; padding: 6px 12px;
@@ -330,12 +335,12 @@
     
     <!-- My Team Tab -->
     <div class="tab-content active" id="myteamTab">
-        <div id="myTeamContent"><div class="loading">Loading...</div></div>
+        <div id="myTeamContent"><div class="loading">Loading your team...</div></div>
     </div>
     
     <!-- Leaderboard Tab -->
     <div class="tab-content" id="leaderboardTab">
-        <div class="leaderboard-list" id="teamLeaderboardList"><div class="loading">Loading...</div></div>
+        <div class="leaderboard-list" id="teamLeaderboardList"><div class="loading">Loading rankings...</div></div>
     </div>
     
     <!-- Monthly Competition Tab -->
@@ -373,7 +378,7 @@
         <a href="/team.html" class="nav-item active"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     
-    <!-- Create Team Modal -->
+    <!-- Modals -->
     <div class="modal" id="createTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-plus-circle"></i> Create Team</div>
@@ -385,7 +390,6 @@
         </div>
     </div>
     
-    <!-- Join Team Modal -->
     <div class="modal" id="joinTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-in-alt"></i> Join Team</div>
@@ -397,7 +401,6 @@
         </div>
     </div>
     
-    <!-- Leave Team Modal -->
     <div class="modal" id="leaveTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-out-alt"></i> Leave Team</div>
@@ -409,7 +412,6 @@
         </div>
     </div>
     
-    <!-- Remove Member Modal -->
     <div class="modal" id="removeMemberModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-user-minus"></i> Remove Member</div>
@@ -457,17 +459,37 @@
         }
         
         async function apiCall(endpoint, data = null) {
-            if (!tg?.initData) throw new Error('Not in Telegram');
+            if (!tg?.initData) {
+                console.error('No initData available');
+                throw new Error('Not in Telegram - please open from Telegram app');
+            }
+            
             const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
             options.body = JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData });
+            
+            console.log(`📡 Calling ${endpoint}...`);
+            
             const response = await fetch(endpoint, options);
             const text = await response.text();
-            try { return JSON.parse(text); } 
-            catch (e) { throw new Error('Invalid response'); }
+            
+            console.log(`📡 ${endpoint} response:`, response.status, text.substring(0, 200));
+            
+            if (!response.ok) {
+                let errorMsg = text;
+                try { errorMsg = JSON.parse(text).error || text; } catch(e) {}
+                throw new Error(errorMsg);
+            }
+            
+            try { 
+                return JSON.parse(text); 
+            } catch (e) { 
+                console.error('JSON parse error:', e);
+                throw new Error('Invalid server response'); 
+            }
         }
         
         function getTeamRank(teamId) {
-            if (!teamLeaderboardCache.length) return '--';
+            if (!teamLeaderboardCache.length || !teamId) return '--';
             const index = teamLeaderboardCache.findIndex(t => t.id === teamId);
             return index >= 0 ? `#${index + 1}` : '--';
         }
@@ -498,9 +520,7 @@
                 document.getElementById('teamNameInput').value = '';
                 loadAllData();
             } catch (err) {
-                let msg = err.message;
-                try { msg = JSON.parse(msg).error; } catch(e) {}
-                showNotification(msg || 'Failed to create', true);
+                showNotification(err.message || 'Failed to create', true);
             }
         }
         
@@ -514,9 +534,7 @@
                 document.getElementById('teamCodeInput').value = '';
                 loadAllData();
             } catch (err) {
-                let msg = err.message;
-                try { msg = JSON.parse(msg).error; } catch(e) {}
-                showNotification(msg || 'Failed to join', true);
+                showNotification(err.message || 'Failed to join', true);
             }
         }
         
@@ -527,7 +545,7 @@
                 closeLeaveModal();
                 loadAllData();
             } catch (err) {
-                showNotification('Failed to leave', true);
+                showNotification(err.message || 'Failed to leave', true);
                 closeLeaveModal();
             }
         }
@@ -543,9 +561,7 @@
                 closeRemoveModal();
                 loadAllData();
             } catch (err) {
-                let msg = err.message;
-                try { msg = JSON.parse(msg).error; } catch(e) {}
-                showNotification(msg || 'Failed to remove', true);
+                showNotification(err.message || 'Failed to remove', true);
                 closeRemoveModal();
             }
         }
@@ -558,6 +574,8 @@
         function renderMyTeam(data) {
             const container = document.getElementById('myTeamContent');
             currentTeamData = data;
+            
+            console.log('📋 Rendering team data:', data);
             
             if (!data || !data.has_team) {
                 container.innerHTML = `
@@ -574,9 +592,9 @@
                 return;
             }
             
-            const team = data.team;
-            const members = data.members;
-            const isLeader = data.is_leader;
+            const team = data.team || {};
+            const members = data.members || [];
+            const isLeader = data.is_leader || false;
             const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(1);
             const rank = getTeamRank(team.id);
             
@@ -585,8 +603,8 @@
                     <div class="team-header">
                         <div class="team-avatar"><i class="fas fa-users"></i></div>
                         <div class="team-info">
-                            <h3>${team.name}</h3>
-                            <span class="team-code"><i class="fas fa-key"></i> ${team.code}</span>
+                            <h3>${team.name || 'Unknown'}</h3>
+                            <span class="team-code"><i class="fas fa-key"></i> ${team.code || '----'}</span>
                         </div>
                         <div class="team-rank">${rank}</div>
                     </div>
@@ -606,7 +624,7 @@
                 
                 <div class="members-title"><i class="fas fa-user-friends"></i><span>Members</span></div>
                 
-                ${members.map(m => {
+                ${members.length > 0 ? members.map(m => {
                     const coins = ((m.points || 0) / POINTS_PER_COIN).toFixed(1);
                     const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
                     const photoUrl = m.photo_url || '';
@@ -632,7 +650,7 @@
                             ` : ''}
                         </div>
                     `;
-                }).join('')}
+                }).join('') : '<div class="empty-state">No members found</div>'}
             `;
         }
         
@@ -640,8 +658,10 @@
             const container = document.getElementById('teamLeaderboardList');
             teamLeaderboardCache = data || [];
             
+            console.log('📋 Rendering leaderboard:', data);
+            
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet</p></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Create one!</p></div>';
                 return;
             }
             
@@ -659,11 +679,16 @@
             }).join('');
             
             // Refresh team display to update rank
-            if (currentTeamData) renderMyTeam(currentTeamData);
+            if (currentTeamData && currentTeamData.has_team) {
+                renderMyTeam(currentTeamData);
+            }
         }
         
         function renderMonthlyCompetition(data) {
             const container = document.getElementById('monthlyContent');
+            
+            console.log('📋 Rendering monthly:', data);
+            
             if (!data || !data.standings || data.standings.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing</p></div>';
                 return;
@@ -687,34 +712,67 @@
         }
         
         async function loadMyTeam() {
+            const container = document.getElementById('myTeamContent');
+            container.innerHTML = '<div class="loading">Loading your team...</div>';
+            
             try {
                 const data = await apiCall('/api/team/info');
                 renderMyTeam(data);
             } catch (err) {
-                renderMyTeam({ has_team: false });
+                console.error('Load team error:', err);
+                container.innerHTML = `
+                    <div class="no-team-card">
+                        <div class="no-team-icon"><i class="fas fa-exclamation-circle"></i></div>
+                        <div class="no-team-title">Failed to load</div>
+                        <div class="no-team-text">${err.message || 'Please try again'}</div>
+                        <button class="retry-btn" onclick="loadMyTeam()">Retry</button>
+                    </div>
+                `;
             }
         }
         
         async function loadTeamLeaderboard() {
+            const container = document.getElementById('teamLeaderboardList');
+            container.innerHTML = '<div class="loading">Loading rankings...</div>';
+            
             try {
                 const data = await apiCall('/api/team/leaderboard');
                 renderTeamLeaderboard(data);
             } catch (err) {
-                document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state">No teams yet</div>';
+                console.error('Leaderboard error:', err);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load</p>
+                        <button class="retry-btn" onclick="loadTeamLeaderboard()">Retry</button>
+                    </div>
+                `;
             }
         }
         
         async function loadMonthlyCompetition() {
+            const container = document.getElementById('monthlyContent');
+            container.innerHTML = '<div class="loading">Loading monthly...</div>';
+            
             try {
-                renderMonthlyCompetition(await apiCall('/api/team/monthly-competition'));
+                const data = await apiCall('/api/team/monthly-competition');
+                renderMonthlyCompetition(data);
             } catch (err) {
-                document.getElementById('monthlyContent').innerHTML = '<div class="empty-state">No teams</div>';
+                console.error('Monthly error:', err);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load</p>
+                        <button class="retry-btn" onclick="loadMonthlyCompetition()">Retry</button>
+                    </div>
+                `;
             }
         }
         
         async function loadAllData() {
             await loadTeamLeaderboard();
             await loadMonthlyCompetition();
+            await loadMyTeam();  // Load team last so rank is updated
         }
         
         document.querySelectorAll('.tab').forEach(tab => {
@@ -731,6 +789,10 @@
         window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
         
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Team page initializing...');
+            console.log('📱 Telegram WebApp:', tg ? 'Ready' : 'Not available');
+            console.log('📝 InitData:', tg?.initData ? 'Present' : 'Missing');
+            
             loadAllData();
             updatePrizeInfoVisibility();
         });
