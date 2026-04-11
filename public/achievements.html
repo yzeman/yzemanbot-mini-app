@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Achievements - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -15,15 +16,11 @@
             --darker: #16213e;
             --light: #ffffff;
             --gray: #888888;
-            --success: #00c853;
             --gold: #FFD700;
+            --success: #00c853;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -35,72 +32,142 @@
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 30px;
+            padding: 20px 15px 25px;
             border-radius: 0 0 30px 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
+            position: relative;
         }
         
         .header h1 {
             font-size: 24px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
-        .header i {
-            color: var(--gold);
-            margin-right: 8px;
+        .header h1 i { color: var(--gold); }
+        .header p { color: var(--gray); font-size: 13px; }
+        
+        .back-btn-header {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: white; font-size: 22px;
+            text-decoration: none; z-index: 10;
         }
         
-        .header p {
-            color: var(--gray);
-            font-size: 14px;
-        }
-        
+        /* Stats Cards */
         .stats-container {
             display: flex;
-            justify-content: space-around;
             padding: 20px 15px;
-            background: var(--darker);
-            margin: 20px 15px;
-            border-radius: 20px;
+            gap: 12px;
         }
         
-        .stat-item {
+        .stat-card {
+            flex: 1;
+            background: var(--darker);
+            border-radius: 18px;
+            padding: 18px 10px;
             text-align: center;
+        }
+        
+        .stat-icon {
+            font-size: 28px;
+            color: var(--gold);
+            margin-bottom: 8px;
         }
         
         .stat-value {
             font-size: 28px;
             font-weight: bold;
-            color: var(--gold);
+            color: var(--light);
         }
         
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--gray);
-            margin-top: 5px;
+            margin-top: 4px;
         }
+        
+        /* Progress Section */
+        .progress-section {
+            padding: 0 15px 20px;
+        }
+        
+        .progress-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .progress-title i { color: var(--gold); }
+        
+        .progress-item {
+            margin-bottom: 18px;
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: var(--gray);
+            margin-bottom: 6px;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* Achievements Grid */
+        .achievements-container {
+            padding: 0 15px 20px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title i { color: var(--gold); }
         
         .achievements-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
-            padding: 0 15px;
-            margin-bottom: 20px;
         }
         
         .achievement-card {
             background: var(--darker);
-            border-radius: 15px;
-            padding: 15px;
+            border-radius: 18px;
+            padding: 18px 12px;
             text-align: center;
-            transition: transform 0.2s ease;
             position: relative;
-            overflow: hidden;
+            transition: transform 0.2s ease;
+            border: 1px solid transparent;
         }
         
         .achievement-card.unlocked {
-            border: 1px solid var(--gold);
+            border-color: var(--gold);
+            background: linear-gradient(135deg, var(--darker), #1e2a4a);
         }
         
         .achievement-card.locked {
@@ -119,9 +186,10 @@
         }
         
         .achievement-desc {
-            font-size: 11px;
+            font-size: 10px;
             color: var(--gray);
             margin-bottom: 10px;
+            line-height: 1.3;
         }
         
         .achievement-reward {
@@ -130,88 +198,42 @@
             font-weight: bold;
         }
         
-        .unlocked-badge {
+        .achievement-badge {
             position: absolute;
-            top: 5px;
-            right: 5px;
+            top: 8px;
+            right: 8px;
+        }
+        
+        .unlocked-badge {
             background: var(--success);
             color: white;
-            padding: 3px 6px;
+            padding: 4px 8px;
             border-radius: 20px;
             font-size: 9px;
+            font-weight: bold;
         }
         
         .locked-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
             background: var(--gray);
             color: white;
-            padding: 3px 6px;
+            padding: 4px 8px;
             border-radius: 20px;
             font-size: 9px;
         }
         
-        .progress-section {
-            background: var(--darker);
-            border-radius: 20px;
-            padding: 20px;
-            margin: 20px 15px;
+        /* Progress inside card */
+        .achievement-progress {
+            margin-top: 10px;
         }
         
-        .progress-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .achievement-progress .progress-bar {
+            height: 5px;
+            margin-top: 5px;
         }
         
-        .progress-item {
-            margin-bottom: 15px;
-        }
-        
-        .progress-label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 13px;
+        .achievement-progress-text {
+            font-size: 9px;
             color: var(--gray);
-            margin-bottom: 5px;
-        }
-        
-        .progress-bar {
-            height: 8px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--success));
-            border-radius: 4px;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        
-        .info-box {
-            background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 15px;
-            padding: 15px;
-            margin: 20px 15px;
-            border-left: 4px solid var(--secondary);
-        }
-        
-        .info-box p {
-            color: var(--gray);
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-        
-        .info-box i {
-            color: var(--secondary);
-            margin-right: 8px;
         }
         
         .loading {
@@ -220,170 +242,278 @@
             color: var(--gray);
         }
         
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--darker);
-            display: flex;
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .retry-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
             padding: 10px 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            z-index: 100;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--darker); display: flex; padding: 8px 15px;
+            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
         }
         
         .nav-item {
-            flex: 1;
-            text-align: center;
-            color: var(--gray);
-            text-decoration: none;
-            font-size: 12px;
-            padding: 8px;
-            border-radius: 10px;
-            transition: all 0.2s ease;
+            flex: 1; text-align: center; color: var(--gray);
+            text-decoration: none; font-size: 11px; padding: 5px;
+            border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px;
         }
         
-        .nav-item i {
-            font-size: 22px;
-            display: block;
-            margin-bottom: 4px;
-        }
-        
-        .nav-item.active {
-            color: var(--primary);
-            background: rgba(76, 175, 80, 0.1);
-        }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
         
         .notification {
-            position: fixed;
-            bottom: 90px;
-            left: 20px;
-            right: 20px;
-            background: var(--success);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 12px;
-            text-align: center;
-            font-weight: 500;
-            display: none;
-            z-index: 1000;
-            animation: slideUp 0.3s ease;
+            position: fixed; bottom: 80px; left: 15px; right: 15px;
+            background: #00c853; color: white; padding: 12px 18px;
+            border-radius: 10px; text-align: center; display: none; z-index: 1000;
+            font-size: 13px;
         }
         
-        @keyframes slideUp {
-            from { transform: translateY(100px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            text-decoration: none;
-            z-index: 10;
-        }
+        .notification.error { background: var(--danger); }
     </style>
 </head>
 <body>
-    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
         <h1><i class="fas fa-medal"></i> Achievements</h1>
         <p>Complete challenges to earn COINS and badges!</p>
     </div>
     
+    <!-- Stats Cards -->
     <div class="stats-container">
-        <div class="stat-item">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-trophy"></i></div>
             <div class="stat-value" id="achievementsCount">0</div>
             <div class="stat-label">Unlocked</div>
         </div>
-        <div class="stat-item">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-star"></i></div>
             <div class="stat-value" id="totalAchievements">11</div>
             <div class="stat-label">Total</div>
         </div>
-        <div class="stat-item">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-coins"></i></div>
             <div class="stat-value" id="totalPointsEarned">0</div>
             <div class="stat-label">COINS Earned</div>
         </div>
     </div>
     
-    <div class="achievements-grid" id="achievementsGrid">
-        <div class="loading">Loading achievements...</div>
-    </div>
-    
+    <!-- Progress Section -->
     <div class="progress-section">
         <div class="progress-title">
-            <i class="fas fa-chart-line" style="color: var(--gold);"></i>
+            <i class="fas fa-chart-line"></i>
             <span>Your Progress</span>
         </div>
         
         <div class="progress-item">
             <div class="progress-label">
-                <span>🏆 Achievement Completion</span>
-                <span id="achievementProgress">0%</span>
+                <span><i class="fas fa-medal"></i> Overall Completion</span>
+                <span id="overallProgressText">0%</span>
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" id="achievementProgressBar" style="width: 0%;"></div>
+                <div class="progress-fill" id="overallProgressBar" style="width: 0%;"></div>
             </div>
         </div>
         
         <div class="progress-item">
             <div class="progress-label">
-                <span>📺 Ad Master (1000 ads)</span>
-                <span id="adMasterProgress">0/1000</span>
+                <span><i class="fas fa-users"></i> Referral Master</span>
+                <span id="referralProgressText">0/100</span>
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" id="adMasterBar" style="width: 0%;"></div>
+                <div class="progress-fill" id="referralProgressBar" style="width: 0%;"></div>
             </div>
         </div>
         
         <div class="progress-item">
             <div class="progress-label">
-                <span>👥 Referral Master (100 refs)</span>
-                <span id="referralMasterProgress">0/100</span>
+                <span><i class="fas fa-calendar-check"></i> Daily Streak</span>
+                <span id="streakProgressText">0/30</span>
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" id="referralMasterBar" style="width: 0%;"></div>
+                <div class="progress-fill" id="streakProgressBar" style="width: 0%;"></div>
+            </div>
+        </div>
+        
+        <div class="progress-item">
+            <div class="progress-label">
+                <span><i class="fas fa-ad"></i> Ad Master</span>
+                <span id="adProgressText">0/1000</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="adProgressBar" style="width: 0%;"></div>
             </div>
         </div>
     </div>
     
-    <div class="info-box">
-        <p><i class="fas fa-lightbulb"></i> <strong>How to earn achievements:</strong></p>
-        <p>• Watch ads to become an Ad Master (up to 50 COINS)</p>
-        <p>• Refer friends to become a Referral Master (up to 100 COINS)</p>
-        <p>• Login daily to earn Loyal User (50 COINS)</p>
-        <p>• Reach Platinum tier for Platinum Elite (200 COINS)</p>
-        <p>• Win tournaments for special achievements!</p>
+    <!-- Achievements Grid -->
+    <div class="achievements-container">
+        <div class="section-title">
+            <i class="fas fa-list"></i>
+            <span>All Achievements</span>
+        </div>
+        <div class="achievements-grid" id="achievementsGrid">
+            <div class="loading">Loading achievements...</div>
+        </div>
     </div>
     
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
-        <a href="/" class="nav-item">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
-        </a>
-        <a href="/daily.html" class="nav-item">
-            <i class="fas fa-calendar-check"></i>
-            <span>Daily</span>
-        </a>
-        <a href="/wheel.html" class="nav-item">
-            <i class="fas fa-dharmachakra"></i>
-            <span>Wheel</span>
-        </a>
-        <a href="/leaderboard.html" class="nav-item">
-            <i class="fas fa-trophy"></i>
-            <span>Ranks</span>
-        </a>
-        <a href="/team.html" class="nav-item">
-            <i class="fas fa-users"></i>
-            <span>Team</span>
-        </a>
+        <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
+        <a href="/wheel.html" class="nav-item"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
+        <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
+        <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     
     <div class="notification" id="notification"></div>
     
-    <script src="/app.js"></script>
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+        
+        const POINTS_PER_COIN = 1000000;
+        
+        // Achievement icons mapping
+        const ACHIEVEMENT_ICONS = {
+            'Loyal User': '🔥',
+            'Referral Master': '👑',
+            'Points Millionaire': '💰',
+            'Social Butterfly': '🦋',
+            'Tournament Winner': '🏆',
+            'Team Player': '🤝',
+            'Platinum Elite': '💎',
+            'Wheel Champion': '🎡',
+            'Daily Streak 7': '📅',
+            'Super Referrer': '⭐',
+            'Ad Master': '📺'
+        };
+        
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+        
+        async function apiCall(endpoint) {
+            if (!tg?.initData) throw new Error('Not in Telegram');
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: tg.initData })
+            });
+            
+            if (!response.ok) throw new Error(`Status ${response.status}`);
+            return response.json();
+        }
+        
+        function updateStats(data) {
+            const stats = data.userStats;
+            const achievements = data.achievements;
+            
+            // Update counts
+            document.getElementById('achievementsCount').textContent = stats.achievements_count || 0;
+            
+            const totalCoins = ((stats.total_points_earned || 0) / POINTS_PER_COIN).toFixed(1);
+            document.getElementById('totalPointsEarned').textContent = totalCoins;
+            
+            // Overall progress
+            const totalAchievements = achievements.length;
+            const unlockedCount = achievements.filter(a => a.achieved).length;
+            const overallPercent = Math.round((unlockedCount / totalAchievements) * 100);
+            document.getElementById('overallProgressText').textContent = `${overallPercent}%`;
+            document.getElementById('overallProgressBar').style.width = `${overallPercent}%`;
+            
+            // Referral progress
+            const referrals = stats.referrals || 0;
+            const referralPercent = Math.min((referrals / 100) * 100, 100);
+            document.getElementById('referralProgressText').textContent = `${referrals}/100`;
+            document.getElementById('referralProgressBar').style.width = `${referralPercent}%`;
+            
+            // Streak progress
+            const streak = stats.max_streak || 0;
+            const streakPercent = Math.min((streak / 30) * 100, 100);
+            document.getElementById('streakProgressText').textContent = `${streak}/30`;
+            document.getElementById('streakProgressBar').style.width = `${streakPercent}%`;
+            
+            // Ad progress (try to get from localStorage or estimate)
+            const totalAds = parseInt(localStorage.getItem('totalAdsWatched') || '0');
+            const adPercent = Math.min((totalAds / 1000) * 100, 100);
+            document.getElementById('adProgressText').textContent = `${totalAds}/1000`;
+            document.getElementById('adProgressBar').style.width = `${adPercent}%`;
+        }
+        
+        function renderAchievements(achievements) {
+            const container = document.getElementById('achievementsGrid');
+            
+            if (!achievements || achievements.length === 0) {
+                container.innerHTML = '<div class="empty-state">No achievements found</div>';
+                return;
+            }
+            
+            container.innerHTML = achievements.map(ach => {
+                const icon = ACHIEVEMENT_ICONS[ach.name] || '🏅';
+                const rewardCoins = ((ach.points_reward || 0) / POINTS_PER_COIN).toFixed(1);
+                const achieved = ach.achieved;
+                
+                return `
+                    <div class="achievement-card ${achieved ? 'unlocked' : 'locked'}">
+                        <div class="achievement-badge">
+                            ${achieved ? 
+                                '<span class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</span>' : 
+                                '<span class="locked-badge"><i class="fas fa-lock"></i> Locked</span>'
+                            }
+                        </div>
+                        <div class="achievement-icon">${icon}</div>
+                        <div class="achievement-name">${ach.name}</div>
+                        <div class="achievement-desc">${ach.description || ''}</div>
+                        <div class="achievement-reward">+${rewardCoins} COINS</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function loadAchievements() {
+            const container = document.getElementById('achievementsGrid');
+            container.innerHTML = '<div class="loading">Loading achievements...</div>';
+            
+            try {
+                const data = await apiCall('/api/achievements');
+                updateStats(data);
+                renderAchievements(data.achievements);
+            } catch (err) {
+                console.error('Achievements error:', err);
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load achievements</p>
+                        <button class="retry-btn" onclick="loadAchievements()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🏆 Achievements page loading...');
+            loadAchievements();
+        });
+    </script>
 </body>
-</html>
+                </html>
