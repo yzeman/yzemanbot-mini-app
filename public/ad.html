@@ -5,113 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Watch Ad - YzemanBot</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0f0f1a;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             padding: 20px;
-            color: white;
         }
-        .container {
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-        }
+        .container { text-align: center; max-width: 350px; width: 100%; }
         .spinner {
-            width: 50px;
-            height: 50px;
+            width: 50px; height: 50px;
             border: 4px solid rgba(255,255,255,0.15);
             border-top-color: #4CAF50;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 25px;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        #statusText {
-            font-size: 18px;
-            font-weight: 500;
-            margin-bottom: 20px;
-        }
-        .log-box {
-            background: rgba(0,0,0,0.4);
-            border-radius: 8px;
-            padding: 15px;
-            text-align: left;
-            font-size: 13px;
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 20px;
-        }
-        .log-entry {
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            color: #aaa;
-        }
-        .log-entry.success {
-            color: #4CAF50;
-        }
-        .log-entry.error {
-            color: #ff5252;
-        }
-        .log-entry.warning {
-            color: #FFC107;
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #statusText { color: white; font-size: 18px; font-weight: 500; margin-bottom: 10px; }
+        #debug {
+            color: #888; font-size: 13px; margin-top: 20px;
+            padding: 10px; background: rgba(0,0,0,0.3);
+            border-radius: 8px; word-break: break-word;
         }
         .close-btn {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 10000;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .test-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 25px;
-            font-size: 16px;
-            margin-top: 20px;
-            cursor: pointer;
+            position: fixed; top: 10px; right: 10px; z-index: 10000;
+            background: rgba(255,255,255,0.2); color: white;
+            border: none; padding: 8px 15px; border-radius: 20px;
+            font-size: 14px; cursor: pointer;
         }
     </style>
-    
-    <!-- Unity Ads SDK -->
     <script src="https://webgl.unity3d.com/unity-ads/4.12.0/unity-ads.js"></script>
 </head>
 <body>
     <button class="close-btn" id="closeBtn">✕ Close</button>
-    
     <div class="container">
-        <div class="spinner" id="spinner"></div>
-        <div id="statusText">Testing ad systems...</div>
-        <div class="log-box" id="logBox">
-            <div class="log-entry">🚀 Starting diagnostics...</div>
-        </div>
-        <button class="test-btn" id="testRewardBtn" style="display:none;">🎁 Test Reward (Skip Ad)</button>
+        <div class="spinner"></div>
+        <div id="statusText">Loading ad...</div>
+        <div id="debug">Starting...</div>
     </div>
 
     <script>
-        // ============================================
-        // CONFIGURATION
-        // ============================================
+        // UPDATED CONFIGURATION
         const CONFIG = {
-            adsgramBlockId: '27428',
+            adsgramBlockId: '27449',  // ← NEW BLOCK ID
             unityGameId: '6087630',
             unityPlacementId: 'Rewarded_Video_-_Telegram'
         };
@@ -121,304 +61,127 @@
         const rewardAmount = parseInt(urlParams.get('reward')) || 557;
         
         let rewardGiven = false;
-        let logs = [];
         
-        // ============================================
-        // LOGGING FUNCTIONS
-        // ============================================
-        function addLog(message, type) {
-            console.log('[Ad]', message);
-            logs.push({ message, type, time: new Date().toLocaleTimeString() });
-            
-            const logBox = document.getElementById('logBox');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + (type || '');
-            entry.textContent = message;
-            logBox.appendChild(entry);
-            logBox.scrollTop = logBox.scrollHeight;
+        function debug(msg) {
+            console.log('[Ad]', msg);
+            document.getElementById('debug').textContent = msg;
         }
         
-        function updateStatus(message, type) {
-            document.getElementById('statusText').textContent = message;
-            const spinner = document.getElementById('spinner');
-            if (type === 'error') {
-                spinner.style.borderTopColor = '#ff5252';
-            } else if (type === 'success') {
-                spinner.style.borderTopColor = '#4CAF50';
-            }
+        function updateStatus(msg) {
+            document.getElementById('statusText').textContent = msg;
         }
         
-        // ============================================
-        // SEND TO PARENT
-        // ============================================
         function sendToParent(data) {
-            addLog('📤 Sending to parent: ' + JSON.stringify(data), 'success');
-            
             if (window.parent && window.parent !== window) {
                 window.parent.postMessage(data, '*');
-                addLog('✅ Sent via postMessage', 'success');
-            } else {
-                addLog('⚠️ No parent window found', 'warning');
+            } else if (window.opener) {
+                window.opener.postMessage(data, '*');
+                setTimeout(() => window.close(), 800);
             }
         }
         
         function sendReward() {
             if (rewardGiven) return;
             rewardGiven = true;
-            addLog('🎉 REWARD EARNED: ' + rewardAmount + ' points', 'success');
-            updateStatus('✅ Ad completed!', 'success');
+            debug('✅ Sending reward: ' + rewardAmount);
             sendToParent({ event: 'reward-earned', amount: rewardAmount });
         }
         
-        function sendError(errorMsg) {
+        function sendError(msg) {
             if (rewardGiven) return;
-            addLog('❌ Error: ' + errorMsg, 'error');
-            updateStatus('❌ ' + errorMsg, 'error');
-            sendToParent({ event: 'ad-failed', error: errorMsg });
+            debug('❌ ' + msg);
+            sendToParent({ event: 'ad-failed', error: msg });
         }
         
-        // ============================================
-        // TEST REWARD BUTTON (BYPASS ADS FOR TESTING)
-        // ============================================
-        document.getElementById('testRewardBtn').addEventListener('click', function() {
-            addLog('🧪 Test reward triggered', 'success');
-            sendReward();
-        });
+        document.getElementById('closeBtn').onclick = () => sendError('Closed by user');
         
-        document.getElementById('closeBtn').addEventListener('click', function() {
-            addLog('User closed ad manually', 'warning');
-            sendError('Ad closed by user');
-        });
-        
-        // ============================================
-        // ENVIRONMENT CHECKS
-        // ============================================
-        function checkEnvironment() {
-            addLog('📱 Checking environment...');
-            
-            // Check if in iframe
-            if (window.parent && window.parent !== window) {
-                addLog('✅ Running in iframe', 'success');
-            } else {
-                addLog('⚠️ Not in iframe', 'warning');
-            }
-            
-            // Check Telegram
-            if (window.Telegram && window.Telegram.WebApp) {
-                addLog('✅ Telegram WebApp detected', 'success');
-                const tg = window.Telegram.WebApp;
-                addLog('   Platform: ' + tg.platform, 'info');
-                addLog('   Version: ' + tg.version, 'info');
-            } else {
-                addLog('⚠️ Not in Telegram WebApp', 'warning');
-            }
-            
-            // Check SDKs
-            addLog('📦 Checking SDKs...');
-            
-            if (typeof window.UnityAds !== 'undefined') {
-                addLog('✅ Unity Ads SDK loaded', 'success');
-            } else {
-                addLog('❌ Unity Ads SDK NOT loaded', 'error');
-            }
-        }
-        
-        // ============================================
-        // UNITY ADS TEST
-        // ============================================
-        function testUnityAds() {
-            return new Promise(function(resolve) {
-                addLog('🎮 Testing Unity Ads...');
-                updateStatus('Testing Unity Ads...');
-                
-                if (typeof window.UnityAds === 'undefined') {
-                    addLog('❌ Unity Ads SDK not available', 'error');
-                    resolve(false);
-                    return;
-                }
-                
-                addLog('   Game ID: ' + CONFIG.unityGameId);
-                addLog('   Placement: ' + CONFIG.unityPlacementId);
-                
-                let resolved = false;
-                
-                const timeout = setTimeout(function() {
-                    if (!resolved) {
-                        resolved = true;
-                        addLog('❌ Unity Ads timeout (25s)', 'error');
-                        resolve(false);
-                    }
-                }, 25000);
-                
-                window.UnityAds.initialize(CONFIG.unityGameId, false);
-                addLog('   Unity initialized', 'info');
-                
-                window.UnityAds.addListener('onUnityAdsAdLoaded', function(placementId) {
-                    addLog('✅ Unity ad LOADED: ' + placementId, 'success');
-                    updateStatus('Showing Unity ad...');
-                    window.UnityAds.show(userId, placementId);
-                });
-                
-                window.UnityAds.addListener('onUnityAdsShowStart', function(placementId) {
-                    addLog('▶️ Unity ad STARTED', 'success');
-                });
-                
-                window.UnityAds.addListener('onUnityAdsShowComplete', function(placementId, state) {
-                    clearTimeout(timeout);
-                    if (resolved) return;
-                    resolved = true;
-                    
-                    addLog('   Unity state: ' + state, 'info');
-                    
-                    if (state === 'complete') {
-                        addLog('✅ Unity ad COMPLETED', 'success');
-                        resolve(true);
-                    } else {
-                        addLog('⚠️ Unity ad SKIPPED: ' + state, 'warning');
-                        resolve(false);
-                    }
-                });
-                
-                window.UnityAds.addListener('onUnityAdsShowFailed', function(placementId, error, message) {
-                    clearTimeout(timeout);
-                    if (resolved) return;
-                    resolved = true;
-                    addLog('❌ Unity show FAILED: ' + message, 'error');
-                    resolve(false);
-                });
-                
-                window.UnityAds.addListener('onUnityAdsFailedToLoad', function(placementId, error, message) {
-                    clearTimeout(timeout);
-                    if (resolved) return;
-                    resolved = true;
-                    addLog('❌ Unity load FAILED: ' + message, 'error');
-                    resolve(false);
-                });
-                
-                addLog('   Calling UnityAds.load()...');
-                window.UnityAds.load(CONFIG.unityPlacementId);
-            });
-        }
-        
-        // ============================================
-        // ADSGRAM TEST
-        // ============================================
-        function loadAdsGramSDK() {
-            return new Promise(function(resolve) {
-                if (typeof window.AdsGram !== 'undefined') {
-                    addLog('✅ AdsGram already loaded', 'success');
-                    resolve(true);
-                    return;
-                }
-                
-                addLog('📥 Loading AdsGram SDK...');
-                var script = document.createElement('script');
+        // Load AdsGram SDK
+        function loadAdsGram() {
+            return new Promise((resolve) => {
+                if (typeof AdsGram !== 'undefined') { resolve(true); return; }
+                debug('Loading AdsGram SDK...');
+                const script = document.createElement('script');
                 script.src = 'https://sdk.adsgram.ai/js/adsgram.min.js';
-                script.onload = function() {
-                    addLog('✅ AdsGram SDK loaded', 'success');
-                    resolve(true);
-                };
-                script.onerror = function() {
-                    addLog('❌ Failed to load AdsGram SDK', 'error');
-                    resolve(false);
-                };
+                script.onload = () => { debug('AdsGram loaded'); resolve(true); };
+                script.onerror = () => { debug('AdsGram failed to load'); resolve(false); };
                 document.head.appendChild(script);
             });
         }
         
-        function testAdsGram() {
-            return new Promise(async function(resolve) {
-                addLog('📺 Testing AdsGram...');
-                updateStatus('Testing AdsGram...');
+        // Try AdsGram
+        async function tryAdsGram() {
+            debug('Trying AdsGram...');
+            updateStatus('Loading AdsGram...');
+            
+            const loaded = await loadAdsGram();
+            if (!loaded) return false;
+            
+            try {
+                const adsgram = new AdsGram({ blockId: CONFIG.adsgramBlockId });
+                const result = await adsgram.showRewardedVideo();
+                debug('AdsGram result: ' + JSON.stringify(result));
                 
-                const loaded = await loadAdsGramSDK();
-                if (!loaded) {
+                if (result && (result.completed || result.done)) {
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                debug('AdsGram error: ' + (e.message || e.code));
+                return false;
+            }
+        }
+        
+        // Try Unity Ads
+        function tryUnityAds() {
+            return new Promise((resolve) => {
+                debug('Trying Unity Ads...');
+                updateStatus('Loading Unity Ads...');
+                
+                if (typeof UnityAds === 'undefined') {
+                    debug('Unity not available');
                     resolve(false);
                     return;
                 }
                 
-                if (typeof window.AdsGram === 'undefined') {
-                    addLog('❌ AdsGram not available', 'error');
-                    resolve(false);
-                    return;
-                }
+                let resolved = false;
+                setTimeout(() => { if (!resolved) { resolved = true; resolve(false); } }, 25000);
                 
-                addLog('   Block ID: ' + CONFIG.adsgramBlockId);
+                UnityAds.initialize(CONFIG.unityGameId, false);
                 
-                try {
-                    var adsgram = new window.AdsGram({ 
-                        blockId: CONFIG.adsgramBlockId 
-                    });
-                    
-                    addLog('   Calling showRewardedVideo()...');
-                    
-                    var result = await adsgram.showRewardedVideo();
-                    
-                    addLog('   Result: ' + JSON.stringify(result), 'info');
-                    
-                    if (result && (result.completed === true || result.done === true)) {
-                        addLog('✅ AdsGram ad COMPLETED', 'success');
-                        resolve(true);
-                    } else {
-                        addLog('⚠️ AdsGram ad NOT completed', 'warning');
-                        resolve(false);
-                    }
-                    
-                } catch (error) {
-                    addLog('❌ AdsGram error: ' + (error.message || error.code || 'unknown'), 'error');
-                    resolve(false);
-                }
+                UnityAds.addListener('onUnityAdsAdLoaded', (placementId) => {
+                    debug('Unity loaded: ' + placementId);
+                    UnityAds.show(userId, placementId);
+                });
+                
+                UnityAds.addListener('onUnityAdsShowComplete', (placementId, state) => {
+                    if (resolved) return;
+                    resolved = true;
+                    if (state === 'complete') { resolve(true); } else { resolve(false); }
+                });
+                
+                UnityAds.addListener('onUnityAdsShowFailed', () => { if (!resolved) { resolved = true; resolve(false); } });
+                UnityAds.addListener('onUnityAdsFailedToLoad', () => { if (!resolved) { resolved = true; resolve(false); } });
+                
+                UnityAds.load(CONFIG.unityPlacementId);
             });
         }
         
-        // ============================================
-        // MAIN TEST FLOW
-        // ============================================
-        async function runTests() {
-            checkEnvironment();
+        // Main flow
+        (async function() {
+            // Try AdsGram first
+            const adsGramOk = await tryAdsGram();
+            if (adsGramOk) { sendReward(); return; }
             
-            // Show test button after 5 seconds (for manual testing)
-            setTimeout(function() {
-                document.getElementById('testRewardBtn').style.display = 'block';
-            }, 5000);
-            
-            // Test AdsGram first
-            addLog('--- Testing AdsGram ---');
-            var adsGramSuccess = await testAdsGram();
-            
-            if (adsGramSuccess) {
-                addLog('🏆 AdsGram SUCCESS!', 'success');
-                sendReward();
-                return;
-            }
-            
-            addLog('--- AdsGram failed, testing Unity ---');
-            
-            // Test Unity Ads
-            var unitySuccess = await testUnityAds();
-            
-            if (unitySuccess) {
-                addLog('🏆 Unity Ads SUCCESS!', 'success');
-                sendReward();
-                return;
-            }
+            // Fallback to Unity
+            debug('AdsGram failed, trying Unity...');
+            const unityOk = await tryUnityAds();
+            if (unityOk) { sendReward(); return; }
             
             // Both failed
-            addLog('--- BOTH AD NETWORKS FAILED ---', 'error');
-            addLog('💡 Click "Test Reward" button to simulate success', 'warning');
-            updateStatus('No ads available', 'error');
-        }
+            sendError('No ads available');
+        })();
         
-        // Start tests
-        runTests();
-        
-        // Emergency timeout
-        setTimeout(function() {
-            if (!rewardGiven) {
-                addLog('⏰ Emergency timeout (60s)', 'error');
-                updateStatus('Timeout', 'error');
-            }
-        }, 60000);
+        setTimeout(() => { if (!rewardGiven) sendError('Timeout'); }, 60000);
     </script>
 </body>
 </html>
