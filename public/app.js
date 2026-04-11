@@ -9,7 +9,7 @@ if (tg) {
 }
 
 // ============================================================
-// REFERRAL CODE DETECTION - FIXED
+// REFERRAL CODE DETECTION
 // ============================================================
 
 let referralCode = null;
@@ -201,10 +201,12 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING WITH ADSGRAM + UNITY ADS BACKUP
+// AD WATCHING - EMBEDDED IFRAME METHOD (STAYS IN APP)
 // ============================================================
 
 let isWatchingAd = false;
+let adIframe = null;
+let adOverlay = null;
 
 function getRewardAmount() {
     const adRewards = { Fresher: 557, Brute: 1058, Silver: 1559, Gold: 2021, Platinum: 2753 };
@@ -215,64 +217,104 @@ function getBaseUrl() {
     return window.location.origin;
 }
 
-function setupAdMessageListener() {
-    if (tg) {
-        tg.onEvent('sendData', async (data) => {
-            console.log('📨 Ad data received:', data);
-            
-            try {
-                const parsed = JSON.parse(data);
-                
-                if (parsed.event === 'reward-earned') {
-                    const reward = parsed.amount || getRewardAmount();
-                    showNotification(`🎉 +${reward} points earned!`);
-                    await addPoints(reward);
-                    isWatchingAd = false;
-                } else if (parsed.event === 'ad-failed') {
-                    showNotification('Ad failed: ' + (parsed.error || 'Please try again'), true);
-                    isWatchingAd = false;
-                } else if (parsed.event === 'ad-timeout') {
-                    showNotification('Ad took too long. Please try again.', true);
-                    isWatchingAd = false;
-                }
-            } catch (e) {
-                console.error('Failed to parse ad data:', e);
-            }
-        });
+function createAdOverlay() {
+    // Remove existing overlay if any
+    if (adOverlay) {
+        adOverlay.remove();
     }
     
+    // Create overlay container
+    adOverlay = document.createElement('div');
+    adOverlay.id = 'adOverlay';
+    adOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #0f0f1a;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+    `;
+    
+    // Create iframe for ad
+    adIframe = document.createElement('iframe');
+    adIframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+    `;
+    adIframe.allow = 'autoplay; fullscreen';
+    adIframe.sandbox = 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals';
+    
+    adOverlay.appendChild(adIframe);
+    document.body.appendChild(adOverlay);
+    
+    return adIframe;
+}
+
+function setupAdMessageListener() {
     window.addEventListener('message', async (event) => {
+        // Accept messages from same origin
         if (event.origin !== window.location.origin) return;
         
         if (event.data && event.data.event) {
-            console.log('📨 Browser ad message:', event.data);
+            console.log('📨 Ad message received:', event.data);
             
             if (event.data.event === 'reward-earned') {
                 const reward = event.data.amount || getRewardAmount();
+                
+                // Close overlay
+                if (adOverlay) {
+                    adOverlay.remove();
+                    adOverlay = null;
+                }
+                
                 showNotification(`🎉 +${reward} points earned!`);
                 await addPoints(reward);
                 isWatchingAd = false;
+                
             } else if (event.data.event === 'ad-failed') {
-                showNotification('Ad failed: ' + (event.data.error || 'Please try again'), true);
+                // Close overlay
+                if (adOverlay) {
+                    adOverlay.remove();
+                    adOverlay = null;
+                }
+                
+                showNotification(event.data.error || 'Ad failed. Please try again.', true);
                 isWatchingAd = false;
             }
         }
     });
-}
-
-function openAdPage() {
-    const reward = getRewardAmount();
-    const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
     
-    const baseUrl = getBaseUrl();
-    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
-    
-    console.log('🎬 Opening ad:', adUrl);
-    
+    // Also listen for Telegram sendData (fallback)
     if (tg) {
-        tg.openLink(adUrl);
-    } else {
-        window.open(adUrl, '_blank');
+        tg.onEvent('sendData', async (data) => {
+            console.log('📨 Telegram ad data:', data);
+            try {
+                const parsed = JSON.parse(data);
+                if (parsed.event === 'reward-earned') {
+                    const reward = parsed.amount || getRewardAmount();
+                    if (adOverlay) {
+                        adOverlay.remove();
+                        adOverlay = null;
+                    }
+                    showNotification(`🎉 +${reward} points earned!`);
+                    await addPoints(reward);
+                    isWatchingAd = false;
+                } else if (parsed.event === 'ad-failed') {
+                    if (adOverlay) {
+                        adOverlay.remove();
+                        adOverlay = null;
+                    }
+                    showNotification(parsed.error || 'Ad failed', true);
+                    isWatchingAd = false;
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+            }
+        });
     }
 }
 
@@ -288,16 +330,27 @@ window.watchAd = async function() {
     }
     
     isWatchingAd = true;
-    showNotification('Opening ad... Please watch to earn points!', false);
     
+    const reward = getRewardAmount();
+    const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
+    const baseUrl = getBaseUrl();
+    const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
+    
+    console.log('🎬 Loading ad in iframe:', adUrl);
+    
+    // Create embedded overlay
+    const iframe = createAdOverlay();
+    iframe.src = adUrl;
+    
+    // Safety timeout - auto close after 2 minutes
     setTimeout(() => {
-        if (isWatchingAd) {
+        if (isWatchingAd && adOverlay) {
+            adOverlay.remove();
+            adOverlay = null;
             isWatchingAd = false;
-            console.log('Ad watching state reset due to timeout');
+            showNotification('Ad timeout. Please try again.', true);
         }
     }, 120000);
-    
-    openAdPage();
 };
 
 // ============================================================
