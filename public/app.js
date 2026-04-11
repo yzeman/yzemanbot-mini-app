@@ -201,7 +201,7 @@ function updateUI() {
 }
 
 // ============================================================
-// AD WATCHING WITH ADSGRAM + UNITY ADS BACKUP (FIXED)
+// AD WATCHING - OPEN WITHIN MINI APP USING IFRAME MODAL
 // ============================================================
 
 let isWatchingAd = false;
@@ -211,75 +211,89 @@ function getRewardAmount() {
     return adRewards[currentUser?.tier] || 557;
 }
 
-// Listen for return from ad page (when user closes the ad)
-function setupAdMessageListener() {
-    // Listen for visibility change (user returns from external link)
-    document.addEventListener('visibilitychange', async () => {
-        if (!document.hidden && isWatchingAd) {
-            console.log('User returned from ad');
-            
-            // Check if we have a pending reward from sessionStorage
-            const pendingReward = sessionStorage.getItem('pendingAdReward');
-            if (pendingReward) {
-                sessionStorage.removeItem('pendingAdReward');
-                const reward = parseInt(pendingReward);
-                showNotification(`🎉 +${reward} points earned!`);
-                await addPoints(reward);
-                isWatchingAd = false;
-            } else {
-                // No reward found, ad may have been skipped
-                isWatchingAd = false;
-            }
-        }
-    });
-    
-    // Also listen for page focus (alternative to visibilitychange)
-    window.addEventListener('focus', async () => {
-        if (isWatchingAd) {
-            const pendingReward = sessionStorage.getItem('pendingAdReward');
-            if (pendingReward) {
-                sessionStorage.removeItem('pendingAdReward');
-                const reward = parseInt(pendingReward);
-                showNotification(`🎉 +${reward} points earned!`);
-                await addPoints(reward);
-                isWatchingAd = false;
-            }
-        }
-    });
-}
-
-// Open ad using Telegram's openLink method
-async function openAdWithTelegram() {
+// Create modal overlay for ad
+function showAdModal() {
     const reward = getRewardAmount();
     const userId = currentUser?.id || 'guest';
-    
-    // Get the base URL of your app
     const baseUrl = window.location.origin;
     const adUrl = `${baseUrl}/ad.html?userId=${userId}&reward=${reward}`;
     
-    console.log('Opening ad URL:', adUrl);
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.id = 'adModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        z-index: 10001;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    `;
     
-    // Store the reward amount in sessionStorage to retrieve when user returns
-    sessionStorage.setItem('pendingAdReward', reward);
+    // Create close button
+    const closeBtn = document.createElement('button');
+    closeBtn.innerHTML = '✕ Close';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: #ff5252;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-size: 14px;
+        cursor: pointer;
+        z-index: 10002;
+    `;
+    closeBtn.onclick = () => {
+        document.body.removeChild(modal);
+        isWatchingAd = false;
+        showNotification('Ad closed. No reward earned.', true);
+    };
     
-    // Use Telegram WebApp to open the link
-    if (tg && typeof tg.openLink === 'function') {
-        tg.openLink(adUrl);
-    } else if (tg && typeof tg.openTelegramLink === 'function') {
-        tg.openTelegramLink(adUrl);
-    } else {
-        // Fallback for browser testing
-        window.open(adUrl, '_blank');
-    }
+    // Create iframe to load ad
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border: none;
+    `;
+    iframe.src = adUrl;
     
-    // Set timeout to reset watching state after 2 minutes
-    setTimeout(() => {
-        if (isWatchingAd) {
-            sessionStorage.removeItem('pendingAdReward');
+    modal.appendChild(closeBtn);
+    modal.appendChild(iframe);
+    document.body.appendChild(modal);
+    
+    // Listen for messages from iframe
+    window.addEventListener('message', function adMessageHandler(event) {
+        if (event.data && event.data.event === 'reward-earned') {
+            const rewardAmount = event.data.amount || reward;
+            showNotification(`🎉 +${rewardAmount} points earned!`);
+            addPoints(rewardAmount);
+            
+            // Remove modal
+            if (document.body.contains(modal)) {
+                document.body.removeChild(modal);
+            }
             isWatchingAd = false;
-            showNotification('Ad session expired. Please try again.', true);
+            
+            // Remove listener
+            window.removeEventListener('message', adMessageHandler);
+        } else if (event.data && event.data.event === 'ad-failed') {
+            showNotification('Ad failed. Please try again.', true);
+            if (document.body.contains(modal)) {
+                document.body.removeChild(modal);
+            }
+            isWatchingAd = false;
+            window.removeEventListener('message', adMessageHandler);
         }
-    }, 120000);
+    });
 }
 
 // Main watch ad function
@@ -295,13 +309,8 @@ window.watchAd = async function() {
     }
     
     isWatchingAd = true;
-    showNotification('Opening ad... Please watch the full video to earn points.', false);
-    
-    await openAdWithTelegram();
+    showAdModal();
 };
-
-// Initialize message listener
-setupAdMessageListener();
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
