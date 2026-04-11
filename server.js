@@ -776,7 +776,7 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// WHEEL OF FORTUNE API
+// WHEEL SPIN ENDPOINT
 // ============================================
 
 app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
@@ -796,6 +796,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
+    // Check if user can spin
     const lastSpin = await client.query(
       "SELECT spin_date FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
       [userId]
@@ -813,10 +814,12 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
       }
     }
     
+    // Prize array
     const prizes = [50000, 100000, 250000, 500000, 1000000, 2500000, 5000000, 10000000];
     const randomIndex = Math.floor(Math.random() * prizes.length);
     const rewardPoints = prizes[randomIndex];
     
+    // Apply tier multiplier
     const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
     const tierMultiplier = { Fresher: 1.0, Brute: 1.5, Silver: 2.0, Gold: 2.5, Platinum: 3.0 };
     const multiplier = tierMultiplier[userTier.rows[0]?.tier] || 1.0;
@@ -834,10 +837,6 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
       [finalReward, userId]
     );
     
-    if (rewardPoints === 10000000) {
-      await awardAchievement(userId, 'Wheel Champion');
-    }
-    
     await client.query('COMMIT');
     
     res.json({ 
@@ -845,7 +844,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
       reward: finalReward,
       prize: rewardPoints,
       multiplier: multiplier,
-      message: `🎡 You won ${(finalReward / POINTS_PER_COIN).toFixed(2)} COINS!`
+      message: `🎡 You won ${(finalReward / 1000000).toFixed(2)} COINS!`
     });
     
   } catch (err) {
