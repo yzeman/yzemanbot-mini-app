@@ -2022,6 +2022,37 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// ADMIN TEAM & BONUS ENDPOINTS
+// ============================================
+
+// Delete team (admin only)
+app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
+    const { teamId } = req.body;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // Remove all members from team
+        await client.query('UPDATE users SET team_id = NULL WHERE team_id = $1', [teamId]);
+        await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
+        await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
+        await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: 'Failed to delete team' });
+    } finally {
+        client.release();
+    }
+});
+
+// Get all bonus codes (admin only)
+app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
+    // For now, return empty array - you can store these in a table later
+    res.json([]);
+});
+
+// ============================================
 // START SERVER
 // ============================================
 
