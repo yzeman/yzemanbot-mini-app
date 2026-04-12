@@ -221,21 +221,6 @@
             font-size: 9px;
         }
         
-        /* Progress inside card */
-        .achievement-progress {
-            margin-top: 10px;
-        }
-        
-        .achievement-progress .progress-bar {
-            height: 5px;
-            margin-top: 5px;
-        }
-        
-        .achievement-progress-text {
-            font-size: 9px;
-            color: var(--gray);
-        }
-        
         .loading {
             text-align: center;
             padding: 40px;
@@ -306,7 +291,7 @@
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-coins"></i></div>
-            <div class="stat-value" id="totalPointsEarned">0</div>
+            <div class="stat-value" id="totalCoinsEarned">0</div>
             <div class="stat-label">COINS Earned</div>
         </div>
     </div>
@@ -385,21 +370,21 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        const POINTS_PER_COIN = 1000000;
+        const POINTS_PER_COIN = 1000000; // 1,000,000 points = 1 COIN
         
-        // Achievement icons mapping
-        const ACHIEVEMENT_ICONS = {
-            'Loyal User': '🔥',
-            'Referral Master': '👑',
-            'Points Millionaire': '💰',
-            'Social Butterfly': '🦋',
-            'Tournament Winner': '🏆',
-            'Team Player': '🤝',
-            'Platinum Elite': '💎',
-            'Wheel Champion': '🎡',
-            'Daily Streak 7': '📅',
-            'Super Referrer': '⭐',
-            'Ad Master': '📺'
+        // Achievement icons and their ACTUAL coin rewards
+        const ACHIEVEMENT_CONFIG = {
+            'Loyal User': { icon: '🔥', coins: 50 },
+            'Referral Master': { icon: '👑', coins: 100 },
+            'Points Millionaire': { icon: '💰', coins: 1000 },
+            'Social Butterfly': { icon: '🦋', coins: 25 },
+            'Tournament Winner': { icon: '🏆', coins: 50 },
+            'Team Player': { icon: '🤝', coins: 10 },
+            'Platinum Elite': { icon: '💎', coins: 200 },
+            'Wheel Champion': { icon: '🎡', coins: 25 },
+            'Daily Streak 7': { icon: '📅', coins: 5 },
+            'Super Referrer': { icon: '⭐', coins: 500 },
+            'Ad Master': { icon: '📺', coins: 50 }
         };
         
         function showNotification(msg, isError = false) {
@@ -430,8 +415,15 @@
             // Update counts
             document.getElementById('achievementsCount').textContent = stats.achievements_count || 0;
             
-            const totalCoins = ((stats.total_points_earned || 0) / POINTS_PER_COIN).toFixed(1);
-            document.getElementById('totalPointsEarned').textContent = totalCoins;
+            // Calculate total COINS earned from achievements
+            let totalCoinsEarned = 0;
+            achievements.forEach(ach => {
+                if (ach.achieved) {
+                    const config = ACHIEVEMENT_CONFIG[ach.name] || { coins: 0 };
+                    totalCoinsEarned += config.coins;
+                }
+            });
+            document.getElementById('totalCoinsEarned').textContent = totalCoinsEarned.toFixed(0);
             
             // Overall progress
             const totalAchievements = achievements.length;
@@ -452,7 +444,7 @@
             document.getElementById('streakProgressText').textContent = `${streak}/30`;
             document.getElementById('streakProgressBar').style.width = `${streakPercent}%`;
             
-            // Ad progress (try to get from localStorage or estimate)
+            // Ad progress
             const totalAds = parseInt(localStorage.getItem('totalAdsWatched') || '0');
             const adPercent = Math.min((totalAds / 1000) * 100, 100);
             document.getElementById('adProgressText').textContent = `${totalAds}/1000`;
@@ -468,8 +460,7 @@
             }
             
             container.innerHTML = achievements.map(ach => {
-                const icon = ACHIEVEMENT_ICONS[ach.name] || '🏅';
-                const rewardCoins = ((ach.points_reward || 0) / POINTS_PER_COIN).toFixed(1);
+                const config = ACHIEVEMENT_CONFIG[ach.name] || { icon: '🏅', coins: 0 };
                 const achieved = ach.achieved;
                 
                 return `
@@ -480,10 +471,10 @@
                                 '<span class="locked-badge"><i class="fas fa-lock"></i> Locked</span>'
                             }
                         </div>
-                        <div class="achievement-icon">${icon}</div>
+                        <div class="achievement-icon">${config.icon}</div>
                         <div class="achievement-name">${ach.name}</div>
                         <div class="achievement-desc">${ach.description || ''}</div>
-                        <div class="achievement-reward">+${rewardCoins} COINS</div>
+                        <div class="achievement-reward">+${config.coins} COINS</div>
                     </div>
                 `;
             }).join('');
@@ -516,4 +507,4 @@
         });
     </script>
 </body>
-                </html>
+                    </html>
