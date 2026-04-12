@@ -247,13 +247,6 @@ async function initDB() {
         points_reward = EXCLUDED.points_reward
     `);
 
-    // Clean up orphaned team_ids on startup
-    await client.query(`
-      UPDATE users SET team_id = NULL 
-      WHERE team_id IS NOT NULL 
-      AND NOT EXISTS (SELECT 1 FROM teams WHERE id = users.team_id)
-    `);
-
     await client.query('COMMIT');
     console.log(' Database initialized successfully');
   } catch (err) {
@@ -263,50 +256,6 @@ async function initDB() {
   } finally {
     client.release();
   }
-}
-
-// ============================================
-// HELPER FUNCTION: Clean orphaned team data for a user
-// ============================================
-
-async function cleanUserTeamData(client, userId) {
-  // Check if user has orphaned team_id
-  const teamCheck = await client.query(
-    `SELECT team_id FROM users WHERE id = $1`,
-    [userId]
-  );
-  
-  const teamId = teamCheck.rows[0]?.team_id;
-  
-  if (teamId) {
-    // Check if team actually exists
-    const teamExists = await client.query(
-      `SELECT id FROM teams WHERE id = $1`,
-      [teamId]
-    );
-    
-    if (teamExists.rows.length === 0) {
-      // Team doesn't exist - clear team_id
-      await client.query(`UPDATE users SET team_id = NULL WHERE id = $1`, [userId]);
-      console.log(` Cleaned orphaned team_id for user ${userId}`);
-      return true;
-    }
-    
-    // Check if user is actually a member
-    const memberCheck = await client.query(
-      `SELECT id FROM team_members WHERE team_id = $1 AND user_id = $2`,
-      [teamId, userId]
-    );
-    
-    if (memberCheck.rows.length === 0) {
-      // Not actually a member - clear team_id
-      await client.query(`UPDATE users SET team_id = NULL WHERE id = $1`, [userId]);
-      console.log(` Cleaned inconsistent team membership for user ${userId}`);
-      return true;
-    }
-  }
-  
-  return false;
 }
 
 // ============================================
@@ -443,9 +392,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         first_name, last_name, username, photo_url, walletAddress, id
       ]);
       user = result.rows[0];
-      
-      // Clean up any orphaned team data
-      await cleanUserTeamData(client, user.id);
       
     } else {
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -1179,7 +1125,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API - WITH AUTO-CLEANUP
+// TEAM API - COMPLETE WITH CORRECT BAN FEATURE
 // ============================================
 
 // Create Team
@@ -1204,12 +1150,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
-    // Clean up any orphaned team data first
-    await cleanUserTeamData(client, userId);
-    
-    // Re-check team_id after cleanup
-    const recheck = await client.query('SELECT team_id FROM users WHERE id = $1', [userId]);
-    if (recheck.rows[0]?.team_id) {
+    if (userResult.rows[0].team_id) {
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
@@ -1277,12 +1218,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
-    // Clean up any orphaned team data first
-    await cleanUserTeamData(client, userId);
-    
-    // Re-check team_id after cleanup
-    const recheck = await client.query('SELECT team_id FROM users WHERE id = $1', [userId]);
-    if (recheck.rows[0]?.team_id) {
+    if (userResult.rows[0].team_id) {
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
@@ -1297,7 +1233,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const teamId = teamResult.rows[0].id;
     
-    // Check if banned
+    // Check if banned from THIS SPECIFIC TEAM
     const bannedCheck = await client.query(
       'SELECT * FROM team_banned_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
@@ -1307,7 +1243,6 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
       return res.status(403).json({ error: 'You were removed from this team and cannot rejoin.' });
     }
     
-    // Check if already member
     const existingMember = await client.query(
       'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
@@ -1335,7 +1270,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Leave Team
+// Leave Team (clears ban if user left voluntarily)
 app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1364,6 +1299,8 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
     
     await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
     await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
+    
+    // Clear any ban record for THIS team (since user left voluntarily)
     await client.query('DELETE FROM team_banned_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
     
     if (isLeader) {
@@ -1397,7 +1334,7 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Remove member
+// Remove member (leader only - bans from THIS TEAM ONLY)
 app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1434,24 +1371,17 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
       return res.status(403).json({ error: 'Only team leader can remove members' });
     }
     
-    const allMembers = await client.query(
-      `SELECT u.id, u.telegram_id, u.first_name, u.username 
-       FROM users u 
-       JOIN team_members tm ON u.id = tm.user_id 
-       WHERE tm.team_id = $1`,
-      [teamId]
+    // Find the member
+    const memberResult = await client.query(
+      'SELECT id FROM users WHERE telegram_id = $1 AND team_id = $2',
+      [String(memberTelegramId), teamId]
     );
     
-    const member = allMembers.rows.find(m => 
-      String(m.telegram_id) === String(memberTelegramId) || 
-      String(m.id) === String(memberTelegramId)
-    );
-    
-    if (!member) {
+    if (memberResult.rows.length === 0) {
       return res.status(404).json({ error: 'Member not found in your team' });
     }
     
-    const memberId = member.id;
+    const memberId = memberResult.rows[0].id;
     
     if (memberId === leaderId) {
       return res.status(400).json({ error: 'Cannot remove yourself. Use leave team instead.' });
@@ -1459,14 +1389,20 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
+    // Remove from team_members
     await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
+    
+    // CRITICAL: Clear their team_id so they can join/create other teams
     await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [memberId]);
+    
+    // Add to banned list for THIS TEAM ONLY
     await client.query(
       'INSERT INTO team_banned_members (team_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
       [teamId, memberId]
     );
     
     await client.query('COMMIT');
+    console.log(` Member ${memberId} removed from team ${teamId} and banned from rejoining THIS team`);
     res.json({ success: true, message: 'Member removed from team and banned from rejoining' });
     
   } catch (err) {
@@ -1952,11 +1888,11 @@ if (process.env.BOT_TOKEN) {
         await ctx.reply(
             ` *Welcome to YzemanBot, ${firstName}!*\n\n` +
             ` *Earn COINS by:*\n` +
-            `Â• Watching ads\n` +
-            `Â• Inviting friends\n` +
-            `Â• Daily rewards\n` +
-            `Â• Spinning the wheel\n` +
-            `Â• Competing in tournaments\n\n` +
+            `• Watching ads\n` +
+            `• Inviting friends\n` +
+            `• Daily rewards\n` +
+            `• Spinning the wheel\n` +
+            `• Competing in tournaments\n\n` +
             ` *Tap below to start earning!*`,
             {
                 parse_mode: 'Markdown',
@@ -1999,51 +1935,6 @@ if (process.env.BOT_TOKEN) {
     
     console.log(' Telegram Bot initialized');
 }
-
-// ============================================
-// ONE-TIME FIX - RUN ONCE THEN REMOVE
-// ============================================
-app.get('/api/fix-my-team', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const telegramId = req.telegramUser.id;
-    
-    // Get user ID
-    const userRes = await client.query('SELECT id FROM users WHERE telegram_id = $1', [String(telegramId)]);
-    if (userRes.rows.length === 0) return res.json({ error: 'User not found' });
-    const userId = userRes.rows[0].id;
-
-    await client.query('BEGIN');
-    
-    // 1. Remove from banned lists
-    await client.query('DELETE FROM team_banned_members WHERE user_id = $1', [userId]);
-    
-    // 2. Remove from any team memberships
-    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-    
-    // 3. Clear team_id on user record
-    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-    
-    // 4. Clean up orphaned teams created by this user (if any)
-    await client.query(`
-      DELETE FROM teams 
-      WHERE created_by = $1 
-      AND NOT EXISTS (SELECT 1 FROM team_members WHERE team_id = teams.id)
-    `, [userId]);
-    
-    await client.query('COMMIT');
-    
-    res.json({ 
-      success: true, 
-      message: 'Team data completely reset. You can now join or create a team!' 
-    });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
-  }
-});
 
 // ============================================
 // START SERVER
