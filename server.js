@@ -2022,34 +2022,314 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN TEAM & BONUS ENDPOINTS
+// ADMIN API ENDPOINTS - COMPLETE
 // ============================================
+
+// Get all users (admin only)
+app.get('/api/admin/users', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
+             referral_code, points, tier, referrals, wallet_address, created_at, team_id
+      FROM users 
+      ORDER BY id DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get all withdrawals (admin only)
+app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT w.*, u.username, u.first_name, u.telegram_id
+      FROM withdrawals w 
+      JOIN users u ON w.user_id = u.id
+      ORDER BY w.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin withdrawals error:', err);
+    res.json([]);
+  }
+});
+
+// Update withdrawal status (admin only)
+app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
+  const { withdrawalId, status } = req.body;
+  
+  try {
+    const withdrawalResult = await pool.query(
+      'SELECT user_id, amount FROM withdrawals WHERE id = $1',
+      [withdrawalId]
+    );
+    
+    if (withdrawalResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Withdrawal not found' });
+    }
+    
+    const withdrawal = withdrawalResult.rows[0];
+    
+    // If rejected, refund points
+    if (status === 'rejected' || status === 'failed') {
+      const pointsToRefund = withdrawal.amount * POINTS_PER_COIN;
+      await pool.query(
+        'UPDATE users SET points = points + $1 WHERE id = $2',
+        [pointsToRefund, withdrawal.user_id]
+      );
+    }
+    
+    await pool.query(
+      'UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2',
+      [status, withdrawalId]
+    );
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update withdrawal error:', err);
+    res.status(500).json({ error: 'Failed to update withdrawal' });
+  }
+});
+
+// Add points to user (admin only)
+app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  
+  try {
+    await pool.query(
+      'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
+      [points, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Add points error:', err);
+    res.status(500).json({ error: 'Failed to add points' });
+  }
+});
+
+// Deduct points from user (admin only)
+app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  
+  try {
+    const result = await pool.query(
+      'UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1 RETURNING points',
+      [points, userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Insufficient points' });
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Deduct points error:', err);
+    res.status(500).json({ error: 'Failed to deduct points' });
+  }
+});
+
+// Delete user (admin only) - FIXED: Removes all related records
+app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
+  const { userId } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    console.log(`🗑️ Deleting user ${userId} and all related records...`);
+    
+    // Get user's team info before deletion
+    const userInfo = await client.query(
+      'SELECT team_id FROM users WHERE id = $1',
+      [userId]
+    );
+    const teamId = userInfo.rows[0]?.team_id;
+    
+    // Delete all related records (order matters for foreign keys)
+    await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
+    await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM team_banned_members WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
+    
+    // If user was a team leader, transfer leadership or delete team
+    if (teamId) {
+      const teamCheck = await client.query(
+        'SELECT created_by FROM teams WHERE id = $1',
+        [teamId]
+      );
+      
+      if (teamCheck.rows[0]?.created_by === parseInt(userId)) {
+        // Find new leader
+        const nextLeader = await client.query(
+          'SELECT user_id FROM team_members WHERE team_id = $1 AND user_id != $2 ORDER BY joined_at ASC LIMIT 1',
+          [teamId, userId]
+        );
+        
+        if (nextLeader.rows.length > 0) {
+          await client.query(
+            'UPDATE teams SET created_by = $1 WHERE id = $2',
+            [nextLeader.rows[0].user_id, teamId]
+          );
+        } else {
+          // No members left - delete team
+          await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
+          await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
+          await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+        }
+      }
+    }
+    
+    // Finally delete the user
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    
+    await client.query('COMMIT');
+    console.log(`✅ User ${userId} deleted successfully`);
+    res.json({ success: true });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user: ' + err.message });
+  } finally {
+    client.release();
+  }
+});
 
 // Delete team (admin only)
 app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
-    const { teamId } = req.body;
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        // Remove all members from team
-        await client.query('UPDATE users SET team_id = NULL WHERE team_id = $1', [teamId]);
-        await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
-        await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
-        await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-        await client.query('COMMIT');
-        res.json({ success: true });
-    } catch (err) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Failed to delete team' });
-    } finally {
-        client.release();
-    }
+  const { teamId } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Remove all members from team
+    await client.query('UPDATE users SET team_id = NULL WHERE team_id = $1', [teamId]);
+    await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
+    await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
+    await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+    
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Delete team error:', err);
+    res.status(500).json({ error: 'Failed to delete team' });
+  } finally {
+    client.release();
+  }
 });
 
-// Get all bonus codes (admin only)
-app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
-    // For now, return empty array - you can store these in a table later
-    res.json([]);
+// Get team leaderboard (for admin)
+app.get('/api/team/leaderboard', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        t.id, t.name,
+        COUNT(tm.user_id) as member_count,
+        COALESCE(SUM(u.points), 0) as total_points,
+        COALESCE(SUM(u.referrals), 0) as total_referrals,
+        u2.username as leader_name
+      FROM teams t
+      LEFT JOIN team_members tm ON t.id = tm.team_id
+      LEFT JOIN users u ON tm.user_id = u.id
+      LEFT JOIN users u2 ON t.created_by = u2.id
+      GROUP BY t.id, u2.username
+      HAVING COUNT(tm.user_id) > 0
+      ORDER BY total_points DESC
+      LIMIT 50
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Team leaderboard error:', err);
+    res.status(500).json({ error: 'Failed to fetch team leaderboard' });
+  }
+});
+
+// ============================================
+// ANALYTICS ENDPOINT
+// ============================================
+
+app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
+  try {
+    // Total users
+    const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
+    
+    // Active today (users who logged in today)
+    const today = new Date().toISOString().split('T')[0];
+    const activeToday = await pool.query(
+      'SELECT COUNT(*) FROM users WHERE last_login_date = $1',
+      [today]
+    );
+    
+    // Active this week
+    const activeWeek = await pool.query(
+      "SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'"
+    );
+    
+    // Total ads watched
+    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
+    
+    // Ads watched today
+    const adsToday = await pool.query(
+      "SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE"
+    );
+    
+    // Total COINS in system
+    const totalPoints = await pool.query('SELECT COALESCE(SUM(points), 0) as total FROM users');
+    
+    // Total referrals
+    const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
+    
+    // Pending withdrawals
+    const pendingWithdrawals = await pool.query(
+      "SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'"
+    );
+    
+    // Tier distribution
+    const tierDistribution = await pool.query(`
+      SELECT tier, COUNT(*) as count 
+      FROM users 
+      GROUP BY tier 
+      ORDER BY tier
+    `);
+    
+    // Daily active users (last 7 days)
+    const dailyActive = await pool.query(`
+      SELECT last_login_date, COUNT(*) as count
+      FROM users 
+      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY last_login_date
+      ORDER BY last_login_date DESC
+    `);
+    
+    res.json({
+      totalUsers: parseInt(totalUsers.rows[0].count),
+      activeToday: parseInt(activeToday.rows[0].count),
+      activeWeek: parseInt(activeWeek.rows[0].count),
+      totalAds: parseInt(totalAds.rows[0].count),
+      adsToday: parseInt(adsToday.rows[0].count),
+      totalCoins: Math.floor(parseInt(totalPoints.rows[0].total) / POINTS_PER_COIN),
+      totalReferrals: parseInt(totalReferrals.rows[0].count),
+      pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
+      tierDistribution: tierDistribution.rows,
+      dailyActive: dailyActive.rows
+    });
+    
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
 });
 
 // ============================================
