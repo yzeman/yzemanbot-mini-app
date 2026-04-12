@@ -157,10 +157,7 @@
             margin-right: 8px; color: white; font-weight: bold; overflow: hidden;
         }
         
-        .member-avatar img {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-        
+        .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .member-info { flex: 1; }
         .member-name { font-weight: 600; font-size: 12px; display: flex; align-items: center; gap: 4px; }
         .member-role { font-size: 9px; color: var(--gray); }
@@ -174,10 +171,8 @@
         .remove-member-btn {
             background: transparent; border: none; color: var(--danger);
             font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 6px;
-            margin-left: 8px; opacity: 0.7; transition: all 0.2s;
+            margin-left: 8px; opacity: 0.7;
         }
-        
-        .remove-member-btn:hover { opacity: 1; background: rgba(244, 67, 54, 0.1); }
         
         /* Leaderboard List */
         .leaderboard-list { max-height: 350px; overflow-y: auto; }
@@ -203,10 +198,7 @@
             margin-right: 8px; color: white; overflow: hidden;
         }
         
-        .team-avatar-small img {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-        
+        .team-avatar-small img { width: 100%; height: 100%; object-fit: cover; }
         .info { flex: 1; }
         .name { font-weight: 600; font-size: 12px; }
         .members { font-size: 9px; color: var(--gray); }
@@ -289,11 +281,6 @@
         .loading { text-align: center; padding: 25px; color: var(--gray); }
         .empty-state { text-align: center; padding: 25px; color: var(--gray); font-size: 12px; }
         
-        .retry-btn {
-            background: var(--secondary); color: white; border: none;
-            padding: 8px 16px; border-radius: 15px; font-size: 12px; cursor: pointer; margin-top: 10px;
-        }
-        
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--darker); display: flex; padding: 6px 12px;
@@ -316,6 +303,11 @@
         }
         
         .notification.error { background: var(--danger); }
+        
+        .retry-btn {
+            background: var(--secondary); color: white; border: none;
+            padding: 8px 16px; border-radius: 15px; font-size: 12px; cursor: pointer; margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -335,7 +327,7 @@
     
     <!-- My Team Tab -->
     <div class="tab-content active" id="myteamTab">
-        <div id="myTeamContent"><div class="loading">Loading your team...</div></div>
+        <div id="myTeamContent"><div class="loading">Loading...</div></div>
     </div>
     
     <!-- Leaderboard Tab -->
@@ -348,9 +340,9 @@
         <div class="prize-banner">
             <h3><i class="fas fa-crown"></i> Monthly Prizes</h3>
             <div class="prize-grid">
-                <div class="prize-card"><div class="prize-medal">🥇</div><div class="prize-value">2,500</div><div class="prize-label">COINS</div></div>
-                <div class="prize-card"><div class="prize-medal">🥈</div><div class="prize-value">1,000</div><div class="prize-label">COINS</div></div>
-                <div class="prize-card"><div class="prize-medal">🥉</div><div class="prize-value">500</div><div class="prize-label">COINS</div></div>
+                <div class="prize-card"><div class="prize-medal">🥇</div><div class="prize-value">2,500</div><div class="prize-label">COINS each</div></div>
+                <div class="prize-card"><div class="prize-medal">🥈</div><div class="prize-value">1,000</div><div class="prize-label">COINS each</div></div>
+                <div class="prize-card"><div class="prize-medal">🥉</div><div class="prize-value">500</div><div class="prize-label">COINS each</div></div>
             </div>
             <p style="margin-top: 6px; opacity: 0.9; font-size: 10px;"><i class="fas fa-users"></i> Every member gets full amount!</p>
         </div>
@@ -378,7 +370,7 @@
         <a href="/team.html" class="nav-item active"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     
-    <!-- Modals -->
+    <!-- Create Team Modal -->
     <div class="modal" id="createTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-plus-circle"></i> Create Team</div>
@@ -390,6 +382,7 @@
         </div>
     </div>
     
+    <!-- Join Team Modal -->
     <div class="modal" id="joinTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-in-alt"></i> Join Team</div>
@@ -401,6 +394,7 @@
         </div>
     </div>
     
+    <!-- Leave Team Modal -->
     <div class="modal" id="leaveTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-out-alt"></i> Leave Team</div>
@@ -412,6 +406,7 @@
         </div>
     </div>
     
+    <!-- Remove Member Modal -->
     <div class="modal" id="removeMemberModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-user-minus"></i> Remove Member</div>
@@ -458,38 +453,21 @@
             setTimeout(() => notif.style.display = 'none', 3000);
         }
         
-        async function apiCall(endpoint, data = null) {
-            if (!tg?.initData) {
-                console.error('No initData available');
-                throw new Error('Not in Telegram - please open from Telegram app');
-            }
+        async function apiCall(endpoint, data = null, method = 'POST') {
+            if (!tg?.initData) throw new Error('Not in Telegram');
             
-            const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
-            options.body = JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData });
-            
-            console.log(`📡 Calling ${endpoint}...`);
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify({ ...data, initData: tg.initData });
+            else options.body = JSON.stringify({ initData: tg.initData });
             
             const response = await fetch(endpoint, options);
             const text = await response.text();
-            
-            console.log(`📡 ${endpoint} response:`, response.status, text.substring(0, 200));
-            
-            if (!response.ok) {
-                let errorMsg = text;
-                try { errorMsg = JSON.parse(text).error || text; } catch(e) {}
-                throw new Error(errorMsg);
-            }
-            
-            try { 
-                return JSON.parse(text); 
-            } catch (e) { 
-                console.error('JSON parse error:', e);
-                throw new Error('Invalid server response'); 
-            }
+            try { return JSON.parse(text); } 
+            catch (e) { throw new Error('Invalid response'); }
         }
         
         function getTeamRank(teamId) {
-            if (!teamLeaderboardCache.length || !teamId) return '--';
+            if (!teamLeaderboardCache.length) return '--';
             const index = teamLeaderboardCache.findIndex(t => t.id === teamId);
             return index >= 0 ? `#${index + 1}` : '--';
         }
@@ -505,10 +483,7 @@
             document.getElementById('removeMemberName').textContent = member.first_name || member.username || 'User';
             document.getElementById('removeMemberModal').style.display = 'flex';
         }
-        function closeRemoveModal() {
-            memberToRemove = null;
-            document.getElementById('removeMemberModal').style.display = 'none';
-        }
+        function closeRemoveModal() { memberToRemove = null; document.getElementById('removeMemberModal').style.display = 'none'; }
         
         async function createTeam() {
             const name = document.getElementById('teamNameInput').value.trim();
@@ -519,9 +494,7 @@
                 closeCreateModal();
                 document.getElementById('teamNameInput').value = '';
                 loadAllData();
-            } catch (err) {
-                showNotification(err.message || 'Failed to create', true);
-            }
+            } catch (err) { showNotification(err.message || 'Failed to create', true); }
         }
         
         async function joinTeam() {
@@ -533,9 +506,7 @@
                 closeJoinModal();
                 document.getElementById('teamCodeInput').value = '';
                 loadAllData();
-            } catch (err) {
-                showNotification(err.message || 'Failed to join', true);
-            }
+            } catch (err) { showNotification(err.message || 'Failed to join', true); }
         }
         
         async function confirmLeaveTeam() {
@@ -544,26 +515,17 @@
                 showNotification('Left team');
                 closeLeaveModal();
                 loadAllData();
-            } catch (err) {
-                showNotification(err.message || 'Failed to leave', true);
-                closeLeaveModal();
-            }
+            } catch (err) { showNotification('Failed to leave', true); }
         }
         
         async function confirmRemoveMember() {
             if (!memberToRemove) return;
-            
             try {
-                await apiCall('/api/team/remove-member', { 
-                    memberTelegramId: memberToRemove.telegram_id || memberToRemove.id 
-                });
+                await apiCall('/api/team/remove-member', { memberTelegramId: memberToRemove.telegram_id });
                 showNotification('Member removed');
                 closeRemoveModal();
                 loadAllData();
-            } catch (err) {
-                showNotification(err.message || 'Failed to remove', true);
-                closeRemoveModal();
-            }
+            } catch (err) { showNotification(err.message || 'Failed to remove', true); }
         }
         
         function copyTeamCode(code) {
@@ -574,8 +536,6 @@
         function renderMyTeam(data) {
             const container = document.getElementById('myTeamContent');
             currentTeamData = data;
-            
-            console.log('📋 Rendering team data:', data);
             
             if (!data || !data.has_team) {
                 container.innerHTML = `
@@ -592,9 +552,9 @@
                 return;
             }
             
-            const team = data.team || {};
-            const members = data.members || [];
-            const isLeader = data.is_leader || false;
+            const team = data.team;
+            const members = data.members;
+            const isLeader = data.is_leader;
             const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(1);
             const rank = getTeamRank(team.id);
             
@@ -602,55 +562,37 @@
                 <div class="team-card">
                     <div class="team-header">
                         <div class="team-avatar"><i class="fas fa-users"></i></div>
-                        <div class="team-info">
-                            <h3>${team.name || 'Unknown'}</h3>
-                            <span class="team-code"><i class="fas fa-key"></i> ${team.code || '----'}</span>
-                        </div>
+                        <div class="team-info"><h3>${team.name}</h3><span class="team-code"><i class="fas fa-key"></i> ${team.code}</span></div>
                         <div class="team-rank">${rank}</div>
                     </div>
-                    
                     <div class="team-stats">
                         <div class="team-stat"><div class="team-stat-value">${team.member_count || 0}</div><div class="team-stat-label">Members</div></div>
                         <div class="team-stat"><div class="team-stat-value">${totalCoins}</div><div class="team-stat-label">COINS</div></div>
                         <div class="team-stat"><div class="team-stat-value">${team.total_referrals || 0}</div><div class="team-stat-label">Refs</div></div>
                         <div class="team-stat"><div class="team-stat-value">${rank}</div><div class="team-stat-label">Rank</div></div>
                     </div>
-                    
                     <div class="team-actions">
                         <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy</button>
                         <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave</button>
                     </div>
                 </div>
-                
                 <div class="members-title"><i class="fas fa-user-friends"></i><span>Members</span></div>
-                
-                ${members.length > 0 ? members.map(m => {
+                ${members.map(m => {
                     const coins = ((m.points || 0) / POINTS_PER_COIN).toFixed(1);
                     const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
-                    const photoUrl = m.photo_url || '';
                     const canRemove = isLeader && !m.is_leader;
-                    
                     return `
                         <div class="member-item">
-                            <div class="member-avatar">
-                                ${photoUrl ? `<img src="${photoUrl}" alt="${m.first_name}">` : initial}
-                            </div>
+                            <div class="member-avatar">${m.photo_url ? `<img src="${m.photo_url}">` : initial}</div>
                             <div class="member-info">
-                                <div class="member-name">
-                                    ${m.first_name || m.username || 'User'}
-                                    ${m.is_leader ? '<span class="leader-badge"><i class="fas fa-crown"></i></span>' : ''}
-                                </div>
+                                <div class="member-name">${m.first_name || m.username || 'User'} ${m.is_leader ? '<span class="leader-badge"><i class="fas fa-crown"></i></span>' : ''}</div>
                                 <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} refs</div>
                             </div>
                             <div class="member-coins">${coins} C</div>
-                            ${canRemove ? `
-                                <button class="remove-member-btn" onclick='openRemoveModal(${JSON.stringify(m).replace(/'/g, "&apos;")})'>
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            ` : ''}
+                            ${canRemove ? `<button class="remove-member-btn" onclick='openRemoveModal(${JSON.stringify(m).replace(/'/g, "&apos;")})'><i class="fas fa-times"></i></button>` : ''}
                         </div>
                     `;
-                }).join('') : '<div class="empty-state">No members found</div>'}
+                }).join('')}
             `;
         }
         
@@ -658,10 +600,8 @@
             const container = document.getElementById('teamLeaderboardList');
             teamLeaderboardCache = data || [];
             
-            console.log('📋 Rendering leaderboard:', data);
-            
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Create one!</p></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet</p></div>';
                 return;
             }
             
@@ -678,22 +618,15 @@
                 `;
             }).join('');
             
-            // Refresh team display to update rank
-            if (currentTeamData && currentTeamData.has_team) {
-                renderMyTeam(currentTeamData);
-            }
+            if (currentTeamData) renderMyTeam(currentTeamData);
         }
         
         function renderMonthlyCompetition(data) {
             const container = document.getElementById('monthlyContent');
-            
-            console.log('📋 Rendering monthly:', data);
-            
             if (!data || !data.standings || data.standings.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing</p></div>';
                 return;
             }
-            
             container.innerHTML = `<div class="members-title" style="margin-top:6px;"><i class="fas fa-chart-line"></i><span>${data.month}</span></div>` +
                 data.standings.map((team, idx) => {
                     const rank = idx + 1;
@@ -712,67 +645,38 @@
         }
         
         async function loadMyTeam() {
-            const container = document.getElementById('myTeamContent');
-            container.innerHTML = '<div class="loading">Loading your team...</div>';
-            
             try {
                 const data = await apiCall('/api/team/info');
                 renderMyTeam(data);
-            } catch (err) {
-                console.error('Load team error:', err);
-                container.innerHTML = `
-                    <div class="no-team-card">
-                        <div class="no-team-icon"><i class="fas fa-exclamation-circle"></i></div>
-                        <div class="no-team-title">Failed to load</div>
-                        <div class="no-team-text">${err.message || 'Please try again'}</div>
-                        <button class="retry-btn" onclick="loadMyTeam()">Retry</button>
-                    </div>
-                `;
-            }
+            } catch (err) { renderMyTeam({ has_team: false }); }
         }
         
         async function loadTeamLeaderboard() {
             const container = document.getElementById('teamLeaderboardList');
-            container.innerHTML = '<div class="loading">Loading rankings...</div>';
-            
             try {
-                const data = await apiCall('/api/team/leaderboard');
+                // FIXED: Use GET method for leaderboard
+                const response = await fetch('/api/team/leaderboard');
+                const data = await response.json();
                 renderTeamLeaderboard(data);
             } catch (err) {
-                console.error('Leaderboard error:', err);
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Failed to load</p>
-                        <button class="retry-btn" onclick="loadTeamLeaderboard()">Retry</button>
-                    </div>
-                `;
+                container.innerHTML = '<div class="empty-state">Failed to load</div>';
             }
         }
         
         async function loadMonthlyCompetition() {
             const container = document.getElementById('monthlyContent');
-            container.innerHTML = '<div class="loading">Loading monthly...</div>';
-            
             try {
                 const data = await apiCall('/api/team/monthly-competition');
                 renderMonthlyCompetition(data);
             } catch (err) {
-                console.error('Monthly error:', err);
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Failed to load</p>
-                        <button class="retry-btn" onclick="loadMonthlyCompetition()">Retry</button>
-                    </div>
-                `;
+                container.innerHTML = '<div class="empty-state">Failed to load</div>';
             }
         }
         
         async function loadAllData() {
             await loadTeamLeaderboard();
             await loadMonthlyCompetition();
-            await loadMyTeam();  // Load team last so rank is updated
+            await loadMyTeam();
         }
         
         document.querySelectorAll('.tab').forEach(tab => {
@@ -789,10 +693,6 @@
         window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
         
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Team page initializing...');
-            console.log('📱 Telegram WebApp:', tg ? 'Ready' : 'Not available');
-            console.log('📝 InitData:', tg?.initData ? 'Present' : 'Missing');
-            
             loadAllData();
             updatePrizeInfoVisibility();
         });
