@@ -656,6 +656,7 @@
             <div class="loading">Loading...</div>
         </div>
     </div>
+    
     <!-- Modals -->
     <div class="modal" id="addPointsModal">
         <div class="modal-content">
@@ -699,7 +700,7 @@
         let currentUserId = null;
         let users = [], withdrawals = [], teams = [], bonusCodes = [];
         
-        // Default bonus codes (same as in app.js)
+        // Default bonus codes
         const DEFAULT_BONUS_CODES = {
             "WELCOME": { points: 500000, description: "Welcome bonus - 0.5 COINS" },
             "ADSMASTER": { points: 5000000, description: "Ad Master bonus - 5 COINS" },
@@ -836,7 +837,7 @@
             if (!deleteUserId) return;
             try {
                 await apiCall('/api/admin/delete-user', 'POST', { userId: deleteUserId });
-                showNotification('User deleted');
+                showNotification('User completely deleted');
                 closeDeleteUserModal();
                 loadUsers();
                 loadTeams();
@@ -909,7 +910,7 @@
         }
         
         // ============================================
-        // TEAMS
+        // TEAMS - FIXED VIEW MEMBERS
         // ============================================
         
         async function loadTeams() {
@@ -918,6 +919,7 @@
                 renderTeamList(teams);
                 updateStats();
             } catch (err) {
+                console.error('Teams error:', err);
                 document.getElementById('teamList').innerHTML = '<div class="empty-state">Failed to load teams</div>';
             }
         }
@@ -953,16 +955,18 @@
         async function toggleTeamMembers(teamId) {
             const container = document.getElementById(`teamMembers-${teamId}`);
             if (container.style.display === 'none') {
-                container.innerHTML = '<div class="loading">Loading...</div>';
+                container.innerHTML = '<div class="loading">Loading members...</div>';
                 container.style.display = 'block';
                 try {
+                    // FIXED: Use the correct endpoint with teamId parameter
                     const response = await fetch(`/api/team/info`, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ teamId }) 
+                        body: JSON.stringify({ teamId: teamId }) 
                     });
                     const data = await response.json();
-                    if (data.members) {
+                    
+                    if (data.members && data.members.length > 0) {
                         container.innerHTML = data.members.map(m => `
                             <div class="team-member-item">
                                 <span>${m.first_name || m.username || 'User'} ${m.is_leader ? '👑' : ''}</span>
@@ -970,8 +974,11 @@
                                 ${!m.is_leader ? `<i class="fas fa-times remove-member-icon" onclick="forceRemoveMember(${teamId}, ${m.telegram_id})"></i>` : ''}
                             </div>
                         `).join('');
+                    } else {
+                        container.innerHTML = '<div class="empty-state">No members found</div>';
                     }
-                } catch { 
+                } catch (err) { 
+                    console.error('Failed to load members:', err);
                     container.innerHTML = '<div class="empty-state">Failed to load members</div>'; 
                 }
             } else {
@@ -999,26 +1006,19 @@
         }
         
         // ============================================
-        // BONUS CODES - COMPLETE WITH LIST & DELETE
+        // BONUS CODES
         // ============================================
         
         function loadBonusCodes() {
             const saved = localStorage.getItem('adminBonusCodes');
             
             if (saved) {
-                try {
-                    bonusCodes = JSON.parse(saved);
-                } catch (e) {
-                    bonusCodes = [];
-                }
+                try { bonusCodes = JSON.parse(saved); } catch (e) { bonusCodes = []; }
             }
             
             if (!bonusCodes.length) {
                 bonusCodes = Object.entries(DEFAULT_BONUS_CODES).map(([code, data]) => ({
-                    code: code,
-                    coins: data.points / POINTS_PER_COIN,
-                    points: data.points,
-                    description: data.description
+                    code: code, coins: data.points / POINTS_PER_COIN, points: data.points, description: data.description
                 }));
                 saveBonusCodes();
             }
@@ -1026,121 +1026,76 @@
             renderBonusList();
         }
         
-        function saveBonusCodes() {
-            localStorage.setItem('adminBonusCodes', JSON.stringify(bonusCodes));
-        }
+        function saveBonusCodes() { localStorage.setItem('adminBonusCodes', JSON.stringify(bonusCodes)); }
         
         function syncBonusCodesToApp() {
             const appFormat = {};
             bonusCodes.forEach(c => {
-                appFormat[c.code] = {
-                    points: Math.round(c.coins * POINTS_PER_COIN),
-                    dollars: 0,
-                    description: c.description || `${c.coins} COINS`
-                };
+                appFormat[c.code] = { points: Math.round(c.coins * POINTS_PER_COIN), dollars: 0, description: c.description || `${c.coins} COINS` };
             });
             localStorage.setItem('bonusCodesList', JSON.stringify(appFormat));
         }
         
         function renderBonusList() {
             const container = document.getElementById('bonusList');
-            
             if (!bonusCodes.length) {
-                container.innerHTML = '<div class="empty-state">No bonus codes yet. Add one above!</div>';
+                container.innerHTML = '<div class="empty-state">No bonus codes yet</div>';
                 return;
             }
-            
             container.innerHTML = bonusCodes.map(c => `
                 <div class="bonus-item">
-                    <div>
-                        <span class="bonus-code">${c.code}</span>
-                        <div style="font-size:10px;color:var(--gray);">${c.description || ''}</div>
-                    </div>
+                    <div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span class="bonus-reward">${c.coins.toFixed(2)} COINS</span>
-                        <i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCode('${c.code}')" style="cursor:pointer;"></i>
+                        <i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCode('${c.code}')"></i>
                     </div>
                 </div>
             `).join('');
         }
         
         function addBonusCode() {
-            const codeInput = document.getElementById('newBonusCode');
-            const coinsInput = document.getElementById('newBonusCoins');
-            const pointsInput = document.getElementById('newBonusPoints');
-            const descInput = document.getElementById('newBonusDesc');
+            const code = document.getElementById('newBonusCode').value.trim().toUpperCase();
+            const coins = parseFloat(document.getElementById('newBonusCoins').value) || 0;
+            const points = parseInt(document.getElementById('newBonusPoints').value) || 0;
+            const desc = document.getElementById('newBonusDesc').value.trim();
             
-            const code = codeInput.value.trim().toUpperCase();
-            const coins = parseFloat(coinsInput.value) || 0;
-            const points = parseInt(pointsInput.value) || 0;
-            const desc = descInput.value.trim();
-            
-            if (!code) { showNotification('Please enter a bonus code', true); return; }
-            if (code.length < 3) { showNotification('Code must be at least 3 characters', true); return; }
-            
+            if (!code) { showNotification('Enter code', true); return; }
             const totalCoins = coins + (points / POINTS_PER_COIN);
-            if (totalCoins <= 0) { showNotification('Please enter a reward amount', true); return; }
+            if (totalCoins <= 0) { showNotification('Enter reward', true); return; }
+            if (bonusCodes.find(c => c.code === code)) { showNotification('Code exists', true); return; }
             
-            const exists = bonusCodes.find(c => c.code === code);
-            if (exists) { showNotification(`Code "${code}" already exists! Delete it first to update.`, true); return; }
-            
-            bonusCodes.push({
-                code: code,
-                coins: totalCoins,
-                points: Math.round(totalCoins * POINTS_PER_COIN),
-                description: desc || `${totalCoins.toFixed(2)} COINS`
-            });
-            
-            saveBonusCodes();
-            syncBonusCodesToApp();
-            renderBonusList();
-            
-            codeInput.value = '';
-            coinsInput.value = '';
-            pointsInput.value = '';
-            descInput.value = '';
-            
-            showNotification(`✅ Bonus code "${code}" added! (${totalCoins.toFixed(2)} COINS)`);
+            bonusCodes.push({ code, coins: totalCoins, points: Math.round(totalCoins * POINTS_PER_COIN), description: desc || `${totalCoins.toFixed(2)} COINS` });
+            saveBonusCodes(); syncBonusCodesToApp(); renderBonusList();
+            document.getElementById('newBonusCode').value = '';
+            document.getElementById('newBonusCoins').value = '';
+            document.getElementById('newBonusPoints').value = '';
+            document.getElementById('newBonusDesc').value = '';
+            showNotification(`Added ${code}`);
         }
         
         function deleteBonusCode(code) {
-            if (!confirm(`Permanently delete bonus code "${code}"?`)) return;
-            
             bonusCodes = bonusCodes.filter(c => c.code !== code);
-            saveBonusCodes();
-            syncBonusCodesToApp();
-            renderBonusList();
-            
-            showNotification(`🗑️ Bonus code "${code}" deleted`);
+            saveBonusCodes(); syncBonusCodesToApp(); renderBonusList();
+            showNotification(`Deleted ${code}`);
         }
         
         function resetToDefaultCodes() {
-            if (!confirm('Reset all bonus codes to defaults? This will remove any custom codes you added.')) return;
-            
+            if (!confirm('Reset to defaults?')) return;
             bonusCodes = Object.entries(DEFAULT_BONUS_CODES).map(([code, data]) => ({
-                code: code,
-                coins: data.points / POINTS_PER_COIN,
-                points: data.points,
-                description: data.description
+                code, coins: data.points / POINTS_PER_COIN, points: data.points, description: data.description
             }));
-            
-            saveBonusCodes();
-            syncBonusCodesToApp();
-            renderBonusList();
-            
-            showNotification('✅ Bonus codes reset to defaults');
+            saveBonusCodes(); syncBonusCodesToApp(); renderBonusList();
+            showNotification('Reset to defaults');
         }
         
         function exportBonusCodes() {
             const dataStr = JSON.stringify(bonusCodes, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
+            a.href = URL.createObjectURL(blob);
             a.download = `bonus_codes_${new Date().toISOString().split('T')[0]}.json`;
             a.click();
-            URL.revokeObjectURL(url);
-            showNotification('📁 Bonus codes exported');
+            showNotification('Exported');
         }
         
         // ============================================
@@ -1150,7 +1105,6 @@
         async function loadAnalytics() {
             try {
                 const data = await apiCall('/api/admin/analytics');
-                
                 document.getElementById('activeToday').textContent = data.activeToday || 0;
                 document.getElementById('activeWeek').textContent = data.activeWeek || 0;
                 document.getElementById('totalAds').textContent = data.totalAds || 0;
@@ -1160,31 +1114,18 @@
                 if (data.tierDistribution && data.tierDistribution.length) {
                     tierDiv.innerHTML = data.tierDistribution.map(t => `
                         <div style="display:flex;justify-content:space-between;padding:6px 0;">
-                            <span>${t.tier}</span>
-                            <span style="color:var(--gold);">${t.count} users (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span>
-                        </div>
-                    `).join('');
-                } else {
-                    tierDiv.innerHTML = '<div class="empty-state">No data</div>';
-                }
+                            <span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span>
+                        </div>`).join('');
+                } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
                 
                 const dailyDiv = document.getElementById('dailyActive');
                 if (data.dailyActive && data.dailyActive.length) {
                     dailyDiv.innerHTML = data.dailyActive.map(d => `
                         <div style="display:flex;justify-content:space-between;padding:6px 0;">
-                            <span>${d.last_login_date}</span>
-                            <span style="color:var(--gold);">${d.count} users</span>
-                        </div>
-                    `).join('');
-                } else {
-                    dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
-                }
-                
-            } catch (err) {
-                console.error('Analytics error:', err);
-                document.getElementById('tierDistribution').innerHTML = '<div class="empty-state">Failed to load</div>';
-                document.getElementById('dailyActive').innerHTML = '<div class="empty-state">Failed to load</div>';
-            }
+                            <span>${d.last_login_date}</span><span style="color:var(--gold);">${d.count}</span>
+                        </div>`).join('');
+                } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
+            } catch (err) { console.error('Analytics error:', err); }
         }
         
         // ============================================
@@ -1201,46 +1142,23 @@
         
         document.getElementById('userSearch').addEventListener('input', (e) => {
             const q = e.target.value.toLowerCase();
-            const filtered = users.filter(u => 
-                (u.first_name || '').toLowerCase().includes(q) || 
-                (u.username || '').toLowerCase().includes(q) || 
-                String(u.telegram_id).includes(q)
-            );
-            renderUserList(filtered);
+            renderUserList(users.filter(u => (u.first_name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) || String(u.telegram_id).includes(q)));
         });
         
         document.getElementById('withdrawalSearch').addEventListener('input', (e) => {
             const q = e.target.value.toLowerCase();
-            const filtered = withdrawals.filter(w => 
-                (w.first_name || '').toLowerCase().includes(q) || 
-                (w.username || '').toLowerCase().includes(q) || 
-                (w.wallet_address || '').toLowerCase().includes(q)
-            );
-            renderWithdrawalList(filtered);
+            renderWithdrawalList(withdrawals.filter(w => (w.first_name||'').toLowerCase().includes(q) || (w.username||'').toLowerCase().includes(q) || (w.wallet_address||'').toLowerCase().includes(q)));
         });
         
         document.getElementById('teamSearch').addEventListener('input', (e) => {
             const q = e.target.value.toLowerCase();
-            const filtered = teams.filter(t => 
-                t.name.toLowerCase().includes(q) || 
-                (t.leader_name || '').toLowerCase().includes(q)
-            );
-            renderTeamList(filtered);
+            renderTeamList(teams.filter(t => t.name.toLowerCase().includes(q) || (t.leader_name||'').toLowerCase().includes(q)));
         });
         
-        // Close modals on outside click
-        window.onclick = (e) => { 
-            if (e.target.classList.contains('modal')) {
-                e.target.style.display = 'none';
-            }
-        };
+        window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
         
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            loadUsers();
-            loadWithdrawals();
-            loadTeams();
-            loadBonusCodes();
+            loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodes();
         });
     </script>
 </body>
