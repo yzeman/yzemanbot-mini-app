@@ -2,6 +2,7 @@
 // YZEMANBOT - COMPLETE APP WITH FUN AD SYSTEM
 // POINT ECONOMY: 1,000,000 points = 1 COIN
 // WITHDRAWAL: 100,000 COINS minimum
+// NO TEAM FEATURES
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -106,7 +107,6 @@ const POINT_ECONOMY = {
         'Points Millionaire': 1000000000,
         'Social Butterfly': 25000000,
         'Tournament Winner': 50000000,
-        'Team Player': 10000000,
         'Platinum Elite': 200000000,
         'Wheel Champion': 25000000,
         'Daily Streak 7': 5000000,
@@ -121,10 +121,7 @@ const POINT_ECONOMY = {
         3: 100000000,
         4: 50000000,
         5: 25000000
-    },
-    
-    // Team Rewards
-    TEAM_MONTHLY_WINNER: 2500000000
+    }
 };
 
 // ============================================================
@@ -1408,7 +1405,7 @@ async function loadAchievements() {
         
         const iconMap = {
             'Loyal User': '🔥', 'Referral Master': '👑', 'Points Millionaire': '💰',
-            'Social Butterfly': '🦋', 'Tournament Winner': '🏆', 'Team Player': '🤝',
+            'Social Butterfly': '🦋', 'Tournament Winner': '🏆',
             'Platinum Elite': '💎', 'Wheel Champion': '🎡', 'Daily Streak 7': '📅', 
             'Super Referrer': '⭐', 'Ad Master': '📺'
         };
@@ -1504,145 +1501,6 @@ async function loadTournamentStandings() {
         console.error('Tournament standings error:', err);
     }
 }
-
-// ============================================================
-// TEAM FUNCTIONS
-// ============================================================
-
-async function loadMyTeam() {
-    try {
-        const data = await apiCall('/api/team/info', { initData: tg.initData });
-        const container = document.getElementById('myTeamInfo');
-        if (!container) return;
-        
-        if (!data.has_team) {
-            container.innerHTML = '<div class="team-card"><p style="text-align:center;">You are not in a team yet! Join or create one below.</p></div>';
-            return;
-        }
-        
-        const totalCoins = (data.team.total_points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
-        
-        container.innerHTML = `
-            <div class="team-card">
-                <div class="team-name">${data.team.name}</div>
-                <div class="team-code">Team Code: <strong>${data.team.code}</strong> <button class="copy-btn" onclick="window.copyTeamCode('${data.team.code}')" style="background:none;border:none;color:var(--secondary);cursor:pointer;">📋 Copy</button></div>
-                <div>👑 Leader: ${data.team.leader_name || 'You'}</div>
-                <div>👥 Members: ${data.team.member_count}</div>
-                <div>💰 Total COINS: ${totalCoins}</div>
-                <div>📊 Total Referrals: ${data.team.total_referrals || 0}</div>
-                <div class="member-list"><strong>Members:</strong> ${data.members.map(m => {
-                    const memberCoins = (m.points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
-                    return `<div class="member-item"><span>${m.first_name || m.username || 'User'} ${m.is_leader ? '<span class="leader-badge">👑 Leader</span>' : ''}</span><span>${memberCoins} COINS</span></div>`;
-                }).join('')}</div>
-            </div>
-        `;
-    } catch (err) {
-        console.error('Team info error:', err);
-    }
-}
-
-async function loadTeamLeaderboard() {
-    try {
-        const data = await apiCall('/api/team/leaderboard', { initData: tg.initData });
-        const container = document.getElementById('teamLeaderboardList');
-        if (!container) return;
-        
-        if (!data.length) {
-            container.innerHTML = '<div class="loading">No teams yet</div>';
-            return;
-        }
-        
-        container.innerHTML = data.map((team, idx) => {
-            const totalCoins = (team.total_points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
-            return `
-            <div class="leaderboard-item">
-                <div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div>
-                <div class="info" style="flex:1;">
-                    <div class="name">${team.name}</div>
-                    <div class="username">Leader: ${team.leader_name || 'Unknown'} | ${team.member_count} members</div>
-                </div>
-                <div class="score">${totalCoins} COINS</div>
-            </div>
-        `}).join('');
-    } catch (err) {
-        console.error('Team leaderboard error:', err);
-    }
-}
-
-async function loadMonthlyCompetition() {
-    try {
-        const data = await apiCall('/api/team/monthly-competition', { initData: tg.initData });
-        const container = document.getElementById('monthlyInfo');
-        if (!container) return;
-        
-        const winnerCoins = (POINT_ECONOMY.TEAM_MONTHLY_WINNER / POINT_ECONOMY.POINTS_PER_COIN).toFixed(0);
-        
-        if (!data.standings.length) {
-            container.innerHTML = `<div class="team-card"><p style="text-align:center;">No teams competing this month</p><p style="text-align:center; margin-top:10px;">🏆 Prize: ${winnerCoins} COINS for winning team!</p></div>`;
-            return;
-        }
-        
-        container.innerHTML = `
-            <div class="team-card">
-                <h3>${data.month} Competition</h3>
-                <p style="text-align:center; margin-bottom:15px;">🏆 Grand Prize: ${winnerCoins} COINS</p>
-                ${data.standings.map((team, idx) => {
-                    const teamCoins = (team.team_points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
-                    return `
-                    <div class="member-item">
-                        <span><strong>#${idx + 1}</strong> ${team.name}</span>
-                        <span>${teamCoins} COINS</span>
-                    </div>
-                `}).join('')}
-            </div>
-        `;
-    } catch (err) {
-        console.error('Monthly competition error:', err);
-    }
-}
-
-async function createTeam() {
-    const teamNameInput = document.getElementById('teamNameInput');
-    if (!teamNameInput) return;
-    
-    const teamName = teamNameInput.value.trim();
-    if (!teamName) {
-        showNotification('Enter a team name', true);
-        return;
-    }
-    try {
-        const result = await apiCall('/api/team/create', { initData: tg.initData, teamName });
-        showNotification(`Team "${teamName}" created! Code: ${result.team.code}`);
-        teamNameInput.value = '';
-        loadMyTeam();
-    } catch (err) {
-        showNotification(err.message, true);
-    }
-}
-
-async function joinTeam() {
-    const teamCodeInput = document.getElementById('teamCodeInput');
-    if (!teamCodeInput) return;
-    
-    const teamCode = teamCodeInput.value.trim().toUpperCase();
-    if (!teamCode) {
-        showNotification('Enter a team code', true);
-        return;
-    }
-    try {
-        await apiCall('/api/team/join', { initData: tg.initData, teamCode });
-        showNotification('Joined team successfully!');
-        teamCodeInput.value = '';
-        loadMyTeam();
-    } catch (err) {
-        showNotification(err.message, true);
-    }
-}
-
-window.copyTeamCode = (code) => {
-    navigator.clipboard.writeText(code);
-    showNotification('Team code copied!');
-};
 
 // ============================================================
 // TAB SWITCHING
@@ -1767,26 +1625,6 @@ async function initApp() {
     if (document.getElementById('standingsList')) {
         loadTournamentStandings();
         document.getElementById('joinBtn')?.addEventListener('click', joinTournament);
-    }
-    
-    if (document.getElementById('myTeamInfo')) {
-        loadMyTeam();
-        loadTeamLeaderboard();
-        loadMonthlyCompetition();
-        document.getElementById('joinTeamBtn')?.addEventListener('click', joinTeam);
-        document.getElementById('createTeamBtn')?.addEventListener('click', createTeam);
-        
-        document.querySelectorAll('.team-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.team-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.team-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                const tabId = tab.dataset.tab + 'Tab';
-                document.getElementById(tabId)?.classList.add('active');
-                if (tab.dataset.tab === 'leaderboard') loadTeamLeaderboard();
-                if (tab.dataset.tab === 'monthly') loadMonthlyCompetition();
-            });
-        });
     }
 }
 
