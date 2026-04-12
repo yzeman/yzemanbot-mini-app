@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Tournament - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -15,15 +16,12 @@
             --darker: #16213e;
             --light: #ffffff;
             --gray: #888888;
-            --success: #00c853;
             --gold: #FFD700;
+            --silver: #C0C0C0;
+            --bronze: #CD7F32;
         }
         
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -35,100 +33,126 @@
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 30px;
+            padding: 20px 15px 25px;
             border-radius: 0 0 30px 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
+            position: relative;
         }
         
         .header h1 {
             font-size: 24px;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
-        .header i {
-            color: var(--gold);
-            margin-right: 8px;
+        .header h1 i { color: var(--gold); }
+        .header p { color: var(--gray); font-size: 13px; }
+        
+        .back-btn-header {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: white; font-size: 22px;
+            text-decoration: none; z-index: 10;
         }
         
-        .header p {
-            color: var(--gray);
-            font-size: 14px;
-        }
-        
+        /* Timer Banner */
         .timer-banner {
             background: linear-gradient(135deg, var(--warning) 0%, #ff6b6b 100%);
             padding: 15px;
-            border-radius: 15px;
+            border-radius: 18px;
             margin: 20px 15px;
             text-align: center;
         }
         
         .timer-banner h3 {
-            font-size: 14px;
+            font-size: 13px;
             margin-bottom: 8px;
             opacity: 0.9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
         
-        .timer-banner .timer {
+        .timer {
             font-size: 32px;
             font-weight: bold;
         }
         
+        /* Prize Banner */
         .prize-banner {
             background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
             color: var(--dark);
-            padding: 20px;
-            border-radius: 15px;
-            margin: 20px 15px;
+            padding: 18px;
+            border-radius: 18px;
+            margin: 0 15px 20px;
             text-align: center;
         }
         
         .prize-banner h3 {
-            font-size: 18px;
-            margin-bottom: 10px;
+            font-size: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
         }
         
         .prize-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 10px;
-            margin-top: 15px;
         }
         
         .prize-card {
             background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 10px;
+            border-radius: 12px;
+            padding: 12px 5px;
+            text-align: center;
         }
         
         .prize-position {
-            font-size: 20px;
-            margin-bottom: 5px;
+            font-size: 22px;
+            margin-bottom: 3px;
         }
         
         .prize-amount {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
         }
         
+        .prize-label {
+            font-size: 9px;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+        
+        /* Join Section */
         .join-section {
+            padding: 0 15px 20px;
             text-align: center;
-            margin: 20px 15px;
         }
         
         .join-btn {
             background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
             color: white;
             border: none;
-            padding: 18px 40px;
-            border-radius: 50px;
+            padding: 16px 30px;
+            border-radius: 40px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
             width: 100%;
             max-width: 300px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
         .join-btn:disabled {
@@ -137,41 +161,61 @@
             cursor: not-allowed;
         }
         
+        .joined-badge {
+            background: var(--success);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* My Rank Card */
         .my-rank-card {
-            background: var(--darker);
-            border-radius: 20px;
-            padding: 20px;
+            background: linear-gradient(135deg, var(--secondary) 0%, #1976D2 100%);
+            border-radius: 18px;
+            padding: 18px 20px;
             margin: 20px 15px;
             display: none;
         }
         
+        .my-rank-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        
         .my-rank-title {
             font-size: 14px;
-            color: var(--gray);
-            margin-bottom: 10px;
+            color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         
         .my-rank-value {
             font-size: 36px;
             font-weight: bold;
-            color: var(--gold);
-            margin-bottom: 5px;
         }
         
-        .my-rank-points {
-            font-size: 14px;
-            color: var(--gray);
+        .my-rank-stats {
+            display: flex;
+            justify-content: space-between;
+            color: rgba(255,255,255,0.8);
+            font-size: 13px;
         }
         
+        /* Standings Section */
         .standings-section {
-            background: var(--darker);
-            border-radius: 20px;
-            padding: 20px;
-            margin: 20px 15px;
+            padding: 0 15px 20px;
         }
         
         .standings-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             margin-bottom: 15px;
             display: flex;
@@ -179,17 +223,19 @@
             gap: 8px;
         }
         
+        .standings-title i { color: var(--gold); }
+        
         .standings-list {
-            max-height: 400px;
+            max-height: 350px;
             overflow-y: auto;
         }
         
         .standings-item {
             display: flex;
             align-items: center;
-            padding: 12px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
+            padding: 12px 15px;
+            background: var(--darker);
+            border-radius: 15px;
             margin-bottom: 8px;
         }
         
@@ -202,28 +248,17 @@
             font-weight: bold;
             font-size: 14px;
             margin-right: 12px;
-            border-radius: 8px;
-            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.05);
         }
         
-        .rank-1 {
-            background: linear-gradient(135deg, #FFD700, #FFA000);
-            color: var(--dark);
-        }
-        
-        .rank-2 {
-            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
-            color: var(--dark);
-        }
-        
-        .rank-3 {
-            background: linear-gradient(135deg, #CD7F32, #B87333);
-            color: var(--dark);
-        }
+        .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA000); color: var(--dark); }
+        .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: var(--dark); }
+        .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: var(--dark); }
         
         .avatar {
-            width: 35px;
-            height: 35px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             background: var(--primary);
             display: flex;
@@ -232,6 +267,14 @@
             font-size: 16px;
             margin-right: 12px;
             color: white;
+            font-weight: bold;
+            overflow: hidden;
+        }
+        
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         
         .info {
@@ -249,23 +292,41 @@
             color: var(--gray);
         }
         
+        .tier-badge {
+            display: inline-block;
+            background: var(--gold);
+            color: var(--dark);
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+        
         .points {
             font-weight: bold;
             color: var(--gold);
             font-size: 14px;
         }
         
+        .points small {
+            font-size: 9px;
+            color: var(--gray);
+            font-weight: normal;
+        }
+        
+        /* Info Box */
         .info-box {
-            background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 15px;
+            background: rgba(33, 150, 243, 0.1);
+            border-left: 4px solid var(--secondary);
+            border-radius: 12px;
             padding: 15px;
             margin: 20px 15px;
-            border-left: 4px solid var(--secondary);
         }
         
         .info-box p {
             color: var(--gray);
-            font-size: 14px;
+            font-size: 12px;
             margin-bottom: 5px;
         }
         
@@ -280,105 +341,130 @@
             color: var(--gray);
         }
         
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--darker);
-            display: flex;
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .retry-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
             padding: 10px 20px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            z-index: 100;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--darker); display: flex; padding: 8px 15px;
+            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
         }
         
         .nav-item {
-            flex: 1;
-            text-align: center;
-            color: var(--gray);
-            text-decoration: none;
-            font-size: 12px;
-            padding: 8px;
-            border-radius: 10px;
-            transition: all 0.2s ease;
+            flex: 1; text-align: center; color: var(--gray);
+            text-decoration: none; font-size: 11px; padding: 5px;
+            border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px;
         }
         
-        .nav-item i {
-            font-size: 22px;
-            display: block;
-            margin-bottom: 4px;
-        }
-        
-        .nav-item.active {
-            color: var(--primary);
-            background: rgba(76, 175, 80, 0.1);
-        }
+        .nav-item i { font-size: 20px; }
+        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
         
         .notification {
-            position: fixed;
-            bottom: 90px;
-            left: 20px;
-            right: 20px;
-            background: var(--success);
-            color: white;
-            padding: 15px 20px;
-            border-radius: 12px;
-            text-align: center;
-            font-weight: 500;
-            display: none;
-            z-index: 1000;
-            animation: slideUp 0.3s ease;
+            position: fixed; bottom: 80px; left: 15px; right: 15px;
+            background: #00c853; color: white; padding: 12px 18px;
+            border-radius: 10px; text-align: center; display: none; z-index: 1000;
+            font-size: 13px;
         }
         
-        @keyframes slideUp {
-            from { transform: translateY(100px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        .back-btn {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            color: white;
-            font-size: 24px;
-            text-decoration: none;
-            z-index: 10;
-        }
+        .notification.error { background: var(--danger); }
     </style>
 </head>
 <body>
-    <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
         <h1><i class="fas fa-trophy"></i> Weekly Tournament</h1>
         <p>Compete for massive COINS prizes!</p>
     </div>
     
+    <!-- Timer Banner -->
     <div class="timer-banner">
         <h3><i class="fas fa-hourglass-half"></i> Tournament Ends In</h3>
-        <div class="timer" id="tournamentTimer">6d 12h 30m</div>
+        <div class="timer" id="tournamentTimer">--d --h --m</div>
     </div>
     
+    <!-- Prize Banner -->
     <div class="prize-banner">
         <h3><i class="fas fa-crown"></i> Prize Pool</h3>
-        <div class="prize-grid" id="prizesList">
-            <!-- Prizes will be rendered here -->
+        <div class="prize-grid">
+            <div class="prize-card">
+                <div class="prize-position">🥇</div>
+                <div class="prize-amount">500</div>
+                <div class="prize-label">COINS</div>
+            </div>
+            <div class="prize-card">
+                <div class="prize-position">🥈</div>
+                <div class="prize-amount">250</div>
+                <div class="prize-label">COINS</div>
+            </div>
+            <div class="prize-card">
+                <div class="prize-position">🥉</div>
+                <div class="prize-amount">100</div>
+                <div class="prize-label">COINS</div>
+            </div>
+        </div>
+        <div class="prize-grid" style="margin-top: 10px;">
+            <div class="prize-card">
+                <div class="prize-position">🏅</div>
+                <div class="prize-amount">50</div>
+                <div class="prize-label">4th-10th</div>
+            </div>
+            <div class="prize-card">
+                <div class="prize-position">🎖️</div>
+                <div class="prize-amount">25</div>
+                <div class="prize-label">11th-50th</div>
+            </div>
+            <div class="prize-card">
+                <div class="prize-position">⭐</div>
+                <div class="prize-amount">10</div>
+                <div class="prize-label">51st-100th</div>
+            </div>
         </div>
     </div>
     
+    <!-- Join Section -->
     <div class="join-section">
-        <button class="join-btn" id="joinBtn">🏆 JOIN TOURNAMENT</button>
+        <button class="join-btn" id="joinBtn">
+            <i class="fas fa-trophy"></i> JOIN TOURNAMENT
+        </button>
+        <div class="joined-badge" id="joinedBadge" style="display: none;">
+            <i class="fas fa-check-circle"></i> You're in the tournament!
+        </div>
     </div>
     
+    <!-- My Rank Card -->
     <div class="my-rank-card" id="myRankCard">
-        <div class="my-rank-title">Your Current Rank</div>
-        <div class="my-rank-value" id="myRank">--</div>
-        <div class="my-rank-points" id="myPoints">0 COINS earned this week</div>
+        <div class="my-rank-header">
+            <div class="my-rank-title">
+                <i class="fas fa-user"></i>
+                <span>Your Current Rank</span>
+            </div>
+            <div class="my-rank-value" id="myRank">--</div>
+        </div>
+        <div class="my-rank-stats">
+            <span><i class="fas fa-coins"></i> <span id="myPoints">0</span> COINS</span>
+            <span><i class="fas fa-users"></i> <span id="myReferrals">0</span> refs</span>
+        </div>
     </div>
     
+    <!-- Standings Section -->
     <div class="standings-section">
         <div class="standings-title">
-            <i class="fas fa-list-ol" style="color: var(--gold);"></i>
+            <i class="fas fa-list-ol"></i>
             <span>Current Standings</span>
         </div>
         <div class="standings-list" id="standingsList">
@@ -386,41 +472,58 @@
         </div>
     </div>
     
+    <!-- Info Box -->
     <div class="info-box">
-        <p><i class="fas fa-info-circle"></i> <strong>How to Win:</strong></p>
-        <p>• Earn points by watching ads (each ad = points)</p>
-        <p>• Refer new users for bonus tournament points</p>
-        <p>• Top 50 players win COINS prizes!</p>
-        <p>• Tournament resets every Monday</p>
+        <p><i class="fas fa-info-circle"></i> <strong>How to earn points:</strong></p>
+        <p><i class="fas fa-ad"></i> Watch ads — each ad gives points</p>
+        <p><i class="fas fa-user-plus"></i> Refer friends — bonus tournament points</p>
+        <p><i class="fas fa-calendar-check"></i> Daily rewards count toward tournament</p>
+        <p><i class="fas fa-clock"></i> Tournament resets every Monday</p>
     </div>
     
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
-        <a href="/" class="nav-item">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
-        </a>
-        <a href="/daily.html" class="nav-item">
-            <i class="fas fa-calendar-check"></i>
-            <span>Daily</span>
-        </a>
-        <a href="/wheel.html" class="nav-item">
-            <i class="fas fa-dharmachakra"></i>
-            <span>Wheel</span>
-        </a>
-        <a href="/leaderboard.html" class="nav-item">
-            <i class="fas fa-trophy"></i>
-            <span>Ranks</span>
-        </a>
-        <a href="/team.html" class="nav-item">
-            <i class="fas fa-users"></i>
-            <span>Team</span>
-        </a>
+        <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
+        <a href="/wheel.html" class="nav-item"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
+        <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
+        <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     
     <div class="notification" id="notification"></div>
     
     <script>
-        // Calculate tournament timer
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+        
+        const POINTS_PER_COIN = 1000000;
+        let hasJoined = false;
+        
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+        
+        async function apiCall(endpoint, data = null) {
+            if (!tg?.initData) throw new Error('Not in Telegram');
+            
+            const options = {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData })
+            };
+            
+            const response = await fetch(endpoint, options);
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error);
+            }
+            return response.json();
+        }
+        
         function updateTimer() {
             const now = new Date();
             const endOfWeek = new Date();
@@ -432,41 +535,118 @@
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             
-            const timerEl = document.getElementById('tournamentTimer');
-            if (timerEl) {
-                timerEl.textContent = `${days}d ${hours}h ${minutes}m`;
+            document.getElementById('tournamentTimer').textContent = `${days}d ${hours}h ${minutes}m`;
+        }
+        
+        function renderStandings(standings) {
+            const container = document.getElementById('standingsList');
+            
+            if (!standings || standings.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No participants yet. Be the first to join!</p></div>';
+                return;
+            }
+            
+            container.innerHTML = standings.map((user, idx) => {
+                const rank = idx + 1;
+                const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+                const coins = ((user.weekly_points || 0) / POINTS_PER_COIN).toFixed(2);
+                const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
+                
+                return `
+                    <div class="standings-item">
+                        <div class="rank ${rankClass}">#${rank}</div>
+                        <div class="avatar">
+                            ${user.photo_url ? `<img src="${user.photo_url}" alt="${user.first_name}">` : initial}
+                        </div>
+                        <div class="info">
+                            <div class="name">
+                                ${user.first_name || user.username || 'User'}
+                                <span class="tier-badge">${user.tier || 'Fresher'}</span>
+                            </div>
+                            <div class="username">${user.username ? '@' + user.username : ''}</div>
+                        </div>
+                        <div class="points">${coins} <small>COINS</small></div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateMyRank(data) {
+            const myRankCard = document.getElementById('myRankCard');
+            const joinBtn = document.getElementById('joinBtn');
+            const joinedBadge = document.getElementById('joinedBadge');
+            
+            hasJoined = data.has_joined;
+            
+            if (hasJoined) {
+                joinBtn.style.display = 'none';
+                joinedBadge.style.display = 'inline-flex';
+                
+                if (data.my_rank) {
+                    myRankCard.style.display = 'block';
+                    document.getElementById('myRank').textContent = `#${data.my_rank}`;
+                    
+                    const myCoins = ((data.my_points || 0) / POINTS_PER_COIN).toFixed(2);
+                    document.getElementById('myPoints').textContent = myCoins;
+                    
+                    // Find user in standings to get referral count
+                    const myData = data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id);
+                    document.getElementById('myReferrals').textContent = myData?.referral_count || 0;
+                }
+            } else {
+                joinBtn.style.display = 'flex';
+                joinedBadge.style.display = 'none';
+                myRankCard.style.display = 'none';
             }
         }
         
-        updateTimer();
-        setInterval(updateTimer, 60000);
-        
-        // Prize configuration
-        const PRIZES = {
-            1: { label: '🥇 1st', amount: 500 },
-            2: { label: '🥈 2nd', amount: 250 },
-            3: { label: '🥉 3rd', amount: 100 },
-            4: { label: '🏅 4th-10th', amount: 50 },
-            5: { label: '🎖️ 11th-50th', amount: 25 }
-        };
-        
-        // Render prizes
-        function renderPrizes() {
-            const container = document.getElementById('prizesList');
-            if (!container) return;
+        async function loadTournament() {
+            const container = document.getElementById('standingsList');
+            container.innerHTML = '<div class="loading">Loading tournament...</div>';
             
-            container.innerHTML = Object.entries(PRIZES).map(([key, prize]) => `
-                <div class="prize-card">
-                    <div class="prize-position">${prize.label.split(' ')[0]}</div>
-                    <div class="prize-amount">${prize.amount} COINS</div>
-                    <div style="font-size: 10px; opacity: 0.8;">${prize.label.split(' ')[1] || ''}</div>
-                </div>
-            `).join('');
+            try {
+                const data = await apiCall('/api/tournament/standings');
+                renderStandings(data.standings);
+                updateMyRank(data);
+            } catch (err) {
+                console.error('Tournament error:', err);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Failed to load tournament</p>
+                        <button class="retry-btn" onclick="loadTournament()">Retry</button>
+                    </div>
+                `;
+            }
         }
         
-        renderPrizes();
+        async function joinTournament() {
+            const joinBtn = document.getElementById('joinBtn');
+            joinBtn.disabled = true;
+            joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
+            
+            try {
+                await apiCall('/api/tournament/join');
+                showNotification('You joined the tournament! 🏆');
+                await loadTournament();
+            } catch (err) {
+                let msg = err.message;
+                try { msg = JSON.parse(msg).error; } catch(e) {}
+                showNotification(msg || 'Failed to join', true);
+                joinBtn.disabled = false;
+                joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🏆 Tournament page loading...');
+            updateTimer();
+            setInterval(updateTimer, 60000);
+            loadTournament();
+            
+            document.getElementById('joinBtn').addEventListener('click', joinTournament);
+        });
     </script>
-    
-    <script src="/app.js"></script>
 </body>
     </html>
