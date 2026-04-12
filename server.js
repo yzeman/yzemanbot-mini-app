@@ -247,6 +247,13 @@ async function initDB() {
         points_reward = EXCLUDED.points_reward
     `);
 
+    // Clean up orphaned team_ids on startup
+    await client.query(`
+      UPDATE users SET team_id = NULL 
+      WHERE team_id IS NOT NULL 
+      AND NOT EXISTS (SELECT 1 FROM teams WHERE id = users.team_id)
+    `);
+
     await client.query('COMMIT');
     console.log(' Database initialized successfully');
   } catch (err) {
@@ -256,6 +263,50 @@ async function initDB() {
   } finally {
     client.release();
   }
+}
+
+// ============================================
+// HELPER FUNCTION: Clean orphaned team data for a user
+// ============================================
+
+async function cleanUserTeamData(client, userId) {
+  // Check if user has orphaned team_id
+  const teamCheck = await client.query(
+    `SELECT team_id FROM users WHERE id = $1`,
+    [userId]
+  );
+  
+  const teamId = teamCheck.rows[0]?.team_id;
+  
+  if (teamId) {
+    // Check if team actually exists
+    const teamExists = await client.query(
+      `SELECT id FROM teams WHERE id = $1`,
+      [teamId]
+    );
+    
+    if (teamExists.rows.length === 0) {
+      // Team doesn't exist - clear team_id
+      await client.query(`UPDATE users SET team_id = NULL WHERE id = $1`, [userId]);
+      console.log(` Cleaned orphaned team_id for user ${userId}`);
+      return true;
+    }
+    
+    // Check if user is actually a member
+    const memberCheck = await client.query(
+      `SELECT id FROM team_members WHERE team_id = $1 AND user_id = $2`,
+      [teamId, userId]
+    );
+    
+    if (memberCheck.rows.length === 0) {
+      // Not actually a member - clear team_id
+      await client.query(`UPDATE users SET team_id = NULL WHERE id = $1`, [userId]);
+      console.log(` Cleaned inconsistent team membership for user ${userId}`);
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 // ============================================
@@ -392,6 +443,9 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         first_name, last_name, username, photo_url, walletAddress, id
       ]);
       user = result.rows[0];
+      
+      // Clean up any orphaned team data
+      await cleanUserTeamData(client, user.id);
       
     } else {
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
@@ -1125,9 +1179,10 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API - COMPLETE WITH BAN FEATURE
+// TEAM API - WITH AUTO-CLEANUP
 // ============================================
 
+// Create Team
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1149,7 +1204,12 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
-    if (userResult.rows[0].team_id) {
+    // Clean up any orphaned team data first
+    await cleanUserTeamData(client, userId);
+    
+    // Re-check team_id after cleanup
+    const recheck = await client.query('SELECT team_id FROM users WHERE id = $1', [userId]);
+    if (recheck.rows[0]?.team_id) {
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
@@ -1195,6 +1255,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   }
 });
 
+// Join Team
 app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1216,7 +1277,12 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
-    if (userResult.rows[0].team_id) {
+    // Clean up any orphaned team data first
+    await cleanUserTeamData(client, userId);
+    
+    // Re-check team_id after cleanup
+    const recheck = await client.query('SELECT team_id FROM users WHERE id = $1', [userId]);
+    if (recheck.rows[0]?.team_id) {
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
     
@@ -1231,6 +1297,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const teamId = teamResult.rows[0].id;
     
+    // Check if banned
     const bannedCheck = await client.query(
       'SELECT * FROM team_banned_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
@@ -1240,6 +1307,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
       return res.status(403).json({ error: 'You were removed from this team and cannot rejoin.' });
     }
     
+    // Check if already member
     const existingMember = await client.query(
       'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
@@ -1267,6 +1335,7 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
+// Leave Team
 app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1328,6 +1397,7 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   }
 });
 
+// Remove member
 app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1408,12 +1478,11 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Get Team Info - FIXED: Works without authentication for admin
+// Get Team Info
 app.post('/api/team/info', async (req, res) => {
   try {
     const { teamId, initData } = req.body;
     
-    // If initData is provided, verify and get user's team
     if (initData) {
       const initDataObj = new URLSearchParams(initData);
       const user = JSON.parse(initDataObj.get('user'));
@@ -1468,7 +1537,6 @@ app.post('/api/team/info', async (req, res) => {
       });
     }
     
-    // Otherwise, if teamId is provided (admin view), return that team's info
     if (teamId) {
       const teamInfo = await pool.query(`
         SELECT 
@@ -1515,7 +1583,7 @@ app.post('/api/team/info', async (req, res) => {
   }
 });
 
-// Team Leaderboard - FIXED: No auth required
+// Team Leaderboard
 app.get('/api/team/leaderboard', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -1752,9 +1820,8 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    console.log(` Starting deletion of user ${userId}`);
+    console.log(` Deleting user ${userId}`);
     
-    // Get user info before deletion
     const userInfo = await client.query('SELECT telegram_id, team_id FROM users WHERE id = $1', [userId]);
     if (userInfo.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -1762,9 +1829,6 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     }
     
     const teamId = userInfo.rows[0]?.team_id;
-    const telegramId = userInfo.rows[0]?.telegram_id;
-    
-    console.log(` User ${userId} (TG: ${telegramId}) is in team ${teamId || 'none'}`);
     
     // Delete ALL related records
     await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
@@ -1779,7 +1843,7 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
     
-    // Handle team leadership if user was a leader
+    // Handle team leadership
     if (teamId) {
       const teamCheck = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
       if (teamCheck.rows[0]?.created_by === parseInt(userId)) {
@@ -1789,22 +1853,19 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
         );
         if (nextLeader.rows.length > 0) {
           await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [nextLeader.rows[0].user_id, teamId]);
-          console.log(` Team ${teamId} leadership transferred to ${nextLeader.rows[0].user_id}`);
         } else {
           await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
           await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
           await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-          console.log(` Team ${teamId} deleted - no members left`);
         }
       }
     }
     
-    // Finally delete the user
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     
     await client.query('COMMIT');
-    console.log(` User ${userId} (TG: ${telegramId}) completely deleted`);
-    res.json({ success: true, message: 'User completely deleted' });
+    console.log(` User ${userId} deleted`);
+    res.json({ success: true });
     
   } catch (err) {
     await client.query('ROLLBACK');
@@ -1872,7 +1933,7 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM BOT INTEGRATION (Polling Mode)
+// TELEGRAM BOT INTEGRATION
 // ============================================
 
 const { Telegraf } = require('telegraf');
@@ -1883,14 +1944,10 @@ if (process.env.BOT_TOKEN) {
     const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
     
     bot.start(async (ctx) => {
-        const userId = ctx.from.id;
         const firstName = ctx.from.first_name;
         const startPayload = ctx.startPayload || '';
-        
         let miniAppUrl = MINI_APP_URL;
         if (startPayload) miniAppUrl += `?start=${startPayload}`;
-        
-        console.log(` User ${userId} (${firstName}) started bot`);
         
         await ctx.reply(
             ` *Welcome to YzemanBot, ${firstName}!*\n\n` +
@@ -1920,8 +1977,7 @@ if (process.env.BOT_TOKEN) {
             ` Watch Ads\n Refer Friends\n Daily Rewards\n` +
             ` Wheel Spins\n Tournaments\n Team Battles\n\n` +
             `*Withdrawal:* 100,000 COINS minimum\n` +
-            `*Support:* @yzemanreal\n\n` +
-            ` *Join our channel for updates!*`,
+            `*Support:* @yzemanreal`,
             {
                 parse_mode: 'Markdown',
                 reply_markup: {
@@ -1942,7 +1998,6 @@ if (process.env.BOT_TOKEN) {
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
     
     console.log(' Telegram Bot initialized');
-    console.log(` Channel: ${CHANNEL_URL}`);
 }
 
 // ============================================
