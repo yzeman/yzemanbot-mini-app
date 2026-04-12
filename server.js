@@ -28,306 +28,6 @@ app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
 // ============================================
-// TELEGRAM BOT WEBHOOK INTEGRATION
-// ============================================
-
-// Import and configure bot if in production
-if (isProduction && process.env.BOT_TOKEN) {
-    const { Telegraf } = require('telegraf');
-    const bot = new Telegraf(process.env.BOT_TOKEN);
-    
-    // Webhook endpoint
-    app.use(bot.webhookCallback(`/bot${process.env.BOT_TOKEN}`));
-    
-    // Set webhook on startup
-    const WEBHOOK_URL = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/bot${process.env.BOT_TOKEN}`;
-    
-    bot.telegram.setWebhook(WEBHOOK_URL)
-        .then(() => console.log(`✅ Bot webhook set to: ${WEBHOOK_URL}`))
-        .catch(err => console.error('❌ Failed to set webhook:', err));
-    
-    // Bot commands
-    bot.start(async (ctx) => {
-        const firstName = ctx.from.first_name;
-        const startPayload = ctx.startPayload || '';
-        let miniAppUrl = 'https://yzemanbot-mini-app.onrender.com';
-        if (startPayload) miniAppUrl += `?start=${startPayload}`;
-        
-        await ctx.reply(
-            `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
-            `💰 Earn COINS by watching ads, inviting friends, and more!\n\n` +
-            `👇 *Tap below to start earning!*`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
-                        [{ text: '📢 Join Channel', url: 'https://t.me/YzemanEarnBotChannel' }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    bot.help(async (ctx) => {
-        await ctx.reply(
-            `📚 *YzemanBot Help*\n\n` +
-            `• Watch ads to earn COINS\n` +
-            `• Refer friends for bonuses\n` +
-            `• Claim daily rewards\n` +
-            `• Spin the wheel every 3 days\n` +
-            `• Join tournaments and teams!\n\n` +
-            `Minimum withdrawal: 100,000 COINS`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH APP', web_app: { url: 'https://yzemanbot-mini-app.onrender.com' } }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    console.log('🤖 Bot webhook endpoint registered');
-}
-
-// ============================================
-// TELEGRAM BOT INTEGRATION (Polling Mode)
-// ============================================
-
-const { Telegraf } = require('telegraf');
-
-if (process.env.BOT_TOKEN) {
-    const bot = new Telegraf(process.env.BOT_TOKEN);
-    const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-mini-app.onrender.com';
-    const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
-    
-    // Start command
-    bot.start(async (ctx) => {
-        const userId = ctx.from.id;
-        const firstName = ctx.from.first_name;
-        const startPayload = ctx.startPayload || '';
-        
-        let miniAppUrl = MINI_APP_URL;
-        if (startPayload) {
-            miniAppUrl += `?start=${startPayload}`;
-        }
-        
-        console.log(`🚀 User ${userId} (${firstName}) started bot`);
-        
-        await ctx.reply(
-            `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
-            `💰 *Earn COINS by:*\n` +
-            `• Watching ads\n` +
-            `• Inviting friends\n` +
-            `• Daily rewards\n` +
-            `• Spinning the wheel\n` +
-            `• Competing in tournaments\n\n` +
-            `👇 *Tap below to start earning!*`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
-                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // Help command
-    bot.help(async (ctx) => {
-        await ctx.reply(
-            `📚 *YzemanBot Help*\n\n` +
-            `*How to earn COINS:*\n` +
-            `🎬 Watch Ads\n` +
-            `👥 Refer Friends\n` +
-            `📅 Daily Rewards\n` +
-            `🎡 Wheel Spins\n` +
-            `🏆 Tournaments\n` +
-            `👑 Team Battles\n\n` +
-            `*Withdrawal:* 100,000 COINS minimum\n` +
-            `*Support:* @yzemanreal\n\n` +
-            `📢 *Join our channel for updates!*`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
-                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // Menu command
-    bot.command('menu', async (ctx) => {
-        await ctx.reply(
-            `📋 *Main Menu*\n\nChoose an option:`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: MINI_APP_URL } }],
-                        [{ text: '📊 Leaderboard', callback_data: 'leaderboard' }, { text: '🏆 Tournament', callback_data: 'tournament' }],
-                        [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }],
-                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // Channel command
-    bot.command('channel', async (ctx) => {
-        await ctx.reply(
-            `📢 *Join Our Official Channel*\n\n` +
-            `Get the latest updates, bonus codes, and announcements!\n\n` +
-            `👉 @YzemanEarnBotChannel`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '📢 JOIN CHANNEL', url: CHANNEL_URL }],
-                        [{ text: '« Back to Menu', callback_data: 'back_to_menu' }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // Callback queries
-    bot.action('leaderboard', async (ctx) => {
-        await ctx.answerCbQuery();
-        await ctx.reply('🏆 *Leaderboard*\n\nView the top earners and referrers!', {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '📊 VIEW LEADERBOARD', web_app: { url: `${MINI_APP_URL}/leaderboard.html` } }],
-                    [{ text: '« Back', callback_data: 'back_to_menu' }]
-                ]
-            }
-        });
-    });
-    
-    bot.action('tournament', async (ctx) => {
-        await ctx.answerCbQuery();
-        await ctx.reply(
-            `🏆 *Weekly Tournament*\n\n` +
-            `🥇 1st: 500 COINS\n` +
-            `🥈 2nd: 250 COINS\n` +
-            `🥉 3rd: 100 COINS\n` +
-            `🏅 4th-10th: 50 COINS\n\n` +
-            `New tournament every Monday!`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🏆 JOIN TOURNAMENT', web_app: { url: `${MINI_APP_URL}/tournament.html` } }],
-                        [{ text: '« Back', callback_data: 'back_to_menu' }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    bot.action('withdraw_info', async (ctx) => {
-        await ctx.answerCbQuery();
-        await ctx.reply(
-            `💰 *Withdrawal Information*\n\n` +
-            `*Minimum:* 100,000 COINS\n` +
-            `*Currency:* USDT (TRC-20)\n` +
-            `*Time:* 24-48 hours\n\n` +
-            `Add your wallet in the app to withdraw.`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '💳 GO TO WALLET', web_app: { url: MINI_APP_URL } }],
-                        [{ text: '« Back', callback_data: 'back_to_menu' }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    bot.action('help', async (ctx) => {
-        await ctx.answerCbQuery();
-        await ctx.reply(
-            `📚 *Help*\n\n` +
-            `Watch ads • Refer friends • Daily rewards\n` +
-            `Wheel spins • Tournaments • Team battles\n\n` +
-            `*Support:* @yzemanreal\n` +
-            `*Channel:* @YzemanEarnBotChannel`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
-                        [{ text: '📢 Join Channel', url: CHANNEL_URL }],
-                        [{ text: '« Back', callback_data: 'back_to_menu' }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    bot.action('back_to_menu', async (ctx) => {
-        await ctx.answerCbQuery();
-        await ctx.reply(`📋 *Main Menu*`, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: MINI_APP_URL } }],
-                    [{ text: '📊 Leaderboard', callback_data: 'leaderboard' }, { text: '🏆 Tournament', callback_data: 'tournament' }],
-                    [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }],
-                    [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
-                ]
-            }
-        });
-    });
-    
-    // Handle referral codes in messages
-    bot.on('text', async (ctx) => {
-        const text = ctx.message.text;
-        
-        // Check if it's a referral code (format: ref-XXXXXX or YZEMAN-XXXXXX)
-        if (text.match(/^(ref-|YZEMAN-)[A-Z0-9]+$/i)) {
-            const miniAppUrl = `${MINI_APP_URL}?start=${text}`;
-            
-            await ctx.reply(
-                `🎉 *You found a referral code!*\n\n` +
-                `Use this link to join and earn bonus COINS!`,
-                {
-                    parse_mode: 'Markdown',
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '🎁 CLAIM REFERRAL BONUS', web_app: { url: miniAppUrl } }],
-                            [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
-                        ]
-                    }
-                }
-            );
-        }
-    });
-    
-    // Launch bot in polling mode
-    bot.launch()
-        .then(() => console.log('🤖 Bot started in polling mode'))
-        .catch(err => console.error('❌ Bot failed to start:', err));
-    
-    // Graceful stop
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
-    
-    console.log('🤖 Telegram Bot initialized');
-    console.log(`📢 Channel: ${CHANNEL_URL}`);
-}
-
-// ============================================
 // DATABASE INITIALIZATION
 // ============================================
 
@@ -531,27 +231,27 @@ async function initDB() {
 
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
-        ('Loyal User', '30 day login streak', '🔥', 30, 50000000),
-        ('Referral Master', 'Get 100 referrals', '👑', 100, 100000000),
-        ('Points Millionaire', 'Earn 1,000,000,000 points', '💰', 1000000000, 1000000000),
-        ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 25000000),
-        ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 50000000),
-        ('Team Player', 'Join a team', '🤝', 1, 10000000),
-        ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 200000000),
-        ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000000),
-        ('Daily Streak 7', '7 day login streak', '📅', 7, 5000000),
-        ('Super Referrer', 'Get 500 referrals', '⭐', 500, 500000000),
-        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 50000000)
+        ('Loyal User', '30 day login streak', '', 30, 50000000),
+        ('Referral Master', 'Get 100 referrals', '', 100, 100000000),
+        ('Points Millionaire', 'Earn 1,000,000,000 points', '', 1000000000, 1000000000),
+        ('Social Butterfly', 'Complete all social tasks', '', 5, 25000000),
+        ('Tournament Winner', 'Win a weekly tournament', '', 1, 50000000),
+        ('Team Player', 'Join a team', '', 1, 10000000),
+        ('Platinum Elite', 'Reach Platinum tier', '', 1500, 200000000),
+        ('Wheel Champion', 'Win 10,000 points on wheel', '', 10000, 25000000),
+        ('Daily Streak 7', '7 day login streak', '', 7, 5000000),
+        ('Super Referrer', 'Get 500 referrals', '', 500, 500000000),
+        ('Ad Master', 'Watch 1000 ads', '', 1000, 50000000)
       ON CONFLICT (name) DO UPDATE SET
         description = EXCLUDED.description,
         points_reward = EXCLUDED.points_reward
     `);
 
     await client.query('COMMIT');
-    console.log('✅ Database initialized successfully');
+    console.log(' Database initialized successfully');
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('❌ Database initialization failed:', err.stack);
+    console.error(' Database initialization failed:', err.stack);
     throw err;
   } finally {
     client.release();
@@ -594,7 +294,7 @@ async function awardAchievement(userId, achievementName, notify = true) {
         'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
         [pointsReward, userId]
       );
-      console.log(`🎉 Achievement "${achievementName}" awarded to user ${userId} +${pointsReward} points`);
+      console.log(` Achievement "${achievementName}" awarded to user ${userId} +${pointsReward} points`);
     }
     
     await client.query('COMMIT');
@@ -790,13 +490,13 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               const BOT_TOKEN = process.env.BOT_TOKEN;
               if (BOT_TOKEN && referrerTelegramId) {
                 const newUserName = user.first_name || user.username || 'Someone';
-                const notificationMessage = `🎉 <b>New Referral!</b>\n\n` +
+                const notificationMessage = ` <b>New Referral!</b>\n\n` +
                   `${newUserName} just joined using your referral link!\n\n` +
-                  `<b>📊 Your Stats:</b>\n` +
-                  `💰 You earned: +${(referrerReward / POINTS_PER_COIN).toFixed(2)} COINS\n` +
-                  `👥 Total referrals: ${count}\n` +
-                  `🏆 Current tier: ${newTierName}\n\n` +
-                  `Keep sharing your link to earn more! 🚀`;
+                  `<b> Your Stats:</b>\n` +
+                  ` You earned: +${(referrerReward / POINTS_PER_COIN).toFixed(2)} COINS\n` +
+                  ` Total referrals: ${count}\n` +
+                  ` Current tier: ${newTierName}\n\n` +
+                  `Keep sharing your link to earn more! `;
                 
                 await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                   method: 'POST',
@@ -1011,7 +711,7 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
       success: true, 
       reward: finalReward, 
       streak: streak,
-      message: `🎁 Daily reward: ${(finalReward / POINTS_PER_COIN).toFixed(2)} COINS! Streak: ${streak} days 🔥`
+      message: ` Daily reward: ${(finalReward / POINTS_PER_COIN).toFixed(2)} COINS! Streak: ${streak} days `
     });
     
   } catch (err) {
@@ -1151,7 +851,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
       reward: finalReward,
       prize: rewardPoints,
       multiplier: multiplier,
-      message: `🎡 You won ${(finalReward / 1000000).toFixed(2)} COINS!`
+      message: ` You won ${(finalReward / 1000000).toFixed(2)} COINS!`
     });
     
   } catch (err) {
@@ -1766,7 +1466,7 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   }
 });
 
-app.post('/api/team/leaderboard', verifyTelegramData, async (req, res) => {
+app.get('/api/team/leaderboard', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -1986,7 +1686,8 @@ app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
 app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
   const { userId, points } = req.body;
   try {
-    await pool.query('UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1', [points, userId]);
+    const result = await pool.query('UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1 RETURNING points', [points, userId]);
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Insufficient points' });
     res.json({ success: true });
   } catch (err) {
     console.error('Deduct points error:', err);
@@ -1999,156 +1700,10 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
-    await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM users WHERE id = $1', [userId]);
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Delete user error:', err);
-    res.status(500).json({ error: 'Failed to delete user' });
-  } finally {
-    client.release();
-  }
-});
-
-// ============================================
-// ADMIN API ENDPOINTS - COMPLETE
-// ============================================
-
-// Get all users (admin only)
-app.get('/api/admin/users', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
-             referral_code, points, tier, referrals, wallet_address, created_at, team_id
-      FROM users 
-      ORDER BY id DESC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Admin users error:', err);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-// Get all withdrawals (admin only)
-app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT w.*, u.username, u.first_name, u.telegram_id
-      FROM withdrawals w 
-      JOIN users u ON w.user_id = u.id
-      ORDER BY w.created_at DESC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Admin withdrawals error:', err);
-    res.json([]);
-  }
-});
-
-// Update withdrawal status (admin only)
-app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
-  const { withdrawalId, status } = req.body;
-  
-  try {
-    const withdrawalResult = await pool.query(
-      'SELECT user_id, amount FROM withdrawals WHERE id = $1',
-      [withdrawalId]
-    );
     
-    if (withdrawalResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Withdrawal not found' });
-    }
-    
-    const withdrawal = withdrawalResult.rows[0];
-    
-    // If rejected, refund points
-    if (status === 'rejected' || status === 'failed') {
-      const pointsToRefund = withdrawal.amount * POINTS_PER_COIN;
-      await pool.query(
-        'UPDATE users SET points = points + $1 WHERE id = $2',
-        [pointsToRefund, withdrawal.user_id]
-      );
-    }
-    
-    await pool.query(
-      'UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2',
-      [status, withdrawalId]
-    );
-    
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Update withdrawal error:', err);
-    res.status(500).json({ error: 'Failed to update withdrawal' });
-  }
-});
-
-// Add points to user (admin only)
-app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
-  const { userId, points } = req.body;
-  
-  try {
-    await pool.query(
-      'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
-      [points, userId]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Add points error:', err);
-    res.status(500).json({ error: 'Failed to add points' });
-  }
-});
-
-// Deduct points from user (admin only)
-app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
-  const { userId, points } = req.body;
-  
-  try {
-    const result = await pool.query(
-      'UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1 RETURNING points',
-      [points, userId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(400).json({ error: 'Insufficient points' });
-    }
-    
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Deduct points error:', err);
-    res.status(500).json({ error: 'Failed to deduct points' });
-  }
-});
-
-// Delete user (admin only) - FIXED: Removes all related records
-app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
-  const { userId } = req.body;
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    
-    console.log(`🗑️ Deleting user ${userId} and all related records...`);
-    
-    // Get user's team info before deletion
-    const userInfo = await client.query(
-      'SELECT team_id FROM users WHERE id = $1',
-      [userId]
-    );
+    const userInfo = await client.query('SELECT team_id FROM users WHERE id = $1', [userId]);
     const teamId = userInfo.rows[0]?.team_id;
     
-    // Delete all related records (order matters for foreign keys)
     await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
     await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
@@ -2161,27 +1716,16 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
     
-    // If user was a team leader, transfer leadership or delete team
     if (teamId) {
-      const teamCheck = await client.query(
-        'SELECT created_by FROM teams WHERE id = $1',
-        [teamId]
-      );
-      
+      const teamCheck = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
       if (teamCheck.rows[0]?.created_by === parseInt(userId)) {
-        // Find new leader
         const nextLeader = await client.query(
           'SELECT user_id FROM team_members WHERE team_id = $1 AND user_id != $2 ORDER BY joined_at ASC LIMIT 1',
           [teamId, userId]
         );
-        
         if (nextLeader.rows.length > 0) {
-          await client.query(
-            'UPDATE teams SET created_by = $1 WHERE id = $2',
-            [nextLeader.rows[0].user_id, teamId]
-          );
+          await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [nextLeader.rows[0].user_id, teamId]);
         } else {
-          // No members left - delete team
           await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
           await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
           await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
@@ -2189,13 +1733,9 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
       }
     }
     
-    // Finally delete the user
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
-    
     await client.query('COMMIT');
-    console.log(`✅ User ${userId} deleted successfully`);
     res.json({ success: true });
-    
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Delete user error:', err);
@@ -2205,20 +1745,15 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   }
 });
 
-// Delete team (admin only)
 app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
   const { teamId } = req.body;
   const client = await pool.connect();
-  
   try {
     await client.query('BEGIN');
-    
-    // Remove all members from team
     await client.query('UPDATE users SET team_id = NULL WHERE team_id = $1', [teamId]);
     await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
     await client.query('DELETE FROM team_banned_members WHERE team_id = $1', [teamId]);
     await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-    
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
@@ -2230,87 +1765,22 @@ app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
   }
 });
 
-// Get team leaderboard (for admin)
-app.get('/api/team/leaderboard', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COALESCE(SUM(u.referrals), 0) as total_referrals,
-        u2.username as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      LEFT JOIN users u2 ON t.created_by = u2.id
-      GROUP BY t.id, u2.username
-      HAVING COUNT(tm.user_id) > 0
-      ORDER BY total_points DESC
-      LIMIT 50
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Team leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to fetch team leaderboard' });
-  }
-});
-
-// ============================================
-// ANALYTICS ENDPOINT
-// ============================================
-
 app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
-    // Total users
     const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
-    
-    // Active today (users who logged in today)
     const today = new Date().toISOString().split('T')[0];
-    const activeToday = await pool.query(
-      'SELECT COUNT(*) FROM users WHERE last_login_date = $1',
-      [today]
-    );
-    
-    // Active this week
-    const activeWeek = await pool.query(
-      "SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'"
-    );
-    
-    // Total ads watched
+    const activeToday = await pool.query('SELECT COUNT(*) FROM users WHERE last_login_date = $1', [today]);
+    const activeWeek = await pool.query("SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'");
     const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
-    
-    // Ads watched today
-    const adsToday = await pool.query(
-      "SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE"
-    );
-    
-    // Total COINS in system
+    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
     const totalPoints = await pool.query('SELECT COALESCE(SUM(points), 0) as total FROM users');
-    
-    // Total referrals
     const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
-    
-    // Pending withdrawals
-    const pendingWithdrawals = await pool.query(
-      "SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'"
-    );
-    
-    // Tier distribution
-    const tierDistribution = await pool.query(`
-      SELECT tier, COUNT(*) as count 
-      FROM users 
-      GROUP BY tier 
-      ORDER BY tier
-    `);
-    
-    // Daily active users (last 7 days)
+    const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
+    const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
     const dailyActive = await pool.query(`
       SELECT last_login_date, COUNT(*) as count
-      FROM users 
-      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY last_login_date
-      ORDER BY last_login_date DESC
+      FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY last_login_date ORDER BY last_login_date DESC
     `);
     
     res.json({
@@ -2325,12 +1795,81 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
       tierDistribution: tierDistribution.rows,
       dailyActive: dailyActive.rows
     });
-    
   } catch (err) {
     console.error('Analytics error:', err);
     res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
+
+// ============================================
+// TELEGRAM BOT INTEGRATION (Polling Mode)
+// ============================================
+
+const { Telegraf } = require('telegraf');
+
+if (process.env.BOT_TOKEN) {
+    const bot = new Telegraf(process.env.BOT_TOKEN);
+    const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-mini-app.onrender.com';
+    const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
+    
+    bot.start(async (ctx) => {
+        const firstName = ctx.from.first_name;
+        const startPayload = ctx.startPayload || '';
+        let miniAppUrl = MINI_APP_URL;
+        if (startPayload) miniAppUrl += `?start=${startPayload}`;
+        
+        await ctx.reply(
+            ` *Welcome to YzemanBot, ${firstName}!*\n\n` +
+            ` *Earn COINS by:*\n` +
+            `� Watching ads\n` +
+            `� Inviting friends\n` +
+            `� Daily rewards\n` +
+            `� Spinning the wheel\n` +
+            `� Competing in tournaments\n\n` +
+            ` *Tap below to start earning!*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: ' LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
+                        [{ text: ' Join Our Channel', url: CHANNEL_URL }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    bot.help(async (ctx) => {
+        await ctx.reply(
+            ` *YzemanBot Help*\n\n` +
+            `*How to earn COINS:*\n` +
+            ` Watch Ads\n Refer Friends\n Daily Rewards\n` +
+            ` Wheel Spins\n Tournaments\n Team Battles\n\n` +
+            `*Withdrawal:* 100,000 COINS minimum\n` +
+            `*Support:* @yzemanreal\n\n` +
+            ` *Join our channel for updates!*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: ' LAUNCH APP', web_app: { url: MINI_APP_URL } }],
+                        [{ text: ' Join Our Channel', url: CHANNEL_URL }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    bot.launch()
+        .then(() => console.log(' Bot started in polling mode'))
+        .catch(err => console.error(' Bot failed to start:', err));
+    
+    process.once('SIGINT', () => bot.stop('SIGINT'));
+    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+    
+    console.log(' Telegram Bot initialized');
+    console.log(` Channel: ${CHANNEL_URL}`);
+}
 
 // ============================================
 // START SERVER
@@ -2339,21 +1878,21 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 async function startServer() {
   try {
     await initDB();
-    console.log('✅ Database initialized and ready');
+    console.log(' Database initialized and ready');
     
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`========================================`);
-      console.log(`🚀 SERVER IS RUNNING!`);
-      console.log(`📡 Port: ${PORT}`);
-      console.log(`🌐 URL: https://yzemanbot-backend.onrender.com`);
-      console.log(`❤️  Health: https://yzemanbot-backend.onrender.com/health`);
-      console.log(`💰 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
-      console.log(`💵 Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
+      console.log(` SERVER IS RUNNING!`);
+      console.log(` Port: ${PORT}`);
+      console.log(` URL: https://yzemanbot-backend.onrender.com`);
+      console.log(`  Health: https://yzemanbot-backend.onrender.com/health`);
+      console.log(` 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
+      console.log(` Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
       console.log(`========================================`);
     });
     
   } catch (err) {
-    console.error('❌ Failed to start server:', err);
+    console.error(' Failed to start server:', err);
     process.exit(1);
   }
 }
