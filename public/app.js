@@ -124,20 +124,7 @@ const POINT_ECONOMY = {
     },
     
     // Team Rewards
-    TEAM_MONTHLY_WINNER: 2500000000,
-    
-    // Bonus Codes
-    BONUS_CODES: {
-        "WELCOME": 500000,
-        "ADSMASTER": 5000000,
-        "LUCKYDAY": 1000000,
-        "BIGWIN": 10000000,
-        "BASER": 2000000,
-        "BOTYZEMAN": 100000000,
-        "EARNSBOTT": 15000000,
-        "BONUSBOTTER": 100000000,
-        "YZEMASTER1": 150000000
-    }
+    TEAM_MONTHLY_WINNER: 2500000000
 };
 
 // ============================================================
@@ -201,17 +188,36 @@ if (lastWeekStart !== weekStartStr) {
 }
 
 // ============================================================
-// BONUS CODES LIST (Extended)
+// BONUS CODES - DEFAULT (FALLBACK)
 // ============================================================
 
-const bonusCodesList = {};
-Object.entries(POINT_ECONOMY.BONUS_CODES).forEach(([code, points]) => {
-    bonusCodesList[code] = { 
-        points: points, 
-        dollars: 0, 
-        description: `${(points / 1000000).toFixed(2)} COINS` 
-    };
-});
+const DEFAULT_BONUS_CODES = {
+    "WELCOME": { points: 500000, dollars: 0, description: "0.5 COINS" },
+    "ADSMASTER": { points: 5000000, dollars: 0, description: "5 COINS" },
+    "LUCKYDAY": { points: 1000000, dollars: 0, description: "1 COIN" },
+    "BIGWIN": { points: 10000000, dollars: 0, description: "10 COINS" },
+    "BASER": { points: 2000000, dollars: 0, description: "2 COINS" },
+    "BOTYZEMAN": { points: 100000000, dollars: 0, description: "100 COINS" },
+    "EARNSBOTT": { points: 15000000, dollars: 0, description: "15 COINS" },
+    "BONUSBOTTER": { points: 100000000, dollars: 0, description: "100 COINS" },
+    "YZEMASTER1": { points: 150000000, dollars: 0, description: "150 COINS" }
+};
+
+// Load bonus codes from localStorage or use defaults
+function loadBonusCodes() {
+    const saved = localStorage.getItem('bonusCodesList');
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            console.error('Failed to parse bonus codes, using defaults');
+        }
+    }
+    localStorage.setItem('bonusCodesList', JSON.stringify(DEFAULT_BONUS_CODES));
+    return DEFAULT_BONUS_CODES;
+}
+
+const bonusCodesList = loadBonusCodes();
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -289,7 +295,6 @@ async function registerUser() {
     if (nameEl) nameEl.textContent = `${user.first_name} ${user.last_name || ''}`;
     if (idEl) idEl.textContent = `ID: ${user.id}`;
     
-    // FIXED: Properly set the avatar image
     if (avatarEl) {
         if (user.photo_url) {
             avatarEl.innerHTML = '';
@@ -425,7 +430,6 @@ function updateUI() {
         if (tierProgressBar) tierProgressBar.style.width = Math.min(tierProgress, 100) + '%';
     }
     
-    // Update current tier display
     const currentTierEl = document.getElementById('currentTier');
     if (currentTierEl) currentTierEl.textContent = currentUser.tier || 'Fresher';
     
@@ -839,6 +843,15 @@ async function redeemBonus() {
         return;
     }
     
+    // Refresh from localStorage before checking
+    const saved = localStorage.getItem('bonusCodesList');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            Object.assign(bonusCodesList, parsed);
+        } catch (e) {}
+    }
+    
     const bonus = bonusCodesList[code];
     if (!bonus) {
         showNotification(`Invalid bonus code`, true);
@@ -867,14 +880,40 @@ async function redeemBonus() {
     codeInput.value = '';
     
     await loadBonusHistory();
+    displayBonusList();
 }
 
 function displayBonusList() {
-    // This function intentionally left mostly empty - we don't show the list to users
-    // Only used for admin purposes or if needed elsewhere
+    const today = new Date().toDateString();
     const list = document.getElementById('bonusList');
     if (!list) return;
-    list.innerHTML = ''; // Hide the list from users
+    
+    // Refresh from localStorage first
+    const saved = localStorage.getItem('bonusCodesList');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            Object.keys(bonusCodesList).forEach(key => delete bonusCodesList[key]);
+            Object.assign(bonusCodesList, parsed);
+        } catch (e) {
+            console.error('Failed to parse bonus codes');
+        }
+    }
+    
+    list.innerHTML = '';
+    for (const [code, bonus] of Object.entries(bonusCodesList)) {
+        const rewardCoins = (bonus.points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
+        const isUsed = usedBonusCodes[code] === today;
+        
+        const item = document.createElement('div');
+        item.className = 'bonus-item';
+        item.innerHTML = `
+            <span class="bonus-code">${code}</span>
+            <span class="bonus-reward">${rewardCoins} COINS</span>
+            ${isUsed ? '<span class="redeemed-badge">Used Today</span>' : '<span style="color:#888;">Available</span>'}
+        `;
+        list.appendChild(item);
+    }
 }
 
 // ============================================================
@@ -1619,7 +1658,6 @@ function initTabs() {
             const tabContent = document.getElementById(tabId);
             if (tabContent) tabContent.classList.add('active');
             
-            // Load bonus history when bonus tab is clicked
             if (tab.dataset.tab === 'bonus') {
                 loadBonusHistory();
             }
