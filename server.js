@@ -28,7 +28,7 @@ app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
 // ============================================
-// DATABASE INITIALIZATION
+// DATABASE INITIALIZATION - NO TEAM TABLES
 // ============================================
 
 async function initDB() {
@@ -55,7 +55,6 @@ async function initDB() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referrals INTEGER DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date DATE`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_points_earned BIGINT DEFAULT 0`);
-    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
@@ -172,33 +171,6 @@ async function initDB() {
       )`);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS teams (
-        id SERIAL PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL,
-        code TEXT UNIQUE NOT NULL,
-        created_by INTEGER REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT NOW()
-      )`);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS team_members (
-        id SERIAL PRIMARY KEY,
-        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        joined_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(team_id, user_id)
-      )`);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS monthly_competitions (
-        id SERIAL PRIMARY KEY,
-        month_year DATE NOT NULL,
-        winning_team_id INTEGER REFERENCES teams(id),
-        is_active BOOLEAN DEFAULT TRUE,
-        UNIQUE(month_year)
-      )`);
-
-    await client.query(`
       CREATE TABLE IF NOT EXISTS ad_statistics (
         user_id INTEGER PRIMARY KEY REFERENCES users(id),
         ad_streak INTEGER DEFAULT 0,
@@ -226,7 +198,6 @@ async function initDB() {
         ('Points Millionaire', 'Earn 1,000,000,000 points', '', 1000000000, 1000000000),
         ('Social Butterfly', 'Complete all social tasks', '', 5, 25000000),
         ('Tournament Winner', 'Win a weekly tournament', '', 1, 50000000),
-        ('Team Player', 'Join a team', '', 1, 10000000),
         ('Platinum Elite', 'Reach Platinum tier', '', 1500, 200000000),
         ('Wheel Champion', 'Win 10,000 points on wheel', '', 10000, 25000000),
         ('Daily Streak 7', '7 day login streak', '', 7, 5000000),
@@ -1115,455 +1086,6 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API - SIMPLIFIED (NO BANS)
-// ============================================
-
-// Create Team
-app.post('/api/team/create', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { teamName } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!teamName || teamName.trim().length === 0) {
-      return res.status(400).json({ error: 'Team name is required' });
-    }
-    
-    // First, clean up any orphaned team data for this user
-    const userCheck = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [String(telegramId)]
-    );
-    
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userCheck.rows[0].id;
-    const currentTeamId = userCheck.rows[0].team_id;
-    
-    // If user has a team_id, check if they're actually a member
-    if (currentTeamId) {
-      const memberCheck = await client.query(
-        'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
-        [currentTeamId, userId]
-      );
-      
-      if (memberCheck.rows.length === 0) {
-        // Orphaned team_id - clear it
-        await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-      } else {
-        return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
-      }
-    }
-    
-    const existingName = await client.query('SELECT id FROM teams WHERE LOWER(name) = LOWER($1)', [teamName.trim()]);
-    if (existingName.rows.length > 0) {
-      return res.status(400).json({ error: 'Team name already taken. Choose another name.' });
-    }
-    
-    let teamCode;
-    let codeExists;
-    do {
-      teamCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-      codeExists = await client.query('SELECT id FROM teams WHERE code = $1', [teamCode]);
-    } while (codeExists.rows.length > 0);
-    
-    await client.query('BEGIN');
-    
-    const result = await client.query(
-      `INSERT INTO teams (name, code, created_by) VALUES ($1, $2, $3) RETURNING *`,
-      [teamName.trim(), teamCode, userId]
-    );
-    
-    const teamId = result.rows[0].id;
-    
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
-    await awardAchievement(userId, 'Team Player');
-    
-    await client.query('COMMIT');
-    res.json({ success: true, team: result.rows[0] });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team creation error:', err);
-    res.status(500).json({ error: 'Failed to create team: ' + err.message });
-  } finally {
-    client.release();
-  }
-});
-
-// Join Team
-app.post('/api/team/join', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { teamCode } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!teamCode) {
-      return res.status(400).json({ error: 'Team code is required' });
-    }
-    
-    // Clean up orphaned team data
-    const userCheck = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [String(telegramId)]
-    );
-    
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userCheck.rows[0].id;
-    const currentTeamId = userCheck.rows[0].team_id;
-    
-    if (currentTeamId) {
-      const memberCheck = await client.query(
-        'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
-        [currentTeamId, userId]
-      );
-      
-      if (memberCheck.rows.length === 0) {
-        await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-      } else {
-        return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
-      }
-    }
-    
-    const teamResult = await client.query(
-      'SELECT id FROM teams WHERE code = $1',
-      [teamCode.toUpperCase()]
-    );
-    
-    if (teamResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
-    }
-    
-    const teamId = teamResult.rows[0].id;
-    
-    // NO BAN CHECK - Anyone can join
-    
-    const existingMember = await client.query(
-      'SELECT * FROM team_members WHERE team_id = $1 AND user_id = $2',
-      [teamId, userId]
-    );
-    
-    if (existingMember.rows.length > 0) {
-      return res.status(400).json({ error: 'You are already a member of this team' });
-    }
-    
-    await client.query('BEGIN');
-    
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [teamId, userId]);
-    await awardAchievement(userId, 'Team Player');
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Joined team successfully!' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team join error:', err);
-    res.status(500).json({ error: 'Failed to join team: ' + err.message });
-  } finally {
-    client.release();
-  }
-});
-
-// Leave Team
-app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const telegramId = req.telegramUser.id;
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [String(telegramId)]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.status(400).json({ error: 'You are not in a team' });
-    }
-    
-    const teamInfo = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
-    const isLeader = teamInfo.rows[0]?.created_by === userId;
-    
-    await client.query('BEGIN');
-    
-    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
-    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-    
-    if (isLeader) {
-      const nextLeader = await client.query(
-        'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
-        [teamId]
-      );
-      
-      if (nextLeader.rows.length > 0) {
-        const newLeaderId = nextLeader.rows[0].user_id;
-        await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [newLeaderId, teamId]);
-      }
-    }
-    
-    const memberCount = await client.query('SELECT COUNT(*) FROM team_members WHERE team_id = $1', [teamId]);
-    
-    if (parseInt(memberCount.rows[0].count) === 0) {
-      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-    }
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Left team successfully' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Team leave error:', err);
-    res.status(500).json({ error: 'Failed to leave team' });
-  } finally {
-    client.release();
-  }
-});
-
-// Remove member (NO BAN - just removes)
-app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { memberTelegramId } = req.body;
-    const leaderTelegramId = req.telegramUser.id;
-    
-    if (!memberTelegramId) {
-      return res.status(400).json({ error: 'Member ID is required' });
-    }
-    
-    const leaderResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [String(leaderTelegramId)]
-    );
-    
-    if (leaderResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Leader not found' });
-    }
-    
-    const leaderId = leaderResult.rows[0].id;
-    const teamId = leaderResult.rows[0].team_id;
-    
-    if (!teamId) {
-      return res.status(400).json({ error: 'You are not in a team' });
-    }
-    
-    const teamCheck = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
-    
-    if (teamCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found' });
-    }
-    
-    if (teamCheck.rows[0].created_by !== leaderId) {
-      return res.status(403).json({ error: 'Only team leader can remove members' });
-    }
-    
-    const memberResult = await client.query(
-      'SELECT id FROM users WHERE telegram_id = $1 AND team_id = $2',
-      [String(memberTelegramId), teamId]
-    );
-    
-    if (memberResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Member not found in your team' });
-    }
-    
-    const memberId = memberResult.rows[0].id;
-    
-    if (memberId === leaderId) {
-      return res.status(400).json({ error: 'Cannot remove yourself. Use leave team instead.' });
-    }
-    
-    await client.query('BEGIN');
-    
-    // Just remove from team - NO BAN
-    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
-    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [memberId]);
-    
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Member removed from team' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Remove member error:', err);
-    res.status(500).json({ error: 'Failed to remove member' });
-  } finally {
-    client.release();
-  }
-});
-
-// Get Team Info
-app.post('/api/team/info', async (req, res) => {
-  try {
-    const { teamId, initData } = req.body;
-    
-    if (initData) {
-      const initDataObj = new URLSearchParams(initData);
-      const user = JSON.parse(initDataObj.get('user'));
-      const telegramId = user.id;
-      
-      const userResult = await pool.query(
-        'SELECT id, team_id, username FROM users WHERE telegram_id = $1',
-        [String(telegramId)]
-      );
-      
-      if (userResult.rows.length === 0) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      const userId = userResult.rows[0].id;
-      const userTeamId = userResult.rows[0].team_id;
-      
-      if (!userTeamId) {
-        return res.json({ has_team: false });
-      }
-      
-      const teamInfo = await pool.query(`
-        SELECT 
-          t.id, t.name, t.code, t.created_at,
-          COUNT(tm.user_id) as member_count,
-          COALESCE(SUM(u.points), 0) as total_points,
-          COALESCE(SUM(u.referrals), 0) as total_referrals,
-          u2.username as leader_name
-        FROM teams t
-        LEFT JOIN team_members tm ON t.id = tm.team_id
-        LEFT JOIN users u ON tm.user_id = u.id
-        LEFT JOIN users u2 ON t.created_by = u2.id
-        WHERE t.id = $1
-        GROUP BY t.id, u2.username
-      `, [userTeamId]);
-      
-      const members = await pool.query(`
-        SELECT u.telegram_id, u.username, u.first_name, u.photo_url, u.points, u.referrals, u.tier,
-               CASE WHEN u.id = t.created_by THEN true ELSE false END as is_leader
-        FROM team_members tm
-        JOIN users u ON tm.user_id = u.id
-        JOIN teams t ON tm.team_id = t.id
-        WHERE tm.team_id = $1
-        ORDER BY u.points DESC
-      `, [userTeamId]);
-      
-      return res.json({
-        has_team: true,
-        team: teamInfo.rows[0],
-        members: members.rows,
-        is_leader: teamInfo.rows[0]?.leader_name === userResult.rows[0]?.username
-      });
-    }
-    
-    if (teamId) {
-      const teamInfo = await pool.query(`
-        SELECT 
-          t.id, t.name, t.code, t.created_at,
-          COUNT(tm.user_id) as member_count,
-          COALESCE(SUM(u.points), 0) as total_points,
-          COALESCE(SUM(u.referrals), 0) as total_referrals,
-          u2.username as leader_name
-        FROM teams t
-        LEFT JOIN team_members tm ON t.id = tm.team_id
-        LEFT JOIN users u ON tm.user_id = u.id
-        LEFT JOIN users u2 ON t.created_by = u2.id
-        WHERE t.id = $1
-        GROUP BY t.id, u2.username
-      `, [teamId]);
-      
-      if (teamInfo.rows.length === 0) {
-        return res.status(404).json({ error: 'Team not found' });
-      }
-      
-      const members = await pool.query(`
-        SELECT u.telegram_id, u.username, u.first_name, u.photo_url, u.points, u.referrals, u.tier,
-               CASE WHEN u.id = t.created_by THEN true ELSE false END as is_leader
-        FROM team_members tm
-        JOIN users u ON tm.user_id = u.id
-        JOIN teams t ON tm.team_id = t.id
-        WHERE tm.team_id = $1
-        ORDER BY u.points DESC
-      `, [teamId]);
-      
-      return res.json({
-        has_team: true,
-        team: teamInfo.rows[0],
-        members: members.rows,
-        is_leader: false
-      });
-    }
-    
-    return res.status(400).json({ error: 'Missing teamId or initData' });
-    
-  } catch (err) {
-    console.error('Team info error:', err);
-    res.status(500).json({ error: 'Failed to fetch team info' });
-  }
-});
-
-// Team Leaderboard
-app.get('/api/team/leaderboard', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COALESCE(SUM(u.referrals), 0) as total_referrals,
-        u2.username as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      LEFT JOIN users u2 ON t.created_by = u2.id
-      GROUP BY t.id, u2.username
-      HAVING COUNT(tm.user_id) > 0
-      ORDER BY total_points DESC
-      LIMIT 50
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Team leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to fetch team leaderboard' });
-  }
-});
-
-app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      WITH monthly_stats AS (
-        SELECT 
-          u.team_id,
-          SUM(u.points) as team_points,
-          SUM(u.referrals) as team_referrals,
-          COUNT(u.id) as member_count
-        FROM users u
-        WHERE u.team_id IS NOT NULL
-        GROUP BY u.team_id
-      )
-      SELECT 
-        t.id, t.name, ms.team_points, ms.team_referrals, ms.member_count,
-        u.username as leader_name
-      FROM teams t
-      JOIN monthly_stats ms ON t.id = ms.team_id
-      LEFT JOIN users u ON t.created_by = u.id
-      ORDER BY ms.team_points DESC
-      LIMIT 20
-    `);
-    
-    const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
-    res.json({ month: currentMonth, standings: result.rows });
-  } catch (err) {
-    console.error('Monthly competition error:', err);
-    res.status(500).json({ error: 'Failed to fetch monthly competition' });
-  }
-});
-
-// ============================================
 // BONUS REDEMPTION API
 // ============================================
 
@@ -1669,7 +1191,7 @@ app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT id, telegram_id, first_name, last_name, username, photo_url, 
-             referral_code, points, tier, referrals, wallet_address, created_at, team_id
+             referral_code, points, tier, referrals, wallet_address, created_at
       FROM users ORDER BY id DESC
     `);
     res.json(result.rows);
@@ -1742,9 +1264,6 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    const userInfo = await client.query('SELECT team_id FROM users WHERE id = $1', [userId]);
-    const teamId = userInfo.rows[0]?.team_id;
-    
     await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
     await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
@@ -1752,52 +1271,16 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
-    
-    if (teamId) {
-      const teamCheck = await client.query('SELECT created_by FROM teams WHERE id = $1', [teamId]);
-      if (teamCheck.rows[0]?.created_by === parseInt(userId)) {
-        const nextLeader = await client.query(
-          'SELECT user_id FROM team_members WHERE team_id = $1 AND user_id != $2 ORDER BY joined_at ASC LIMIT 1',
-          [teamId, userId]
-        );
-        if (nextLeader.rows.length > 0) {
-          await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [nextLeader.rows[0].user_id, teamId]);
-        } else {
-          await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
-          await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-        }
-      }
-    }
-    
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    
     await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Delete user error:', err);
     res.status(500).json({ error: 'Failed to delete user' });
-  } finally {
-    client.release();
-  }
-});
-
-app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
-  const { teamId } = req.body;
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query('UPDATE users SET team_id = NULL WHERE team_id = $1', [teamId]);
-    await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
-    await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-    await client.query('COMMIT');
-    res.json({ success: true });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Delete team error:', err);
-    res.status(500).json({ error: 'Failed to delete team' });
   } finally {
     client.release();
   }
@@ -1882,7 +1365,7 @@ if (process.env.BOT_TOKEN) {
             ` *YzemanBot Help*\n\n` +
             `*How to earn COINS:*\n` +
             ` Watch Ads\n Refer Friends\n Daily Rewards\n` +
-            ` Wheel Spins\n Tournaments\n Team Battles\n\n` +
+            ` Wheel Spins\n Tournaments\n\n` +
             `*Withdrawal:* 100,000 COINS minimum\n` +
             `*Support:* @yzemanreal`,
             {
