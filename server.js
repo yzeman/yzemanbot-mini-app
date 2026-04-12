@@ -1936,6 +1936,106 @@ if (process.env.BOT_TOKEN) {
 }
 
 // ============================================
+// DEBUG ENDPOINT - REMOVE AFTER TESTING
+// ============================================
+app.get('/api/debug/team-check', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    // Check user
+    const userCheck = await client.query(
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      [String(telegramId)]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.json({ error: 'User not found in database' });
+    }
+    
+    const userId = userCheck.rows[0].id;
+    const teamId = userCheck.rows[0].team_id;
+    
+    // Check if in team_members
+    const memberCheck = await client.query(
+      'SELECT * FROM team_members WHERE user_id = $1',
+      [userId]
+    );
+    
+    // Check if in banned_members
+    const bannedCheck = await client.query(
+      'SELECT * FROM team_banned_members WHERE user_id = $1',
+      [userId]
+    );
+    
+    // Check all teams
+    const teamsCheck = await client.query('SELECT * FROM teams LIMIT 10');
+    
+    res.json({
+      user: {
+        id: userId,
+        team_id: teamId,
+        telegram_id: telegramId
+      },
+      is_in_team_members: memberCheck.rows,
+      is_in_banned_members: bannedCheck.rows,
+      teams: teamsCheck.rows,
+      message: 'Check the data above. If team_id is not NULL but not in team_members, that is the problem.'
+    });
+    
+  } catch (err) {
+    res.json({ error: err.message, stack: err.stack });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
+// ONE-TIME FIX - REMOVE AFTER USE
+// ============================================
+app.get('/api/fix-my-account', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    const userCheck = await client.query(
+      'SELECT id FROM users WHERE telegram_id = $1',
+      [String(telegramId)]
+    );
+    
+    if (userCheck.rows.length === 0) {
+      return res.json({ error: 'User not found' });
+    }
+    
+    const userId = userCheck.rows[0].id;
+    
+    await client.query('BEGIN');
+    
+    // Clear team_id
+    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
+    
+    // Remove from team_members
+    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+    
+    // Remove from banned_members
+    await client.query('DELETE FROM team_banned_members WHERE user_id = $1', [userId]);
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Your account has been completely reset. You can now create or join any team!' 
+    });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
 // START SERVER
 // ============================================
 
