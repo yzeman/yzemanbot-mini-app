@@ -453,3 +453,351 @@ END $$;
 -- ============================================
 -- END OF MIGRATION
 -- ============================================
+
+-- 3. Achievements System
+CREATE TABLE IF NOT EXISTS achievements (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    badge_icon TEXT,
+    required_value INTEGER,
+    points_reward INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    achievement_id INTEGER NOT NULL REFERENCES achievements(id),
+    achieved_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, achievement_id)
+);
+
+-- 4. Weekly Tournaments
+CREATE TABLE IF NOT EXISTS weekly_tournaments (
+    id SERIAL PRIMARY KEY,
+    week_start DATE NOT NULL,
+    week_end DATE NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tournament_participants (
+    id SERIAL PRIMARY KEY,
+    tournament_id INTEGER NOT NULL REFERENCES weekly_tournaments(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    points_earned INTEGER DEFAULT 0,
+    referral_count INTEGER DEFAULT 0,
+    rank INTEGER,
+    prize_awarded BOOLEAN DEFAULT FALSE,
+    UNIQUE(tournament_id, user_id)
+);
+
+-- 5. Teams & Monthly Competition
+CREATE TABLE IF NOT EXISTS teams (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    joined_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
+
+-- 6. Team banned members (prevents removed members from rejoining)
+CREATE TABLE IF NOT EXISTS team_banned_members (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    banned_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS monthly_competitions (
+    id SERIAL PRIMARY KEY,
+    month_year DATE NOT NULL,
+    winning_team_id INTEGER REFERENCES teams(id),
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(month_year)
+);
+
+-- 7. Ad Statistics
+CREATE TABLE IF NOT EXISTS ad_statistics (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    ad_streak INTEGER DEFAULT 0,
+    total_ads INTEGER DEFAULT 0,
+    ads_today INTEGER DEFAULT 0,
+    ads_week INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 8. Bonus Redemptions
+CREATE TABLE IF NOT EXISTS bonus_redemptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    bonus_code TEXT NOT NULL,
+    reward_points INTEGER NOT NULL,
+    redeemed_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- FIX: Add foreign key constraint to users.team_id
+-- ============================================
+
+-- First, clean up any orphaned team_ids (team that no longer exists)
+UPDATE users SET team_id = NULL 
+WHERE team_id IS NOT NULL 
+AND NOT EXISTS (SELECT 1 FROM teams WHERE id = users.team_id);
+
+-- Then add the foreign key constraint
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_users_team_id' 
+        AND table_name = 'users'
+    ) THEN
+        ALTER TABLE users 
+        ADD CONSTRAINT fk_users_team_id 
+        FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE SET NULL;
+    END IF;
+END $$;
+
+-- ============================================
+-- INSERT DEFAULT ACHIEVEMENTS
+-- ============================================
+
+INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
+    ('Loyal User', '30 day login streak', '🔥', 30, 50000000),
+    ('Referral Master', 'Get 100 referrals', '👑', 100, 100000000),
+    ('Points Millionaire', 'Earn 1,000,000,000 points', '💰', 1000000000, 1000000000),
+    ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 25000000),
+    ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 50000000),
+    ('Team Player', 'Join a team', '🤝', 1, 10000000),
+    ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 200000000),
+    ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000000),
+    ('Daily Streak 7', '7 day login streak', '📅', 7, 5000000),
+    ('Super Referrer', 'Get 500 referrals', '⭐', 500, 500000000),
+    ('Ad Master', 'Watch 1000 ads', '📺', 1000, 50000000)
+ON CONFLICT (name) DO UPDATE SET
+    description = EXCLUDED.description,
+    points_reward = EXCLUDED.points_reward;
+
+-- ============================================
+-- CREATE INDEXES FOR PERFORMANCE
+-- ============================================
+
+-- Existing indexes
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON referrals(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_created_at ON referrals(created_at);
+CREATE INDEX IF NOT EXISTS idx_ad_rewards_user_id ON ad_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);
+
+-- New indexes for features
+CREATE INDEX IF NOT EXISTS idx_daily_rewards_user_date ON daily_rewards(user_id, reward_date);
+CREATE INDEX IF NOT EXISTS idx_daily_rewards_user_id ON daily_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_wheel_spins_user_date ON wheel_spins(user_id, spin_date);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_participants_tournament ON tournament_participants(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_banned_members_team_id ON team_banned_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);
+CREATE INDEX IF NOT EXISTS idx_bonus_redemptions_user_id ON bonus_redemptions(user_id);
+
+-- ============================================
+-- VERIFY ALL TABLES WERE CREATED
+-- ============================================
+
+-- Check if all new tables exist (for debugging)
+DO $$
+DECLARE
+    missing_tables TEXT[] := ARRAY[]::TEXT[];
+    expected_tables TEXT[] := ARRAY['daily_rewards', 'wheel_spins', 'achievements', 'user_achievements', 'weekly_tournaments', 'tournament_participants', 'teams', 'team_members', 'team_banned_members', 'monthly_competitions', 'ad_statistics', 'bonus_redemptions'];
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY expected_tables
+    LOOP
+        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = t) THEN
+            missing_tables := array_append(missing_tables, t);
+        END IF;
+    END LOOP;
+    
+    IF array_length(missing_tables, 1) > 0 THEN
+        RAISE NOTICE 'Warning: Missing tables: %', missing_tables;
+    ELSE
+        RAISE NOTICE '✅ All new tables created successfully!';
+    END IF;
+END $$;
+
+-- ============================================
+-- END OF MIGRATION
+-- ============================================
+-- 3. Achievements System
+CREATE TABLE IF NOT EXISTS achievements (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
+    badge_icon TEXT,
+    required_value INTEGER,
+    points_reward INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    achievement_id INTEGER NOT NULL REFERENCES achievements(id),
+    achieved_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, achievement_id)
+);
+
+-- 4. Weekly Tournaments
+CREATE TABLE IF NOT EXISTS weekly_tournaments (
+    id SERIAL PRIMARY KEY,
+    week_start DATE NOT NULL,
+    week_end DATE NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tournament_participants (
+    id SERIAL PRIMARY KEY,
+    tournament_id INTEGER NOT NULL REFERENCES weekly_tournaments(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    points_earned INTEGER DEFAULT 0,
+    referral_count INTEGER DEFAULT 0,
+    rank INTEGER,
+    prize_awarded BOOLEAN DEFAULT FALSE,
+    UNIQUE(tournament_id, user_id)
+);
+
+-- 5. Teams & Monthly Competition
+CREATE TABLE IF NOT EXISTS teams (
+    id SERIAL PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL,
+    code TEXT UNIQUE NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    joined_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
+
+-- 6. Team banned members (prevents removed members from rejoining)
+CREATE TABLE IF NOT EXISTS team_banned_members (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    banned_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(team_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS monthly_competitions (
+    id SERIAL PRIMARY KEY,
+    month_year DATE NOT NULL,
+    winning_team_id INTEGER REFERENCES teams(id),
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(month_year)
+);
+
+-- 7. Ad Statistics
+CREATE TABLE IF NOT EXISTS ad_statistics (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    ad_streak INTEGER DEFAULT 0,
+    total_ads INTEGER DEFAULT 0,
+    ads_today INTEGER DEFAULT 0,
+    ads_week INTEGER DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 8. Bonus Redemptions
+CREATE TABLE IF NOT EXISTS bonus_redemptions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    bonus_code TEXT NOT NULL,
+    reward_points INTEGER NOT NULL,
+    redeemed_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ============================================
+-- INSERT DEFAULT ACHIEVEMENTS
+-- ============================================
+
+INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
+    ('Loyal User', '30 day login streak', '🔥', 30, 50000000),
+    ('Referral Master', 'Get 100 referrals', '👑', 100, 100000000),
+    ('Points Millionaire', 'Earn 1,000,000,000 points', '💰', 1000000000, 1000000000),
+    ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 25000000),
+    ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 50000000),
+    ('Team Player', 'Join a team', '🤝', 1, 10000000),
+    ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 200000000),
+    ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000000),
+    ('Daily Streak 7', '7 day login streak', '📅', 7, 5000000),
+    ('Super Referrer', 'Get 500 referrals', '⭐', 500, 500000000),
+    ('Ad Master', 'Watch 1000 ads', '📺', 1000, 50000000)
+ON CONFLICT (name) DO UPDATE SET
+    description = EXCLUDED.description,
+    points_reward = EXCLUDED.points_reward;
+
+-- ============================================
+-- CREATE INDEXES FOR PERFORMANCE
+-- ============================================
+
+-- Existing indexes
+CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id);
+CREATE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON referrals(referrer_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_created_at ON referrals(created_at);
+CREATE INDEX IF NOT EXISTS idx_ad_rewards_user_id ON ad_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_status ON withdrawals(status);
+
+-- New indexes for features
+CREATE INDEX IF NOT EXISTS idx_daily_rewards_user_date ON daily_rewards(user_id, reward_date);
+CREATE INDEX IF NOT EXISTS idx_daily_rewards_user_id ON daily_rewards(user_id);
+CREATE INDEX IF NOT EXISTS idx_wheel_spins_user_date ON wheel_spins(user_id, spin_date);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_participants_tournament ON tournament_participants(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_banned_members_team_id ON team_banned_members(team_id);
+CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);
+CREATE INDEX IF NOT EXISTS idx_bonus_redemptions_user_id ON bonus_redemptions(user_id);
+
+-- ============================================
+-- VERIFY ALL TABLES WERE CREATED
+-- ============================================
+
+-- Check if all new tables exist (for debugging)
+DO $$
+DECLARE
+    missing_tables TEXT[] := ARRAY[]::TEXT[];
+    expected_tables TEXT[] := ARRAY['daily_rewards', 'wheel_spins', 'achievements', 'user_achievements', 'weekly_tournaments', 'tournament_participants', 'teams', 'team_members', 'team_banned_members', 'monthly_competitions', 'ad_statistics', 'bonus_redemptions'];
+    t TEXT;
+BEGIN
+    FOREACH t IN ARRAY expected_tables
+    LOOP
+        IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = t) THEN
+            missing_tables := array_append(missing_tables, t);
+        END IF;
+    END LOOP;
+    
+    IF array_length(missing_tables, 1) > 0 THEN
+        RAISE NOTICE 'Warning: Missing tables: %', missing_tables;
+    ELSE
+        RAISE NOTICE '✅ All new tables created successfully!';
+    END IF;
+END $$;
+
+-- ============================================
+-- END OF MIGRATION
+-- ============================================
