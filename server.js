@@ -101,6 +101,7 @@ const { Telegraf } = require('telegraf');
 if (process.env.BOT_TOKEN) {
     const bot = new Telegraf(process.env.BOT_TOKEN);
     const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-mini-app.onrender.com';
+    const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
     
     // Start command
     bot.start(async (ctx) => {
@@ -129,7 +130,7 @@ if (process.env.BOT_TOKEN) {
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: '🚀 LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
-                        [{ text: '📢 Join Channel', url: 'https://t.me/YzemanEarnBotChannel' }]
+                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
                     ]
                 }
             }
@@ -141,15 +142,21 @@ if (process.env.BOT_TOKEN) {
         await ctx.reply(
             `📚 *YzemanBot Help*\n\n` +
             `*How to earn COINS:*\n` +
-            `🎬 Watch Ads\n👥 Refer Friends\n📅 Daily Rewards\n` +
-            `🎡 Wheel Spins\n🏆 Tournaments\n👑 Team Battles\n\n` +
+            `🎬 Watch Ads\n` +
+            `👥 Refer Friends\n` +
+            `📅 Daily Rewards\n` +
+            `🎡 Wheel Spins\n` +
+            `🏆 Tournaments\n` +
+            `👑 Team Battles\n\n` +
             `*Withdrawal:* 100,000 COINS minimum\n` +
-            `*Support:* @yzemanreal`,
+            `*Support:* @yzemanreal\n\n` +
+            `📢 *Join our channel for updates!*`,
             {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }]
+                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
+                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
                     ]
                 }
             }
@@ -159,14 +166,33 @@ if (process.env.BOT_TOKEN) {
     // Menu command
     bot.command('menu', async (ctx) => {
         await ctx.reply(
-            `📋 *Main Menu*`,
+            `📋 *Main Menu*\n\nChoose an option:`,
             {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: MINI_APP_URL } }],
                         [{ text: '📊 Leaderboard', callback_data: 'leaderboard' }, { text: '🏆 Tournament', callback_data: 'tournament' }],
-                        [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }]
+                        [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }],
+                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // Channel command
+    bot.command('channel', async (ctx) => {
+        await ctx.reply(
+            `📢 *Join Our Official Channel*\n\n` +
+            `Get the latest updates, bonus codes, and announcements!\n\n` +
+            `👉 @YzemanEarnBotChannel`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '📢 JOIN CHANNEL', url: CHANNEL_URL }],
+                        [{ text: '« Back to Menu', callback_data: 'back_to_menu' }]
                     ]
                 }
             }
@@ -176,7 +202,7 @@ if (process.env.BOT_TOKEN) {
     // Callback queries
     bot.action('leaderboard', async (ctx) => {
         await ctx.answerCbQuery();
-        await ctx.reply('🏆 *Leaderboard*\n\nView the top earners!', {
+        await ctx.reply('🏆 *Leaderboard*\n\nView the top earners and referrers!', {
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
@@ -189,41 +215,64 @@ if (process.env.BOT_TOKEN) {
     
     bot.action('tournament', async (ctx) => {
         await ctx.answerCbQuery();
-        await ctx.reply('🏆 *Weekly Tournament*\n\n🥇 500 COINS\n🥈 250 COINS\n🥉 100 COINS', {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🏆 JOIN TOURNAMENT', web_app: { url: `${MINI_APP_URL}/tournament.html` } }],
-                    [{ text: '« Back', callback_data: 'back_to_menu' }]
-                ]
+        await ctx.reply(
+            `🏆 *Weekly Tournament*\n\n` +
+            `🥇 1st: 500 COINS\n` +
+            `🥈 2nd: 250 COINS\n` +
+            `🥉 3rd: 100 COINS\n` +
+            `🏅 4th-10th: 50 COINS\n\n` +
+            `New tournament every Monday!`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🏆 JOIN TOURNAMENT', web_app: { url: `${MINI_APP_URL}/tournament.html` } }],
+                        [{ text: '« Back', callback_data: 'back_to_menu' }]
+                    ]
+                }
             }
-        });
+        );
     });
     
     bot.action('withdraw_info', async (ctx) => {
         await ctx.answerCbQuery();
-        await ctx.reply('💰 *Withdrawal Info*\n\nMinimum: 100,000 COINS\nCurrency: USDT (TRC-20)\nTime: 24-48 hours', {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '💳 GO TO WALLET', web_app: { url: MINI_APP_URL } }],
-                    [{ text: '« Back', callback_data: 'back_to_menu' }]
-                ]
+        await ctx.reply(
+            `💰 *Withdrawal Information*\n\n` +
+            `*Minimum:* 100,000 COINS\n` +
+            `*Currency:* USDT (TRC-20)\n` +
+            `*Time:* 24-48 hours\n\n` +
+            `Add your wallet in the app to withdraw.`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '💳 GO TO WALLET', web_app: { url: MINI_APP_URL } }],
+                        [{ text: '« Back', callback_data: 'back_to_menu' }]
+                    ]
+                }
             }
-        });
+        );
     });
     
     bot.action('help', async (ctx) => {
         await ctx.answerCbQuery();
-        await ctx.reply('📚 *Help*\n\nWatch ads • Refer friends • Daily rewards\nNeed support? @yzemanreal', {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
-                    [{ text: '« Back', callback_data: 'back_to_menu' }]
-                ]
+        await ctx.reply(
+            `📚 *Help*\n\n` +
+            `Watch ads • Refer friends • Daily rewards\n` +
+            `Wheel spins • Tournaments • Team battles\n\n` +
+            `*Support:* @yzemanreal\n` +
+            `*Channel:* @YzemanEarnBotChannel`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
+                        [{ text: '📢 Join Channel', url: CHANNEL_URL }],
+                        [{ text: '« Back', callback_data: 'back_to_menu' }]
+                    ]
+                }
             }
-        });
+        );
     });
     
     bot.action('back_to_menu', async (ctx) => {
@@ -234,13 +283,38 @@ if (process.env.BOT_TOKEN) {
                 inline_keyboard: [
                     [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: MINI_APP_URL } }],
                     [{ text: '📊 Leaderboard', callback_data: 'leaderboard' }, { text: '🏆 Tournament', callback_data: 'tournament' }],
-                    [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }]
+                    [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }],
+                    [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
                 ]
             }
         });
     });
     
-    // Launch bot in polling mode (works on Render without webhook)
+    // Handle referral codes in messages
+    bot.on('text', async (ctx) => {
+        const text = ctx.message.text;
+        
+        // Check if it's a referral code (format: ref-XXXXXX or YZEMAN-XXXXXX)
+        if (text.match(/^(ref-|YZEMAN-)[A-Z0-9]+$/i)) {
+            const miniAppUrl = `${MINI_APP_URL}?start=${text}`;
+            
+            await ctx.reply(
+                `🎉 *You found a referral code!*\n\n` +
+                `Use this link to join and earn bonus COINS!`,
+                {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: '🎁 CLAIM REFERRAL BONUS', web_app: { url: miniAppUrl } }],
+                            [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
+                        ]
+                    }
+                }
+            );
+        }
+    });
+    
+    // Launch bot in polling mode
     bot.launch()
         .then(() => console.log('🤖 Bot started in polling mode'))
         .catch(err => console.error('❌ Bot failed to start:', err));
@@ -250,7 +324,8 @@ if (process.env.BOT_TOKEN) {
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
     
     console.log('🤖 Telegram Bot initialized');
-                          }
+    console.log(`📢 Channel: ${CHANNEL_URL}`);
+}
 
 // ============================================
 // DATABASE INITIALIZATION
