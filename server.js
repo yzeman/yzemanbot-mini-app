@@ -28,6 +28,71 @@ app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
 // ============================================
+// TELEGRAM BOT WEBHOOK INTEGRATION
+// ============================================
+
+// Import and configure bot if in production
+if (isProduction && process.env.BOT_TOKEN) {
+    const { Telegraf } = require('telegraf');
+    const bot = new Telegraf(process.env.BOT_TOKEN);
+    
+    // Webhook endpoint
+    app.use(bot.webhookCallback(`/bot${process.env.BOT_TOKEN}`));
+    
+    // Set webhook on startup
+    const WEBHOOK_URL = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/bot${process.env.BOT_TOKEN}`;
+    
+    bot.telegram.setWebhook(WEBHOOK_URL)
+        .then(() => console.log(`✅ Bot webhook set to: ${WEBHOOK_URL}`))
+        .catch(err => console.error('❌ Failed to set webhook:', err));
+    
+    // Bot commands
+    bot.start(async (ctx) => {
+        const firstName = ctx.from.first_name;
+        const startPayload = ctx.startPayload || '';
+        let miniAppUrl = 'https://yzemanbot-mini-app.onrender.com';
+        if (startPayload) miniAppUrl += `?start=${startPayload}`;
+        
+        await ctx.reply(
+            `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
+            `💰 Earn COINS by watching ads, inviting friends, and more!\n\n` +
+            `👇 *Tap below to start earning!*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
+                        [{ text: '📢 Join Channel', url: 'https://t.me/YzemanEarnBotChannel' }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    bot.help(async (ctx) => {
+        await ctx.reply(
+            `📚 *YzemanBot Help*\n\n` +
+            `• Watch ads to earn COINS\n` +
+            `• Refer friends for bonuses\n` +
+            `• Claim daily rewards\n` +
+            `• Spin the wheel every 3 days\n` +
+            `• Join tournaments and teams!\n\n` +
+            `Minimum withdrawal: 100,000 COINS`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 LAUNCH APP', web_app: { url: 'https://yzemanbot-mini-app.onrender.com' } }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    console.log('🤖 Bot webhook endpoint registered');
+}
+
+// ============================================
 // DATABASE INITIALIZATION
 // ============================================
 
