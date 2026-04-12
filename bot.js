@@ -1,353 +1,360 @@
 const { Telegraf } = require('telegraf');
-const express = require('express');
-const { Pool } = require('pg');
 require('dotenv').config();
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
-if (!BOT_TOKEN) {
-    console.error('❌ BOT_TOKEN is required');
-    process.exit(1);
-}
+// Your Mini App URL - Update this to your Render URL
+const MINI_APP_URL = 'https://yzemanbot-mini-app.onrender.com';
 
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 10000,
-});
+// ============================================
+// START COMMAND
+// ============================================
 
-// Create express app for health check
-const app = express();
-const PORT = process.env.PORT || 3002;
-
-app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'OK', bot: 'running', time: new Date().toISOString() });
-});
-
-app.get('/', (req, res) => {
-    res.send('🤖 Yzeman Bot is running!');
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 Health server running on port ${PORT}`);
-});
-
-// Initialize bot
-const bot = new Telegraf(BOT_TOKEN);
-
-// Helper: Check if user already exists
-async function userExists(telegramId) {
-    const result = await pool.query(
-        'SELECT id, first_name, username FROM users WHERE telegram_id = $1',
-        [telegramId]
-    );
-    return result.rows[0] || null;
-}
-
-// Helper: Get user info from database
-async function getUserByTelegramId(telegramId) {
-    const result = await pool.query(
-        'SELECT id, username, first_name, points, referrals, referral_code, tier FROM users WHERE telegram_id = $1',
-        [telegramId]
-    );
-    return result.rows[0] || null;
-}
-
-// Helper: Get referrer by referral code
-async function getReferrerByCode(referralCode) {
-    // Clean the code
-    let cleanCode = referralCode;
-    if (cleanCode.startsWith('ref-')) cleanCode = cleanCode.substring(4);
-    if (cleanCode.startsWith('YZEMAN-')) cleanCode = cleanCode.substring(7);
+bot.start(async (ctx) => {
+    const userId = ctx.from.id;
+    const firstName = ctx.from.first_name;
+    const username = ctx.from.username || '';
     
-    // Try multiple formats
-    let result = await pool.query(
-        'SELECT id, username, first_name, points, referrals FROM users WHERE referral_code = $1',
-        [cleanCode]
-    );
+    // Check for referral code in start parameter
+    const startPayload = ctx.startPayload || '';
+    let referralCode = '';
     
-    if (result.rows.length === 0) {
-        result = await pool.query(
-            'SELECT id, username, first_name, points, referrals FROM users WHERE referral_code = $1',
-            [`ref-${cleanCode}`]
-        );
-    }
-    
-    if (result.rows.length === 0) {
-        result = await pool.query(
-            'SELECT id, username, first_name, points, referrals FROM users WHERE referral_code = $1',
-            [`YZEMAN-${cleanCode}`]
-        );
-    }
-    
-    return result.rows[0] || null;
-}
-
-// Handle /start command
-bot.command('start', async (ctx) => {
-    console.log('📨 /start command received from user:', ctx.from.id);
-    
-    const args = ctx.message.text.split(' ');
-    let rawReferralCode = args[1];
-    let referralInfo = null;
-    
-    // Clean referral code
-    if (rawReferralCode) {
-        let cleanCode = rawReferralCode;
-        if (cleanCode.startsWith('ref-')) cleanCode = cleanCode.substring(4);
-        if (cleanCode.startsWith('YZEMAN-')) cleanCode = cleanCode.substring(7);
-        
-        // Check if referrer exists in database
-        referralInfo = await getReferrerByCode(cleanCode);
-        
-        if (referralInfo) {
-            console.log(`✅ Valid referral code: ${rawReferralCode} from user ${referralInfo.id} (${referralInfo.username || referralInfo.first_name})`);
+    if (startPayload) {
+        // Handle referral code (format: ref-XXXXXX)
+        if (startPayload.startsWith('ref-')) {
+            referralCode = startPayload;
         } else {
-            console.log(`⚠️ Invalid referral code: ${rawReferralCode}`);
+            referralCode = startPayload;
         }
     }
     
-    // Check if user already exists
-    const existingUser = await userExists(ctx.from.id);
+    console.log(`🚀 User ${userId} (${firstName}) started the bot. Referral: ${referralCode}`);
     
-    // Create keyboard with Mini App button
-    let webAppUrl = MINI_APP_URL;
-    if (rawReferralCode) {
-        webAppUrl = `${MINI_APP_URL}?start=${rawReferralCode}`;
+    // Build the Mini App URL with referral code
+    let miniAppUrl = MINI_APP_URL;
+    if (referralCode) {
+        miniAppUrl += `?start=${referralCode}`;
     }
     
-    const keyboard = {
-        inline_keyboard: [
-            [{ text: '🚀 Open Yzeman Bot App', web_app: { url: webAppUrl } }],
-            [{ text: '❓ How it works', callback_data: 'help' }],
-            [{ text: '📊 My Stats', callback_data: 'stats' }],
-            [{ text: '👥 My Referrals', callback_data: 'referrals' }]
-        ]
-    };
-    
-    let message = '';
-    
-    // CASE 1: User already exists (already registered)
-    if (existingUser) {
-        message = `🎉 <b>Welcome back, ${existingUser.first_name || existingUser.username || 'User'}!</b>\n\n`;
-        
-        if (rawReferralCode) {
-            message += `⚠️ <b>Note:</b> Referral codes only work for new users.\n`;
-            message += `Since you're already registered, no bonus was applied.\n\n`;
+    // Welcome message with Mini App button
+    await ctx.reply(
+        `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
+        `💰 *Earn COINS by:*\n` +
+        `• Watching ads\n` +
+        `• Inviting friends\n` +
+        `• Daily rewards\n` +
+        `• Spinning the wheel\n` +
+        `• Competing in tournaments\n\n` +
+        `👇 *Tap below to start earning!*`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🚀 LAUNCH YZEMANBOT',
+                            web_app: { url: miniAppUrl }
+                        }
+                    ],
+                    [
+                        { text: '📢 Join Channel', url: 'https://t.me/YzemanEarnBotChannel' }
+                    ]
+                ]
+            }
         }
-        
-        message += `<b>📊 Your Stats:</b>\n`;
-        message += `💰 Points: ${existingUser.points?.toLocaleString() || 0}\n`;
-        message += `👥 Referrals: ${existingUser.referrals || 0}\n`;
-        message += `🏆 Tier: ${existingUser.tier || 'Fresher'}\n\n`;
-        message += `Open the app below to continue earning! 🚀`;
-        
-    } else {
-        // CASE 2: New user
-        message = `🎉 <b>Welcome to Yzeman Bot!</b>\n\n`;
-        message += `Earn points by referring friends and watching ads.\n\n`;
-        
-        if (rawReferralCode && referralInfo) {
-            message += `✅ <b>You were referred by ${referralInfo.first_name || referralInfo.username || 'a friend'}!</b>\n`;
-            message += `Open the app below to claim your 500 bonus points! 🎁\n\n`;
-        } else if (rawReferralCode && !referralInfo) {
-            message += `⚠️ <b>Invalid referral code!</b>\n`;
-            message += `The code "${rawReferralCode}" is not valid.\n\n`;
-        }
-        
-        message += `<b>📊 Features:</b>\n`;
-        message += `• Refer friends to earn points\n`;
-        message += `• Watch ads for rewards\n`;
-        message += `• Climb tiers (Fresher → Platinum)\n`;
-        message += `• Higher tiers = more rewards!\n\n`;
-        message += `Open the app below to get started! 🚀`;
-    }
-    
-    ctx.reply(message, {
-        parse_mode: 'HTML',
-        reply_markup: keyboard
-    }).catch(err => console.error('Failed to send reply:', err.message));
+    );
 });
 
-// Handle help button
+// ============================================
+// HELP COMMAND
+// ============================================
+
+bot.help(async (ctx) => {
+    await ctx.reply(
+        `📚 *YzemanBot Help*\n\n` +
+        `*How to earn COINS:*\n` +
+        `🎬 *Watch Ads* - Earn COINS for each ad you watch\n` +
+        `👥 *Refer Friends* - Get bonus COINS when friends join\n` +
+        `📅 *Daily Rewards* - Login daily to build your streak\n` +
+        `🎡 *Wheel of Fortune* - Spin every 3 days to win big\n` +
+        `🏆 *Tournaments* - Compete weekly for massive prizes\n` +
+        `👑 *Teams* - Join or create a team to earn together\n\n` +
+        `*Withdrawal:*\n` +
+        `💳 Minimum 100,000 COINS to withdraw\n` +
+        `💰 Paid in USDT (TRC-20)\n\n` +
+        `❓ *Need support?* Contact @yzemanreal`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🚀 LAUNCH APP',
+                            web_app: { url: MINI_APP_URL }
+                        }
+                    ]
+                ]
+            }
+        }
+    );
+});
+
+// ============================================
+// MENU COMMAND
+// ============================================
+
+bot.command('menu', async (ctx) => {
+    await ctx.reply(
+        `📋 *Main Menu*\n\nChoose an option:`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🚀 OPEN YZEMANBOT',
+                            web_app: { url: MINI_APP_URL }
+                        }
+                    ],
+                    [
+                        { text: '📊 Leaderboard', callback_data: 'leaderboard' },
+                        { text: '🏆 Tournament', callback_data: 'tournament' }
+                    ],
+                    [
+                        { text: '💰 Withdrawal Info', callback_data: 'withdraw_info' },
+                        { text: '❓ Help', callback_data: 'help' }
+                    ]
+                ]
+            }
+        }
+    );
+});
+
+// ============================================
+// CALLBACK QUERIES
+// ============================================
+
+bot.action('leaderboard', async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.reply(
+        `🏆 *Leaderboard*\n\nView the top earners and referrers in the app!`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '📊 VIEW LEADERBOARD',
+                            web_app: { url: `${MINI_APP_URL}/leaderboard.html` }
+                        }
+                    ],
+                    [
+                        { text: '« Back to Menu', callback_data: 'back_to_menu' }
+                    ]
+                ]
+            }
+        }
+    );
+});
+
+bot.action('tournament', async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.reply(
+        `🏆 *Weekly Tournament*\n\n` +
+        `Compete for massive COINS prizes!\n\n` +
+        `🥇 1st Place: 500 COINS\n` +
+        `🥈 2nd Place: 250 COINS\n` +
+        `🥉 3rd Place: 100 COINS\n\n` +
+        `New tournament every Monday!`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🏆 JOIN TOURNAMENT',
+                            web_app: { url: `${MINI_APP_URL}/tournament.html` }
+                        }
+                    ],
+                    [
+                        { text: '« Back to Menu', callback_data: 'back_to_menu' }
+                    ]
+                ]
+            }
+        }
+    );
+});
+
+bot.action('withdraw_info', async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.reply(
+        `💰 *Withdrawal Information*\n\n` +
+        `*Minimum Withdrawal:* 100,000 COINS\n` +
+        `*Currency:* USDT (TRC-20)\n` +
+        `*Processing Time:* 24-48 hours\n\n` +
+        `*How to withdraw:*\n` +
+        `1. Open the app\n` +
+        `2. Go to Wallet tab\n` +
+        `3. Enter your USDT (TRC-20) address\n` +
+        `4. Request withdrawal\n\n` +
+        `Your request will be reviewed by admin.`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '💳 GO TO WALLET',
+                            web_app: { url: MINI_APP_URL }
+                        }
+                    ],
+                    [
+                        { text: '« Back to Menu', callback_data: 'back_to_menu' }
+                    ]
+                ]
+            }
+        }
+    );
+});
+
 bot.action('help', async (ctx) => {
-    ctx.answerCbQuery();
-    
-    let helpMessage = `<b>📖 How to use Yzeman Bot:</b>\n\n`;
-    helpMessage += `<b>1. Earn Points:</b>\n`;
-    helpMessage += `   • Share your referral link with friends\n`;
-    helpMessage += `   • Watch ads in the Mini App\n`;
-    helpMessage += `   • Each referral gives you points\n\n`;
-    helpMessage += `<b>2. Referral System:</b>\n`;
-    helpMessage += `   • Get your unique code in the app\n`;
-    helpMessage += `   • Share link: t.me/YzemanBot?start=YOUR_CODE\n`;
-    helpMessage += `   • Earn rewards when friends join\n\n`;
-    helpMessage += `<b>3. Tiers & Multipliers:</b>\n`;
-    helpMessage += `   • Fresher (0 refs) - 1.0x multiplier\n`;
-    helpMessage += `   • Brute (50 refs) - 1.2x multiplier\n`;
-    helpMessage += `   • Silver (150 refs) - 1.5x multiplier\n`;
-    helpMessage += `   • Gold (300 refs) - 2.0x multiplier\n`;
-    helpMessage += `   • Platinum (500 refs) - 3.0x multiplier\n\n`;
-    helpMessage += `Open the app below to start earning! 🚀`;
-    
-    ctx.reply(helpMessage, { parse_mode: 'HTML' });
-});
-
-// Handle stats button
-bot.action('stats', async (ctx) => {
-    ctx.answerCbQuery();
-    
-    const userStats = await getUserByTelegramId(ctx.from.id);
-    
-    if (!userStats) {
-        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
-        return;
-    }
-    
-    let statsMessage = `<b>📊 Your YzemanBot Stats</b>\n\n`;
-    statsMessage += `💰 <b>Points:</b> ${userStats.points?.toLocaleString() || 0}\n`;
-    statsMessage += `💵 <b>USD Value:</b> $${((userStats.points || 0) / 100000).toFixed(2)}\n`;
-    statsMessage += `👥 <b>Referrals:</b> ${userStats.referrals || 0}\n`;
-    statsMessage += `🏆 <b>Tier:</b> ${userStats.tier || 'Fresher'}\n`;
-    statsMessage += `🔗 <b>Your Referral Link:</b>\n`;
-    statsMessage += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
-    statsMessage += `Share your link and earn points when friends join! 🚀`;
-    
-    ctx.reply(statsMessage, { parse_mode: 'HTML' });
-});
-
-// Handle referrals button - show list of people who joined using user's code
-bot.action('referrals', async (ctx) => {
-    ctx.answerCbQuery();
-    
-    const userStats = await getUserByTelegramId(ctx.from.id);
-    
-    if (!userStats) {
-        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
-        return;
-    }
-    
-    // Get detailed referral list
-    const referralsList = await pool.query(
-        `SELECT u.first_name, u.username, u.created_at 
-         FROM referrals r 
-         JOIN users u ON r.referred_id = u.id 
-         WHERE r.referrer_id = $1 
-         ORDER BY r.created_at DESC 
-         LIMIT 20`,
-        [userStats.id]
+    await ctx.answerCbQuery();
+    await ctx.reply(
+        `📚 *YzemanBot Help*\n\n` +
+        `*How to earn COINS:*\n` +
+        `🎬 Watch Ads\n` +
+        `👥 Refer Friends\n` +
+        `📅 Daily Rewards\n` +
+        `🎡 Wheel Spins\n` +
+        `🏆 Tournaments\n` +
+        `👑 Team Battles\n\n` +
+        `*Need support?* Contact @yzemanreal`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🚀 LAUNCH APP',
+                            web_app: { url: MINI_APP_URL }
+                        }
+                    ],
+                    [
+                        { text: '« Back to Menu', callback_data: 'back_to_menu' }
+                    ]
+                ]
+            }
+        }
     );
-    
-    let message = `<b>👥 Your Referrals</b>\n\n`;
-    message += `📊 <b>Total:</b> ${userStats.referrals || 0} people joined using your link\n\n`;
-    
-    if (referralsList.rows.length > 0) {
-        message += `<b>📜 Recent Referrals:</b>\n`;
-        referralsList.rows.slice(0, 10).forEach((ref, index) => {
-            const name = ref.first_name || ref.username || 'Someone';
-            const date = new Date(ref.created_at).toLocaleDateString();
-            message += `${index + 1}. ${name} (${date})\n`;
-        });
-    } else {
-        message += `No referrals yet.\n`;
-    }
-    
-    message += `\n🔗 <b>Your Referral Link:</b>\n`;
-    message += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
-    message += `Share your link and earn points when friends join! 🚀`;
-    
-    ctx.reply(message, { parse_mode: 'HTML' });
 });
 
-// Command to check referrals (alternative to button)
-bot.command('referrals', async (ctx) => {
-    const userStats = await getUserByTelegramId(ctx.from.id);
-    
-    if (!userStats) {
-        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
-        return;
-    }
-    
-    const referralsList = await pool.query(
-        `SELECT u.first_name, u.username, u.created_at 
-         FROM referrals r 
-         JOIN users u ON r.referred_id = u.id 
-         WHERE r.referrer_id = $1 
-         ORDER BY r.created_at DESC 
-         LIMIT 20`,
-        [userStats.id]
+bot.action('back_to_menu', async (ctx) => {
+    await ctx.answerCbQuery();
+    await ctx.reply(
+        `📋 *Main Menu*\n\nChoose an option:`,
+        {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: '🚀 OPEN YZEMANBOT',
+                            web_app: { url: MINI_APP_URL }
+                        }
+                    ],
+                    [
+                        { text: '📊 Leaderboard', callback_data: 'leaderboard' },
+                        { text: '🏆 Tournament', callback_data: 'tournament' }
+                    ],
+                    [
+                        { text: '💰 Withdrawal Info', callback_data: 'withdraw_info' },
+                        { text: '❓ Help', callback_data: 'help' }
+                    ]
+                ]
+            }
+        }
     );
-    
-    let message = `<b>👥 Your Referrals</b>\n\n`;
-    message += `📊 <b>Total:</b> ${userStats.referrals || 0} people joined using your link\n\n`;
-    
-    if (referralsList.rows.length > 0) {
-        message += `<b>📜 Recent Referrals:</b>\n`;
-        referralsList.rows.slice(0, 10).forEach((ref, index) => {
-            const name = ref.first_name || ref.username || 'Someone';
-            const date = new Date(ref.created_at).toLocaleDateString();
-            message += `${index + 1}. ${name} (${date})\n`;
-        });
-    } else {
-        message += `No referrals yet.\n`;
-    }
-    
-    message += `\n🔗 <b>Your Referral Link:</b>\n`;
-    message += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
-    message += `Share your link and earn points when friends join! 🚀`;
-    
-    ctx.reply(message, { parse_mode: 'HTML' });
 });
 
-// Command to check stats (alternative to button)
-bot.command('stats', async (ctx) => {
-    const userStats = await getUserByTelegramId(ctx.from.id);
-    
-    if (!userStats) {
-        ctx.reply("You haven't registered yet. Open the Mini App to get started!");
-        return;
+// ============================================
+// REFERRAL TRACKING (Deep Linking)
+// ============================================
+
+bot.on('message', async (ctx) => {
+    // Only handle text messages that aren't commands
+    if (ctx.message.text && !ctx.message.text.startsWith('/')) {
+        const text = ctx.message.text;
+        
+        // Check if it's a referral code (format: ref-XXXXXX or YZEMAN-XXXXXX)
+        if (text.match(/^(ref-|YZEMAN-)[A-Z0-9]+$/i)) {
+            const miniAppUrl = `${MINI_APP_URL}?start=${text}`;
+            
+            await ctx.reply(
+                `🎉 *You found a referral code!*\n\n` +
+                `Use this link to join and earn bonus COINS!`,
+                {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: '🎁 CLAIM REFERRAL BONUS',
+                                    web_app: { url: miniAppUrl }
+                                }
+                            ]
+                        ]
+                    }
+                }
+            );
+        }
     }
-    
-    let statsMessage = `<b>📊 Your YzemanBot Stats</b>\n\n`;
-    statsMessage += `💰 <b>Points:</b> ${userStats.points?.toLocaleString() || 0}\n`;
-    statsMessage += `💵 <b>USD Value:</b> $${((userStats.points || 0) / 100000).toFixed(2)}\n`;
-    statsMessage += `👥 <b>Referrals:</b> ${userStats.referrals || 0}\n`;
-    statsMessage += `🏆 <b>Tier:</b> ${userStats.tier || 'Fresher'}\n`;
-    statsMessage += `🔗 <b>Your Referral Link:</b>\n`;
-    statsMessage += `t.me/YzemanBot?start=${userStats.referral_code}\n\n`;
-    statsMessage += `Share your link and earn points when friends join! 🚀`;
-    
-    ctx.reply(statsMessage, { parse_mode: 'HTML' });
 });
 
-// Error handling
+// ============================================
+// ERROR HANDLING
+// ============================================
+
 bot.catch((err, ctx) => {
-    console.error(`❌ Bot error:`, err.message);
-    ctx.reply('Sorry, something went wrong. Please try again later.');
+    console.error(`❌ Bot error for ${ctx.updateType}:`, err);
 });
 
-// Start the bot
-console.log('🤖 Starting bot...');
-bot.launch().then(() => {
-    console.log('✅ Bot is running and listening for commands!');
-    console.log('📱 Bot username: @YzemanBot');
-}).catch(err => {
-    console.error('❌ Failed to launch bot:', err);
-    process.exit(1);
-});
+// ============================================
+// START BOT
+// ============================================
 
-// Graceful stop
-process.once('SIGINT', () => {
-    console.log('🛑 SIGINT received, stopping bot...');
-    bot.stop('SIGINT');
-    pool.end();
-    process.exit(0);
-});
-process.once('SIGTERM', () => {
-    console.log('🛑 SIGTERM received, stopping bot...');
-    bot.stop('SIGTERM');
-    pool.end();
-    process.exit(0);
-});
+// Use webhook in production, polling in development
+const isProduction = process.env.NODE_ENV === 'production';
+
+if (isProduction) {
+    // For Render deployment - use webhook
+    const WEBHOOK_URL = `${process.env.RENDER_EXTERNAL_URL}/bot${process.env.BOT_TOKEN}`;
+    
+    bot.telegram.setWebhook(WEBHOOK_URL)
+        .then(() => {
+            console.log(`✅ Webhook set to: ${WEBHOOK_URL}`);
+        })
+        .catch((err) => {
+            console.error('❌ Failed to set webhook:', err);
+        });
+    
+    // Export for serverless environment
+    module.exports = bot.webhookCallback(`/bot${process.env.BOT_TOKEN}`);
+    
+} else {
+    // For local development - use polling
+    bot.launch()
+        .then(() => {
+            console.log('🚀 Bot started in polling mode');
+            console.log(`🌐 Mini App URL: ${MINI_APP_URL}`);
+        })
+        .catch((err) => {
+            console.error('❌ Failed to start bot:', err);
+        });
+}
+
+// Enable graceful stop
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
+
+console.log('🤖 YzemanBot is running...');
+console.log(`🌐 Mini App URL: ${MINI_APP_URL}`);
