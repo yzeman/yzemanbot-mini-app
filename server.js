@@ -93,6 +93,166 @@ if (isProduction && process.env.BOT_TOKEN) {
 }
 
 // ============================================
+// TELEGRAM BOT INTEGRATION (Polling Mode)
+// ============================================
+
+const { Telegraf } = require('telegraf');
+
+if (process.env.BOT_TOKEN) {
+    const bot = new Telegraf(process.env.BOT_TOKEN);
+    const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-mini-app.onrender.com';
+    
+    // Start command
+    bot.start(async (ctx) => {
+        const userId = ctx.from.id;
+        const firstName = ctx.from.first_name;
+        const startPayload = ctx.startPayload || '';
+        
+        let miniAppUrl = MINI_APP_URL;
+        if (startPayload) {
+            miniAppUrl += `?start=${startPayload}`;
+        }
+        
+        console.log(`🚀 User ${userId} (${firstName}) started bot`);
+        
+        await ctx.reply(
+            `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
+            `💰 *Earn COINS by:*\n` +
+            `• Watching ads\n` +
+            `• Inviting friends\n` +
+            `• Daily rewards\n` +
+            `• Spinning the wheel\n` +
+            `• Competing in tournaments\n\n` +
+            `👇 *Tap below to start earning!*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
+                        [{ text: '📢 Join Channel', url: 'https://t.me/YzemanEarnBotChannel' }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // Help command
+    bot.help(async (ctx) => {
+        await ctx.reply(
+            `📚 *YzemanBot Help*\n\n` +
+            `*How to earn COINS:*\n` +
+            `🎬 Watch Ads\n👥 Refer Friends\n📅 Daily Rewards\n` +
+            `🎡 Wheel Spins\n🏆 Tournaments\n👑 Team Battles\n\n` +
+            `*Withdrawal:* 100,000 COINS minimum\n` +
+            `*Support:* @yzemanreal`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // Menu command
+    bot.command('menu', async (ctx) => {
+        await ctx.reply(
+            `📋 *Main Menu*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: MINI_APP_URL } }],
+                        [{ text: '📊 Leaderboard', callback_data: 'leaderboard' }, { text: '🏆 Tournament', callback_data: 'tournament' }],
+                        [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // Callback queries
+    bot.action('leaderboard', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply('🏆 *Leaderboard*\n\nView the top earners!', {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '📊 VIEW LEADERBOARD', web_app: { url: `${MINI_APP_URL}/leaderboard.html` } }],
+                    [{ text: '« Back', callback_data: 'back_to_menu' }]
+                ]
+            }
+        });
+    });
+    
+    bot.action('tournament', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply('🏆 *Weekly Tournament*\n\n🥇 500 COINS\n🥈 250 COINS\n🥉 100 COINS', {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🏆 JOIN TOURNAMENT', web_app: { url: `${MINI_APP_URL}/tournament.html` } }],
+                    [{ text: '« Back', callback_data: 'back_to_menu' }]
+                ]
+            }
+        });
+    });
+    
+    bot.action('withdraw_info', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply('💰 *Withdrawal Info*\n\nMinimum: 100,000 COINS\nCurrency: USDT (TRC-20)\nTime: 24-48 hours', {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '💳 GO TO WALLET', web_app: { url: MINI_APP_URL } }],
+                    [{ text: '« Back', callback_data: 'back_to_menu' }]
+                ]
+            }
+        });
+    });
+    
+    bot.action('help', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply('📚 *Help*\n\nWatch ads • Refer friends • Daily rewards\nNeed support? @yzemanreal', {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
+                    [{ text: '« Back', callback_data: 'back_to_menu' }]
+                ]
+            }
+        });
+    });
+    
+    bot.action('back_to_menu', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply(`📋 *Main Menu*`, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: MINI_APP_URL } }],
+                    [{ text: '📊 Leaderboard', callback_data: 'leaderboard' }, { text: '🏆 Tournament', callback_data: 'tournament' }],
+                    [{ text: '💰 Withdrawal Info', callback_data: 'withdraw_info' }, { text: '❓ Help', callback_data: 'help' }]
+                ]
+            }
+        });
+    });
+    
+    // Launch bot in polling mode (works on Render without webhook)
+    bot.launch()
+        .then(() => console.log('🤖 Bot started in polling mode'))
+        .catch(err => console.error('❌ Bot failed to start:', err));
+    
+    // Graceful stop
+    process.once('SIGINT', () => bot.stop('SIGINT'));
+    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+    
+    console.log('🤖 Telegram Bot initialized');
+                          }
+
+// ============================================
 // DATABASE INITIALIZATION
 // ============================================
 
