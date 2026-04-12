@@ -1952,11 +1952,11 @@ if (process.env.BOT_TOKEN) {
         await ctx.reply(
             ` *Welcome to YzemanBot, ${firstName}!*\n\n` +
             ` *Earn COINS by:*\n` +
-            `• Watching ads\n` +
-            `• Inviting friends\n` +
-            `• Daily rewards\n` +
-            `• Spinning the wheel\n` +
-            `• Competing in tournaments\n\n` +
+            `Â• Watching ads\n` +
+            `Â• Inviting friends\n` +
+            `Â• Daily rewards\n` +
+            `Â• Spinning the wheel\n` +
+            `Â• Competing in tournaments\n\n` +
             ` *Tap below to start earning!*`,
             {
                 parse_mode: 'Markdown',
@@ -1999,6 +1999,51 @@ if (process.env.BOT_TOKEN) {
     
     console.log(' Telegram Bot initialized');
 }
+
+// ============================================
+// ONE-TIME FIX - RUN ONCE THEN REMOVE
+// ============================================
+app.get('/api/fix-my-team', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    // Get user ID
+    const userRes = await client.query('SELECT id FROM users WHERE telegram_id = $1', [String(telegramId)]);
+    if (userRes.rows.length === 0) return res.json({ error: 'User not found' });
+    const userId = userRes.rows[0].id;
+
+    await client.query('BEGIN');
+    
+    // 1. Remove from banned lists
+    await client.query('DELETE FROM team_banned_members WHERE user_id = $1', [userId]);
+    
+    // 2. Remove from any team memberships
+    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+    
+    // 3. Clear team_id on user record
+    await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
+    
+    // 4. Clean up orphaned teams created by this user (if any)
+    await client.query(`
+      DELETE FROM teams 
+      WHERE created_by = $1 
+      AND NOT EXISTS (SELECT 1 FROM team_members WHERE team_id = teams.id)
+    `, [userId]);
+    
+    await client.query('COMMIT');
+    
+    res.json({ 
+      success: true, 
+      message: 'Team data completely reset. You can now join or create a team!' 
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
 
 // ============================================
 // START SERVER
