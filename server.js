@@ -1392,7 +1392,7 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
     // Remove from team_members
     await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, memberId]);
     
-    // CRITICAL: Clear their team_id so they can join/create other teams
+    // ðŸ”¥ CRITICAL: Clear their team_id so they can join/create other teams
     await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [memberId]);
     
     // Add to banned list for THIS TEAM ONLY
@@ -1402,7 +1402,6 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
     );
     
     await client.query('COMMIT');
-    console.log(` Member ${memberId} removed from team ${teamId} and banned from rejoining THIS team`);
     res.json({ success: true, message: 'Member removed from team and banned from rejoining' });
     
   } catch (err) {
@@ -1888,11 +1887,11 @@ if (process.env.BOT_TOKEN) {
         await ctx.reply(
             ` *Welcome to YzemanBot, ${firstName}!*\n\n` +
             ` *Earn COINS by:*\n` +
-            `• Watching ads\n` +
-            `• Inviting friends\n` +
-            `• Daily rewards\n` +
-            `• Spinning the wheel\n` +
-            `• Competing in tournaments\n\n` +
+            `Â• Watching ads\n` +
+            `Â• Inviting friends\n` +
+            `Â• Daily rewards\n` +
+            `Â• Spinning the wheel\n` +
+            `Â• Competing in tournaments\n\n` +
             ` *Tap below to start earning!*`,
             {
                 parse_mode: 'Markdown',
