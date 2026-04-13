@@ -1,6 +1,5 @@
 -- ============================================
--- UPDATED DATABASE SCHEMA WITH SIMPLE TEAMS
--- This replaces old team tables with new simple ones
+-- UPDATED DATABASE SCHEMA - WORKING TEAM VERSION
 -- ============================================
 
 -- ============================================
@@ -22,11 +21,12 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Add missing columns to users (safe - only adds if not exists)
+-- Add missing columns to users
 ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_address TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS referrals INTEGER DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date DATE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS total_points_earned BIGINT DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER;
 
 -- Tiers table
 CREATE TABLE IF NOT EXISTS tiers (
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 );
 
 -- ============================================
--- NEW FEATURE TABLES (Added safely)
+-- NEW FEATURE TABLES
 -- ============================================
 
 -- 1. Daily Rewards & Streak System
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS daily_rewards (
     UNIQUE(user_id, reward_date)
 );
 
--- 2. Wheel of Fortune (3-day cooldown)
+-- 2. Wheel of Fortune
 CREATE TABLE IF NOT EXISTS wheel_spins (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id),
@@ -144,30 +144,34 @@ CREATE TABLE IF NOT EXISTS tournament_participants (
 );
 
 -- ============================================
--- NEW SIMPLE TEAMS (Replaces old complex teams)
+-- TEAMS - WORKING VERSION (WITH CODE COLUMN)
 -- ============================================
 
--- Drop old team tables if they exist
-DROP TABLE IF EXISTS team_banned_members CASCADE;
-DROP TABLE IF EXISTS team_members CASCADE;
-DROP TABLE IF EXISTS teams CASCADE;
-DROP TABLE IF EXISTS monthly_competitions CASCADE;
-
--- Create new simplified teams table (no code, just name)
-CREATE TABLE teams (
+-- Teams table (WITH code column - required by server)
+CREATE TABLE IF NOT EXISTS teams (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    code TEXT UNIQUE NOT NULL,
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create team members table
-CREATE TABLE team_members (
+-- Team members table
+CREATE TABLE IF NOT EXISTS team_members (
     id SERIAL PRIMARY KEY,
     team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id),
     joined_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(team_id, user_id)
+);
+
+-- Monthly competitions table
+CREATE TABLE IF NOT EXISTS monthly_competitions (
+    id SERIAL PRIMARY KEY,
+    month_year DATE NOT NULL,
+    winning_team_id INTEGER REFERENCES teams(id),
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(month_year)
 );
 
 -- 6. Ad Statistics
@@ -199,6 +203,7 @@ INSERT INTO achievements (name, description, badge_icon, required_value, points_
     ('Points Millionaire', 'Earn 1,000,000,000 points', '💰', 1000000000, 1000000000),
     ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 25000000),
     ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 50000000),
+    ('Team Player', 'Join a team', '🤝', 1, 10000000),
     ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 200000000),
     ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000000),
     ('Daily Streak 7', '7 day login streak', '📅', 7, 5000000),
@@ -228,6 +233,7 @@ CREATE INDEX IF NOT EXISTS idx_user_achievements_user ON user_achievements(user_
 CREATE INDEX IF NOT EXISTS idx_tournament_participants_tournament ON tournament_participants(tournament_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_team_id ON team_members(team_id);
 CREATE INDEX IF NOT EXISTS idx_team_members_user_id ON team_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_users_team_id ON users(team_id);
 CREATE INDEX IF NOT EXISTS idx_bonus_redemptions_user_id ON bonus_redemptions(user_id);
 
 -- ============================================
@@ -237,7 +243,7 @@ CREATE INDEX IF NOT EXISTS idx_bonus_redemptions_user_id ON bonus_redemptions(us
 DO $$
 DECLARE
     missing_tables TEXT[] := ARRAY[]::TEXT[];
-    expected_tables TEXT[] := ARRAY['daily_rewards', 'wheel_spins', 'achievements', 'user_achievements', 'weekly_tournaments', 'tournament_participants', 'teams', 'team_members', 'ad_statistics', 'bonus_redemptions'];
+    expected_tables TEXT[] := ARRAY['daily_rewards', 'wheel_spins', 'achievements', 'user_achievements', 'weekly_tournaments', 'tournament_participants', 'teams', 'team_members', 'monthly_competitions', 'ad_statistics', 'bonus_redemptions'];
     t TEXT;
 BEGIN
     FOREACH t IN ARRAY expected_tables
