@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const app = express();
 
 // Use port 3001 (matching your Render environment)
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Point Economy Constants
@@ -1731,6 +1731,7 @@ if (process.env.BOT_TOKEN) {
 // ============================================
 // START SERVER
 // ============================================
+const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
