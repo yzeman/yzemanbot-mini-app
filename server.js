@@ -1731,7 +1731,6 @@ if (process.env.BOT_TOKEN) {
 // ============================================
 // START SERVER
 // ============================================
-const PORT = process.env.PORT || 3001;
 
 async function startServer() {
   try {
