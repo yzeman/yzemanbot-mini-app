@@ -2019,21 +2019,21 @@ if (process.env.BOT_TOKEN) {
 async function startServer() {
   try {
     await initDB();
-    console.log(' Database initialized and ready');
+    console.log('✅ Database initialized and ready');
     
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`========================================`);
-      console.log(` SERVER IS RUNNING!`);
-      console.log(` Port: ${PORT}`);
-      console.log(` URL: https://yzemanbot-backend.onrender.com`);
-      console.log(`  Health: https://yzemanbot-backend.onrender.com/health`);
-      console.log(` 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
-      console.log(` Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
+      console.log(`🚀 SERVER IS RUNNING!`);
+      console.log(`📡 Port: ${PORT}`);
+      console.log(`🌐 URL: https://yzemanbot-backend.onrender.com`);
+      console.log(`❤️  Health: https://yzemanbot-backend.onrender.com/health`);
+      console.log(`💰 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
+      console.log(`💵 Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
       console.log(`========================================`);
     });
     
   } catch (err) {
-    console.error(' Failed to start server:', err);
+    console.error('❌ Failed to start server:', err);
     process.exit(1);
   }
 }
