@@ -1116,7 +1116,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TEAM API ENDPOINTS (IMPROVED)
+// TEAM API ENDPOINTS (COMPLETE & CORRECTED)
 // ============================================
 
 // Create a team (with duplicate name check)
@@ -1260,22 +1260,22 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Get user's team info (with caching headers)
+// Get user's team info (or team info by ID for admin panel)
 app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   try {
-    const telegramId = req.telegramUser.id;
+    let teamId = req.body.teamId; // For admin panel calls
+    const telegramId = req.telegramUser?.id;
     
-    const userResult = await pool.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [telegramId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    // If no teamId provided, get from current user
+    if (!teamId && telegramId) {
+      const userResult = await pool.query(
+        'SELECT team_id FROM users WHERE telegram_id = $1',
+        [telegramId]
+      );
+      if (userResult.rows.length > 0 && userResult.rows[0].team_id) {
+        teamId = userResult.rows[0].team_id;
+      }
     }
-    
-    const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
     
     if (!teamId) {
       return res.json({ has_team: false });
@@ -1302,7 +1302,7 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
     
     // Get team members (ordered by join date, then points)
     const membersResult = await pool.query(`
-      SELECT u.id, u.first_name, u.username, u.photo_url, u.points, u.referrals, u.tier,
+      SELECT u.id, u.telegram_id, u.first_name, u.username, u.photo_url, u.points, u.referrals, u.tier,
         (u.id = t.created_by) as is_leader,
         tm.joined_at
       FROM team_members tm
@@ -1368,7 +1368,7 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
     
     // Check remaining members
     const remainingMembers = await client.query(
-      'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC LIMIT 1',
+      'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
       [teamId]
     );
     
@@ -1471,7 +1471,7 @@ app.post('/api/team/check-name', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Get team by code (for validation before joining)
+// Check if team code exists (for validation before joining)
 app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
   try {
     const { teamCode } = req.body;
@@ -1593,140 +1593,332 @@ app.get('/health', async (req, res) => {
 });
 
 // ============================================
-// ADMIN API ENDPOINTS
+// ADMIN DELETE USER - COMPLETE CLEANUP WITH TEAM HANDLING
 // ============================================
-
-app.get('/api/admin/users', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
-             referral_code, points, tier, referrals, wallet_address, created_at, team_id
-      FROM users ORDER BY id DESC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Admin users error:', err);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT w.*, u.username, u.first_name, u.telegram_id
-      FROM withdrawals w JOIN users u ON w.user_id = u.id
-      ORDER BY w.created_at DESC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Admin withdrawals error:', err);
-    res.json([]);
-  }
-});
-
-app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
-  const { withdrawalId, status } = req.body;
-  try {
-    const withdrawalResult = await pool.query('SELECT user_id, amount FROM withdrawals WHERE id = $1', [withdrawalId]);
-    if (withdrawalResult.rows.length === 0) return res.status(404).json({ error: 'Withdrawal not found' });
-    
-    const withdrawal = withdrawalResult.rows[0];
-    if (status === 'rejected' || status === 'failed') {
-      const pointsToRefund = withdrawal.amount * POINTS_PER_COIN;
-      await pool.query('UPDATE users SET points = points + $1 WHERE id = $2', [pointsToRefund, withdrawal.user_id]);
-    }
-    
-    await pool.query("UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2", [status, withdrawalId]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Update withdrawal error:', err);
-    res.status(500).json({ error: 'Failed to update withdrawal' });
-  }
-});
-
-app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
-  const { userId, points } = req.body;
-  try {
-    await pool.query('UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2', [points, userId]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Add points error:', err);
-    res.status(500).json({ error: 'Failed to add points' });
-  }
-});
-
-app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
-  const { userId, points } = req.body;
-  try {
-    const result = await pool.query('UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1 RETURNING points', [points, userId]);
-    if (result.rows.length === 0) return res.status(400).json({ error: 'Insufficient points' });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Deduct points error:', err);
-    res.status(500).json({ error: 'Failed to deduct points' });
-  }
-});
 
 app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   const { userId } = req.body;
   const client = await pool.connect();
+  
   try {
     await client.query('BEGIN');
-    await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
+    
+    // Get user info before deletion (for team handling)
+    const userResult = await client.query(
+      'SELECT id, team_id, telegram_id, first_name FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    const teamId = user.team_id;
+    let wasLeader = false;
+    let teamDeleted = false;
+    
+    // If user was in a team, handle team cleanup
+    if (teamId) {
+      // Check if user is the team leader
+      const teamResult = await client.query(
+        'SELECT created_by FROM teams WHERE id = $1',
+        [teamId]
+      );
+      
+      if (teamResult.rows.length > 0) {
+        wasLeader = teamResult.rows[0].created_by === userId;
+        
+        // Remove user from team_members
+        await client.query(
+          'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
+          [teamId, userId]
+        );
+        
+        // Check remaining members
+        const remainingMembers = await client.query(
+          'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
+          [teamId]
+        );
+        
+        if (remainingMembers.rows.length === 0) {
+          // No members left - delete the team
+          await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+          teamDeleted = true;
+          console.log(`🗑️ Team ${teamId} deleted (no members remaining after user deletion)`);
+        } else if (wasLeader && remainingMembers.rows.length > 0) {
+          // Leader was deleted - assign new leader (oldest member)
+          const newLeaderId = remainingMembers.rows[0].user_id;
+          await client.query(
+            'UPDATE teams SET created_by = $1 WHERE id = $2',
+            [newLeaderId, teamId]
+          );
+          console.log(`👑 New leader assigned to team ${teamId}: user ${newLeaderId} after leader deletion`);
+        }
+      }
+    }
+    
+    // Delete all user-related data (complete cleanup)
+    
+    // 1. Delete from referrals (where user is referrer OR referred)
+    await client.query(
+      'DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1',
+      [userId]
+    );
+    
+    // 2. Delete ad rewards
     await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
+    
+    // 3. Delete withdrawals
     await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
+    
+    // 4. Delete daily rewards
     await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
+    
+    // 5. Delete wheel spins
     await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
+    
+    // 6. Delete user achievements
     await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+    
+    // 7. Delete tournament participants
     await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
+    
+    // 8. Delete team_members (already done above if in team, but safe to do again)
     await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+    
+    // 9. Delete ad statistics
     await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
+    
+    // 10. Delete bonus redemptions
     await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
+    
+    // 11. Finally, delete the user
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    
     await client.query('COMMIT');
-    res.json({ success: true });
+    
+    console.log(`✅ User ${userId} (${user.first_name || 'Unknown'}) completely deleted. Team cleanup: ${teamDeleted ? 'Team deleted' : (wasLeader ? 'New leader assigned' : 'Just removed from team')}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'User completely deleted',
+      teamHandled: teamId ? true : false,
+      teamDeleted: teamDeleted
+    });
+    
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Delete user error:', err);
-    res.status(500).json({ error: 'Failed to delete user' });
+    res.status(500).json({ error: 'Failed to delete user: ' + err.message });
   } finally {
     client.release();
   }
 });
 
-app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
+// ============================================
+// ADMIN REMOVE MEMBER FROM TEAM
+// ============================================
+
+app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
+  const { teamId, memberTelegramId } = req.body;
+  const client = await pool.connect();
+  
   try {
-    const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
-    const today = new Date().toISOString().split('T')[0];
-    const activeToday = await pool.query('SELECT COUNT(*) FROM users WHERE last_login_date = $1', [today]);
-    const activeWeek = await pool.query("SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'");
-    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
-    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
-    const totalPoints = await pool.query('SELECT COALESCE(SUM(points), 0) as total FROM users');
-    const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
-    const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
-    const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
-    const dailyActive = await pool.query(`
-      SELECT last_login_date, COUNT(*) as count
-      FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY last_login_date ORDER BY last_login_date DESC
-    `);
+    await client.query('BEGIN');
     
-    res.json({
-      totalUsers: parseInt(totalUsers.rows[0].count),
-      activeToday: parseInt(activeToday.rows[0].count),
-      activeWeek: parseInt(activeWeek.rows[0].count),
-      totalAds: parseInt(totalAds.rows[0].count),
-      adsToday: parseInt(adsToday.rows[0].count),
-      totalCoins: Math.floor(parseInt(totalPoints.rows[0].total) / POINTS_PER_COIN),
-      totalReferrals: parseInt(totalReferrals.rows[0].count),
-      pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
-      tierDistribution: tierDistribution.rows,
-      dailyActive: dailyActive.rows
-    });
+    // Get the user by telegram_id
+    const userResult = await client.query(
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      [memberTelegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userId = userResult.rows[0].id;
+    
+    // Check if user is in this team
+    if (userResult.rows[0].team_id !== teamId) {
+      return res.status(400).json({ error: 'User is not in this team' });
+    }
+    
+    // Check if user is the leader
+    const teamResult = await client.query(
+      'SELECT created_by FROM teams WHERE id = $1',
+      [teamId]
+    );
+    
+    const isLeader = teamResult.rows[0]?.created_by === userId;
+    
+    // Remove from team_members
+    await client.query(
+      'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
+      [teamId, userId]
+    );
+    
+    // Update user's team_id
+    await client.query(
+      'UPDATE users SET team_id = NULL WHERE id = $1',
+      [userId]
+    );
+    
+    // Check remaining members
+    const remainingMembers = await client.query(
+      'SELECT user_id FROM team_members WHERE team_id = $1',
+      [teamId]
+    );
+    
+    if (remainingMembers.rows.length === 0) {
+      // No members left - delete the team
+      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+      console.log(`🗑️ Team ${teamId} deleted (no members remaining after admin removal)`);
+    } else if (isLeader && remainingMembers.rows.length > 0) {
+      // Leader removed - assign new leader (oldest member)
+      const newLeaderId = remainingMembers.rows[0].user_id;
+      await client.query(
+        'UPDATE teams SET created_by = $1 WHERE id = $2',
+        [newLeaderId, teamId]
+      );
+      console.log(`👑 New leader assigned to team ${teamId} after admin removal`);
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({ success: true, message: 'Member removed from team' });
+    
   } catch (err) {
-    console.error('Analytics error:', err);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
+    await client.query('ROLLBACK');
+    console.error('Remove member error:', err);
+    res.status(500).json({ error: 'Failed to remove member' });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
+// ADMIN TEAM MANAGEMENT ENDPOINTS
+// ============================================
+
+// Admin remove member from team
+app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
+  const { teamId, memberTelegramId } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get the user by telegram_id
+    const userResult = await client.query(
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      [memberTelegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userId = userResult.rows[0].id;
+    
+    // Check if user is in this team
+    if (userResult.rows[0].team_id !== teamId) {
+      return res.status(400).json({ error: 'User is not in this team' });
+    }
+    
+    // Check if user is the leader
+    const teamResult = await client.query(
+      'SELECT created_by FROM teams WHERE id = $1',
+      [teamId]
+    );
+    
+    const isLeader = teamResult.rows[0]?.created_by === userId;
+    
+    // Remove from team_members
+    await client.query(
+      'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
+      [teamId, userId]
+    );
+    
+    // Update user's team_id
+    await client.query(
+      'UPDATE users SET team_id = NULL WHERE id = $1',
+      [userId]
+    );
+    
+    // Check remaining members
+    const remainingMembers = await client.query(
+      'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
+      [teamId]
+    );
+    
+    if (remainingMembers.rows.length === 0) {
+      // No members left - delete the team
+      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+      console.log(`🗑️ Team ${teamId} deleted (no members remaining after admin removal)`);
+    } else if (isLeader && remainingMembers.rows.length > 0) {
+      // Leader removed - assign new leader (oldest member)
+      const newLeaderId = remainingMembers.rows[0].user_id;
+      await client.query(
+        'UPDATE teams SET created_by = $1 WHERE id = $2',
+        [newLeaderId, teamId]
+      );
+      console.log(`👑 New leader assigned to team ${teamId} after admin removal`);
+    }
+    
+    await client.query('COMMIT');
+    
+    res.json({ success: true, message: 'Member removed from team' });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Remove member error:', err);
+    res.status(500).json({ error: 'Failed to remove member' });
+  } finally {
+    client.release();
+  }
+});
+
+// Admin delete entire team
+app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
+  const { teamId } = req.body;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get all members of the team
+    const members = await client.query(
+      'SELECT user_id FROM team_members WHERE team_id = $1',
+      [teamId]
+    );
+    
+    // Remove team_id from all members
+    for (const member of members.rows) {
+      await client.query(
+        'UPDATE users SET team_id = NULL WHERE id = $1',
+        [member.user_id]
+      );
+    }
+    
+    // Delete team members
+    await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
+    
+    // Delete the team
+    await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+    
+    await client.query('COMMIT');
+    
+    console.log(`🗑️ Team ${teamId} deleted by admin. ${members.rows.length} members affected.`);
+    
+    res.json({ success: true, message: 'Team deleted', membersAffected: members.rows.length });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Delete team error:', err);
+    res.status(500).json({ error: 'Failed to delete team' });
+  } finally {
+    client.release();
   }
 });
 
