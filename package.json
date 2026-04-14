@@ -1,6 +1,7 @@
 {
   "name": "yzemanbot-mini-app",
   "version": "1.0.0",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "bot": "node bot.js"
