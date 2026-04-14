@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
+const { Telegraf } = require('telegraf');
 const app = express();
 
 // Use port 3001 (matching your Render environment)
@@ -1658,16 +1659,15 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM BOT INTEGRATION
+// TELEGRAM BOT WEBHOOK SETUP (FIXED FOR RENDER)
 // ============================================
-
-const { Telegraf } = require('telegraf');
 
 if (process.env.BOT_TOKEN) {
     const bot = new Telegraf(process.env.BOT_TOKEN);
     const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-mini-app.onrender.com';
     const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
     
+    // Set up bot commands
     bot.start(async (ctx) => {
         const firstName = ctx.from.first_name;
         const startPayload = ctx.startPayload || '';
@@ -1715,14 +1715,13 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    bot.launch()
-        .then(() => console.log('🤖 Bot started in polling mode'))
-        .catch(err => console.error('❌ Bot failed to start:', err));
+    // Use webhook mode for Render (polling doesn't work well on Render)
+    const webhookDomain = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
+    await bot.telegram.setWebhook(`${webhookDomain}/webhook`);
+    app.use(bot.webhookCallback('/webhook'));
     
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
-    
-    console.log('🤖 Telegram Bot initialized');
+    console.log('🤖 Telegram Bot initialized with webhook mode');
+    console.log(`📡 Webhook URL: ${webhookDomain}/webhook`);
 }
 
 // ============================================
@@ -1738,8 +1737,8 @@ async function startServer() {
       console.log(`========================================`);
       console.log(`🚀 SERVER IS RUNNING!`);
       console.log(`📡 Port: ${PORT}`);
-      console.log(`🌐 URL: https://yzemanbot-backend.onrender.com`);
-      console.log(`❤️  Health: https://yzemanbot-backend.onrender.com/health`);
+      console.log(`🌐 URL: https://your-app-name.onrender.com`);
+      console.log(`❤️  Health: https://your-app-name.onrender.com/health`);
       console.log(`💰 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
       console.log(`💵 Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
       console.log(`========================================`);
