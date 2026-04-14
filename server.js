@@ -1844,6 +1844,125 @@ app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// ADMIN API ENDPOINTS
+// ============================================
+
+// Get all users (for admin panel)
+app.get('/api/admin/users', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
+             referral_code, points, tier, referrals, wallet_address, created_at, team_id
+      FROM users 
+      ORDER BY id DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Get all withdrawals (for admin panel)
+app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT w.*, u.username, u.first_name, u.telegram_id
+      FROM withdrawals w 
+      JOIN users u ON w.user_id = u.id
+      ORDER BY w.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin withdrawals error:', err);
+    res.json([]);
+  }
+});
+
+// Update withdrawal status
+app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
+  const { withdrawalId, status } = req.body;
+  try {
+    const withdrawalResult = await pool.query('SELECT user_id, amount FROM withdrawals WHERE id = $1', [withdrawalId]);
+    if (withdrawalResult.rows.length === 0) return res.status(404).json({ error: 'Withdrawal not found' });
+    
+    const withdrawal = withdrawalResult.rows[0];
+    if (status === 'rejected' || status === 'failed') {
+      const pointsToRefund = withdrawal.amount * POINTS_PER_COIN;
+      await pool.query('UPDATE users SET points = points + $1 WHERE id = $2', [pointsToRefund, withdrawal.user_id]);
+    }
+    
+    await pool.query("UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2", [status, withdrawalId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update withdrawal error:', err);
+    res.status(500).json({ error: 'Failed to update withdrawal' });
+  }
+});
+
+// Add points to user
+app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  try {
+    await pool.query('UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2', [points, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Add points error:', err);
+    res.status(500).json({ error: 'Failed to add points' });
+  }
+});
+
+// Deduct points from user
+app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
+  const { userId, points } = req.body;
+  try {
+    const result = await pool.query('UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1 RETURNING points', [points, userId]);
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Insufficient points' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Deduct points error:', err);
+    res.status(500).json({ error: 'Failed to deduct points' });
+  }
+});
+
+// Get analytics data
+app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
+  try {
+    const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
+    const today = new Date().toISOString().split('T')[0];
+    const activeToday = await pool.query('SELECT COUNT(*) FROM users WHERE last_login_date = $1', [today]);
+    const activeWeek = await pool.query("SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'");
+    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
+    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
+    const totalPoints = await pool.query('SELECT COALESCE(SUM(points), 0) as total FROM users');
+    const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
+    const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
+    const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
+    const dailyActive = await pool.query(`
+      SELECT last_login_date, COUNT(*) as count
+      FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY last_login_date ORDER BY last_login_date DESC
+    `);
+    
+    res.json({
+      totalUsers: parseInt(totalUsers.rows[0].count),
+      activeToday: parseInt(activeToday.rows[0].count),
+      activeWeek: parseInt(activeWeek.rows[0].count),
+      totalAds: parseInt(totalAds.rows[0].count),
+      adsToday: parseInt(adsToday.rows[0].count),
+      totalCoins: Math.floor(parseInt(totalPoints.rows[0].total) / POINTS_PER_COIN),
+      totalReferrals: parseInt(totalReferrals.rows[0].count),
+      pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
+      tierDistribution: tierDistribution.rows,
+      dailyActive: dailyActive.rows
+    });
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// ============================================
 // TELEGRAM BOT WEBHOOK SETUP (FIXED FOR RENDER)
 // ============================================
 
