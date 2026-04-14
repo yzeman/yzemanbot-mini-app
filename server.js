@@ -1715,13 +1715,16 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // Use webhook mode for Render (polling doesn't work well on Render)
-    const webhookDomain = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
-    await bot.telegram.setWebhook(`${webhookDomain}/webhook`);
-    app.use(bot.webhookCallback('/webhook'));
+    // Use webhook mode for Render - wrapped in async function
+    const setupWebhook = async () => {
+        const webhookDomain = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
+        await bot.telegram.setWebhook(`${webhookDomain}/webhook`);
+        console.log('🤖 Telegram Bot initialized with webhook mode');
+        console.log(`📡 Webhook URL: ${webhookDomain}/webhook`);
+    };
     
-    console.log('🤖 Telegram Bot initialized with webhook mode');
-    console.log(`📡 Webhook URL: ${webhookDomain}/webhook`);
+    setupWebhook();
+    app.use(bot.webhookCallback('/webhook'));
 }
 
 // ============================================
