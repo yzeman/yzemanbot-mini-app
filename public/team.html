@@ -45,7 +45,6 @@
             color: white; font-size: 20px; text-decoration: none; z-index: 10;
         }
         
-        /* Tabs */
         .tabs {
             display: flex; background: var(--darker); padding: 3px;
             border-radius: 30px; margin: 12px 12px;
@@ -62,7 +61,6 @@
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
         
-        /* No Team State */
         .no-team-card {
             background: var(--darker); border-radius: 15px; padding: 20px 12px;
             text-align: center; margin-bottom: 12px;
@@ -84,7 +82,6 @@
         .action-btn i { font-size: 20px; }
         .action-btn.secondary { background: var(--secondary); }
         
-        /* Compact Team Card */
         .team-card {
             background: var(--darker); border-radius: 14px; padding: 12px; margin-bottom: 10px;
         }
@@ -139,7 +136,6 @@
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
         
-        /* Members List */
         .members-title {
             font-size: 13px; font-weight: 600; margin: 10px 0 6px;
             display: flex; align-items: center; gap: 5px;
@@ -168,7 +164,6 @@
             border-radius: 12px; font-size: 8px; margin-left: 4px;
         }
         
-        /* Leaderboard List */
         .leaderboard-list { max-height: 350px; overflow-y: auto; }
         
         .leaderboard-item {
@@ -197,7 +192,6 @@
         .members { font-size: 9px; color: var(--gray); }
         .score { font-weight: bold; color: var(--gold); font-size: 12px; }
         
-        /* Prize Banner */
         .prize-banner {
             background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
             color: var(--dark); padding: 12px; border-radius: 14px;
@@ -211,7 +205,6 @@
         .prize-value { font-size: 12px; font-weight: bold; }
         .prize-label { font-size: 8px; opacity: 0.8; }
         
-        /* Prize Info Box */
         .prize-info-box {
             background: rgba(255,215,0,0.08); border: 1px solid var(--gold);
             border-radius: 10px; padding: 10px; margin-bottom: 12px;
@@ -238,7 +231,6 @@
         
         .prize-info-row i { width: 16px; color: var(--success); font-size: 9px; }
         
-        /* Modal */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
@@ -296,6 +288,27 @@
         }
         
         .notification.error { background: var(--danger); }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -306,24 +319,20 @@
         <p>Join or create a team to compete!</p>
     </div>
     
-    <!-- Tabs -->
     <div class="tabs">
         <div class="tab active" data-tab="myteam"><i class="fas fa-user-group"></i> My Team</div>
         <div class="tab" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</div>
         <div class="tab" data-tab="monthly"><i class="fas fa-calendar"></i> Monthly</div>
     </div>
     
-    <!-- My Team Tab -->
     <div class="tab-content active" id="myteamTab">
         <div id="myTeamContent"><div class="loading">Loading...</div></div>
     </div>
     
-    <!-- Leaderboard Tab -->
     <div class="tab-content" id="leaderboardTab">
         <div class="leaderboard-list" id="teamLeaderboardList"><div class="loading">Loading...</div></div>
     </div>
     
-    <!-- Monthly Competition Tab -->
     <div class="tab-content" id="monthlyTab">
         <div class="prize-banner">
             <h3><i class="fas fa-crown"></i> Monthly Prizes</h3>
@@ -349,7 +358,6 @@
         <div id="monthlyContent"><div class="loading">Loading...</div></div>
     </div>
     
-    <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -358,38 +366,35 @@
         <a href="/team.html" class="nav-item active"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     
-    <!-- Create Team Modal -->
     <div class="modal" id="createTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-plus-circle"></i> Create Team</div>
             <input type="text" class="modal-input" id="teamNameInput" placeholder="Team name" maxlength="30">
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeCreateModal()">Cancel</button>
-                <button class="modal-btn primary" onclick="createTeam()">Create</button>
+                <button class="modal-btn primary" id="createTeamBtn" onclick="createTeam()">Create</button>
             </div>
         </div>
     </div>
     
-    <!-- Join Team Modal -->
     <div class="modal" id="joinTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-in-alt"></i> Join Team</div>
             <input type="text" class="modal-input" id="teamCodeInput" placeholder="Team code" maxlength="8">
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeJoinModal()">Cancel</button>
-                <button class="modal-btn primary" onclick="joinTeam()">Join</button>
+                <button class="modal-btn primary" id="joinTeamBtn" onclick="joinTeam()">Join</button>
             </div>
         </div>
     </div>
     
-    <!-- Leave Team Modal -->
     <div class="modal" id="leaveTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-out-alt"></i> Leave Team</div>
             <p style="margin-bottom: 15px; color: var(--gray); font-size: 13px;">Are you sure you want to leave?</p>
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeLeaveModal()">Cancel</button>
-                <button class="modal-btn danger" onclick="confirmLeaveTeam()">Leave</button>
+                <button class="modal-btn danger" id="leaveTeamBtn" onclick="confirmLeaveTeam()">Leave</button>
             </div>
         </div>
     </div>
@@ -402,6 +407,7 @@
         
         const POINTS_PER_COIN = 1000000;
         let teamLeaderboardCache = [];
+        let isLoading = false;
         
         const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
         
@@ -425,6 +431,18 @@
             notif.className = 'notification' + (isError ? ' error' : '');
             notif.style.display = 'block';
             setTimeout(() => notif.style.display = 'none', 3000);
+        }
+        
+        function setButtonLoading(buttonId, isLoading) {
+            const btn = document.getElementById(buttonId);
+            if (!btn) return;
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loading-spinner"></span> Processing...';
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = btn.id === 'createTeamBtn' ? 'Create' : (btn.id === 'joinTeamBtn' ? 'Join' : 'Leave');
+            }
         }
         
         async function apiCall(endpoint, data = null) {
@@ -453,44 +471,57 @@
         async function createTeam() {
             const name = document.getElementById('teamNameInput').value.trim();
             if (!name) { showNotification('Enter team name', true); return; }
+            
+            setButtonLoading('createTeamBtn', true);
             try {
                 await apiCall('/api/team/create', { teamName: name });
                 showNotification(`Team "${name}" created!`);
                 closeCreateModal();
                 document.getElementById('teamNameInput').value = '';
-                loadAllData();
+                await loadAllData(); // Wait for data to load
+                showNotification('Team ready!', false);
             } catch (err) {
                 let msg = err.message;
                 try { msg = JSON.parse(msg).error; } catch(e) {}
                 showNotification(msg || 'Failed to create', true);
+            } finally {
+                setButtonLoading('createTeamBtn', false);
             }
         }
         
         async function joinTeam() {
             const code = document.getElementById('teamCodeInput').value.trim().toUpperCase();
             if (!code) { showNotification('Enter team code', true); return; }
+            
+            setButtonLoading('joinTeamBtn', true);
             try {
                 await apiCall('/api/team/join', { teamCode: code });
                 showNotification('Joined team!');
                 closeJoinModal();
                 document.getElementById('teamCodeInput').value = '';
-                loadAllData();
+                await loadAllData(); // Wait for data to load
+                showNotification('Team joined! Check My Team tab', false);
             } catch (err) {
                 let msg = err.message;
                 try { msg = JSON.parse(msg).error; } catch(e) {}
                 showNotification(msg || 'Failed to join', true);
+            } finally {
+                setButtonLoading('joinTeamBtn', false);
             }
         }
         
         async function confirmLeaveTeam() {
+            setButtonLoading('leaveTeamBtn', true);
             try {
                 await apiCall('/api/team/leave');
                 showNotification('Left team');
                 closeLeaveModal();
-                loadAllData();
+                await loadAllData(); // Wait for data to load
             } catch (err) {
                 showNotification('Failed to leave', true);
                 closeLeaveModal();
+            } finally {
+                setButtonLoading('leaveTeamBtn', false);
             }
         }
         
@@ -507,7 +538,7 @@
                     <div class="no-team-card">
                         <div class="no-team-icon"><i class="fas fa-users-slash"></i></div>
                         <div class="no-team-title">No team yet</div>
-                        <div class="no-team-text">Join or create a team!</div>
+                        <div class="no-team-text">Join or create a team to start competing!</div>
                         <div class="action-buttons">
                             <button class="action-btn secondary" onclick="openJoinModal()"><i class="fas fa-sign-in-alt"></i><span>Join</span></button>
                             <button class="action-btn" onclick="openCreateModal()"><i class="fas fa-plus"></i><span>Create</span></button>
@@ -518,7 +549,7 @@
             }
             
             const team = data.team;
-            const members = data.members;
+            const members = data.members || [];
             const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(1);
             const rank = getTeamRank(team.id);
             
@@ -527,7 +558,7 @@
                     <div class="team-header">
                         <div class="team-avatar"><i class="fas fa-users"></i></div>
                         <div class="team-info">
-                            <h3>${team.name}</h3>
+                            <h3>${escapeHtml(team.name)}</h3>
                             <span class="team-code"><i class="fas fa-key"></i> ${team.code}</span>
                         </div>
                         <div class="team-rank">${rank}</div>
@@ -546,8 +577,7 @@
                     </div>
                 </div>
                 
-                <div class="members-title"><i class="fas fa-user-friends"></i><span>Members</span></div>
-                
+                <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span></div>
                 ${members.map(m => {
                     const coins = ((m.points || 0) / POINTS_PER_COIN).toFixed(1);
                     const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
@@ -555,12 +585,12 @@
                     return `
                         <div class="member-item">
                             <div class="member-avatar">
-                                ${photoUrl ? `<img src="${photoUrl}" alt="${m.first_name}">` : initial}
+                                ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHtml(m.first_name || 'User')}">` : escapeHtml(initial)}
                             </div>
                             <div class="member-info">
                                 <div class="member-name">
-                                    ${m.first_name || m.username || 'User'}
-                                    ${m.is_leader ? '<span class="leader-badge"><i class="fas fa-crown"></i></span>' : ''}
+                                    ${escapeHtml(m.first_name || m.username || 'User')}
+                                    ${m.is_leader ? '<span class="leader-badge"><i class="fas fa-crown"></i> Leader</span>' : ''}
                                 </div>
                                 <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} refs</div>
                             </div>
@@ -571,12 +601,22 @@
             `;
         }
         
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
         function renderTeamLeaderboard(data) {
             const container = document.getElementById('teamLeaderboardList');
             teamLeaderboardCache = data || [];
             
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet</p></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Create the first team!</p></div>';
                 return;
             }
             
@@ -586,25 +626,25 @@
                 return `
                     <div class="leaderboard-item">
                         <div class="rank ${rankClass}">#${rank}</div>
-                        <div class="team-avatar-small">${(team.name || 'T')[0].toUpperCase()}</div>
-                        <div class="info"><div class="name">${team.name}</div><div class="members">👑 ${team.leader_name || '?'} • ${team.member_count || 0}</div></div>
+                        <div class="team-avatar-small">${escapeHtml((team.name || 'T')[0].toUpperCase())}</div>
+                        <div class="info"><div class="name">${escapeHtml(team.name)}</div><div class="members">👑 ${escapeHtml(team.leader_name || '?')} • ${team.member_count || 0} members</div></div>
                         <div class="score">${((team.total_points || 0) / POINTS_PER_COIN).toFixed(1)} C</div>
                     </div>
                 `;
             }).join('');
             
-            // Refresh team display to update rank
-            loadMyTeam();
+            // Refresh team display to update rank (but don't reload leaderboard again)
+            loadMyTeamOnly();
         }
         
         function renderMonthlyCompetition(data) {
             const container = document.getElementById('monthlyContent');
             if (!data || !data.standings || data.standings.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing</p></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing this month</p></div>';
                 return;
             }
             
-            container.innerHTML = `<div class="members-title" style="margin-top:6px;"><i class="fas fa-chart-line"></i><span>${data.month}</span></div>` +
+            container.innerHTML = `<div class="members-title" style="margin-top:6px;"><i class="fas fa-chart-line"></i><span>${data.month} Standings</span></div>` +
                 data.standings.map((team, idx) => {
                     const rank = idx + 1;
                     const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
@@ -613,15 +653,15 @@
                     return `
                         <div class="leaderboard-item">
                             <div class="rank ${rankClass}">#${rank}</div>
-                            <div class="team-avatar-small">${(team.name || 'T')[0].toUpperCase()}</div>
-                            <div class="info"><div class="name">${team.name}</div><div class="members">👑 ${team.leader_name || '?'} • ${team.member_count || 0}</div>${prizeInfo}</div>
+                            <div class="team-avatar-small">${escapeHtml((team.name || 'T')[0].toUpperCase())}</div>
+                            <div class="info"><div class="name">${escapeHtml(team.name)}</div><div class="members">👑 ${escapeHtml(team.leader_name || '?')} • ${team.member_count || 0} members</div>${prizeInfo}</div>
                             <div class="score">${((team.team_points || 0) / POINTS_PER_COIN).toFixed(1)} C</div>
                         </div>
                     `;
                 }).join('');
         }
         
-        async function loadMyTeam() {
+        async function loadMyTeamOnly() {
             try {
                 const data = await apiCall('/api/team/info');
                 renderMyTeam(data);
@@ -636,22 +676,31 @@
                 const data = await response.json();
                 renderTeamLeaderboard(data);
             } catch (err) {
-                document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state">Failed to load</div>';
+                document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state">Failed to load leaderboard</div>';
             }
         }
         
         async function loadMonthlyCompetition() {
             try {
-                renderMonthlyCompetition(await apiCall('/api/team/monthly-competition'));
+                const data = await apiCall('/api/team/monthly-competition');
+                renderMonthlyCompetition(data);
             } catch (err) {
                 document.getElementById('monthlyContent').innerHTML = '<div class="empty-state">No teams</div>';
             }
         }
         
         async function loadAllData() {
-            await loadTeamLeaderboard();
-            await loadMonthlyCompetition();
-            await loadMyTeam();
+            if (isLoading) return;
+            isLoading = true;
+            
+            // Load all three in parallel for speed
+            await Promise.all([
+                loadTeamLeaderboard(),
+                loadMonthlyCompetition(),
+                loadMyTeamOnly()
+            ]);
+            
+            isLoading = false;
         }
         
         document.querySelectorAll('.tab').forEach(tab => {
@@ -673,4 +722,4 @@
         });
     </script>
 </body>
-    </html>
+</html>
