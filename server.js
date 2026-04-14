@@ -1799,16 +1799,7 @@ app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
 
 // ============================================
 // ADMIN TEAM MANAGEMENT ENDPOINTS
-// ============================================
-
-// Admin remove member from team
-app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
-  const { teamId, memberTelegramId } = req.body;
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    
+// ============================================   
     // Get the user by telegram_id
     const userResult = await client.query(
       'SELECT id, team_id FROM users WHERE telegram_id = $1',
