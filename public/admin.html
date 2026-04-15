@@ -39,28 +39,19 @@
             margin-bottom: 15px;
         }
         
-        .header h1 {
-            font-size: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
+        .header h1 { font-size: 22px; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .header h1 i { color: var(--gold); }
         .header p { color: rgba(255,255,255,0.8); font-size: 12px; }
         
         .back-btn-header {
-            position: absolute;
-            top: 18px; left: 18px;
-            color: white; font-size: 20px;
-            text-decoration: none; z-index: 10;
+            position: absolute; top: 18px; left: 18px;
+            color: white; font-size: 20px; text-decoration: none; z-index: 10;
         }
         
-        /* Stats Cards */
+        /* Stats Cards - Improved */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 10px;
             padding: 0 12px 15px;
         }
@@ -68,21 +59,15 @@
         .stat-card {
             background: var(--darker);
             border-radius: 14px;
-            padding: 14px 8px;
+            padding: 12px 5px;
             text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s;
         }
         
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--gold);
-        }
-        
-        .stat-label {
-            font-size: 10px;
-            color: var(--gray);
-            margin-top: 3px;
-        }
+        .stat-card:hover { transform: scale(1.02); }
+        .stat-value { font-size: 22px; font-weight: bold; color: var(--gold); }
+        .stat-label { font-size: 9px; color: var(--gray); margin-top: 3px; }
         
         /* Tabs */
         .tabs {
@@ -113,42 +98,28 @@
         
         .tab i { font-size: 14px; }
         .tab.active { background: var(--danger); color: white; }
-        
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
         
         /* Search Bar */
-        .search-bar {
-            padding: 0 0 15px;
-        }
-        
+        .search-bar { padding: 0 0 15px; }
         .search-input {
-            width: 100%;
-            padding: 12px 15px;
-            border-radius: 25px;
-            border: 1px solid var(--gray);
-            background: var(--darker);
-            color: white;
-            font-size: 13px;
+            width: 100%; padding: 12px 15px; border-radius: 25px;
+            border: 1px solid var(--gray); background: var(--darker);
+            color: white; font-size: 13px;
         }
-        
         .search-input:focus { outline: none; border-color: var(--danger); }
         
         /* Section Title */
         .section-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin: 15px 0 10px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            font-size: 14px; font-weight: 600; margin: 15px 0 10px;
+            display: flex; align-items: center; gap: 6px;
         }
-        
         .section-title i { color: var(--gold); }
         
         /* Lists */
         .user-list, .withdrawal-list, .team-list, .bonus-list {
-            max-height: 350px;
+            max-height: 400px;
             overflow-y: auto;
         }
         
@@ -157,43 +128,39 @@
             border-radius: 12px;
             padding: 12px;
             margin-bottom: 8px;
+            transition: all 0.2s;
         }
         
+        .user-item:hover, .withdrawal-item:hover, .team-item:hover { background: rgba(255,255,255,0.08); }
+        
+        /* User Header */
         .user-header {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 8px;
+            cursor: pointer;
         }
         
         .user-avatar {
-            width: 38px; height: 38px;
-            border-radius: 50%;
-            background: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            color: white;
-            font-weight: bold;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: var(--primary); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 16px; color: white; font-weight: bold;
         }
         
         .user-info { flex: 1; }
-        .user-name { font-weight: 600; font-size: 13px; }
+        .user-name { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .user-id { font-size: 10px; color: var(--gray); }
-        
         .user-tier {
-            background: var(--gold);
-            color: var(--dark);
-            padding: 3px 8px;
-            border-radius: 15px;
-            font-size: 10px;
-            font-weight: bold;
+            background: var(--gold); color: var(--dark);
+            padding: 3px 8px; border-radius: 15px; font-size: 10px; font-weight: bold;
         }
         
+        /* User Stats */
         .user-stats {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 5px;
             margin: 8px 0;
         }
@@ -205,27 +172,27 @@
             padding: 5px;
         }
         
-        .user-stat-value { font-size: 14px; font-weight: bold; color: var(--gold); }
-        .user-stat-label { font-size: 8px; color: var(--gray); }
+        .user-stat-value { font-size: 12px; font-weight: bold; color: var(--gold); }
+        .user-stat-label { font-size: 7px; color: var(--gray); }
         
+        /* User Actions */
         .user-actions {
             display: flex;
             gap: 6px;
             margin-top: 8px;
+            flex-wrap: wrap;
         }
         
         .action-btn {
-            flex: 1;
-            padding: 7px;
+            padding: 6px 10px;
             border-radius: 8px;
             border: none;
             font-size: 10px;
             font-weight: 600;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            gap: 3px;
+            gap: 4px;
         }
         
         .btn-success { background: var(--success); color: white; }
@@ -233,6 +200,74 @@
         .btn-danger { background: var(--danger); color: white; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: var(--secondary); color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        
+        /* User Detail Modal */
+        .user-detail-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+        
+        .user-detail-content {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .user-detail-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .user-detail-avatar {
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: white;
+        }
+        
+        .user-detail-info h3 { font-size: 16px; margin-bottom: 5px; }
+        .user-detail-info p { font-size: 11px; color: var(--gray); }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .detail-label { font-size: 12px; color: var(--gray); }
+        .detail-value { font-size: 14px; font-weight: bold; color: var(--gold); }
+        
+        .close-detail-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+        }
         
         /* Withdrawal Item */
         .withdrawal-header {
@@ -240,38 +275,23 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
         
-        .withdrawal-amount {
-            font-size: 16px;
-            font-weight: bold;
-            color: var(--gold);
-        }
-        
+        .withdrawal-amount { font-size: 16px; font-weight: bold; color: var(--gold); }
         .withdrawal-status {
-            padding: 3px 8px;
-            border-radius: 15px;
-            font-size: 9px;
-            font-weight: bold;
+            padding: 3px 8px; border-radius: 15px; font-size: 9px; font-weight: bold;
         }
-        
         .status-pending { background: var(--warning); color: var(--dark); }
         .status-approved { background: var(--success); color: white; }
         .status-rejected { background: var(--danger); color: white; }
         
-        .withdrawal-details {
-            font-size: 11px;
-            color: var(--gray);
-            margin-bottom: 6px;
-        }
-        
+        .withdrawal-details { font-size: 11px; color: var(--gray); margin-bottom: 6px; }
         .withdrawal-wallet {
-            background: rgba(0,0,0,0.3);
-            padding: 6px 8px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-family: monospace;
-            word-break: break-all;
+            background: rgba(0,0,0,0.3); padding: 6px 8px;
+            border-radius: 8px; font-size: 10px;
+            font-family: monospace; word-break: break-all;
             margin-bottom: 8px;
         }
         
@@ -281,31 +301,22 @@
             align-items: center;
             gap: 8px;
             margin-bottom: 8px;
+            flex-wrap: wrap;
         }
-        
         .team-avatar {
-            width: 35px; height: 35px;
-            border-radius: 50%;
-            background: var(--secondary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            color: white;
+            width: 35px; height: 35px; border-radius: 50%;
+            background: var(--secondary); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 16px; color: white;
         }
-        
         .team-info { flex: 1; }
         .team-name { font-weight: 600; font-size: 13px; }
         .team-meta { font-size: 10px; color: var(--gray); }
-        
         .team-members-list {
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: 8px; padding-top: 8px;
             border-top: 1px solid rgba(255,255,255,0.1);
-            max-height: 150px;
-            overflow-y: auto;
+            max-height: 150px; overflow-y: auto;
         }
-        
         .team-member-item {
             display: flex;
             align-items: center;
@@ -313,12 +324,7 @@
             padding: 5px 0;
             font-size: 11px;
         }
-        
-        .remove-member-icon {
-            color: var(--danger);
-            cursor: pointer;
-            padding: 3px 6px;
-        }
+        .remove-member-icon { color: var(--danger); cursor: pointer; padding: 3px 6px; }
         
         /* Bonus Code Section */
         .bonus-form {
@@ -327,88 +333,45 @@
             padding: 15px;
             margin-bottom: 15px;
         }
-        
-        .form-group {
-            margin-bottom: 12px;
-        }
-        
-        .form-label {
-            display: block;
-            font-size: 11px;
-            color: var(--gray);
-            margin-bottom: 5px;
-        }
-        
+        .form-group { margin-bottom: 12px; }
+        .form-label { display: block; font-size: 11px; color: var(--gray); margin-bottom: 5px; }
         .form-input {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: 10px;
-            border: 1px solid var(--gray);
-            background: rgba(0,0,0,0.3);
-            color: white;
-            font-size: 13px;
+            width: 100%; padding: 10px 12px; border-radius: 10px;
+            border: 1px solid var(--gray); background: rgba(0,0,0,0.3);
+            color: white; font-size: 13px;
         }
-        
         .form-input:focus { outline: none; border-color: var(--gold); }
-        
-        .form-row {
-            display: flex;
-            gap: 10px;
-        }
-        
+        .form-row { display: flex; gap: 10px; }
         .form-row .form-group { flex: 1; }
         
         .bonus-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        
-        .bonus-code {
-            font-weight: bold;
-            color: var(--gold);
-            font-family: monospace;
-            font-size: 14px;
-        }
-        
-        .bonus-reward {
-            color: var(--success);
-            font-size: 12px;
-        }
-        
-        .delete-bonus-btn {
-            color: var(--danger);
-            cursor: pointer;
-            padding: 5px;
-        }
+        .bonus-code { font-weight: bold; color: var(--gold); font-family: monospace; font-size: 14px; }
+        .bonus-reward { color: var(--success); font-size: 12px; }
+        .delete-bonus-btn { color: var(--danger); cursor: pointer; padding: 5px; }
         
         /* Analytics */
         .analytics-row {
-            display: flex;
-            gap: 8px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
             margin-bottom: 15px;
         }
-        
         .analytics-card {
-            flex: 1;
             background: var(--darker);
             border-radius: 12px;
             padding: 12px 8px;
             text-align: center;
         }
+        .analytics-value { font-size: 20px; font-weight: bold; color: var(--gold); }
+        .analytics-label { font-size: 9px; color: var(--gray); }
         
-        .analytics-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: var(--gold);
-        }
-        
-        .analytics-label {
-            font-size: 9px;
-            color: var(--gray);
-        }
-        
-        /* Modal */
+        /* Modals */
         .modal {
             display: none;
             position: fixed;
@@ -419,7 +382,6 @@
             align-items: center;
             justify-content: center;
         }
-        
         .modal-content {
             background: var(--darker);
             border-radius: 18px;
@@ -427,50 +389,20 @@
             width: 90%;
             max-width: 320px;
         }
-        
-        .modal-title {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-        }
-        
+        .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; }
         .modal-input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--gray);
-            background: rgba(0,0,0,0.3);
-            color: white;
-            font-size: 14px;
-            margin-bottom: 15px;
+            width: 100%; padding: 12px; border-radius: 10px;
+            border: 1px solid var(--gray); background: rgba(0,0,0,0.3);
+            color: white; font-size: 14px; margin-bottom: 15px;
         }
-        
-        .modal-actions {
-            display: flex;
-            gap: 8px;
-        }
-        
+        .modal-actions { display: flex; gap: 8px; }
         .modal-btn {
-            flex: 1;
-            padding: 12px;
-            border-radius: 10px;
-            border: none;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
+            flex: 1; padding: 12px; border-radius: 10px;
+            border: none; font-size: 13px; font-weight: 600; cursor: pointer;
         }
         
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: var(--gray);
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 30px;
-            color: var(--gray);
-        }
+        .loading { text-align: center; padding: 30px; color: var(--gray); }
+        .empty-state { text-align: center; padding: 30px; color: var(--gray); }
         
         .notification {
             position: fixed;
@@ -486,19 +418,24 @@
             z-index: 1000;
             font-size: 13px;
         }
-        
         .notification.error { background: var(--danger); }
         
         .refresh-btn {
-            background: var(--secondary);
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 10px;
-            cursor: pointer;
-            margin-left: 10px;
+            background: var(--secondary); color: white;
+            border: none; padding: 5px 10px; border-radius: 15px;
+            font-size: 10px; cursor: pointer; margin-left: 10px;
         }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+        .badge-success { background: var(--success); }
+        .badge-warning { background: var(--warning); }
+        .badge-danger { background: var(--danger); }
     </style>
 </head>
 <body>
@@ -511,21 +448,37 @@
     
     <!-- Stats Cards -->
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=users]').click()">
             <div class="stat-value" id="totalUsers">0</div>
             <div class="stat-label">Total Users</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=withdrawals]').click()">
             <div class="stat-value" id="pendingWithdrawals">0</div>
             <div class="stat-label">Pending</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value" id="totalCoins">0</div>
-            <div class="stat-label">Total COINS</div>
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=withdrawals]').click()">
+            <div class="stat-value" id="approvedWithdrawals">0</div>
+            <div class="stat-label">Approved</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=withdrawals]').click()">
+            <div class="stat-value" id="rejectedWithdrawals">0</div>
+            <div class="stat-label">Rejected</div>
+        </div>
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=teams]').click()">
             <div class="stat-value" id="totalTeams">0</div>
             <div class="stat-label">Teams</div>
+        </div>
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=analytics]').click()">
+            <div class="stat-value" id="totalReferrals">0</div>
+            <div class="stat-label">Referrals</div>
+        </div>
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=analytics]').click()">
+            <div class="stat-value" id="activeToday">0</div>
+            <div class="stat-label">Active Today</div>
+        </div>
+        <div class="stat-card" onclick="document.querySelector('.tab[data-tab=analytics]').click()">
+            <div class="stat-value" id="totalCoins">0</div>
+            <div class="stat-label">Total COINS</div>
         </div>
     </div>
     
@@ -571,10 +524,7 @@
     <!-- Bonus Tab -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-form">
-            <div class="section-title">
-                <i class="fas fa-plus-circle"></i>
-                <span>Add New Bonus Code</span>
-            </div>
+            <div class="section-title"><i class="fas fa-plus-circle"></i><span>Add New Bonus Code</span></div>
             <div class="form-group">
                 <label class="form-label">Bonus Code (UPPERCASE)</label>
                 <input type="text" class="form-input" id="newBonusCode" placeholder="e.g., WELCOME2024" maxlength="20" style="text-transform:uppercase;">
@@ -599,61 +549,48 @@
         </div>
         
         <div class="section-title">
-            <i class="fas fa-list"></i>
-            <span>Active Bonus Codes</span>
+            <i class="fas fa-list"></i><span>Active Bonus Codes</span>
             <div style="margin-left:auto;display:flex;gap:5px;">
                 <button class="refresh-btn" onclick="resetToDefaultCodes()" style="background:var(--warning);"><i class="fas fa-undo"></i> Reset</button>
                 <button class="refresh-btn" onclick="exportBonusCodes()"><i class="fas fa-download"></i> Export</button>
+                <button class="refresh-btn" onclick="syncBonusToServer()" style="background:var(--success);"><i class="fas fa-cloud-upload-alt"></i> Sync</button>
             </div>
         </div>
         <div class="bonus-list" id="bonusList">
             <div class="loading">Loading bonus codes...</div>
-        </div>
-        
-        <div style="margin-top:15px;padding:10px;background:rgba(255,215,0,0.1);border-radius:10px;">
-            <p style="font-size:11px;color:var(--gray);">
-                <i class="fas fa-info-circle"></i> 
-                <strong>Note:</strong> Bonus codes are stored locally in your browser. 
-                Export them to save a backup. Users can redeem these codes in the app.
-            </p>
         </div>
     </div>
     
     <!-- Analytics Tab -->
     <div class="tab-content" id="analyticsTab">
         <div class="analytics-row">
-            <div class="analytics-card">
-                <div class="analytics-value" id="activeToday">0</div>
-                <div class="analytics-label">Active Today</div>
-            </div>
-            <div class="analytics-card">
-                <div class="analytics-value" id="activeWeek">0</div>
-                <div class="analytics-label">Active Week</div>
-            </div>
-            <div class="analytics-card">
-                <div class="analytics-value" id="totalAds">0</div>
-                <div class="analytics-label">Total Ads</div>
-            </div>
-            <div class="analytics-card">
-                <div class="analytics-value" id="adsToday">0</div>
-                <div class="analytics-label">Ads Today</div>
-            </div>
+            <div class="analytics-card"><div class="analytics-value" id="analyticsTotalUsers">0</div><div class="analytics-label">Total Users</div></div>
+            <div class="analytics-card"><div class="analytics-value" id="analyticsTotalReferrals">0</div><div class="analytics-label">Total Referrals</div></div>
+            <div class="analytics-card"><div class="analytics-value" id="analyticsTotalCoins">0</div><div class="analytics-label">Total COINS</div></div>
+            <div class="analytics-card"><div class="analytics-value" id="analyticsTotalAds">0</div><div class="analytics-label">Total Ads</div></div>
         </div>
         
-        <div class="section-title">
-            <i class="fas fa-chart-pie"></i>
-            <span>Tier Distribution</span>
-        </div>
+        <div class="section-title"><i class="fas fa-chart-pie"></i><span>Tier Distribution</span></div>
         <div id="tierDistribution" style="background:var(--darker);border-radius:14px;padding:15px;margin-bottom:15px;">
             <div class="loading">Loading...</div>
         </div>
         
-        <div class="section-title">
-            <i class="fas fa-calendar-alt"></i>
-            <span>Daily Active Users (Last 7 Days)</span>
-        </div>
+        <div class="section-title"><i class="fas fa-calendar-alt"></i><span>Daily Active Users (Last 7 Days)</span></div>
         <div id="dailyActive" style="background:var(--darker);border-radius:14px;padding:15px;">
             <div class="loading">Loading...</div>
+        </div>
+        
+        <div class="section-title"><i class="fas fa-trophy"></i><span>Top Earners</span></div>
+        <div id="topEarnersList" style="background:var(--darker);border-radius:14px;padding:15px;">
+            <div class="loading">Loading...</div>
+        </div>
+    </div>
+    
+    <!-- User Detail Modal -->
+    <div class="user-detail-modal" id="userDetailModal">
+        <div class="user-detail-content">
+            <div id="userDetailContent"></div>
+            <button class="close-detail-btn" onclick="closeUserDetail()"><i class="fas fa-times"></i> Close</button>
         </div>
     </div>
     
@@ -749,6 +686,40 @@
         });
         
         // ============================================
+        // USER DETAIL MODAL
+        // ============================================
+        
+        function openUserDetail(user) {
+            const coins = (user.points || 0) / POINTS_PER_COIN;
+            const userSince = new Date(user.created_at).toLocaleDateString();
+            const lastActive = user.last_login_date || 'Never';
+            
+            document.getElementById('userDetailContent').innerHTML = `
+                <div class="user-detail-header">
+                    <div class="user-detail-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-detail-info">
+                        <h3>${user.first_name || 'User'} ${user.last_name || ''}</h3>
+                        <p>@${user.username || 'no username'} • ID: ${user.telegram_id}</p>
+                    </div>
+                </div>
+                <div class="detail-row"><span class="detail-label">💰 Balance</span><span class="detail-value">${coins.toFixed(2)} COINS</span></div>
+                <div class="detail-row"><span class="detail-label">👑 Tier</span><span class="detail-value">${user.tier || 'Fresher'}</span></div>
+                <div class="detail-row"><span class="detail-label">👥 Referrals</span><span class="detail-value">${user.referrals || 0}</span></div>
+                <div class="detail-row"><span class="detail-label">🔗 Referral Code</span><span class="detail-value">${user.referral_code || 'N/A'}</span></div>
+                <div class="detail-row"><span class="detail-label">👥 Team ID</span><span class="detail-value">${user.team_id || 'No Team'}</span></div>
+                <div class="detail-row"><span class="detail-label">💳 Wallet</span><span class="detail-value">${user.wallet_address ? user.wallet_address.substring(0, 20) + '...' : 'Not set'}</span></div>
+                <div class="detail-row"><span class="detail-label">📅 Joined</span><span class="detail-value">${userSince}</span></div>
+                <div class="detail-row"><span class="detail-label">🕐 Last Active</span><span class="detail-value">${lastActive}</span></div>
+                <div class="detail-row"><span class="detail-label">📊 Total Points Earned</span><span class="detail-value">${(user.total_points_earned || 0).toLocaleString()}</span></div>
+            `;
+            document.getElementById('userDetailModal').style.display = 'flex';
+        }
+        
+        function closeUserDetail() {
+            document.getElementById('userDetailModal').style.display = 'none';
+        }
+        
+        // ============================================
         // USERS
         // ============================================
         
@@ -772,30 +743,45 @@
             container.innerHTML = userArray.map(user => {
                 const coins = (user.points || 0) / POINTS_PER_COIN;
                 const hasTeam = user.team_id ? 'Yes' : 'No';
+                const tierColor = user.tier === 'Platinum' ? '💎' : user.tier === 'Gold' ? '🥇' : user.tier === 'Silver' ? '🥈' : '🟢';
                 
                 return `
                     <div class="user-item">
-                        <div class="user-header">
+                        <div class="user-header" onclick="openUserDetail(${JSON.stringify(user).replace(/"/g, '&quot;')})">
                             <div class="user-avatar">${(user.first_name || 'U')[0].toUpperCase()}</div>
                             <div class="user-info">
-                                <div class="user-name">${user.first_name || 'User'} ${user.last_name || ''}</div>
+                                <div class="user-name">
+                                    ${user.first_name || 'User'} ${user.last_name || ''}
+                                    <span class="user-tier">${tierColor} ${user.tier || 'Fresher'}</span>
+                                </div>
                                 <div class="user-id">ID: ${user.telegram_id} | @${user.username || 'unknown'}</div>
                             </div>
-                            <div class="user-tier">${user.tier || 'Fresher'}</div>
                         </div>
                         <div class="user-stats">
                             <div class="user-stat"><div class="user-stat-value">${coins.toFixed(2)}</div><div class="user-stat-label">COINS</div></div>
                             <div class="user-stat"><div class="user-stat-value">${user.referrals || 0}</div><div class="user-stat-label">Refs</div></div>
                             <div class="user-stat"><div class="user-stat-value">${hasTeam}</div><div class="user-stat-label">Team</div></div>
+                            <div class="user-stat"><div class="user-stat-value">${user.points?.toLocaleString() || 0}</div><div class="user-stat-label">Points</div></div>
+                            <div class="user-stat"><div class="user-stat-value">${user.total_points_earned?.toLocaleString() || 0}</div><div class="user-stat-label">Earned</div></div>
                         </div>
                         <div class="user-actions">
-                            <button class="action-btn btn-success" onclick="openAddPointsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
-                            <button class="action-btn btn-warning" onclick="openDeductPointsModal(${user.id})"><i class="fas fa-minus"></i> Deduct</button>
-                            <button class="action-btn btn-danger" onclick="openDeleteUserModal(${user.id}, '${user.first_name || 'User'}')"><i class="fas fa-trash"></i> Delete</button>
+                            <button class="action-btn btn-success" onclick="event.stopPropagation();openAddPointsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
+                            <button class="action-btn btn-warning" onclick="event.stopPropagation();openDeductPointsModal(${user.id})"><i class="fas fa-minus"></i> Deduct</button>
+                            <button class="action-btn btn-info" onclick="event.stopPropagation();viewUserReferrals(${user.id})"><i class="fas fa-users"></i> Refs</button>
+                            <button class="action-btn btn-danger" onclick="event.stopPropagation();openDeleteUserModal(${user.id}, '${user.first_name || 'User'}')"><i class="fas fa-trash"></i> Delete</button>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+        
+        async function viewUserReferrals(userId) {
+            try {
+                const user = users.find(u => u.id === userId);
+                if (user) {
+                    showNotification(`${user.first_name || 'User'} has ${user.referrals || 0} referrals`);
+                }
+            } catch(e) {}
         }
         
         function openAddPointsModal(userId) { currentUserId = userId; document.getElementById('addPointsModal').style.display = 'flex'; }
@@ -910,7 +896,7 @@
         }
         
         // ============================================
-        // TEAMS - FIXED VIEW MEMBERS
+        // TEAMS
         // ============================================
         
         async function loadTeams() {
@@ -958,7 +944,6 @@
                 container.innerHTML = '<div class="loading">Loading members...</div>';
                 container.style.display = 'block';
                 try {
-                    // FIXED: Use the correct endpoint with teamId parameter
                     const response = await fetch(`/api/team/info`, { 
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' },
@@ -1028,12 +1013,13 @@
         
         function saveBonusCodes() { localStorage.setItem('adminBonusCodes', JSON.stringify(bonusCodes)); }
         
-        function syncBonusCodesToApp() {
+        function syncBonusToServer() {
             const appFormat = {};
             bonusCodes.forEach(c => {
                 appFormat[c.code] = { points: Math.round(c.coins * POINTS_PER_COIN), dollars: 0, description: c.description || `${c.coins} COINS` };
             });
             localStorage.setItem('bonusCodesList', JSON.stringify(appFormat));
+            showNotification('Bonus codes synced to app! Users can now redeem them.');
         }
         
         function renderBonusList() {
@@ -1065,7 +1051,7 @@
             if (bonusCodes.find(c => c.code === code)) { showNotification('Code exists', true); return; }
             
             bonusCodes.push({ code, coins: totalCoins, points: Math.round(totalCoins * POINTS_PER_COIN), description: desc || `${totalCoins.toFixed(2)} COINS` });
-            saveBonusCodes(); syncBonusCodesToApp(); renderBonusList();
+            saveBonusCodes(); syncBonusToServer(); renderBonusList();
             document.getElementById('newBonusCode').value = '';
             document.getElementById('newBonusCoins').value = '';
             document.getElementById('newBonusPoints').value = '';
@@ -1075,7 +1061,7 @@
         
         function deleteBonusCode(code) {
             bonusCodes = bonusCodes.filter(c => c.code !== code);
-            saveBonusCodes(); syncBonusCodesToApp(); renderBonusList();
+            saveBonusCodes(); syncBonusToServer(); renderBonusList();
             showNotification(`Deleted ${code}`);
         }
         
@@ -1084,7 +1070,7 @@
             bonusCodes = Object.entries(DEFAULT_BONUS_CODES).map(([code, data]) => ({
                 code, coins: data.points / POINTS_PER_COIN, points: data.points, description: data.description
             }));
-            saveBonusCodes(); syncBonusCodesToApp(); renderBonusList();
+            saveBonusCodes(); syncBonusToServer(); renderBonusList();
             showNotification('Reset to defaults');
         }
         
@@ -1105,10 +1091,11 @@
         async function loadAnalytics() {
             try {
                 const data = await apiCall('/api/admin/analytics');
-                document.getElementById('activeToday').textContent = data.activeToday || 0;
-                document.getElementById('activeWeek').textContent = data.activeWeek || 0;
-                document.getElementById('totalAds').textContent = data.totalAds || 0;
-                document.getElementById('adsToday').textContent = data.adsToday || 0;
+                
+                document.getElementById('analyticsTotalUsers').textContent = data.totalUsers || 0;
+                document.getElementById('analyticsTotalReferrals').textContent = data.totalReferrals || 0;
+                document.getElementById('analyticsTotalCoins').textContent = data.totalCoins?.toLocaleString() || 0;
+                document.getElementById('analyticsTotalAds').textContent = data.totalAds?.toLocaleString() || 0;
                 
                 const tierDiv = document.getElementById('tierDistribution');
                 if (data.tierDistribution && data.tierDistribution.length) {
@@ -1125,6 +1112,23 @@
                             <span>${d.last_login_date}</span><span style="color:var(--gold);">${d.count}</span>
                         </div>`).join('');
                 } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
+                
+                // Top earners
+                try {
+                    const topEarners = await apiCall('/api/leaderboard/top-earners');
+                    const topEarnersDiv = document.getElementById('topEarnersList');
+                    if (topEarners && topEarners.length) {
+                        topEarnersDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `
+                            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <span>#${idx + 1} ${user.first_name || user.username || 'User'}</span>
+                                <span style="color:var(--gold);">${((user.points || 0) / POINTS_PER_COIN).toFixed(2)} COINS</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        topEarnersDiv.innerHTML = '<div class="empty-state">No data</div>';
+                    }
+                } catch(e) { console.error('Top earners error:', e); }
+                
             } catch (err) { console.error('Analytics error:', err); }
         }
         
@@ -1135,9 +1139,16 @@
         function updateStats() {
             document.getElementById('totalUsers').textContent = users.length;
             document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
+            document.getElementById('approvedWithdrawals').textContent = withdrawals.filter(w => w.status === 'approved' || w.status === 'completed').length;
+            document.getElementById('rejectedWithdrawals').textContent = withdrawals.filter(w => w.status === 'rejected' || w.status === 'failed').length;
             const totalPoints = users.reduce((sum, u) => sum + (u.points || 0), 0);
             document.getElementById('totalCoins').textContent = (totalPoints / POINTS_PER_COIN).toFixed(0);
             document.getElementById('totalTeams').textContent = teams.length;
+            const totalReferrals = users.reduce((sum, u) => sum + (u.referrals || 0), 0);
+            document.getElementById('totalReferrals').textContent = totalReferrals;
+            
+            // Also update analytics stats
+            document.getElementById('activeToday').textContent = users.filter(u => u.last_login_date === new Date().toISOString().split('T')[0]).length;
         }
         
         document.getElementById('userSearch').addEventListener('input', (e) => {
@@ -1155,7 +1166,10 @@
             renderTeamList(teams.filter(t => t.name.toLowerCase().includes(q) || (t.leader_name||'').toLowerCase().includes(q)));
         });
         
-        window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
+        window.onclick = (e) => { 
+            if (e.target.classList.contains('modal')) e.target.style.display = 'none';
+            if (e.target.classList.contains('user-detail-modal')) e.target.style.display = 'none';
+        };
         
         document.addEventListener('DOMContentLoaded', () => {
             loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodes();
