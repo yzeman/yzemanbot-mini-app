@@ -1647,6 +1647,18 @@ app.get('/health', async (req, res) => {
 });
 
 // ============================================
+// WEBHOOK HEALTH CHECK (Required for Render)
+// ============================================
+
+app.get('/webhook', (req, res) => {
+    res.status(200).send('Webhook is active');
+});
+
+app.post('/webhook', (req, res) => {
+    res.status(200).send('OK');
+});
+
+// ============================================
 // ADMIN DELETE USER - COMPLETE CLEANUP WITH TEAM HANDLING
 // ============================================
 
@@ -2017,7 +2029,7 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM BOT - POLLING MODE (NO WEBHOOK)
+// TELEGRAM BOT - POLLING MODE WITH REFERRAL HANDLING
 // ============================================
 
 if (process.env.BOT_TOKEN) {
@@ -2052,46 +2064,34 @@ if (process.env.BOT_TOKEN) {
         }
     }
     
-    // START command
+    // --- FIXED START COMMAND ---
     bot.start(async (ctx) => {
         const firstName = ctx.from.first_name;
-        const telegramId = ctx.from.id;
-        const startPayload = ctx.startPayload || '';
+        const startPayload = ctx.startPayload || ''; // THIS captures the referral code from the link!
         let miniAppUrl = MINI_APP_URL;
-        if (startPayload) miniAppUrl += `?start=${startPayload}`;
         
-        console.log(`📨 /start from ${firstName} (${telegramId})`);
-        
-        // Check if user exists
-        const userData = await getUserData(telegramId);
-        
-        let message = '';
-        if (userData) {
-            const coins = (userData.points || 0) / 1000000;
-            message = `🎉 *Welcome back, ${firstName}!*\n\n` +
-                `💰 *Balance:* ${coins.toFixed(2)} COINS\n` +
-                `👑 *Tier:* ${userData.tier || 'Fresher'}\n` +
-                `👥 *Referrals:* ${userData.referrals || 0}\n\n` +
-                `👇 *Choose an option below!*`;
-        } else {
-            message = `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
-                `💰 *Earn COINS by:*\n` +
-                `• Watching ads\n` +
-                `• Inviting friends\n` +
-                `• Daily rewards\n` +
-                `• Spinning the wheel\n\n` +
-                `👇 *Tap LAUNCH APP to start!*`;
+        // Pass the referral code to the mini app
+        if (startPayload) {
+            miniAppUrl += `?start=${startPayload}`;
         }
         
-        await ctx.reply(message, {
-            parse_mode: 'Markdown',
-            ...mainMenuKeyboard
-        });
+        console.log(`📨 /start from ${firstName}, payload: ${startPayload || 'none'}`);
         
-        console.log(`✅ Reply sent to ${firstName}`);
+        await ctx.reply(
+            `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
+            `👇 *Tap below to start earning!*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 LAUNCH APP', web_app: { url: miniAppUrl } }]
+                    ]
+                }
+            }
+        );
     });
+    // --- END OF FIXED START COMMAND ---
     
-    // HELP command
     bot.help(async (ctx) => {
         await ctx.reply(
             `📚 *Help Center*\n\n` +
@@ -2109,7 +2109,6 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // MY EARNINGS button
     bot.hears('💰 MY EARNINGS', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
@@ -2133,7 +2132,7 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // MY REFERRAL button
+    // --- FIXED MY REFERRAL BUTTON ---
     bot.hears('👥 MY REFERRAL', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
@@ -2147,6 +2146,7 @@ if (process.env.BOT_TOKEN) {
         }
         
         const botUsername = ctx.bot.botInfo?.username || 'YzemanBot';
+        // The referral code is the user's unique code (e.g., "ref-ABCD1234")
         const referralLink = `https://t.me/${botUsername}?start=${userData.referral_code}`;
         
         await ctx.reply(
@@ -2165,6 +2165,7 @@ if (process.env.BOT_TOKEN) {
             }
         );
     });
+    // --- END OF FIXED MY REFERRAL BUTTON ---
     
     // Copy link callback
     bot.action('copy_link', async (ctx) => {
@@ -2180,7 +2181,6 @@ if (process.env.BOT_TOKEN) {
         }
     });
     
-    // CHANNEL button
     bot.hears('📢 CHANNEL', async (ctx) => {
         await ctx.reply(
             `📢 *Join Our Channel*\n\n` +
@@ -2196,7 +2196,6 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // ABOUT button
     bot.hears('ℹ️ ABOUT', async (ctx) => {
         await ctx.reply(
             `ℹ️ *YzemanBot v2.0*\n\n` +
@@ -2208,7 +2207,6 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // LAUNCH APP button
     bot.hears('🚀 LAUNCH APP', async (ctx) => {
         let miniAppUrl = MINI_APP_URL;
         await ctx.reply(
@@ -2224,7 +2222,6 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // Unknown commands
     bot.on('text', async (ctx) => {
         const text = ctx.message.text;
         const valid = ['🚀 LAUNCH APP', '💰 MY EARNINGS', '👥 MY REFERRAL', '📢 CHANNEL', '❓ HELP', 'ℹ️ ABOUT'];
@@ -2265,8 +2262,8 @@ async function startServer() {
       console.log(`========================================`);
       console.log(`🚀 SERVER IS RUNNING!`);
       console.log(`📡 Port: ${PORT}`);
-      console.log(`🌐 URL: https://your-app-name.onrender.com`);
-      console.log(`❤️  Health: https://your-app-name.onrender.com/health`);
+      console.log(`🌐 URL: ${process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com'}`);
+      console.log(`❤️  Health: ${process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com'}/health`);
       console.log(`💰 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
       console.log(`💵 Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
       console.log(`========================================`);
