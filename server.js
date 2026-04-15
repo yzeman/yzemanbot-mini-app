@@ -698,7 +698,7 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
     }
 });
 
-// Complete a task (called ONLY after the user has legitimately completed the action)
+// Complete a task (called ONLY after timer finishes)
 app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
     const { taskName, points, proof } = req.body;
     const telegramId = req.telegramUser.id;
@@ -712,14 +712,11 @@ app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
 
         const userId = userResult.rows[0].id;
 
-        // Check for double completion
         const existingTask = await client.query('SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2', [userId, taskName]);
         if (existingTask.rows.length > 0) return res.status(400).json({ error: 'Task already completed' });
 
-        // Add points
         await client.query('UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2', [points, userId]);
 
-        // Record completion
         await client.query('INSERT INTO social_tasks (user_id, task_name, task_proof) VALUES ($1, $2, $3)', [userId, taskName, proof || 'completed']);
 
         await client.query('COMMIT');
