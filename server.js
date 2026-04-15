@@ -2277,10 +2277,12 @@ if (process.env.BOT_TOKEN) {
             reply_markup: {
                 inline_keyboard: [
                     [{ text: '📤 COPY LINK', callback_data: 'copy_link' }]
+                ]
             }
         });
     });
     
+    // COPY LINK callback
     bot.action('copy_link', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
