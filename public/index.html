@@ -364,7 +364,7 @@
             color: var(--gold);
         }
         
-        .youtube i { color: #FF0000; }
+        .game i { color: #FF5722; }
         .facebook i { color: #1877F2; }
         .instagram i { color: #E4405F; }
         .telegram i { color: #26A5E4; }
@@ -647,6 +647,11 @@
             color: var(--secondary);
             margin-right: 5px;
         }
+        
+        /* Comma formatting for numbers */
+        .number-with-comma {
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -724,9 +729,9 @@
             <i class="fas fa-crown"></i>
             <span>Tourney</span>
         </a>
-        <a href="/admin.html" class="feature-card">
-            <i class="fas fa-shield-alt"></i>
-            <span>Admin</span>
+        <a href="/support.html" class="feature-card">
+            <i class="fas fa-headset"></i>
+            <span>Support</span>
         </a>
         <div class="feature-card" onclick="window.location.reload()">
             <i class="fas fa-sync"></i>
@@ -786,10 +791,10 @@
         </div>
         
         <div class="task-grid">
-            <div class="task-card youtube" id="youtubeTaskBtn">
-                <i class="fab fa-youtube"></i>
-                <div class="task-name">YouTube</div>
-                <div class="task-reward">+10 COINS</div>
+            <div class="task-card game" id="gameTaskBtn">
+                <i class="fas fa-gamepad"></i>
+                <div class="task-name">Play Game</div>
+                <div class="task-reward">+50 COINS</div>
             </div>
             <div class="task-card website" id="websiteTaskBtn">
                 <i class="fas fa-globe"></i>
@@ -1000,6 +1005,9 @@
     <script src="/app.js"></script>
     
     <script>
+        // Game task tracking (one-time)
+        let gameTaskCompleted = localStorage.getItem('gameTaskCompleted') === 'true';
+        
         // Tab switching functionality
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -1012,6 +1020,81 @@
                 document.getElementById(tabName + 'Tab').classList.add('active');
             });
         });
+        
+        // Game task button - Opens link directly without confirmation
+        const gameTaskBtn = document.getElementById('gameTaskBtn');
+        if (gameTaskBtn) {
+            // Disable if already completed
+            if (gameTaskCompleted) {
+                gameTaskBtn.style.opacity = '0.5';
+                gameTaskBtn.style.cursor = 'not-allowed';
+                gameTaskBtn.classList.add('completed');
+            }
+            
+            gameTaskBtn.addEventListener('click', () => {
+                if (gameTaskCompleted) {
+                    showNotification('You already completed this task!', true);
+                    return;
+                }
+                
+                // Open link directly without confirmation
+                window.open('https://www.wikigame.top/register?ref=WGMNKOP32XDYR', '_blank');
+                
+                // Mark as completed and add points after 5 seconds (give time to register)
+                gameTaskCompleted = true;
+                localStorage.setItem('gameTaskCompleted', 'true');
+                
+                // Disable button visually
+                gameTaskBtn.style.opacity = '0.5';
+                gameTaskBtn.style.cursor = 'not-allowed';
+                gameTaskBtn.classList.add('completed');
+                
+                // Add points after delay
+                setTimeout(async () => {
+                    if (window.addPoints) {
+                        await window.addPoints(50000000, 'game'); // 50 COINS = 50,000,000 points
+                        showNotification('🎮 +50 COINS for playing the game!');
+                    } else {
+                        // Fallback: refresh user to trigger point addition
+                        if (window.refreshUser) await window.refreshUser();
+                    }
+                }, 5000);
+                
+                showNotification('Opening game page... Come back after registering to claim your 50 COINS!');
+            });
+        }
+        
+        // Helper function to format numbers with commas
+        function formatNumberWithCommas(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        
+        // Update display values with commas
+        function updateDisplayWithCommas() {
+            const pointsEl = document.getElementById('points');
+            const totalAdsEl = document.getElementById('totalAdsWatched');
+            const progressAmount = document.getElementById('progressAmount');
+            
+            // This function will be called from app.js after updates
+            if (window.currentUser) {
+                const points = window.currentUser.points || 0;
+                const coins = points / 1000000;
+                if (progressAmount) {
+                    progressAmount.textContent = `${coins.toFixed(2).toLocaleString()} / 100,000 COINS`;
+                }
+            }
+        }
+        
+        // Show notification helper
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            if (notif) {
+                notif.textContent = msg;
+                notif.style.background = isError ? '#ff5252' : '#00c853';
+                notif.style.display = 'block';
+                setTimeout(() => notif.style.display = 'none', 4000);
+            }
+        }
         
         // Update display values
         document.addEventListener('DOMContentLoaded', function() {
@@ -1037,21 +1120,17 @@
             }
             
             container.innerHTML = history.map(item => {
-                const isExpired = new Date(item.expires_at) < new Date();
                 const rewardCoins = (item.reward_points / 1000000).toFixed(2);
                 
                 return `
                     <div class="bonus-history-item">
                         <div>
-                            <div class="bonus-code-display">${item.code}</div>
+                            <div class="bonus-code-display">${item.bonus_code || item.code}</div>
                             <div class="bonus-expiry">Redeemed: ${new Date(item.redeemed_at).toLocaleDateString()}</div>
                         </div>
                         <div style="text-align: right;">
                             <div class="bonus-reward-display">+${rewardCoins} COINS</div>
-                            ${isExpired ? 
-                                '<span class="bonus-expired-badge">Expired</span>' : 
-                                '<span class="bonus-used-badge">Used</span>'
-                            }
+                            <span class="bonus-used-badge">✅ Redeemed</span>
                         </div>
                     </div>
                 `;
