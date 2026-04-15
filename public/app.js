@@ -130,42 +130,6 @@ if (lastWeekStart !== weekStartStr) {
 }
 
 // ============================================================
-// BONUS CODES - Load from localStorage (synced from admin)
-// ============================================================
-
-const DEFAULT_BONUS_CODES = {
-    "WELCOME": { points: 500000, dollars: 0, description: "0.5 COINS" },
-    "ADSMASTER": { points: 5000000, dollars: 0, description: "5 COINS" },
-    "LUCKYDAY": { points: 1000000, dollars: 0, description: "1 COIN" },
-    "BIGWIN": { points: 10000000, dollars: 0, description: "10 COINS" },
-    "BASER": { points: 2000000, dollars: 0, description: "2 COINS" },
-    "BOTYZEMAN": { points: 100000000, dollars: 0, description: "100 COINS" },
-    "EARNSBOTT": { points: 15000000, dollars: 0, description: "15 COINS" },
-    "BONUSBOTTER": { points: 100000000, dollars: 0, description: "100 COINS" },
-    "YZEMASTER1": { points: 150000000, dollars: 0, description: "150 COINS" }
-};
-
-let bonusCodesList = {};
-
-function loadBonusCodes() {
-    const saved = localStorage.getItem('bonusCodesList');
-    if (saved) {
-        try {
-            bonusCodesList = JSON.parse(saved);
-            console.log('✅ Bonus codes loaded from localStorage:', Object.keys(bonusCodesList));
-            return;
-        } catch (e) { console.error('Failed to parse bonus codes:', e); }
-    }
-    // If nothing in localStorage, use defaults
-    bonusCodesList = DEFAULT_BONUS_CODES;
-    localStorage.setItem('bonusCodesList', JSON.stringify(DEFAULT_BONUS_CODES));
-    console.log('✅ Using default bonus codes');
-}
-
-// Load bonus codes immediately
-loadBonusCodes();
-
-// ============================================================
 // HELPER FUNCTIONS
 // ============================================================
 
@@ -268,6 +232,7 @@ async function refreshUser() {
         updateUI();
         loadWithdrawalHistory();
         updateAdStreakDisplay();
+        loadBonusHistory(); // Reload bonus history
     } catch (err) { console.error('Refresh error:', err); }
 }
 
@@ -341,7 +306,6 @@ function updateUI() {
     }
     const currentTierEl = document.getElementById('currentTier');
     if (currentTierEl) currentTierEl.textContent = currentUser.tier || 'Fresher';
-    displayBonusList();
 }
 
 function updateAdStreakDisplay() {
@@ -542,108 +506,80 @@ async function completeSocialTask(taskName, reward) {
 }
 
 // ============================================================
-// BONUS CODES & HISTORY - FIXED REDEMPTION
+// BONUS CODES & HISTORY - USING BACKEND DATABASE
 // ============================================================
 
+// Load bonus history from backend
 async function loadBonusHistory() {
     if (!currentUser) return;
     try {
-        const response = await fetch('/api/bonus-history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg.initData }) });
-        if (response.ok) displayBonusHistoryUI(await response.json());
+        const response = await fetch('/api/bonus-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
+        if (response.ok) {
+            const history = await response.json();
+            displayBonusHistoryUI(history);
+        }
     } catch (err) { console.error('Failed to load bonus history:', err); }
 }
 
 function displayBonusHistoryUI(history) {
     const container = document.getElementById('bonusHistoryList');
     if (!container) return;
-    if (!history || history.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>'; return; }
-    container.innerHTML = history.map(item => {
-        const redeemedDate = new Date(item.redeemed_at);
-        const expiryDate = new Date(item.redeemed_at);
-        expiryDate.setHours(expiryDate.getHours() + 24);
-        const isExpired = new Date() > expiryDate;
-        return `<div class="bonus-history-item"><div><div class="bonus-code-display">${item.bonus_code}</div><div class="bonus-expiry">Redeemed: ${redeemedDate.toLocaleString()}</div><div class="bonus-expiry">Expires: ${expiryDate.toLocaleString()}</div></div><div style="text-align: right;"><div class="bonus-reward-display">+${(item.reward_points / 1000000).toFixed(2)} COINS</div>${isExpired ? '<span class="bonus-expired-badge">Expired</span>' : '<span class="bonus-used-badge">Active</span>'}</div></div>`;
-    }).join('');
+    if (!history || history.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
+        return;
+    }
+    container.innerHTML = history.map(item => `
+        <div class="bonus-history-item">
+            <div>
+                <div class="bonus-code-display">${item.bonus_code}</div>
+                <div class="bonus-expiry">Redeemed: ${new Date(item.redeemed_at).toLocaleDateString()}</div>
+            </div>
+            <div style="text-align: right;">
+                <span class="bonus-used-badge">✅ Redeemed</span>
+            </div>
+        </div>
+    `).join('');
 }
 
-async function saveBonusRedemption(code, points) {
-    try { await fetch('/api/bonus-redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg.initData, bonusCode: code, points: points }) }); } 
-    catch (err) { console.error('Failed to save bonus redemption:', err); }
-}
-
-// FIXED: Redeem Bonus - This is the main function that needs to work
+// Redeem bonus code using backend API
 async function redeemBonus() {
     const codeInput = document.getElementById('bonusCodeInput');
     if (!codeInput) return;
     const code = codeInput.value.trim().toUpperCase();
     if (!code) { showNotification('Enter a bonus code', true); return; }
     
-    console.log('🎁 Attempting to redeem bonus code:', code);
+    console.log('🎁 Redeeming bonus code via backend:', code);
     
-    // RELOAD bonus codes from localStorage before checking
-    const saved = localStorage.getItem('bonusCodesList');
-    console.log('📦 Raw saved codes:', saved);
-    
-    if (saved) {
-        try {
-            bonusCodesList = JSON.parse(saved);
-            console.log('✅ Available bonus codes:', Object.keys(bonusCodesList));
-        } catch (e) {
-            console.error('Failed to parse:', e);
+    try {
+        const response = await fetch('/api/redeem-bonus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                initData: tg.initData,
+                code: code
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            showNotification(result.error || 'Failed to redeem', true);
+            return;
         }
-    }
-    
-    // Check if code exists
-    const bonus = bonusCodesList[code];
-    if (!bonus) { 
-        console.log('❌ Code not found. Available:', Object.keys(bonusCodesList));
-        showNotification(`Invalid bonus code "${code}"`, true); 
-        return; 
-    }
-    
-    console.log('✅ Bonus found:', bonus);
-    
-    const today = new Date().toDateString();
-    if (usedBonusCodes[code] === today) { 
-        showNotification('Code already used today', true); 
-        return; 
-    }
-    
-    let totalPoints = bonus.points || 0;
-    if (bonus.dollars > 0) totalPoints += bonus.dollars * POINT_ECONOMY.POINTS_PER_COIN;
-    
-    usedBonusCodes[code] = today;
-    localStorage.setItem('usedBonusCodes', JSON.stringify(usedBonusCodes));
-    await saveBonusRedemption(code, totalPoints);
-    await addPoints(totalPoints, 'bonus');
-    showNotification(`Bonus code redeemed! +${(totalPoints / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS`);
-    codeInput.value = '';
-    await loadBonusHistory();
-    displayBonusList();
-}
-
-function displayBonusList() {
-    const today = new Date().toDateString();
-    const list = document.getElementById('bonusList');
-    if (!list) return;
-    
-    // Reload from localStorage
-    const saved = localStorage.getItem('bonusCodesList');
-    if (saved) { 
-        try { 
-            bonusCodesList = JSON.parse(saved); 
-            console.log('🔄 Display refreshed with codes:', Object.keys(bonusCodesList));
-        } catch (e) {} 
-    }
-    
-    list.innerHTML = '';
-    for (const [code, bonus] of Object.entries(bonusCodesList)) {
-        const rewardCoins = (bonus.points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
-        const isUsed = usedBonusCodes[code] === today;
-        const item = document.createElement('div');
-        item.className = 'bonus-item';
-        item.innerHTML = `<span class="bonus-code">${code}</span><span class="bonus-reward">${rewardCoins} COINS</span>${isUsed ? '<span class="redeemed-badge">Used Today</span>' : '<span style="color:#888;">Available</span>'}`;
-        list.appendChild(item);
+        
+        if (result.success) {
+            showNotification(result.message || 'Bonus code redeemed!');
+            await refreshUser(); // Refresh to update balance
+            codeInput.value = '';
+            await loadBonusHistory(); // Reload history
+        }
+    } catch (err) {
+        console.error('Redeem error:', err);
+        showNotification('Failed to redeem code', true);
     }
 }
 
@@ -980,13 +916,11 @@ async function initApp() {
     checkPendingAdReward();
     updateAdStreakDisplay();
     
-    // Reload bonus codes on startup
-    loadBonusCodes();
-    
     currentUser = await registerUser();
     if (currentUser) {
         updateUI();
         loadWithdrawalHistory();
+        loadBonusHistory(); // Load bonus history on startup
         
         const socialButtons = [
             { id: 'youtube1Btn', task: 'youtube1', url: 'https://youtube.com/@yzeupdates', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.youtube1 },
