@@ -2005,6 +2005,168 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// BONUS CODES API (DATABASE VERSION)
+// ============================================
+
+// Get all active bonus codes (for admin panel)
+app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM bonus_codes ORDER BY created_at DESC'
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Get bonus codes error:', err);
+        res.status(500).json({ error: 'Failed to fetch bonus codes' });
+    }
+});
+
+// Add new bonus code (admin)
+app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
+    const { code, points, description, expires_at } = req.body;
+    const adminId = req.adminId; // You'll need to set this in verifyAdmin
+    
+    if (!code || !points) {
+        return res.status(400).json({ error: 'Code and points required' });
+    }
+    
+    try {
+        const result = await pool.query(
+            'INSERT INTO bonus_codes (code, points, description, expires_at) VALUES ($1, $2, $3, $4) RETURNING *',
+            [code.toUpperCase(), points, description || null, expires_at || null]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        if (err.code === '23505') {
+            return res.status(400).json({ error: 'Bonus code already exists' });
+        }
+        console.error('Add bonus code error:', err);
+        res.status(500).json({ error: 'Failed to add bonus code' });
+    }
+});
+
+// Delete bonus code (admin)
+app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
+    const { code } = req.params;
+    try {
+        await pool.query('DELETE FROM bonus_codes WHERE code = $1', [code.toUpperCase()]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Delete bonus code error:', err);
+        res.status(500).json({ error: 'Failed to delete bonus code' });
+    }
+});
+
+// Redeem bonus code (user)
+app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
+    const { code } = req.body;
+    const telegramId = req.telegramUser.id;
+    
+    if (!code) {
+        return res.status(400).json({ error: 'Bonus code required' });
+    }
+    
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // Get user
+        const userResult = await client.query(
+            'SELECT id FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const userId = userResult.rows[0].id;
+        
+        // Check if user already redeemed this code
+        const existingRedemption = await client.query(
+            'SELECT * FROM user_bonus_redemptions WHERE user_id = $1 AND bonus_code = $2',
+            [userId, code.toUpperCase()]
+        );
+        
+        if (existingRedemption.rows.length > 0) {
+            return res.status(400).json({ error: 'You have already redeemed this code' });
+        }
+        
+        // Get bonus code from database
+        const bonusResult = await client.query(
+            'SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true',
+            [code.toUpperCase()]
+        );
+        
+        if (bonusResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Invalid bonus code' });
+        }
+        
+        const bonus = bonusResult.rows[0];
+        
+        // Check if expired
+        if (bonus.expires_at && new Date() > new Date(bonus.expires_at)) {
+            return res.status(400).json({ error: 'Bonus code has expired' });
+        }
+        
+        // Add points to user
+        await client.query(
+            'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
+            [bonus.points, userId]
+        );
+        
+        // Record redemption
+        await client.query(
+            'INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)',
+            [userId, code.toUpperCase()]
+        );
+        
+        await client.query('COMMIT');
+        
+        res.json({ 
+            success: true, 
+            points: bonus.points,
+            message: `You redeemed ${(bonus.points / 1000000).toFixed(2)} COINS!`
+        });
+        
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Redeem bonus error:', err);
+        res.status(500).json({ error: 'Failed to redeem bonus code' });
+    } finally {
+        client.release();
+    }
+});
+
+// Get user's redeemed bonus codes history
+app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
+    const telegramId = req.telegramUser.id;
+    
+    try {
+        const userResult = await pool.query(
+            'SELECT id FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.json([]);
+        }
+        
+        const userId = userResult.rows[0].id;
+        
+        const history = await pool.query(
+            'SELECT bonus_code, redeemed_at FROM user_bonus_redemptions WHERE user_id = $1 ORDER BY redeemed_at DESC',
+            [userId]
+        );
+        
+        res.json(history.rows);
+    } catch (err) {
+        console.error('Bonus history error:', err);
+        res.json([]);
+    }
+});
+
+// ============================================
 // TELEGRAM BOT - COMPLETE FIXED VERSION
 // ============================================
 
