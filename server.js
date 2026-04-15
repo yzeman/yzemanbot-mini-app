@@ -2491,12 +2491,14 @@ if (process.env.BOT_TOKEN) {
     // ============================================
     
     // FIRST: Set up the webhook callback middleware
-    app.use(bot.webhookCallback('/webhook'));
-    
-    // SECOND: Set the webhook URL (use your actual Render URL)
-    const WEBHOOK_DOMAIN = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
-    const webhookUrl = `${WEBHOOK_DOMAIN}/webhook`;
-    
+app.use(bot.webhookCallback('/webhook'));
+
+// SECOND: Set the webhook URL (use your actual Render URL)
+const WEBHOOK_DOMAIN = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
+const webhookUrl = `${WEBHOOK_DOMAIN}/webhook`;
+
+// Wrap in async function to use await
+(async () => {
     try {
         await bot.telegram.setWebhook(webhookUrl);
         console.log(`✅ Webhook set to: ${webhookUrl}`);
@@ -2504,9 +2506,7 @@ if (process.env.BOT_TOKEN) {
     } catch (err) {
         console.error('❌ Failed to set webhook:', err.message);
     }
-    
-    console.log('🤖 Telegram Bot initialized with webhook mode');
-}
+})();
 
 // ============================================
 // START SERVER
