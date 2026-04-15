@@ -1963,68 +1963,473 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM BOT WEBHOOK SETUP (FIXED FOR RENDER)
+// TELEGRAM BOT WITH FULL MENU SYSTEM
 // ============================================
 
 if (process.env.BOT_TOKEN) {
     const bot = new Telegraf(process.env.BOT_TOKEN);
     const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-mini-app.onrender.com';
     const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
+    const SUPPORT_URL = 'https://t.me/yzemanreal';
+    const COMMUNITY_URL = 'https://t.me/YzemanEarnBotCommunity';
     
-    // Set up bot commands
+    // ============================================
+    // MAIN MENU KEYBOARD (Persistent buttons)
+    // ============================================
+    
+    const mainMenuKeyboard = {
+        reply_markup: {
+            keyboard: [
+                [{ text: "🚀 LAUNCH APP" }, { text: "💰 MY EARNINGS" }],
+                [{ text: "👥 MY REFERRAL" }, { text: "📢 CHANNEL" }],
+                [{ text: "❓ HELP" }, { text: "ℹ️ ABOUT" }],
+                [{ text: "👤 SUPPORT" }, { text: "🏆 LEADERBOARD" }]
+            ],
+            resize_keyboard: true,
+            persistent: true
+        }
+    };
+    
+    // Helper function to get user data from database
+    async function getUserData(telegramId) {
+        try {
+            const result = await pool.query(
+                'SELECT id, points, referrals, tier, referral_code FROM users WHERE telegram_id = $1',
+                [telegramId]
+            );
+            if (result.rows.length > 0) {
+                return result.rows[0];
+            }
+            return null;
+        } catch (err) {
+            console.error('Get user data error:', err);
+            return null;
+        }
+    }
+    
+    // Helper function to get user's rank
+    async function getUserRank(telegramId) {
+        try {
+            const result = await pool.query(`
+                SELECT COUNT(*) as rank FROM users 
+                WHERE points > (SELECT COALESCE(points, 0) FROM users WHERE telegram_id = $1)
+            `, [telegramId]);
+            return (result.rows[0]?.rank || 0) + 1;
+        } catch (err) {
+            return '?';
+        }
+    }
+    
+    // ============================================
+    // START COMMAND
+    // ============================================
+    
     bot.start(async (ctx) => {
+        const telegramId = ctx.from.id;
         const firstName = ctx.from.first_name;
         const startPayload = ctx.startPayload || '';
         let miniAppUrl = MINI_APP_URL;
         if (startPayload) miniAppUrl += `?start=${startPayload}`;
         
-        await ctx.reply(
-            `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
-            `💰 *Earn COINS by:*\n` +
-            `• Watching ads\n` +
-            `• Inviting friends\n` +
-            `• Daily rewards\n` +
-            `• Spinning the wheel\n` +
-            `• Competing in tournaments\n\n` +
-            `👇 *Tap below to start earning!*`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH YZEMANBOT', web_app: { url: miniAppUrl } }],
-                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
-                    ]
-                }
+        // Check if user exists in database
+        try {
+            const userCheck = await pool.query(
+                'SELECT id, created_at FROM users WHERE telegram_id = $1',
+                [telegramId]
+            );
+            
+            const userExists = userCheck.rows.length > 0;
+            
+            let message = '';
+            if (userExists) {
+                message = `🎉 *Welcome back to YzemanBot, ${firstName}!*\n\n` +
+                    `💰 *Your Stats:*\n` +
+                    `• Tap LAUNCH APP to continue earning\n` +
+                    `• Check MY EARNINGS for your balance\n` +
+                    `• Use MY REFERRAL to invite friends\n\n` +
+                    `👇 *Choose an option below!*`;
+            } else {
+                message = `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
+                    `💰 *Earn COINS by:*\n` +
+                    `• Watching ads\n` +
+                    `• Inviting friends\n` +
+                    `• Daily rewards\n` +
+                    `• Spinning the wheel\n` +
+                    `• Competing in tournaments\n\n` +
+                    `👇 *Tap LAUNCH APP to start earning!*`;
             }
-        );
+            
+            await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                ...mainMenuKeyboard
+            });
+            
+        } catch (err) {
+            console.error('Bot start error:', err);
+            await ctx.reply(
+                `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
+                `👇 *Tap LAUNCH APP to start earning!*`,
+                {
+                    parse_mode: 'Markdown',
+                    ...mainMenuKeyboard
+                }
+            );
+        }
     });
+    
+    // ============================================
+    // HELP COMMAND
+    // ============================================
     
     bot.help(async (ctx) => {
         await ctx.reply(
-            `📚 *YzemanBot Help*\n\n` +
+            `📚 *YzemanBot Help Center*\n\n` +
             `*How to earn COINS:*\n` +
-            `🎬 Watch Ads\n👥 Refer Friends\n📅 Daily Rewards\n` +
-            `🎡 Wheel Spins\n🏆 Tournaments\n\n` +
-            `*Withdrawal:* 100,000 COINS minimum\n` +
-            `*Support:* @yzemanreal`,
+            `🎬 *Watch Ads* - Watch video ads to earn COINS\n` +
+            `👥 *Refer Friends* - Invite friends, earn bonus COINS\n` +
+            `📅 *Daily Rewards* - Login daily for streak bonuses\n` +
+            `🎡 *Wheel Spins* - Spin the wheel every 3 days\n` +
+            `🏆 *Tournaments* - Compete weekly for prizes\n` +
+            `👥 *Teams* - Join a team for monthly rewards\n\n` +
+            `*💰 Withdrawal:*\n` +
+            `• Minimum: 100,000 COINS\n` +
+            `• Withdraw to USDT (TRC-20) wallet\n` +
+            `• Processing: 24-48 hours\n\n` +
+            `*📊 Tiers & Bonuses:*\n` +
+            `• Fresher (0 refs) → 1x multiplier\n` +
+            `• Brute (150 refs) → 1.5x multiplier\n` +
+            `• Silver (350 refs) → 2x multiplier\n` +
+            `• Gold (700 refs) → 2.5x multiplier\n` +
+            `• Platinum (1500 refs) → 3x multiplier\n\n` +
+            `*Support:* @yzemanreal\n` +
+            `*Channel:* ${CHANNEL_URL}`,
+            {
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true,
+                ...mainMenuKeyboard
+            }
+        );
+    });
+    
+    // ============================================
+    // MY EARNINGS BUTTON
+    // ============================================
+    
+    bot.hears('💰 MY EARNINGS', async (ctx) => {
+        const telegramId = ctx.from.id;
+        
+        try {
+            const userData = await getUserData(telegramId);
+            
+            if (!userData) {
+                await ctx.reply(
+                    `⚠️ *You don't have an account yet!*\n\n` +
+                    `Tap *LAUNCH APP* below to create your account and start earning COINS!`,
+                    {
+                        parse_mode: 'Markdown',
+                        ...mainMenuKeyboard
+                    }
+                );
+                return;
+            }
+            
+            const userRank = await getUserRank(telegramId);
+            const coins = (userData.points || 0) / 1000000;
+            const nextTier = getNextTier(userData.tier);
+            
+            let message = `💎 *YOUR EARNINGS*\n\n` +
+                `💰 *Balance:* ${coins.toFixed(2)} COINS\n` +
+                `👑 *Tier:* ${userData.tier || 'Fresher'}\n` +
+                `👥 *Referrals:* ${userData.referrals || 0}\n` +
+                `🏆 *Global Rank:* #${userRank}\n\n`;
+            
+            if (nextTier) {
+                message += `📈 *Next Tier:* ${nextTier.name}\n` +
+                    `🎯 *Referrals needed:* ${nextTier.refsNeeded - (userData.referrals || 0)} more\n` +
+                    `⚡ *Next multiplier:* ${nextTier.multiplier}x\n\n`;
+            }
+            
+            message += `🎁 *Withdrawal:* Minimum 100,000 COINS\n` +
+                `📊 *Keep earning to reach the next tier!*`;
+            
+            await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                ...mainMenuKeyboard
+            });
+            
+        } catch (err) {
+            console.error('My earnings error:', err);
+            await ctx.reply(
+                `⚠️ *Error fetching your earnings.*\nPlease try again later.`,
+                {
+                    parse_mode: 'Markdown',
+                    ...mainMenuKeyboard
+                }
+            );
+        }
+    });
+    
+    // Helper function for tier progression
+    function getNextTier(currentTier) {
+        const tiers = [
+            { name: 'Fresher', refsNeeded: 0, multiplier: 1 },
+            { name: 'Brute', refsNeeded: 150, multiplier: 1.5 },
+            { name: 'Silver', refsNeeded: 350, multiplier: 2 },
+            { name: 'Gold', refsNeeded: 700, multiplier: 2.5 },
+            { name: 'Platinum', refsNeeded: 1500, multiplier: 3 }
+        ];
+        
+        const currentIndex = tiers.findIndex(t => t.name === currentTier);
+        if (currentIndex >= 0 && currentIndex < tiers.length - 1) {
+            return tiers[currentIndex + 1];
+        }
+        return null;
+    }
+    
+    // ============================================
+    // MY REFERRAL BUTTON
+    // ============================================
+    
+    bot.hears('👥 MY REFERRAL', async (ctx) => {
+        const telegramId = ctx.from.id;
+        
+        try {
+            const userData = await getUserData(telegramId);
+            
+            if (!userData) {
+                await ctx.reply(
+                    `⚠️ *You don't have an account yet!*\n\n` +
+                    `Tap *LAUNCH APP* below to create your account first.`,
+                    {
+                        parse_mode: 'Markdown',
+                        ...mainMenuKeyboard
+                    }
+                );
+                return;
+            }
+            
+            const referralLink = `https://t.me/${ctx.bot.botInfo.username}?start=${userData.referral_code}`;
+            const coinsEarned = (userData.referrals || 0) * 0.5; // 0.5 COINS per referral
+            
+            const message = `👥 *YOUR REFERRAL PROGRAM*\n\n` +
+                `🔗 *Your Referral Link:*\n` +
+                `\`${referralLink}\`\n\n` +
+                `📊 *Your Stats:*\n` +
+                `• Total Referrals: ${userData.referrals || 0}\n` +
+                `• COINS Earned: ${coinsEarned.toFixed(2)} COINS\n` +
+                `• Current Tier: ${userData.tier || 'Fresher'}\n\n` +
+                `🎁 *Referral Rewards:*\n` +
+                `• You earn 0.5 COINS per referral\n` +
+                `• Your friend earns 0.25 COINS bonus\n` +
+                `• Higher tiers = higher referral rewards!\n\n` +
+                `💡 *Share your link with friends to earn more!*`;
+            
+            await ctx.reply(message, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '📤 SHARE REFERRAL LINK', switch_inline_query: `Join YzemanBot and earn COINS! ${referralLink}` }],
+                        [{ text: '📋 COPY LINK', callback_data: 'copy_link' }],
+                        [{ text: '🔙 BACK TO MENU', callback_data: 'back_to_menu' }]
+                    ]
+                }
+            });
+            
+        } catch (err) {
+            console.error('My referral error:', err);
+            await ctx.reply(
+                `⚠️ *Error fetching your referral info.*\nPlease try again later.`,
+                {
+                    parse_mode: 'Markdown',
+                    ...mainMenuKeyboard
+                }
+            );
+        }
+    });
+    
+    // Handle copy link callback
+    bot.action('copy_link', async (ctx) => {
+        const telegramId = ctx.from.id;
+        try {
+            const userData = await getUserData(telegramId);
+            if (userData) {
+                const referralLink = `https://t.me/${ctx.bot.botInfo.username}?start=${userData.referral_code}`;
+                await ctx.answerCbQuery();
+                await ctx.reply(
+                    `🔗 *Your Referral Link:*\n\`${referralLink}\`\n\n` +
+                    `Press and hold to copy!`,
+                    { parse_mode: 'Markdown' }
+                );
+            }
+        } catch (err) {
+            await ctx.answerCbQuery('Error getting link');
+        }
+    });
+    
+    bot.action('back_to_menu', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.reply(
+            `🏠 *Main Menu*\n\nChoose an option below:`,
+            { parse_mode: 'Markdown', ...mainMenuKeyboard }
+        );
+    });
+    
+    // ============================================
+    // CHANNEL BUTTON
+    // ============================================
+    
+    bot.hears('📢 CHANNEL', async (ctx) => {
+        await ctx.reply(
+            `📢 *YzemanBot Official Channel*\n\n` +
+            `Join our channel for:\n` +
+            `• Latest updates and announcements\n` +
+            `• Bonus code alerts\n` +
+            `• Withdrawal status updates\n` +
+            `• New feature releases\n\n` +
+            `👇 *Click below to join!*`,
             {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '🚀 LAUNCH APP', web_app: { url: MINI_APP_URL } }],
-                        [{ text: '📢 Join Our Channel', url: CHANNEL_URL }]
+                        [{ text: '📢 JOIN CHANNEL', url: CHANNEL_URL }],
+                        [{ text: '🔙 BACK TO MENU', callback_data: 'back_to_menu' }]
                     ]
                 }
             }
         );
     });
     
-    // Use webhook mode for Render - wrapped in async function
+    // ============================================
+    // ABOUT BUTTON
+    // ============================================
+    
+    bot.hears('ℹ️ ABOUT', async (ctx) => {
+        await ctx.reply(
+            `ℹ️ *About YzemanBot*\n\n` +
+            `*Version:* 2.0.0\n` +
+            `*Platform:* Telegram Mini App\n\n` +
+            `*Features:*\n` +
+            `✅ Watch ads to earn COINS\n` +
+            `✅ Referral program with tier bonuses\n` +
+            `✅ Daily rewards with streak system\n` +
+            `✅ Wheel of Fortune every 3 days\n` +
+            `✅ Weekly tournaments\n` +
+            `✅ Team battles with monthly prizes\n` +
+            `✅ Real COINS withdrawal to USDT\n\n` +
+            `*Earning Rate:* 1 COIN = 1,000,000 points\n` +
+            `*Withdrawal Min:* 100,000 COINS\n\n` +
+            `*Built with ❤️ for the community*`,
+            {
+                parse_mode: 'Markdown',
+                ...mainMenuKeyboard
+            }
+        );
+    });
+    
+    // ============================================
+    // SUPPORT BUTTON
+    // ============================================
+    
+    bot.hears('👤 SUPPORT', async (ctx) => {
+        await ctx.reply(
+            `👤 *Need Help?*\n\n` +
+            `• For technical issues: @yzemanreal\n` +
+            `• For withdrawal questions: @yzemanreal\n` +
+            `• For general inquiries: @yzemanreal\n\n` +
+            `📢 *Join Community:* ${COMMUNITY_URL}\n\n` +
+            `⏰ *Response Time:* Usually within 24 hours\n\n` +
+            `*Before contacting support, please:*\n` +
+            `1. Check your internet connection\n` +
+            `2. Make sure you have a wallet address saved\n` +
+            `3. Have your Telegram ID ready\n\n` +
+            `👇 *Contact support below*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '📧 CONTACT SUPPORT', url: SUPPORT_URL }],
+                        [{ text: '💬 JOIN COMMUNITY', url: COMMUNITY_URL }],
+                        [{ text: '🔙 BACK TO MENU', callback_data: 'back_to_menu' }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // ============================================
+    // LEADERBOARD BUTTON
+    // ============================================
+    
+    bot.hears('🏆 LEADERBOARD', async (ctx) => {
+        await ctx.reply(
+            `🏆 *Global Leaderboard*\n\n` +
+            `Top earners are updated in real-time!\n\n` +
+            `👇 *Tap below to see the full leaderboard*`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🏆 VIEW LEADERBOARD', web_app: { url: `${MINI_APP_URL}/leaderboard.html` } }],
+                        [{ text: '🔙 BACK TO MENU', callback_data: 'back_to_menu' }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // ============================================
+    // LAUNCH APP BUTTON
+    // ============================================
+    
+    bot.hears('🚀 LAUNCH APP', async (ctx) => {
+        const startPayload = ctx.startPayload || '';
+        let miniAppUrl = MINI_APP_URL;
+        if (startPayload) miniAppUrl += `?start=${startPayload}`;
+        
+        await ctx.reply(
+            `🚀 *Launching YzemanBot...*\n\n` +
+            `Tap the button below to open the mini app and start earning COINS!`,
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: miniAppUrl } }]
+                    ]
+                }
+            }
+        );
+    });
+    
+    // ============================================
+    // DEFAULT RESPONSE FOR UNKNOWN COMMANDS
+    // ============================================
+    
+    bot.on('text', async (ctx) => {
+        const text = ctx.message.text;
+        const validCommands = ['🚀 LAUNCH APP', '💰 MY EARNINGS', '👥 MY REFERRAL', '📢 CHANNEL', '❓ HELP', 'ℹ️ ABOUT', '👤 SUPPORT', '🏆 LEADERBOARD'];
+        
+        if (!validCommands.includes(text) && !text.startsWith('/')) {
+            await ctx.reply(
+                `❓ *Unknown command*\n\n` +
+                `Please use the buttons below to navigate:`,
+                {
+                    parse_mode: 'Markdown',
+                    ...mainMenuKeyboard
+                }
+            );
+        }
+    });
+    
+    // ============================================
+    // WEBHOOK SETUP
+    // ============================================
+    
     const setupWebhook = async () => {
         const webhookDomain = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
         await bot.telegram.setWebhook(`${webhookDomain}/webhook`);
         console.log('🤖 Telegram Bot initialized with webhook mode');
         console.log(`📡 Webhook URL: ${webhookDomain}/webhook`);
+        console.log(`📋 Bot username: @${bot.botInfo?.username || 'unknown'}`);
     };
     
     setupWebhook();
