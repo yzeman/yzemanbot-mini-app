@@ -4,6 +4,29 @@
 // WITHDRAWAL: 100,000 COINS minimum
 // ============================================================
 
+// ============================================================
+// REFERRAL CODE DETECTION - MUST BE AT VERY TOP
+// ============================================================
+
+// Get referral code from URL (e.g., ?start=ref-ABC123)
+const urlParams = new URLSearchParams(window.location.search);
+let referralCode = urlParams.get('start');
+
+console.log('🔍 Current URL:', window.location.href);
+console.log('🔍 Referral code from URL:', referralCode);
+
+// Store in localStorage for persistence across page loads
+if (referralCode) {
+    localStorage.setItem('pendingReferralCode', referralCode);
+    console.log('✅ Referral code stored:', referralCode);
+} else {
+    // Check if we have a pending referral code from a previous page load
+    referralCode = localStorage.getItem('pendingReferralCode');
+    if (referralCode) {
+        console.log('📝 Using stored referral code:', referralCode);
+    }
+}
+
 const tg = window.Telegram?.WebApp;
 if (tg) {
     tg.expand();
