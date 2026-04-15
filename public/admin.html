@@ -48,7 +48,7 @@
             color: white; font-size: 20px; text-decoration: none; z-index: 10;
         }
         
-        /* Stats Cards - Improved */
+        /* Stats Cards */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -326,7 +326,7 @@
         }
         .remove-member-icon { color: var(--danger); cursor: pointer; padding: 3px 6px; }
         
-        /* Bonus Code Section */
+        /* Bonus Code Section - Updated for Database */
         .bonus-form {
             background: var(--darker);
             border-radius: 14px;
@@ -521,7 +521,7 @@
         </div>
     </div>
     
-    <!-- Bonus Tab -->
+    <!-- Bonus Tab - Database Version -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-form">
             <div class="section-title"><i class="fas fa-plus-circle"></i><span>Add New Bonus Code</span></div>
@@ -543,21 +543,26 @@
                 <label class="form-label">Description (Optional)</label>
                 <input type="text" class="form-input" id="newBonusDesc" placeholder="e.g., Welcome bonus for new users">
             </div>
-            <button class="action-btn btn-success" style="width:100%; padding:12px;" onclick="addBonusCode()">
+            <button class="action-btn btn-success" style="width:100%; padding:12px;" onclick="addBonusCodeDB()">
                 <i class="fas fa-plus"></i> Add Bonus Code
             </button>
         </div>
         
         <div class="section-title">
-            <i class="fas fa-list"></i><span>Active Bonus Codes</span>
+            <i class="fas fa-list"></i><span>Active Bonus Codes (Database)</span>
             <div style="margin-left:auto;display:flex;gap:5px;">
-                <button class="refresh-btn" onclick="resetToDefaultCodes()" style="background:var(--warning);"><i class="fas fa-undo"></i> Reset</button>
-                <button class="refresh-btn" onclick="exportBonusCodes()"><i class="fas fa-download"></i> Export</button>
-                <button class="refresh-btn" onclick="syncBonusToServer()" style="background:var(--success);"><i class="fas fa-cloud-upload-alt"></i> Sync</button>
+                <button class="refresh-btn" onclick="loadBonusCodesDB()" style="background:var(--secondary);"><i class="fas fa-sync"></i> Refresh</button>
             </div>
         </div>
         <div class="bonus-list" id="bonusList">
-            <div class="loading">Loading bonus codes...</div>
+            <div class="loading">Loading bonus codes from database...</div>
+        </div>
+        
+        <div style="margin-top:15px;padding:10px;background:rgba(255,215,0,0.1);border-radius:10px;">
+            <p style="font-size:11px;color:var(--gray);">
+                <i class="fas fa-info-circle"></i> 
+                <strong>Note:</strong> Bonus codes are stored in the DATABASE. All users can redeem them immediately after creation.
+            </p>
         </div>
     </div>
     
@@ -637,19 +642,6 @@
         let currentUserId = null;
         let users = [], withdrawals = [], teams = [], bonusCodes = [];
         
-        // Default bonus codes
-        const DEFAULT_BONUS_CODES = {
-            "WELCOME": { points: 500000, description: "Welcome bonus - 0.5 COINS" },
-            "ADSMASTER": { points: 5000000, description: "Ad Master bonus - 5 COINS" },
-            "LUCKYDAY": { points: 1000000, description: "Lucky Day - 1 COIN" },
-            "BIGWIN": { points: 10000000, description: "Big Win - 10 COINS" },
-            "BASER": { points: 2000000, description: "Baser bonus - 2 COINS" },
-            "BOTYZEMAN": { points: 100000000, description: "Bot Yzeman - 100 COINS" },
-            "EARNSBOTT": { points: 15000000, description: "Earns Bott - 15 COINS" },
-            "BONUSBOTTER": { points: 100000000, description: "Bonus Botter - 100 COINS" },
-            "YZEMASTER1": { points: 150000000, description: "Yze Master - 150 COINS" }
-        };
-        
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
@@ -680,7 +672,7 @@
                 if (tab.dataset.tab === 'users') loadUsers();
                 if (tab.dataset.tab === 'withdrawals') loadWithdrawals();
                 if (tab.dataset.tab === 'teams') loadTeams();
-                if (tab.dataset.tab === 'bonus') loadBonusCodes();
+                if (tab.dataset.tab === 'bonus') loadBonusCodesDB();
                 if (tab.dataset.tab === 'analytics') loadAnalytics();
             });
         });
@@ -991,97 +983,97 @@
         }
         
         // ============================================
-        // BONUS CODES
+        // BONUS CODES - DATABASE VERSION
         // ============================================
         
-        function loadBonusCodes() {
-            const saved = localStorage.getItem('adminBonusCodes');
-            
-            if (saved) {
-                try { bonusCodes = JSON.parse(saved); } catch (e) { bonusCodes = []; }
+        async function loadBonusCodesDB() {
+            try {
+                const response = await fetch('/api/admin/bonus-codes', {
+                    headers: { 'Authorization': ADMIN_TOKEN }
+                });
+                if (response.ok) {
+                    bonusCodes = await response.json();
+                    renderBonusListDB();
+                } else {
+                    document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load bonus codes</div>';
+                }
+            } catch (err) {
+                console.error('Load bonus codes error:', err);
+                document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load bonus codes</div>';
             }
-            
-            if (!bonusCodes.length) {
-                bonusCodes = Object.entries(DEFAULT_BONUS_CODES).map(([code, data]) => ({
-                    code: code, coins: data.points / POINTS_PER_COIN, points: data.points, description: data.description
-                }));
-                saveBonusCodes();
-            }
-            
-            renderBonusList();
         }
         
-        function saveBonusCodes() { localStorage.setItem('adminBonusCodes', JSON.stringify(bonusCodes)); }
-        
-        function syncBonusToServer() {
-            const appFormat = {};
-            bonusCodes.forEach(c => {
-                appFormat[c.code] = { points: Math.round(c.coins * POINTS_PER_COIN), dollars: 0, description: c.description || `${c.coins} COINS` };
-            });
-            localStorage.setItem('bonusCodesList', JSON.stringify(appFormat));
-            showNotification('Bonus codes synced to app! Users can now redeem them.');
-        }
-        
-        function renderBonusList() {
+        function renderBonusListDB() {
             const container = document.getElementById('bonusList');
             if (!bonusCodes.length) {
-                container.innerHTML = '<div class="empty-state">No bonus codes yet</div>';
+                container.innerHTML = '<div class="empty-state">No bonus codes yet. Add one above!</div>';
                 return;
             }
-            container.innerHTML = bonusCodes.map(c => `
-                <div class="bonus-item">
-                    <div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div>
-                    <div style="display:flex;align-items:center;gap:10px;">
-                        <span class="bonus-reward">${c.coins.toFixed(2)} COINS</span>
-                        <i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCode('${c.code}')"></i>
+            
+            container.innerHTML = bonusCodes.map(c => {
+                const coins = (c.points / POINTS_PER_COIN).toFixed(2);
+                return `
+                    <div class="bonus-item">
+                        <div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span class="bonus-reward">${coins} COINS</span>
+                            <i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
-        function addBonusCode() {
+        async function addBonusCodeDB() {
             const code = document.getElementById('newBonusCode').value.trim().toUpperCase();
             const coins = parseFloat(document.getElementById('newBonusCoins').value) || 0;
             const points = parseInt(document.getElementById('newBonusPoints').value) || 0;
             const desc = document.getElementById('newBonusDesc').value.trim();
             
             if (!code) { showNotification('Enter code', true); return; }
-            const totalCoins = coins + (points / POINTS_PER_COIN);
-            if (totalCoins <= 0) { showNotification('Enter reward', true); return; }
-            if (bonusCodes.find(c => c.code === code)) { showNotification('Code exists', true); return; }
+            const totalPoints = Math.floor(coins * POINTS_PER_COIN) + points;
+            if (totalPoints <= 0) { showNotification('Enter reward', true); return; }
             
-            bonusCodes.push({ code, coins: totalCoins, points: Math.round(totalCoins * POINTS_PER_COIN), description: desc || `${totalCoins.toFixed(2)} COINS` });
-            saveBonusCodes(); syncBonusToServer(); renderBonusList();
-            document.getElementById('newBonusCode').value = '';
-            document.getElementById('newBonusCoins').value = '';
-            document.getElementById('newBonusPoints').value = '';
-            document.getElementById('newBonusDesc').value = '';
-            showNotification(`Added ${code}`);
+            try {
+                const response = await fetch('/api/admin/bonus-codes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN },
+                    body: JSON.stringify({ code, points: totalPoints, description: desc || `${coins} COINS` })
+                });
+                
+                if (response.ok) {
+                    showNotification(`Added ${code}`);
+                    document.getElementById('newBonusCode').value = '';
+                    document.getElementById('newBonusCoins').value = '';
+                    document.getElementById('newBonusPoints').value = '';
+                    document.getElementById('newBonusDesc').value = '';
+                    loadBonusCodesDB();
+                } else {
+                    const error = await response.json();
+                    showNotification(error.error || 'Failed to add', true);
+                }
+            } catch (err) {
+                showNotification('Failed to add bonus code', true);
+            }
         }
         
-        function deleteBonusCode(code) {
-            bonusCodes = bonusCodes.filter(c => c.code !== code);
-            saveBonusCodes(); syncBonusToServer(); renderBonusList();
-            showNotification(`Deleted ${code}`);
-        }
-        
-        function resetToDefaultCodes() {
-            if (!confirm('Reset to defaults?')) return;
-            bonusCodes = Object.entries(DEFAULT_BONUS_CODES).map(([code, data]) => ({
-                code, coins: data.points / POINTS_PER_COIN, points: data.points, description: data.description
-            }));
-            saveBonusCodes(); syncBonusToServer(); renderBonusList();
-            showNotification('Reset to defaults');
-        }
-        
-        function exportBonusCodes() {
-            const dataStr = JSON.stringify(bonusCodes, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `bonus_codes_${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            showNotification('Exported');
+        async function deleteBonusCodeDB(code) {
+            if (!confirm(`Delete bonus code ${code}?`)) return;
+            try {
+                const response = await fetch(`/api/admin/bonus-codes/${code}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': ADMIN_TOKEN }
+                });
+                
+                if (response.ok) {
+                    showNotification(`Deleted ${code}`);
+                    loadBonusCodesDB();
+                } else {
+                    showNotification('Failed to delete', true);
+                }
+            } catch (err) {
+                showNotification('Failed to delete', true);
+            }
         }
         
         // ============================================
@@ -1113,7 +1105,6 @@
                         </div>`).join('');
                 } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
                 
-                // Top earners
                 try {
                     const topEarners = await apiCall('/api/leaderboard/top-earners');
                     const topEarnersDiv = document.getElementById('topEarnersList');
@@ -1146,8 +1137,6 @@
             document.getElementById('totalTeams').textContent = teams.length;
             const totalReferrals = users.reduce((sum, u) => sum + (u.referrals || 0), 0);
             document.getElementById('totalReferrals').textContent = totalReferrals;
-            
-            // Also update analytics stats
             document.getElementById('activeToday').textContent = users.filter(u => u.last_login_date === new Date().toISOString().split('T')[0]).length;
         }
         
@@ -1172,7 +1161,7 @@
         };
         
         document.addEventListener('DOMContentLoaded', () => {
-            loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodes();
+            loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodesDB();
         });
     </script>
 </body>
