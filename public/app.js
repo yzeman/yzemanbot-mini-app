@@ -2,7 +2,6 @@
 // YZEMANBOT - COMPLETE APP WITH FUN AD SYSTEM
 // POINT ECONOMY: 1,000,000 points = 1 COIN
 // WITHDRAWAL: 100,000 COINS minimum
-// NO TEAM FEATURES
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -50,7 +49,7 @@ const POINT_ECONOMY = {
     // Invitee Bonus
     INVITEE_BONUS: 250000,
     
-    // Ad Streak Bonuses (watched consecutively without closing)
+    // Ad Streak Bonuses
     AD_STREAK_BONUSES: {
         5: 10000,
         10: 25000,
@@ -60,9 +59,9 @@ const POINT_ECONOMY = {
     },
     
     // Lucky Ad Chances
-    LUCKY_AD_CHANCE: 0.10,      // 10% for 2x
-    GOLDEN_AD_CHANCE: 0.02,     // 2% for 5x
-    MEGA_AD_CHANCE: 0.005,      // 0.5% for 10x
+    LUCKY_AD_CHANCE: 0.10,
+    GOLDEN_AD_CHANCE: 0.02,
+    MEGA_AD_CHANCE: 0.005,
     
     // Daily/Weekly Goals
     DAILY_AD_GOAL: 20,
@@ -125,22 +124,31 @@ const POINT_ECONOMY = {
 };
 
 // ============================================================
-// REFERRAL CODE DETECTION
+// REFERRAL CODE DETECTION (FIXED)
 // ============================================================
 
 let referralCode = null;
 const urlParams = new URLSearchParams(window.location.search);
 let rawReferralCode = urlParams.get('start');
 
+console.log('🔍 Current URL:', window.location.href);
+console.log('🔍 Raw referral code from URL:', rawReferralCode);
+
 if (rawReferralCode) {
-    if (rawReferralCode.startsWith('ref-')) {
-        referralCode = rawReferralCode.substring(4);
-    } else if (rawReferralCode.startsWith('YZEMAN-')) {
-        referralCode = rawReferralCode.substring(7);
+    // Store the FULL referral code as-is (including 'ref-' prefix)
+    referralCode = rawReferralCode;
+    console.log('📝 Referral code detected and stored:', referralCode);
+    // Store in localStorage for persistence across page loads
+    localStorage.setItem('pendingReferralCode', referralCode);
+} else {
+    // Check if we have a pending referral code from a previous page load
+    const pendingCode = localStorage.getItem('pendingReferralCode');
+    if (pendingCode) {
+        referralCode = pendingCode;
+        console.log('📝 Using pending referral code from storage:', referralCode);
     } else {
-        referralCode = rawReferralCode;
+        console.log('ℹ️ No referral code found in URL or storage');
     }
-    console.log('📝 Referral code detected:', referralCode);
 }
 
 // ============================================================
@@ -185,7 +193,7 @@ if (lastWeekStart !== weekStartStr) {
 }
 
 // ============================================================
-// BONUS CODES - DEFAULT (FALLBACK)
+// BONUS CODES
 // ============================================================
 
 const DEFAULT_BONUS_CODES = {
@@ -200,7 +208,6 @@ const DEFAULT_BONUS_CODES = {
     "YZEMASTER1": { points: 150000000, dollars: 0, description: "150 COINS" }
 };
 
-// Load bonus codes from localStorage or use defaults
 function loadBonusCodes() {
     const saved = localStorage.getItem('bonusCodesList');
     if (saved) {
@@ -274,7 +281,7 @@ async function apiCall(endpoint, data = null) {
 }
 
 // ============================================================
-// USER REGISTRATION & MANAGEMENT
+// USER REGISTRATION & MANAGEMENT (FIXED)
 // ============================================================
 
 async function registerUser() {
@@ -307,18 +314,30 @@ async function registerUser() {
         }
     }
 
+    // Get the referral code (from URL or localStorage)
+    let codeToSend = referralCode;
+    if (!codeToSend) {
+        codeToSend = localStorage.getItem('pendingReferralCode');
+    }
+    
+    console.log('📤 Sending to /api/user - Telegram ID:', user.id, 'Referral Code:', codeToSend || 'none');
+
     try {
         const result = await apiCall('/api/user', {
             initData: tg.initData,
-            referralCode: referralCode
+            referralCode: codeToSend || null
         });
-        if (referralCode) {
+        
+        if (codeToSend) {
             showNotification('🎉 Referral bonus applied!');
+            // Clear the used referral code
+            localStorage.removeItem('pendingReferralCode');
             referralCode = null;
+            console.log('✅ Referral code used and cleared');
         }
         return result;
     } catch (err) {
-        console.error(err);
+        console.error('Registration error:', err);
         if (nameEl) nameEl.textContent = 'Connection Error';
         showNotification('Failed to connect to server', true);
         return null;
@@ -460,7 +479,7 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// AD REWARD CALCULATION WITH LUCKY ADS
+// AD REWARD FUNCTIONS
 // ============================================================
 
 function calculateAdReward() {
@@ -533,7 +552,7 @@ function updateAdStats() {
 }
 
 // ============================================================
-// AD WATCHING - IFRAME OVERLAY WITH FUN FEATURES
+// AD WATCHING - IFRAME OVERLAY
 // ============================================================
 
 function getRewardAmount() {
