@@ -2015,50 +2015,11 @@ if (process.env.BOT_TOKEN) {
     const SUPPORT_URL = 'https://t.me/yzemanreal';
     const COMMUNITY_URL = 'https://t.me/YzemanEarnBotCommunity';
     
-    // Hardcoded bot username (avoid botInfo crash)
+    // Hardcoded bot username
     const BOT_USERNAME = 'YzemanBot';
     
-    // ============================================
-    // DATABASE HELPERS FOR PENDING REFERRALS
-    // ============================================
-    
-    async function storePendingReferral(telegramId, referralCode) {
-        try {
-            await pool.query(`
-                INSERT INTO pending_referrals (telegram_id, referral_code, used)
-                VALUES ($1, $2, FALSE)
-                ON CONFLICT (telegram_id) 
-                DO UPDATE SET referral_code = $2, used = FALSE, created_at = NOW()
-            `, [telegramId, referralCode]);
-            console.log(`📝 Stored pending referral for ${telegramId}: ${referralCode}`);
-        } catch (err) {
-            console.error('Failed to store pending referral:', err);
-        }
-    }
-    
-    async function getAndClearPendingReferral(telegramId) {
-        try {
-            const result = await pool.query(`
-                SELECT referral_code FROM pending_referrals 
-                WHERE telegram_id = $1 AND used = FALSE
-                ORDER BY created_at DESC LIMIT 1
-            `, [telegramId]);
-            
-            if (result.rows.length > 0) {
-                const code = result.rows[0].referral_code;
-                await pool.query(`
-                    UPDATE pending_referrals SET used = TRUE 
-                    WHERE telegram_id = $1 AND referral_code = $2
-                `, [telegramId, code]);
-                console.log(`🔗 Retrieved pending referral for ${telegramId}: ${code}`);
-                return code;
-            }
-            return null;
-        } catch (err) {
-            console.error('Failed to get pending referral:', err);
-            return null;
-        }
-    }
+    // Store referral codes in memory for 5 minutes
+    const referralCache = new Map();
     
     // ============================================
     // PERSISTENT MENU KEYBOARD
@@ -2067,7 +2028,7 @@ if (process.env.BOT_TOKEN) {
     const mainMenuKeyboard = {
         reply_markup: {
             keyboard: [
-                [{ text: "🚀 LAUNCH APP" }, { text: "💰 MY EARNINGS" }],
+                [{ text: "🚀 OPEN YZEMANBOT" }, { text: "💰 MY EARNINGS" }],
                 [{ text: "👥 MY REFERRAL" }, { text: "📢 CHANNEL" }],
                 [{ text: "❓ HELP" }, { text: "ℹ️ ABOUT" }],
                 [{ text: "👤 SUPPORT" }, { text: "🏆 LEADERBOARD" }]
@@ -2077,10 +2038,24 @@ if (process.env.BOT_TOKEN) {
         }
     };
     
-    // ============================================
-    // HELPER FUNCTIONS
-    // ============================================
+    // Helper to store pending referral in cache
+    function storePendingReferral(telegramId, referralCode) {
+        referralCache.set(telegramId, { code: referralCode, timestamp: Date.now() });
+        console.log(`📝 Stored pending referral for ${telegramId}: ${referralCode}`);
+    }
     
+    // Helper to get and clear pending referral
+    function getAndClearPendingReferral(telegramId) {
+        const pending = referralCache.get(telegramId);
+        if (pending && (Date.now() - pending.timestamp) < 300000) { // 5 minutes expiry
+            referralCache.delete(telegramId);
+            console.log(`🔗 Retrieved pending referral for ${telegramId}: ${pending.code}`);
+            return pending.code;
+        }
+        return null;
+    }
+    
+    // Helper to get user data
     async function getUserData(telegramId) {
         try {
             const result = await pool.query(
@@ -2122,7 +2097,7 @@ if (process.env.BOT_TOKEN) {
     }
     
     // ============================================
-    // START COMMAND
+    // START COMMAND - Stores referral code
     // ============================================
     
     bot.start(async (ctx) => {
@@ -2132,8 +2107,9 @@ if (process.env.BOT_TOKEN) {
         
         let miniAppUrl = MINI_APP_URL;
         
+        // Store referral code for this user
         if (startPayload) {
-            await storePendingReferral(userId, startPayload);
+            storePendingReferral(userId, startPayload);
             miniAppUrl += `?start=${startPayload}`;
         }
         
@@ -2148,7 +2124,7 @@ if (process.env.BOT_TOKEN) {
                 `💰 *Balance:* ${coins.toFixed(2)} COINS\n` +
                 `👑 *Tier:* ${userData.tier || 'Fresher'}\n` +
                 `👥 *Referrals:* ${userData.referrals || 0}\n\n` +
-                `👇 *Use the buttons below!*`;
+                `🚀 *Tap OPEN YZEMANBOT to continue earning!*`;
         } else {
             message = `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
                 `💰 *Earn COINS by:*\n` +
@@ -2156,9 +2132,11 @@ if (process.env.BOT_TOKEN) {
                 `• Inviting friends\n` +
                 `• Daily rewards\n` +
                 `• Spinning the wheel\n\n` +
-                `👇 *Tap below to start!*`;
+                `🚀 *Tap OPEN YZEMANBOT to start earning!*\n\n` +
+                `⚠️ *IMPORTANT: Always use OPEN YZEMANBOT to open the app to get your referral bonus!*`;
         }
         
+        // Send welcome message with inline button
         await ctx.reply(message, {
             parse_mode: 'Markdown',
             reply_markup: {
@@ -2168,32 +2146,35 @@ if (process.env.BOT_TOKEN) {
             }
         });
         
-        await ctx.reply(`👇 *Choose an option:*`, {
+        // Show persistent menu (without the extra "Choose an option" message)
+        await ctx.reply(`🚀 *Use OPEN YZEMANBOT to launch the app*`, {
             parse_mode: 'Markdown',
             ...mainMenuKeyboard
         });
     });
     
     // ============================================
-    // LAUNCH APP BUTTON
+    // OPEN YZEMANBOT BUTTON - Main button (renamed from LAUNCH APP)
     // ============================================
     
-    bot.hears('🚀 LAUNCH APP', async (ctx) => {
+    bot.hears('🚀 OPEN YZEMANBOT', async (ctx) => {
         const userId = ctx.from.id;
         let miniAppUrl = MINI_APP_URL;
         
-        const pendingCode = await getAndClearPendingReferral(userId);
+        // Check if there's a pending referral code
+        const pendingCode = getAndClearPendingReferral(userId);
         if (pendingCode) {
             miniAppUrl += `?start=${pendingCode}`;
+            console.log(`🔗 OPEN YZEMANBOT using stored referral for ${userId}: ${pendingCode}`);
         }
         
         await ctx.reply(
-            `🚀 *Launching YzemanBot...*`,
+            `🚀 *Opening YzemanBot...*`,
             {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '🚀 OPEN APP', web_app: { url: miniAppUrl } }]
+                        [{ text: '🚀 LAUNCH APP', web_app: { url: miniAppUrl } }]
                     ]
                 }
             }
@@ -2210,7 +2191,7 @@ if (process.env.BOT_TOKEN) {
         
         if (!userData) {
             await ctx.reply(
-                `⚠️ *No account yet!*\n\nTap LAUNCH APP to create your account.`,
+                `⚠️ *No account yet!*\n\nTap OPEN YZEMANBOT to create your account.`,
                 { parse_mode: 'Markdown', ...mainMenuKeyboard }
             );
             return;
@@ -2241,7 +2222,7 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // MY REFERRAL BUTTON - FIXED (no botInfo crash)
+    // MY REFERRAL BUTTON
     // ============================================
     
     bot.hears('👥 MY REFERRAL', async (ctx) => {
@@ -2250,13 +2231,12 @@ if (process.env.BOT_TOKEN) {
         
         if (!userData || !userData.referral_code) {
             await ctx.reply(
-                `⚠️ *Create account first!*\n\nTap LAUNCH APP to start.`,
+                `⚠️ *Create account first!*\n\nTap OPEN YZEMANBOT to start.`,
                 { parse_mode: 'Markdown', ...mainMenuKeyboard }
             );
             return;
         }
         
-        // Use hardcoded BOT_USERNAME to avoid crash
         const referralLink = `https://t.me/${BOT_USERNAME}?start=${userData.referral_code}`;
         const coinsEarned = (userData.referrals || 0) * 0.5;
         
@@ -2282,7 +2262,6 @@ if (process.env.BOT_TOKEN) {
         });
     });
     
-    // COPY LINK callback
     bot.action('copy_link', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
@@ -2324,7 +2303,8 @@ if (process.env.BOT_TOKEN) {
             `🎬 Watch Ads\n👥 Refer Friends\n📅 Daily Rewards\n` +
             `🎡 Wheel Spins\n🏆 Tournaments\n\n` +
             `*Withdrawal:* 100,000 COINS min\n` +
-            `*Support:* @yzemanreal`,
+            `*Support:* @yzemanreal\n\n` +
+            `🚀 *Always use OPEN YZEMANBOT to open the app for referral bonuses!*`,
             {
                 parse_mode: 'Markdown',
                 ...mainMenuKeyboard
@@ -2392,11 +2372,11 @@ if (process.env.BOT_TOKEN) {
     
     bot.on('text', async (ctx) => {
         const text = ctx.message.text;
-        const validCommands = ['🚀 LAUNCH APP', '💰 MY EARNINGS', '👥 MY REFERRAL', '📢 CHANNEL', '❓ HELP', 'ℹ️ ABOUT', '👤 SUPPORT', '🏆 LEADERBOARD'];
+        const validCommands = ['🚀 OPEN YZEMANBOT', '💰 MY EARNINGS', '👥 MY REFERRAL', '📢 CHANNEL', '❓ HELP', 'ℹ️ ABOUT', '👤 SUPPORT', '🏆 LEADERBOARD'];
         
         if (!validCommands.includes(text) && !text.startsWith('/')) {
             await ctx.reply(
-                `❓ Please use the buttons below:`,
+                `❓ Please use OPEN YZEMANBOT to launch the app:`,
                 { ...mainMenuKeyboard }
             );
         }
