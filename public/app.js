@@ -130,7 +130,7 @@ if (lastWeekStart !== weekStartStr) {
 }
 
 // ============================================================
-// BONUS CODES - Auto-sync from localStorage
+// BONUS CODES - Load from localStorage (synced from admin)
 // ============================================================
 
 const DEFAULT_BONUS_CODES = {
@@ -145,37 +145,25 @@ const DEFAULT_BONUS_CODES = {
     "YZEMASTER1": { points: 150000000, dollars: 0, description: "150 COINS" }
 };
 
+let bonusCodesList = {};
+
 function loadBonusCodes() {
     const saved = localStorage.getItem('bonusCodesList');
     if (saved) {
         try {
-            const parsed = JSON.parse(saved);
-            console.log('🔄 Bonus codes loaded from localStorage:', Object.keys(parsed));
-            return parsed;
-        } catch (e) { 
-            console.error('Failed to parse bonus codes:', e);
-        }
-    }
-    console.log('📋 Using default bonus codes');
-    localStorage.setItem('bonusCodesList', JSON.stringify(DEFAULT_BONUS_CODES));
-    return DEFAULT_BONUS_CODES;
-}
-
-let bonusCodesList = loadBonusCodes();
-
-// Force refresh bonus codes from localStorage every time (for admin sync)
-function refreshBonusCodes() {
-    const saved = localStorage.getItem('bonusCodesList');
-    if (saved) {
-        try {
             bonusCodesList = JSON.parse(saved);
-            console.log('🔄 Bonus codes refreshed:', Object.keys(bonusCodesList));
-            displayBonusList(); // Update the displayed list
-            return true;
-        } catch (e) {}
+            console.log('✅ Bonus codes loaded from localStorage:', Object.keys(bonusCodesList));
+            return;
+        } catch (e) { console.error('Failed to parse bonus codes:', e); }
     }
-    return false;
+    // If nothing in localStorage, use defaults
+    bonusCodesList = DEFAULT_BONUS_CODES;
+    localStorage.setItem('bonusCodesList', JSON.stringify(DEFAULT_BONUS_CODES));
+    console.log('✅ Using default bonus codes');
 }
+
+// Load bonus codes immediately
+loadBonusCodes();
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -583,7 +571,7 @@ async function saveBonusRedemption(code, points) {
     catch (err) { console.error('Failed to save bonus redemption:', err); }
 }
 
-// FIXED: Redeem Bonus with proper code validation
+// FIXED: Redeem Bonus - This is the main function that needs to work
 async function redeemBonus() {
     const codeInput = document.getElementById('bonusCodeInput');
     if (!codeInput) return;
@@ -592,32 +580,34 @@ async function redeemBonus() {
     
     console.log('🎁 Attempting to redeem bonus code:', code);
     
-    // REFRESH bonus codes from localStorage before checking
-    refreshBonusCodes();
+    // RELOAD bonus codes from localStorage before checking
+    const saved = localStorage.getItem('bonusCodesList');
+    console.log('📦 Raw saved codes:', saved);
     
-    // Also check if there's a backup in adminBonusCodes
-    const adminCodes = localStorage.getItem('adminBonusCodes');
-    if (adminCodes && !bonusCodesList[code]) {
+    if (saved) {
         try {
-            const parsed = JSON.parse(adminCodes);
-            const found = parsed.find(c => c.code === code);
-            if (found) {
-                console.log('📦 Found code in adminBonusCodes:', found);
-                bonusCodesList[code] = { points: Math.round(found.coins * POINT_ECONOMY.POINTS_PER_COIN), dollars: 0, description: found.description };
-                localStorage.setItem('bonusCodesList', JSON.stringify(bonusCodesList));
-            }
-        } catch(e) {}
+            bonusCodesList = JSON.parse(saved);
+            console.log('✅ Available bonus codes:', Object.keys(bonusCodesList));
+        } catch (e) {
+            console.error('Failed to parse:', e);
+        }
     }
     
+    // Check if code exists
     const bonus = bonusCodesList[code];
     if (!bonus) { 
-        console.log('❌ Invalid bonus code:', code, 'Available codes:', Object.keys(bonusCodesList));
+        console.log('❌ Code not found. Available:', Object.keys(bonusCodesList));
         showNotification(`Invalid bonus code "${code}"`, true); 
         return; 
     }
     
+    console.log('✅ Bonus found:', bonus);
+    
     const today = new Date().toDateString();
-    if (usedBonusCodes[code] === today) { showNotification('Code already used today', true); return; }
+    if (usedBonusCodes[code] === today) { 
+        showNotification('Code already used today', true); 
+        return; 
+    }
     
     let totalPoints = bonus.points || 0;
     if (bonus.dollars > 0) totalPoints += bonus.dollars * POINT_ECONOMY.POINTS_PER_COIN;
@@ -637,8 +627,14 @@ function displayBonusList() {
     const list = document.getElementById('bonusList');
     if (!list) return;
     
-    // Refresh from localStorage
-    refreshBonusCodes();
+    // Reload from localStorage
+    const saved = localStorage.getItem('bonusCodesList');
+    if (saved) { 
+        try { 
+            bonusCodesList = JSON.parse(saved); 
+            console.log('🔄 Display refreshed with codes:', Object.keys(bonusCodesList));
+        } catch (e) {} 
+    }
     
     list.innerHTML = '';
     for (const [code, bonus] of Object.entries(bonusCodesList)) {
@@ -984,8 +980,8 @@ async function initApp() {
     checkPendingAdReward();
     updateAdStreakDisplay();
     
-    // Force refresh bonus codes on startup
-    refreshBonusCodes();
+    // Reload bonus codes on startup
+    loadBonusCodes();
     
     currentUser = await registerUser();
     if (currentUser) {
