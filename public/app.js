@@ -545,14 +545,14 @@ function displayBonusHistoryUI(history) {
     `).join('');
 }
 
-// Redeem bonus code using backend API
+// Redeem bonus code - ONE TIME ONLY
 async function redeemBonus() {
     const codeInput = document.getElementById('bonusCodeInput');
     if (!codeInput) return;
     const code = codeInput.value.trim().toUpperCase();
     if (!code) { showNotification('Enter a bonus code', true); return; }
     
-    console.log('🎁 Redeeming bonus code via backend:', code);
+    console.log('🎁 Redeeming bonus code:', code);
     
     try {
         const response = await fetch('/api/redeem-bonus', {
@@ -572,15 +572,51 @@ async function redeemBonus() {
         }
         
         if (result.success) {
-            showNotification(result.message || 'Bonus code redeemed!');
+            showNotification(result.message);
             await refreshUser(); // Refresh to update balance
             codeInput.value = '';
-            await loadBonusHistory(); // Reload history
+            await loadBonusHistory(); // Reload history immediately
         }
     } catch (err) {
         console.error('Redeem error:', err);
         showNotification('Failed to redeem code', true);
     }
+}
+
+// Load bonus history - shows ALL redeemed codes forever
+async function loadBonusHistory() {
+    if (!currentUser) return;
+    try {
+        const response = await fetch('/api/bonus-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
+        if (response.ok) {
+            const history = await response.json();
+            displayBonusHistoryUI(history);
+        }
+    } catch (err) { console.error('Failed to load bonus history:', err); }
+}
+
+function displayBonusHistoryUI(history) {
+    const container = document.getElementById('bonusHistoryList');
+    if (!container) return;
+    if (!history || history.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
+        return;
+    }
+    container.innerHTML = history.map(item => `
+        <div class="bonus-history-item">
+            <div>
+                <div class="bonus-code-display">${item.bonus_code}</div>
+                <div class="bonus-expiry">Redeemed: ${new Date(item.redeemed_at).toLocaleDateString()}</div>
+            </div>
+            <div style="text-align: right;">
+                <span class="bonus-used-badge">✅ Redeemed</span>
+            </div>
+        </div>
+    `).join('');
 }
 
 // ============================================================
