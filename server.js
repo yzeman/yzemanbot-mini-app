@@ -676,31 +676,21 @@ app.post('/api/ad-stats', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// SOCIAL TASKS API (DATABASE VERSION)
+// SOCIAL TASKS API (BACKEND VERIFIED)
 // ============================================
 
-// Check if user has completed a specific task
+// Check if a task is already completed
 app.post('/api/check-task', verifyTelegramData, async (req, res) => {
     const { taskName } = req.body;
     const telegramId = req.telegramUser.id;
-    
+
     try {
-        const userResult = await pool.query(
-            'SELECT id FROM users WHERE telegram_id = $1',
-            [telegramId]
-        );
-        
-        if (userResult.rows.length === 0) {
-            return res.json({ completed: false });
-        }
-        
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ completed: false });
+
         const userId = userResult.rows[0].id;
-        
-        const taskResult = await pool.query(
-            'SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2',
-            [userId, taskName]
-        );
-        
+        const taskResult = await pool.query('SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2', [userId, taskName]);
+
         res.json({ completed: taskResult.rows.length > 0 });
     } catch (err) {
         console.error('Check task error:', err);
@@ -708,55 +698,33 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
     }
 });
 
-// Complete a social task and award points
+// Complete a task (called ONLY after the user has legitimately completed the action)
 app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
-    const { taskName, points } = req.body;
+    const { taskName, points, proof } = req.body;
     const telegramId = req.telegramUser.id;
-    
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
-        const userResult = await client.query(
-            'SELECT id FROM users WHERE telegram_id = $1',
-            [telegramId]
-        );
-        
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        
+
+        const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
         const userId = userResult.rows[0].id;
-        
-        // Check if already completed
-        const existingTask = await client.query(
-            'SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2',
-            [userId, taskName]
-        );
-        
-        if (existingTask.rows.length > 0) {
-            return res.status(400).json({ error: 'Task already completed' });
-        }
-        
-        // Add points to user
-        await client.query(
-            'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
-            [points, userId]
-        );
-        
-        // Record task completion
-        await client.query(
-            'INSERT INTO social_tasks (user_id, task_name) VALUES ($1, $2)',
-            [userId, taskName]
-        );
-        
+
+        // Check for double completion
+        const existingTask = await client.query('SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2', [userId, taskName]);
+        if (existingTask.rows.length > 0) return res.status(400).json({ error: 'Task already completed' });
+
+        // Add points
+        await client.query('UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2', [points, userId]);
+
+        // Record completion
+        await client.query('INSERT INTO social_tasks (user_id, task_name, task_proof) VALUES ($1, $2, $3)', [userId, taskName, proof || 'completed']);
+
         await client.query('COMMIT');
-        
-        res.json({ 
-            success: true, 
-            message: `You earned ${(points / 1000000).toFixed(1)} COINS!`
-        });
-        
+        res.json({ success: true, message: `You earned ${(points / 1000000).toFixed(1)} COINS!` });
+
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Complete task error:', err);
