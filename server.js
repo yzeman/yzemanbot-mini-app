@@ -2015,6 +2015,19 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// WEBHOOK HEALTH CHECK (Required for Render)
+// ============================================
+
+app.get('/webhook', (req, res) => {
+    res.status(200).send('Webhook is active');
+});
+
+app.post('/webhook', (req, res) => {
+    // Telegraf handles this, just send 200 OK
+    res.status(200).send('OK');
+});
+
+// ============================================
 // TELEGRAM BOT WITH FULL MENU SYSTEM
 // ============================================
 
@@ -2070,6 +2083,23 @@ if (process.env.BOT_TOKEN) {
         } catch (err) {
             return '?';
         }
+    }
+    
+    // Helper function for tier progression
+    function getNextTier(currentTier) {
+        const tiers = [
+            { name: 'Fresher', refsNeeded: 0, multiplier: 1 },
+            { name: 'Brute', refsNeeded: 150, multiplier: 1.5 },
+            { name: 'Silver', refsNeeded: 350, multiplier: 2 },
+            { name: 'Gold', refsNeeded: 700, multiplier: 2.5 },
+            { name: 'Platinum', refsNeeded: 1500, multiplier: 3 }
+        ];
+        
+        const currentIndex = tiers.findIndex(t => t.name === currentTier);
+        if (currentIndex >= 0 && currentIndex < tiers.length - 1) {
+            return tiers[currentIndex + 1];
+        }
+        return null;
     }
     
     // ============================================
@@ -2221,23 +2251,6 @@ if (process.env.BOT_TOKEN) {
         }
     });
     
-    // Helper function for tier progression
-    function getNextTier(currentTier) {
-        const tiers = [
-            { name: 'Fresher', refsNeeded: 0, multiplier: 1 },
-            { name: 'Brute', refsNeeded: 150, multiplier: 1.5 },
-            { name: 'Silver', refsNeeded: 350, multiplier: 2 },
-            { name: 'Gold', refsNeeded: 700, multiplier: 2.5 },
-            { name: 'Platinum', refsNeeded: 1500, multiplier: 3 }
-        ];
-        
-        const currentIndex = tiers.findIndex(t => t.name === currentTier);
-        if (currentIndex >= 0 && currentIndex < tiers.length - 1) {
-            return tiers[currentIndex + 1];
-        }
-        return null;
-    }
-    
     // ============================================
     // MY REFERRAL BUTTON
     // ============================================
@@ -2260,8 +2273,9 @@ if (process.env.BOT_TOKEN) {
                 return;
             }
             
-            const referralLink = `https://t.me/${ctx.bot.botInfo.username}?start=${userData.referral_code}`;
-            const coinsEarned = (userData.referrals || 0) * 0.5; // 0.5 COINS per referral
+            const botUsername = ctx.bot.botInfo?.username || 'YzemanBot';
+            const referralLink = `https://t.me/${botUsername}?start=${userData.referral_code}`;
+            const coinsEarned = (userData.referrals || 0) * 0.5;
             
             const message = `👥 *YOUR REFERRAL PROGRAM*\n\n` +
                 `🔗 *Your Referral Link:*\n` +
@@ -2280,8 +2294,7 @@ if (process.env.BOT_TOKEN) {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: '📤 SHARE REFERRAL LINK', switch_inline_query: `Join YzemanBot and earn COINS! ${referralLink}` }],
-                        [{ text: '📋 COPY LINK', callback_data: 'copy_link' }],
+                        [{ text: '📤 COPY LINK', callback_data: 'copy_link' }],
                         [{ text: '🔙 BACK TO MENU', callback_data: 'back_to_menu' }]
                     ]
                 }
@@ -2305,12 +2318,13 @@ if (process.env.BOT_TOKEN) {
         try {
             const userData = await getUserData(telegramId);
             if (userData) {
-                const referralLink = `https://t.me/${ctx.bot.botInfo.username}?start=${userData.referral_code}`;
+                const botUsername = ctx.bot.botInfo?.username || 'YzemanBot';
+                const referralLink = `https://t.me/${botUsername}?start=${userData.referral_code}`;
                 await ctx.answerCbQuery();
                 await ctx.reply(
                     `🔗 *Your Referral Link:*\n\`${referralLink}\`\n\n` +
                     `Press and hold to copy!`,
-                    { parse_mode: 'Markdown' }
+                    { parse_mode: 'Markdown', ...mainMenuKeyboard }
                 );
             }
         } catch (err) {
@@ -2473,19 +2487,25 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // WEBHOOK SETUP
+    // WEBHOOK SETUP (CRITICAL - Order matters!)
     // ============================================
     
-    const setupWebhook = async () => {
-        const webhookDomain = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
-        await bot.telegram.setWebhook(`${webhookDomain}/webhook`);
-        console.log('🤖 Telegram Bot initialized with webhook mode');
-        console.log(`📡 Webhook URL: ${webhookDomain}/webhook`);
-        console.log(`📋 Bot username: @${bot.botInfo?.username || 'unknown'}`);
-    };
-    
-    setupWebhook();
+    // FIRST: Set up the webhook callback middleware
     app.use(bot.webhookCallback('/webhook'));
+    
+    // SECOND: Set the webhook URL (use your actual Render URL)
+    const WEBHOOK_DOMAIN = process.env.RENDER_EXTERNAL_URL || MINI_APP_URL;
+    const webhookUrl = `${WEBHOOK_DOMAIN}/webhook`;
+    
+    try {
+        await bot.telegram.setWebhook(webhookUrl);
+        console.log(`✅ Webhook set to: ${webhookUrl}`);
+        console.log('🤖 Telegram Bot is ready!');
+    } catch (err) {
+        console.error('❌ Failed to set webhook:', err.message);
+    }
+    
+    console.log('🤖 Telegram Bot initialized with webhook mode');
 }
 
 // ============================================
