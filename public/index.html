@@ -342,10 +342,21 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
+            position: relative;
         }
         
         .task-card:hover {
             background: #1e2a4a;
+            transform: translateY(-2px);
+        }
+        
+        .task-card.completed {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .task-card.completed:hover {
+            transform: none;
         }
         
         .task-card i {
@@ -364,10 +375,25 @@
             color: var(--gold);
         }
         
-        .game i { color: #FF5722; }
+        .completed-badge {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: var(--success);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 8px;
+        }
+        
+        /* Social Media Colors */
+        .youtube i { color: #FF0000; }
+        .twitter i { color: #1DA1F2; }
         .facebook i { color: #1877F2; }
         .instagram i { color: #E4405F; }
+        .tiktok i { color: #000000; }
         .telegram i { color: #26A5E4; }
+        .game i { color: #FF5722; }
         .website i { color: var(--primary); }
         
         .referral-section {
@@ -515,14 +541,6 @@
             font-size: 10px;
         }
         
-        .bonus-expired-badge {
-            background: var(--danger);
-            color: white;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 10px;
-        }
-        
         .history-list {
             max-height: 300px;
             overflow-y: auto;
@@ -648,9 +666,114 @@
             margin-right: 5px;
         }
         
-        /* Comma formatting for numbers */
-        .number-with-comma {
-            font-family: monospace;
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 25px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--gold);
+        }
+        
+        .modal-message {
+            font-size: 14px;
+            margin-bottom: 25px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .modal-btn {
+            padding: 12px 25px;
+            border-radius: 12px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .modal-btn-yes {
+            background: var(--success);
+            color: white;
+        }
+        
+        .modal-btn-no {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Timer Frame */
+        .timer-frame {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--dark);
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+        }
+        
+        .timer-header {
+            background: var(--darker);
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--gray);
+        }
+        
+        .timer-countdown {
+            font-size: 48px;
+            font-weight: bold;
+            color: var(--gold);
+            margin: 10px 0;
+        }
+        
+        .timer-message {
+            color: var(--gray);
+            font-size: 12px;
+        }
+        
+        .timer-iframe {
+            flex: 1;
+            width: 100%;
+            border: none;
+        }
+        
+        .timer-cancel-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -793,7 +916,7 @@
         <div class="task-grid">
             <div class="task-card game" id="gameTaskBtn">
                 <i class="fas fa-gamepad"></i>
-                <div class="task-name">Play Game</div>
+                <div class="task-name">Play & Earn</div>
                 <div class="task-reward">+50 COINS</div>
             </div>
             <div class="task-card website" id="websiteTaskBtn">
@@ -805,39 +928,39 @@
         
         <div class="section-title">
             <i class="fas fa-share-alt"></i>
-            <span>Social Tasks</span>
+            <span>Follow & Earn</span>
         </div>
         
         <div class="task-grid">
-            <div class="task-card youtube" id="youtube1Btn">
+            <div class="task-card youtube" id="youtubeTaskBtn">
                 <i class="fab fa-youtube"></i>
-                <div class="task-name">Subscribe 1</div>
-                <div class="task-reward">+5 COINS</div>
+                <div class="task-name">Subscribe on YouTube</div>
+                <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card youtube" id="youtube2Btn">
-                <i class="fab fa-youtube"></i>
-                <div class="task-name">Subscribe 2</div>
-                <div class="task-reward">+2.5 COINS</div>
+            <div class="task-card twitter" id="twitterTaskBtn">
+                <i class="fab fa-twitter"></i>
+                <div class="task-name">Follow on X</div>
+                <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card youtube" id="youtube3Btn">
-                <i class="fab fa-youtube"></i>
-                <div class="task-name">Subscribe 3</div>
-                <div class="task-reward">+2.5 COINS</div>
-            </div>
-            <div class="task-card facebook" id="facebookBtn">
+            <div class="task-card facebook" id="facebookTaskBtn">
                 <i class="fab fa-facebook"></i>
-                <div class="task-name">Facebook</div>
-                <div class="task-reward">+2.5 COINS</div>
+                <div class="task-name">Like on Facebook</div>
+                <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card instagram" id="instagramBtn">
+            <div class="task-card instagram" id="instagramTaskBtn">
                 <i class="fab fa-instagram"></i>
-                <div class="task-name">Instagram</div>
-                <div class="task-reward">+2.5 COINS</div>
+                <div class="task-name">Follow on Instagram</div>
+                <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card telegram" id="joinChannelBtn">
+            <div class="task-card tiktok" id="tiktokTaskBtn">
+                <i class="fab fa-tiktok"></i>
+                <div class="task-name">Follow on TikTok</div>
+                <div class="task-reward">+10 COINS</div>
+            </div>
+            <div class="task-card telegram" id="telegramTaskBtn">
                 <i class="fab fa-telegram"></i>
-                <div class="task-name">Join Channel</div>
-                <div class="task-reward">+5 COINS</div>
+                <div class="task-name">Join Telegram</div>
+                <div class="task-reward">+10 COINS</div>
             </div>
         </div>
     </div>
@@ -942,7 +1065,7 @@
         </div>
     </div>
     
-    <!-- Bonus Tab - Redeem Input + User's Bonus History -->
+    <!-- Bonus Tab -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-section">
             <div class="section-title">
@@ -997,6 +1120,29 @@
         </a>
     </div>
     
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmationModal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle">Confirm Action</div>
+            <div class="modal-message" id="modalMessage">Do you want to complete this task and earn COINS?</div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-yes" id="modalYesBtn">Yes, Earn COINS</button>
+                <button class="modal-btn modal-btn-no" id="modalNoBtn">No, Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Timer Frame for Website Task -->
+    <div class="timer-frame" id="timerFrame">
+        <div class="timer-header">
+            <div class="timer-countdown" id="timerCountdown">02:00</div>
+            <div class="timer-message">Please wait while you browse the website...</div>
+            <div class="timer-message" style="font-size: 10px; margin-top: 5px;">Don't close this window until timer reaches 0!</div>
+        </div>
+        <iframe class="timer-iframe" id="timerIframe" src="about:blank"></iframe>
+        <button class="timer-cancel-btn" id="timerCancelBtn">Cancel (No Reward)</button>
+    </div>
+    
     <!-- Notification -->
     <div class="notification" id="notification"></div>
     
@@ -1005,82 +1151,200 @@
     <script src="/app.js"></script>
     
     <script>
-        // Game task tracking (one-time)
-        let gameTaskCompleted = localStorage.getItem('gameTaskCompleted') === 'true';
+        // ============================================================
+        // SOCIAL TASKS WITH CONFIRMATION AND TIMERS
+        // ============================================================
         
-        // Tab switching functionality
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabName = tab.dataset.tab;
-                
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                
-                tab.classList.add('active');
-                document.getElementById(tabName + 'Tab').classList.add('active');
-            });
-        });
+        let pendingTask = null;
+        let timerInterval = null;
+        let timerStartTime = null;
+        let timerRequiredSeconds = 0;
         
-        // Game task button - Opens link directly without confirmation
-        const gameTaskBtn = document.getElementById('gameTaskBtn');
-        if (gameTaskBtn) {
-            // Disable if already completed
-            if (gameTaskCompleted) {
-                gameTaskBtn.style.opacity = '0.5';
-                gameTaskBtn.style.cursor = 'not-allowed';
-                gameTaskBtn.classList.add('completed');
+        // Task configurations
+        const TASKS = {
+            game: {
+                name: 'game',
+                points: 50000000, // 50 COINS
+                url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '🎮 Play the game and earn 50 COINS!\n\nYou will be redirected to the game page. Complete registration and come back to claim your reward!'
+            },
+            website: {
+                name: 'website',
+                points: 5000000, // 5 COINS
+                url: 'https://yzeupdates.lat/articles.html',
+                requiresTimer: true,
+                timerSeconds: 120, // 2 minutes
+                message: '🌐 Visit our website and stay for 2 minutes to earn 5 COINS!\n\nA timer will start. Please don\'t close the window until time is up!'
+            },
+            youtube: {
+                name: 'youtube',
+                points: 10000000, // 10 COINS
+                url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '📺 Subscribe to our YouTube channel and earn 10 COINS!'
+            },
+            twitter: {
+                name: 'twitter',
+                points: 10000000, // 10 COINS
+                url: 'https://x.com/yzemanbot?s=21',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '🐦 Follow us on X (Twitter) and earn 10 COINS!'
+            },
+            facebook: {
+                name: 'facebook',
+                points: 10000000, // 10 COINS
+                url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '📘 Like our Facebook page and earn 10 COINS!'
+            },
+            instagram: {
+                name: 'instagram',
+                points: 10000000, // 10 COINS
+                url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '📷 Follow us on Instagram and earn 10 COINS!'
+            },
+            tiktok: {
+                name: 'tiktok',
+                points: 10000000, // 10 COINS
+                url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '🎵 Follow us on TikTok and earn 10 COINS!'
+            },
+            telegram: {
+                name: 'telegram',
+                points: 10000000, // 10 COINS
+                url: 'https://t.me/YzemanEarnBotChannel',
+                requiresTimer: false,
+                timerSeconds: 0,
+                message: '💬 Join our Telegram channel and earn 10 COINS!'
+            }
+        };
+        
+        // Check if task is completed
+        async function isTaskCompleted(taskName) {
+            try {
+                const response = await fetch('/api/check-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData, taskName: taskName })
+                });
+                const result = await response.json();
+                return result.completed;
+            } catch (err) {
+                console.error('Check task error:', err);
+                return false;
+            }
+        }
+        
+        // Complete task and award points
+        async function completeTask(taskName, points) {
+            try {
+                const response = await fetch('/api/complete-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData, taskName: taskName, points: points })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showNotification(result.message);
+                    return true;
+                } else {
+                    showNotification(result.error || 'Failed to complete task', true);
+                    return false;
+                }
+            } catch (err) {
+                console.error('Complete task error:', err);
+                showNotification('Failed to complete task', true);
+                return false;
+            }
+        }
+        
+        // Show confirmation modal
+        function showConfirmation(taskKey, callback) {
+            const task = TASKS[taskKey];
+            if (!task) return;
+            
+            document.getElementById('modalTitle').textContent = '💰 Earn COINS!';
+            document.getElementById('modalMessage').innerHTML = task.message;
+            
+            pendingTask = { taskKey, callback };
+            document.getElementById('confirmationModal').style.display = 'flex';
+        }
+        
+        // Show timer frame for website tasks
+        function showTimerFrame(url, requiredSeconds, taskKey, points) {
+            const timerFrame = document.getElementById('timerFrame');
+            const timerIframe = document.getElementById('timerIframe');
+            const timerCountdown = document.getElementById('timerCountdown');
+            
+            timerIframe.src = url;
+            timerFrame.style.display = 'flex';
+            
+            timerStartTime = Date.now();
+            timerRequiredSeconds = requiredSeconds;
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - timerStartTime) / 1000);
+                const remaining = Math.max(0, requiredSeconds - elapsed);
+                const minutes = Math.floor(remaining / 60);
+                const seconds = remaining % 60;
+                timerCountdown.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    timerFrame.style.display = 'none';
+                    timerIframe.src = 'about:blank';
+                    showNotification('Time completed! Processing your reward...');
+                    completeTask(taskKey, points).then(() => {
+                        location.reload();
+                    });
+                }
+            }, 1000);
+        }
+        
+        // Handle task execution
+        async function executeTask(taskKey) {
+            const task = TASKS[taskKey];
+            if (!task) return;
+            
+            // Check if already completed
+            const completed = await isTaskCompleted(task.name);
+            if (completed) {
+                showNotification('You have already completed this task!', true);
+                return;
             }
             
-            gameTaskBtn.addEventListener('click', () => {
-                if (gameTaskCompleted) {
-                    showNotification('You already completed this task!', true);
-                    return;
-                }
-                
-                // Open link directly without confirmation
-                window.open('https://www.wikigame.top/register?ref=WGMNKOP32XDYR', '_blank');
-                
-                // Mark as completed and add points after 5 seconds (give time to register)
-                gameTaskCompleted = true;
-                localStorage.setItem('gameTaskCompleted', 'true');
-                
-                // Disable button visually
-                gameTaskBtn.style.opacity = '0.5';
-                gameTaskBtn.style.cursor = 'not-allowed';
-                gameTaskBtn.classList.add('completed');
-                
-                // Add points after delay
-                setTimeout(async () => {
-                    if (window.addPoints) {
-                        await window.addPoints(50000000, 'game'); // 50 COINS = 50,000,000 points
-                        showNotification('🎮 +50 COINS for playing the game!');
-                    } else {
-                        // Fallback: refresh user to trigger point addition
-                        if (window.refreshUser) await window.refreshUser();
+            if (task.requiresTimer) {
+                // Show timer frame
+                showTimerFrame(task.url, task.timerSeconds, task.name, task.points);
+            } else {
+                // Open URL in new tab
+                window.open(task.url, '_blank');
+                // Complete task immediately
+                const success = await completeTask(task.name, task.points);
+                if (success) {
+                    // Mark button as completed visually
+                    const btn = document.getElementById(`${taskKey}TaskBtn`);
+                    if (btn) {
+                        btn.classList.add('completed');
+                        if (!btn.querySelector('.completed-badge')) {
+                            const badge = document.createElement('div');
+                            badge.className = 'completed-badge';
+                            badge.innerHTML = '✓ Done';
+                            btn.appendChild(badge);
+                        }
                     }
-                }, 5000);
-                
-                showNotification('Opening game page... Come back after registering to claim your 50 COINS!');
-            });
-        }
-        
-        // Helper function to format numbers with commas
-        function formatNumberWithCommas(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        }
-        
-        // Update display values with commas
-        function updateDisplayWithCommas() {
-            const pointsEl = document.getElementById('points');
-            const totalAdsEl = document.getElementById('totalAdsWatched');
-            const progressAmount = document.getElementById('progressAmount');
-            
-            // This function will be called from app.js after updates
-            if (window.currentUser) {
-                const points = window.currentUser.points || 0;
-                const coins = points / 1000000;
-                if (progressAmount) {
-                    progressAmount.textContent = `${coins.toFixed(2).toLocaleString()} / 100,000 COINS`;
                 }
             }
         }
@@ -1096,6 +1360,73 @@
             }
         }
         
+        // Initialize task buttons
+        async function initTaskButtons() {
+            const taskKeys = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+            
+            for (const key of taskKeys) {
+                const btn = document.getElementById(`${key}TaskBtn`);
+                if (btn) {
+                    const completed = await isTaskCompleted(TASKS[key].name);
+                    if (completed) {
+                        btn.classList.add('completed');
+                        const badge = document.createElement('div');
+                        badge.className = 'completed-badge';
+                        badge.innerHTML = '✓ Done';
+                        btn.appendChild(badge);
+                    }
+                    
+                    btn.addEventListener('click', () => {
+                        showConfirmation(key, () => executeTask(key));
+                    });
+                }
+            }
+        }
+        
+        // Modal button handlers
+        document.getElementById('modalYesBtn').onclick = () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            if (pendingTask) {
+                pendingTask.callback();
+                pendingTask = null;
+            }
+        };
+        
+        document.getElementById('modalNoBtn').onclick = () => {
+            document.getElementById('confirmationModal').style.display = 'none';
+            pendingTask = null;
+        };
+        
+        // Timer cancel button
+        document.getElementById('timerCancelBtn').onclick = () => {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            document.getElementById('timerFrame').style.display = 'none';
+            document.getElementById('timerIframe').src = 'about:blank';
+            showNotification('Task cancelled. No reward given.', true);
+        };
+        
+        // Close modal when clicking outside
+        window.onclick = (e) => {
+            if (e.target === document.getElementById('confirmationModal')) {
+                document.getElementById('confirmationModal').style.display = 'none';
+                pendingTask = null;
+            }
+        };
+        
+        // Tab switching functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+            });
+        });
+        
         // Update display values
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('dailyAdGoal').textContent = '20';
@@ -1105,6 +1436,9 @@
             
             const nextTierReqEl = document.getElementById('nextTierReq');
             if (nextTierReqEl) nextTierReqEl.textContent = '150';
+            
+            // Initialize task buttons after app.js loads
+            setTimeout(initTaskButtons, 2000);
             
             console.log('✅ YzemanBot loaded - Ready to earn COINS!');
         });
@@ -1121,7 +1455,6 @@
             
             container.innerHTML = history.map(item => {
                 const rewardCoins = (item.reward_points / 1000000).toFixed(2);
-                
                 return `
                     <div class="bonus-history-item">
                         <div>
