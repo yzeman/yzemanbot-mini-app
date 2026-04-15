@@ -1660,6 +1660,7 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
+    // Get user info before deletion (for team handling)
     const userResult = await client.query(
       'SELECT id, team_id, telegram_id, first_name FROM users WHERE id = $1',
       [userId]
@@ -1674,6 +1675,7 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     let wasLeader = false;
     let teamDeleted = false;
     
+    // If user was in a team, handle team cleanup
     if (teamId) {
       const teamResult = await client.query(
         'SELECT created_by FROM teams WHERE id = $1',
@@ -1708,16 +1710,45 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
       }
     }
     
-    await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
+    // Delete all user-related data (complete cleanup)
+    
+    // 1. Delete from referrals (where user is referrer OR referred)
+    await client.query(
+      'DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1',
+      [userId]
+    );
+    
+    // 2. Delete ad rewards
     await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
+    
+    // 3. Delete withdrawals
     await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
+    
+    // 4. Delete daily rewards
     await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
+    
+    // 5. Delete wheel spins
     await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
+    
+    // 6. Delete user achievements
     await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+    
+    // 7. Delete tournament participants
     await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
+    
+    // 8. Delete team_members (already done above if in team, but safe to do again)
     await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
+    
+    // 9. Delete ad statistics
     await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
+    
+    // 10. Delete bonus redemptions
     await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
+    
+    // 11. Delete pending referrals (NEW - cleanup referral cache)
+    await client.query('DELETE FROM pending_referrals WHERE telegram_id = $1', [user.telegram_id]);
+    
+    // 12. Finally, delete the user
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     
     await client.query('COMMIT');
@@ -1984,6 +2015,47 @@ if (process.env.BOT_TOKEN) {
     const SUPPORT_URL = 'https://t.me/yzemanreal';
     const COMMUNITY_URL = 'https://t.me/YzemanEarnBotCommunity';
     
+    // Helper to store pending referral code in database
+    async function storePendingReferral(telegramId, referralCode) {
+        try {
+            await pool.query(`
+                INSERT INTO pending_referrals (telegram_id, referral_code, used)
+                VALUES ($1, $2, FALSE)
+                ON CONFLICT (telegram_id) 
+                DO UPDATE SET referral_code = $2, used = FALSE, created_at = NOW()
+            `, [telegramId, referralCode]);
+            console.log(`📝 Stored pending referral for ${telegramId}: ${referralCode}`);
+        } catch (err) {
+            console.error('Failed to store pending referral:', err);
+        }
+    }
+    
+    // Helper to get and clear pending referral code
+    async function getAndClearPendingReferral(telegramId) {
+        try {
+            const result = await pool.query(`
+                SELECT referral_code FROM pending_referrals 
+                WHERE telegram_id = $1 AND used = FALSE
+                ORDER BY created_at DESC LIMIT 1
+            `, [telegramId]);
+            
+            if (result.rows.length > 0) {
+                const code = result.rows[0].referral_code;
+                // Mark as used
+                await pool.query(`
+                    UPDATE pending_referrals SET used = TRUE 
+                    WHERE telegram_id = $1 AND referral_code = $2
+                `, [telegramId, code]);
+                console.log(`🔗 Retrieved pending referral for ${telegramId}: ${code}`);
+                return code;
+            }
+            return null;
+        } catch (err) {
+            console.error('Failed to get pending referral:', err);
+            return null;
+        }
+    }
+    
     // Persistent menu keyboard
     const mainMenuKeyboard = {
         reply_markup: {
@@ -2050,16 +2122,19 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // START COMMAND - CRITICAL: Passes referral code to mini app
+    // START COMMAND - Stores referral code in DATABASE
     // ============================================
     
     bot.start(async (ctx) => {
+        const userId = ctx.from.id;
         const firstName = ctx.from.first_name;
         const startPayload = ctx.startPayload || '';
+        
         let miniAppUrl = MINI_APP_URL;
         
-        // CRITICAL: Add referral code to mini app URL
+        // STORE referral code in DATABASE for this user
         if (startPayload) {
+            await storePendingReferral(userId, startPayload);
             miniAppUrl += `?start=${startPayload}`;
         }
         
@@ -2067,7 +2142,7 @@ if (process.env.BOT_TOKEN) {
         console.log(`🔗 Mini app URL: ${miniAppUrl}`);
         
         // Check if user exists
-        const userData = await getUserData(ctx.from.id);
+        const userData = await getUserData(userId);
         
         let message = '';
         if (userData) {
@@ -2087,7 +2162,7 @@ if (process.env.BOT_TOKEN) {
                 `👇 *Tap OPEN YZEMANBOT to start earning!*`;
         }
         
-        // Send message with inline keyboard (contains referral URL)
+        // Send message with inline keyboard
         await ctx.reply(message, {
             parse_mode: 'Markdown',
             reply_markup: {
@@ -2097,7 +2172,7 @@ if (process.env.BOT_TOKEN) {
             }
         });
         
-        // Also show the persistent menu keyboard
+        // Show persistent menu
         await ctx.reply(`👇 *Choose an option below:*`, {
             parse_mode: 'Markdown',
             ...mainMenuKeyboard
@@ -2105,11 +2180,19 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // LAUNCH APP BUTTON (Persistent Keyboard)
+    // LAUNCH APP BUTTON - Gets referral code from DATABASE
     // ============================================
     
     bot.hears('🚀 LAUNCH APP', async (ctx) => {
+        const userId = ctx.from.id;
         let miniAppUrl = MINI_APP_URL;
+        
+        // Get pending referral code from DATABASE
+        const pendingCode = await getAndClearPendingReferral(userId);
+        if (pendingCode) {
+            miniAppUrl += `?start=${pendingCode}`;
+            console.log(`🔗 LAUNCH APP using stored referral for ${userId}: ${pendingCode}`);
+        }
         
         await ctx.reply(
             `🚀 *Launching YzemanBot...*\n\nTap the button below to open the mini app!`,
