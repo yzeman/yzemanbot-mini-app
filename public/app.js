@@ -469,6 +469,25 @@ window.resetAdStreak = function() {
     showNotification('Ad streak reset', false);
 };
 
+// Add this function to your app.js
+window.addPoints = async function(points, reason) {
+    try {
+        await apiCall('/api/ad-reward', {
+            initData: tg.initData,
+            rewardAmount: points,
+            adType: reason
+        });
+        await refreshUser();
+        return true;
+    } catch (err) {
+        console.error('Add points error:', err);
+        return false;
+    }
+};
+
+window.refreshUser = refreshUser;
+window.currentUser = currentUser;
+
 // ============================================================
 // YOUTUBE & WEBSITE TASKS
 // ============================================================
