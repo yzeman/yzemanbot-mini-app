@@ -210,7 +210,6 @@
         }
         .task-card:hover { background: #1e2a4a; transform: translateY(-2px); }
         .task-card.completed { opacity: 0.6; cursor: not-allowed; }
-        .task-card.completed:hover { transform: none; }
         .task-card i { font-size: 28px; margin-bottom: 8px; }
         .task-card .task-name { font-size: 14px; font-weight: 500; margin-bottom: 5px; }
         .task-card .task-reward { font-size: 12px; color: var(--gold); }
@@ -224,7 +223,6 @@
             border-radius: 10px;
             font-size: 8px;
         }
-        /* Social Media Colors */
         .youtube i { color: #FF0000; }
         .twitter i { color: #1DA1F2; }
         .facebook i { color: #1877F2; }
@@ -397,8 +395,6 @@
             border-left: 4px solid var(--secondary);
         }
         .bonus-info-note i { color: var(--secondary); margin-right: 5px; }
-        
-        /* Timer Popup */
         .timer-popup {
             position: fixed;
             bottom: 100px;
@@ -410,16 +406,10 @@
             text-align: center;
             z-index: 2000;
             border: 1px solid var(--gold);
-            animation: slideUp 0.3s ease;
             display: none;
         }
         .timer-popup.active { display: block; }
-        .timer-popup .time-left {
-            font-size: 36px;
-            font-weight: bold;
-            color: var(--gold);
-            margin: 10px 0;
-        }
+        .timer-popup .time-left { font-size: 36px; font-weight: bold; color: var(--gold); margin: 10px 0; }
         .timer-popup button {
             background: var(--danger);
             border: none;
@@ -441,7 +431,6 @@
             </div>
             <div class="tier-badge-header" id="tier">Fresher</div>
         </div>
-        
         <div class="balance-card">
             <div class="balance-row">
                 <span class="balance-label">Your Balance</span>
@@ -467,7 +456,6 @@
         </div>
     </div>
     
-    <!-- Feature Grid -->
     <div class="feature-grid">
         <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
         <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
@@ -522,12 +510,12 @@
         
         <div class="section-title"><i class="fas fa-tasks"></i><span>Quick Tasks</span></div>
         <div class="task-grid">
-            <div class="task-card game" data-task="game" data-points="50000000" data-url="https://www.wikigame.top/register?ref=WGMNKOP32XDYR" data-time="60">
+            <div class="task-card game" id="taskGame">
                 <i class="fas fa-gamepad"></i>
                 <div class="task-name">Play & Earn</div>
                 <div class="task-reward">+50 COINS</div>
             </div>
-            <div class="task-card website" data-task="website" data-points="5000000" data-url="https://yzeupdates.lat/articles" data-time="120">
+            <div class="task-card website" id="taskWebsite">
                 <i class="fas fa-globe"></i>
                 <div class="task-name">Visit Website</div>
                 <div class="task-reward">+5 COINS</div>
@@ -536,32 +524,32 @@
         
         <div class="section-title"><i class="fas fa-share-alt"></i><span>Follow & Earn</span></div>
         <div class="task-grid">
-            <div class="task-card youtube" data-task="youtube" data-points="10000000" data-url="https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p" data-time="30">
+            <div class="task-card youtube" id="taskYoutube">
                 <i class="fab fa-youtube"></i>
                 <div class="task-name">Subscribe on YouTube</div>
                 <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card twitter" data-task="twitter" data-points="10000000" data-url="https://x.com/yzemanbot?s=21" data-time="30">
+            <div class="task-card twitter" id="taskTwitter">
                 <i class="fab fa-twitter"></i>
                 <div class="task-name">Follow on X</div>
                 <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card facebook" data-task="facebook" data-points="10000000" data-url="https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr" data-time="30">
+            <div class="task-card facebook" id="taskFacebook">
                 <i class="fab fa-facebook"></i>
                 <div class="task-name">Like on Facebook</div>
                 <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card instagram" data-task="instagram" data-points="10000000" data-url="https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr" data-time="30">
+            <div class="task-card instagram" id="taskInstagram">
                 <i class="fab fa-instagram"></i>
                 <div class="task-name">Follow on Instagram</div>
                 <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card tiktok" data-task="tiktok" data-points="10000000" data-url="https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW" data-time="30">
+            <div class="task-card tiktok" id="taskTiktok">
                 <i class="fab fa-tiktok"></i>
                 <div class="task-name">Follow on TikTok</div>
                 <div class="task-reward">+10 COINS</div>
             </div>
-            <div class="task-card telegram" data-task="telegram" data-points="10000000" data-url="https://t.me/YzemanEarnBotChannel" data-time="30">
+            <div class="task-card telegram" id="taskTelegram">
                 <i class="fab fa-telegram"></i>
                 <div class="task-name">Join Telegram</div>
                 <div class="task-reward">+10 COINS</div>
@@ -569,7 +557,7 @@
         </div>
     </div>
     
-    <!-- Refer Tab -->
+    <!-- Refer Tab (same as before) -->
     <div class="tab-content" id="referTab">
         <div class="referral-section">
             <div class="section-title"><i class="fas fa-users"></i><span>Referral Program</span></div>
@@ -589,11 +577,11 @@
             <div style="margin-top: 20px;">
                 <p style="color: var(--gray); font-size: 13px; margin-bottom: 10px;">Tier Benefits:</p>
                 <div style="display: grid; gap: 8px;">
-                    <div style="display: flex; justify-content: space-between;"><span>🎯 Fresher (0 refs)</span><span style="color: var(--gold);">0.005 COINS/ad</span></div>
-                    <div style="display: flex; justify-content: space-between;"><span>🔥 Brute (150 refs)</span><span style="color: var(--gold);">0.0075 COINS/ad</span></div>
-                    <div style="display: flex; justify-content: space-between;"><span>🥈 Silver (350 refs)</span><span style="color: var(--gold);">0.01 COINS/ad</span></div>
-                    <div style="display: flex; justify-content: space-between;"><span>🥇 Gold (700 refs)</span><span style="color: var(--gold);">0.015 COINS/ad</span></div>
-                    <div style="display: flex; justify-content: space-between;"><span>💎 Platinum (1500 refs)</span><span style="color: var(--gold);">0.025 COINS/ad</span></div>
+                    <div><span>🎯 Fresher (0 refs)</span> <span style="color:var(--gold);float:right;">0.005 COINS/ad</span></div>
+                    <div><span>🔥 Brute (150 refs)</span> <span style="color:var(--gold);float:right;">0.0075 COINS/ad</span></div>
+                    <div><span>🥈 Silver (350 refs)</span> <span style="color:var(--gold);float:right;">0.01 COINS/ad</span></div>
+                    <div><span>🥇 Gold (700 refs)</span> <span style="color:var(--gold);float:right;">0.015 COINS/ad</span></div>
+                    <div><span>💎 Platinum (1500 refs)</span> <span style="color:var(--gold);float:right;">0.025 COINS/ad</span></div>
                 </div>
             </div>
         </div>
@@ -603,14 +591,14 @@
     <div class="tab-content" id="walletTab">
         <div class="wallet-section">
             <div class="section-title"><i class="fas fa-wallet"></i><span>Withdrawal</span></div>
-            <p style="margin-bottom: 15px; color: var(--gray);">Minimum withdrawal: <strong style="color: var(--gold);">100,000 COINS</strong></p>
-            <label style="color: var(--gray); font-size: 14px;">USDT Wallet Address (TRC-20)</label>
+            <p style="margin-bottom:15px;color:var(--gray);">Minimum withdrawal: <strong style="color:var(--gold);">100,000 COINS</strong></p>
+            <label style="color:var(--gray);font-size:14px;">USDT Wallet Address (TRC-20)</label>
             <input type="text" class="wallet-input" id="walletAddress" placeholder="T... (starts with T)" />
-            <button class="btn btn-secondary" id="saveWalletBtn" style="margin-bottom: 15px;"><i class="fas fa-save"></i> Save Wallet</button>
+            <button class="btn btn-secondary" id="saveWalletBtn" style="margin-bottom:15px;"><i class="fas fa-save"></i> Save Wallet</button>
             <button class="btn btn-primary" id="withdrawBtn" disabled><i class="fas fa-paper-plane"></i> Request Withdrawal (100,000 COINS)</button>
-            <div style="margin-top: 20px;">
+            <div style="margin-top:20px;">
                 <div class="section-title"><i class="fas fa-history"></i><span>Withdrawal History</span></div>
-                <div class="history-list" id="withdrawalHistoryList"><div style="text-align:center; padding:20px;">No withdrawal requests yet</div></div>
+                <div class="history-list" id="withdrawalHistoryList"><div style="text-align:center;padding:20px;">No withdrawal requests yet</div></div>
             </div>
         </div>
     </div>
@@ -622,14 +610,13 @@
             <div class="bonus-info-note"><i class="fas fa-info-circle"></i><span>Enter a special bonus code to earn extra COINS!</span></div>
             <div class="bonus-input-group">
                 <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code" />
-                <button class="btn btn-primary" id="redeemBonusBtn" style="width: auto; padding: 15px 25px;">Redeem</button>
+                <button class="btn btn-primary" id="redeemBonusBtn" style="width:auto;padding:15px 25px;">Redeem</button>
             </div>
-            <div class="section-title" style="margin-top: 25px;"><i class="fas fa-history"></i><span>Your Bonus History</span></div>
-            <div class="bonus-history-list" id="bonusHistoryList"><div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div></div>
+            <div class="section-title" style="margin-top:25px;"><i class="fas fa-history"></i><span>Your Bonus History</span></div>
+            <div class="bonus-history-list" id="bonusHistoryList"><div style="text-align:center;padding:20px;color:var(--gray);">No bonuses redeemed yet</div></div>
         </div>
     </div>
     
-    <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <a href="/" class="nav-item active"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -638,12 +625,11 @@
         <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     
-    <!-- Timer Popup -->
     <div class="timer-popup" id="timerPopup">
         <i class="fas fa-hourglass-half"></i>
-        <div>Please complete the action in the new tab...</div>
+        <div>Complete the action in the new tab...</div>
         <div class="time-left" id="timerTimeLeft">00:00</div>
-        <button id="cancelTaskBtn">Cancel Task (No Reward)</button>
+        <button id="cancelTaskBtn">Cancel (No Reward)</button>
     </div>
     
     <div class="notification" id="notification"></div>
@@ -652,89 +638,93 @@
     <script src="/app.js"></script>
     
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.expand(); tg.ready(); }
+        // ALL TASK DATA
+        const TASK_CONFIG = {
+            game: { name: 'game', points: 50000000, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60 },
+            website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120 },
+            youtube: { name: 'youtube', points: 10000000, url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', time: 30 },
+            twitter: { name: 'twitter', points: 10000000, url: 'https://x.com/yzemanbot?s=21', time: 30 },
+            facebook: { name: 'facebook', points: 10000000, url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', time: 30 },
+            instagram: { name: 'instagram', points: 10000000, url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', time: 30 },
+            tiktok: { name: 'tiktok', points: 10000000, url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', time: 30 },
+            telegram: { name: 'telegram', points: 10000000, url: 'https://t.me/YzemanEarnBotChannel', time: 30 }
+        };
         
-        // Task system - SIMPLE AND WORKING
         let activeTask = null;
         let taskWindow = null;
         let timerInterval = null;
         let taskStartTime = null;
-        let taskRequiredTime = 0;
         
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            if (notif) {
-                notif.textContent = msg;
-                notif.style.background = isError ? '#ff5252' : '#00c853';
-                notif.style.display = 'block';
-                setTimeout(() => notif.style.display = 'none', 4000);
+        function showNotification(msg, isError) {
+            const n = document.getElementById('notification');
+            if (n) {
+                n.textContent = msg;
+                n.style.background = isError ? '#ff5252' : '#00c853';
+                n.style.display = 'block';
+                setTimeout(() => n.style.display = 'none', 4000);
             }
         }
         
         async function callApi(endpoint, data) {
             try {
-                const response = await fetch(endpoint, {
+                const r = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...data, initData: tg.initData })
+                    body: JSON.stringify({ ...data, initData: window.Telegram?.WebApp?.initData })
                 });
-                return await response.json();
-            } catch (err) {
-                console.error('API Error:', err);
-                return null;
-            }
+                return await r.json();
+            } catch(e) { return null; }
         }
         
-        async function checkTaskCompleted(taskName) {
-            const result = await callApi('/api/check-task', { taskName });
-            return result?.completed || false;
+        async function checkTask(taskName) {
+            const res = await callApi('/api/check-task', { taskName });
+            return res?.completed || false;
         }
         
         async function completeTask(taskName, points) {
-            const result = await callApi('/api/complete-task', { taskName, points });
-            if (result?.success) {
-                showNotification(result.message);
-                const taskCard = document.querySelector(`.task-card[data-task="${taskName}"]`);
-                if (taskCard) {
-                    taskCard.classList.add('completed');
-                    const badge = document.createElement('div');
-                    badge.className = 'completed-badge';
-                    badge.innerHTML = '✓ Done';
-                    taskCard.appendChild(badge);
+            const res = await callApi('/api/complete-task', { taskName, points });
+            if (res?.success) {
+                showNotification(res.message, false);
+                const btn = document.getElementById(`task${taskName.charAt(0).toUpperCase() + taskName.slice(1)}`);
+                if (btn) {
+                    btn.classList.add('completed');
+                    if (!btn.querySelector('.completed-badge')) {
+                        const b = document.createElement('div');
+                        b.className = 'completed-badge';
+                        b.innerHTML = '✓ Done';
+                        btn.appendChild(b);
+                    }
                 }
                 return true;
             }
             return false;
         }
         
-        function startTimer(taskName, requiredSeconds, url, points) {
+        function startTimer(taskKey, task) {
             if (timerInterval) clearInterval(timerInterval);
-            activeTask = taskName;
-            taskRequiredTime = requiredSeconds;
+            activeTask = taskKey;
             taskStartTime = Date.now();
             
-            // Open link in new tab
-            taskWindow = window.open(url, '_blank');
+            taskWindow = window.open(task.url, '_blank');
             
-            const timerPopup = document.getElementById('timerPopup');
-            const timerTimeLeft = document.getElementById('timerTimeLeft');
-            timerPopup.classList.add('active');
+            const popup = document.getElementById('timerPopup');
+            const timerEl = document.getElementById('timerTimeLeft');
+            popup.classList.add('active');
             
             timerInterval = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                const remaining = Math.max(0, taskRequiredTime - elapsed);
-                const minutes = Math.floor(remaining / 60);
-                const seconds = remaining % 60;
-                timerTimeLeft.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                const remaining = Math.max(0, task.time - elapsed);
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
                 
                 if (remaining <= 0) {
                     clearInterval(timerInterval);
                     timerInterval = null;
-                    timerPopup.classList.remove('active');
+                    popup.classList.remove('active');
                     if (taskWindow && !taskWindow.closed) taskWindow.close();
-                    showNotification(`Time's up! You earned ${(points / 1000000).toFixed(1)} COINS!`);
-                    completeTask(taskName, points);
+                    showNotification(`Time's up! +${task.points/1000000} COINS!`, false);
+                    completeTask(task.name, task.points);
                     activeTask = null;
                     taskWindow = null;
                 }
@@ -742,79 +732,59 @@
         }
         
         function cancelTask() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
+            if (timerInterval) clearInterval(timerInterval);
             if (taskWindow && !taskWindow.closed) taskWindow.close();
             document.getElementById('timerPopup').classList.remove('active');
-            showNotification('Task cancelled. No reward given.', true);
+            showNotification('Task cancelled. No reward.', true);
             activeTask = null;
             taskWindow = null;
         }
         
-        async function handleTaskClick(card) {
+        async function handleTaskClick(taskKey) {
             if (activeTask) {
-                showNotification('Please complete your current task first!', true);
+                showNotification('Complete current task first!', true);
                 return;
             }
+            const task = TASK_CONFIG[taskKey];
+            if (!task) return;
             
-            const taskName = card.dataset.task;
-            const points = parseInt(card.dataset.points);
-            const url = card.dataset.url;
-            const requiredTime = parseInt(card.dataset.time);
-            
-            // Check if already completed
-            const completed = await checkTaskCompleted(taskName);
+            const completed = await checkTask(task.name);
             if (completed) {
-                showNotification('You already completed this task!', true);
+                showNotification('Already completed!', true);
                 return;
             }
             
-            // Start timer immediately (no confirmation popup)
-            startTimer(taskName, requiredTime, url, points);
+            startTimer(taskKey, task);
         }
         
-        async function initTasks() {
-            const taskCards = document.querySelectorAll('.task-card');
-            for (const card of taskCards) {
-                const taskName = card.dataset.task;
-                const completed = await checkTaskCompleted(taskName);
-                if (completed) {
-                    card.classList.add('completed');
-                    const badge = document.createElement('div');
-                    badge.className = 'completed-badge';
-                    badge.innerHTML = '✓ Done';
-                    card.appendChild(badge);
-                }
-                card.addEventListener('click', () => handleTaskClick(card));
-            }
-        }
-        
-        // Cancel button
+        // Attach click handlers when page loads
+        document.getElementById('taskGame').onclick = () => handleTaskClick('game');
+        document.getElementById('taskWebsite').onclick = () => handleTaskClick('website');
+        document.getElementById('taskYoutube').onclick = () => handleTaskClick('youtube');
+        document.getElementById('taskTwitter').onclick = () => handleTaskClick('twitter');
+        document.getElementById('taskFacebook').onclick = () => handleTaskClick('facebook');
+        document.getElementById('taskInstagram').onclick = () => handleTaskClick('instagram');
+        document.getElementById('taskTiktok').onclick = () => handleTaskClick('tiktok');
+        document.getElementById('taskTelegram').onclick = () => handleTaskClick('telegram');
         document.getElementById('cancelTaskBtn').onclick = cancelTask;
         
         // Tab switching
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabName = tab.dataset.tab;
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => {
+            t.onclick = () => {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById(tabName + 'Tab').classList.add('active');
-            });
+                t.classList.add('active');
+                document.getElementById(t.dataset.tab + 'Tab').classList.add('active');
+            };
         });
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('dailyAdGoal').textContent = '20';
-            document.getElementById('dailyGoalReward').textContent = '0.5';
-            document.getElementById('weeklyAdGoal').textContent = '100';
-            document.getElementById('weeklyGoalReward').textContent = '5';
-            document.getElementById('nextTierReq').textContent = '150';
-            initTasks();
-            console.log('✅ YzemanBot loaded - Task system ready!');
-        });
+        document.getElementById('dailyAdGoal').textContent = '20';
+        document.getElementById('dailyGoalReward').textContent = '0.5';
+        document.getElementById('weeklyAdGoal').textContent = '100';
+        document.getElementById('weeklyGoalReward').textContent = '5';
+        if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
+        
+        console.log('✅ Ready - Click any task button!');
     </script>
 </body>
 </html>
