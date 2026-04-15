@@ -2015,6 +2015,9 @@ if (process.env.BOT_TOKEN) {
     const SUPPORT_URL = 'https://t.me/yzemanreal';
     const COMMUNITY_URL = 'https://t.me/YzemanEarnBotCommunity';
     
+    // Store bot username safely
+    let BOT_USERNAME = 'YzemanBot';
+    
     // Helper to store pending referral code in database
     async function storePendingReferral(telegramId, referralCode) {
         try {
@@ -2041,7 +2044,6 @@ if (process.env.BOT_TOKEN) {
             
             if (result.rows.length > 0) {
                 const code = result.rows[0].referral_code;
-                // Mark as used
                 await pool.query(`
                     UPDATE pending_referrals SET used = TRUE 
                     WHERE telegram_id = $1 AND referral_code = $2
@@ -2113,10 +2115,10 @@ if (process.env.BOT_TOKEN) {
         return null;
     }
     
-    // Wait for bot info
+    // Get bot info safely
     bot.telegram.getMe().then((botInfo) => {
-        bot.botInfo = botInfo;
-        console.log(`✅ Bot @${botInfo.username} is ready!`);
+        BOT_USERNAME = botInfo.username;
+        console.log(`✅ Bot @${BOT_USERNAME} is ready!`);
     }).catch((err) => {
         console.error('❌ Failed to get bot info:', err.message);
     });
@@ -2249,7 +2251,7 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // MY REFERRAL BUTTON
+    // MY REFERRAL BUTTON - FIXED (no botInfo crash)
     // ============================================
     
     bot.hears('👥 MY REFERRAL', async (ctx) => {
@@ -2264,8 +2266,8 @@ if (process.env.BOT_TOKEN) {
             return;
         }
         
-        const botUsername = ctx.bot.botInfo?.username || 'YzemanBot';
-        const referralLink = `https://t.me/${botUsername}?start=${userData.referral_code}`;
+        // Use stored BOT_USERNAME instead of ctx.bot.botInfo
+        const referralLink = `https://t.me/${BOT_USERNAME}?start=${userData.referral_code}`;
         const coinsEarned = (userData.referrals || 0) * 0.5;
         
         const message = `👥 *YOUR REFERRAL PROGRAM*\n\n` +
@@ -2291,12 +2293,12 @@ if (process.env.BOT_TOKEN) {
         });
     });
     
+    // COPY LINK callback - FIXED
     bot.action('copy_link', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
         if (userData && userData.referral_code) {
-            const botUsername = ctx.bot.botInfo?.username || 'YzemanBot';
-            const referralLink = `https://t.me/${botUsername}?start=${userData.referral_code}`;
+            const referralLink = `https://t.me/${BOT_USERNAME}?start=${userData.referral_code}`;
             await ctx.answerCbQuery();
             await ctx.reply(`🔗 \`${referralLink}\``, { parse_mode: 'Markdown' });
         } else {
