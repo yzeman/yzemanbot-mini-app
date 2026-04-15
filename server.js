@@ -2008,32 +2008,55 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 // BONUS CODES API (DATABASE VERSION)
 // ============================================
 
-// Get all active bonus codes (for admin panel)
+// Get all bonus codes (admin)
 app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
     try {
+        // First, create the table if it doesn't exist
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS bonus_codes (
+                id SERIAL PRIMARY KEY,
+                code TEXT UNIQUE NOT NULL,
+                points INTEGER NOT NULL,
+                description TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        
         const result = await pool.query(
             'SELECT * FROM bonus_codes ORDER BY created_at DESC'
         );
         res.json(result.rows);
     } catch (err) {
         console.error('Get bonus codes error:', err);
-        res.status(500).json({ error: 'Failed to fetch bonus codes' });
+        res.status(500).json({ error: 'Failed to fetch bonus codes: ' + err.message });
     }
 });
 
 // Add new bonus code (admin)
 app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
-    const { code, points, description, expires_at } = req.body;
-    const adminId = req.adminId; // You'll need to set this in verifyAdmin
+    const { code, points, description } = req.body;
     
     if (!code || !points) {
         return res.status(400).json({ error: 'Code and points required' });
     }
     
     try {
+        // Create table if not exists
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS bonus_codes (
+                id SERIAL PRIMARY KEY,
+                code TEXT UNIQUE NOT NULL,
+                points INTEGER NOT NULL,
+                description TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        
         const result = await pool.query(
-            'INSERT INTO bonus_codes (code, points, description, expires_at) VALUES ($1, $2, $3, $4) RETURNING *',
-            [code.toUpperCase(), points, description || null, expires_at || null]
+            'INSERT INTO bonus_codes (code, points, description, is_active) VALUES ($1, $2, $3, true) RETURNING *',
+            [code.toUpperCase(), points, description || null]
         );
         res.json(result.rows[0]);
     } catch (err) {
@@ -2041,7 +2064,7 @@ app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Bonus code already exists' });
         }
         console.error('Add bonus code error:', err);
-        res.status(500).json({ error: 'Failed to add bonus code' });
+        res.status(500).json({ error: 'Failed to add bonus code: ' + err.message });
     }
 });
 
@@ -2069,6 +2092,16 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        
+        // Create user_bonus_redemptions table if not exists
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_bonus_redemptions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                bonus_code TEXT NOT NULL,
+                redeemed_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
         
         // Get user
         const userResult = await client.query(
@@ -2104,11 +2137,6 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
         
         const bonus = bonusResult.rows[0];
         
-        // Check if expired
-        if (bonus.expires_at && new Date() > new Date(bonus.expires_at)) {
-            return res.status(400).json({ error: 'Bonus code has expired' });
-        }
-        
         // Add points to user
         await client.query(
             'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
@@ -2132,7 +2160,7 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Redeem bonus error:', err);
-        res.status(500).json({ error: 'Failed to redeem bonus code' });
+        res.status(500).json({ error: 'Failed to redeem bonus code: ' + err.message });
     } finally {
         client.release();
     }
