@@ -362,6 +362,8 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     let referralCode = req.body.referralCode;
     const walletAddress = req.body.walletAddress;
     
+    console.log(`📝 /api/user called - Telegram ID: ${id}, Referral Code: ${referralCode || 'none'}`);
+    
     await client.query('BEGIN');
     
     const existingUser = await client.query(
@@ -370,7 +372,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     );
     
     let user;
-    let isNewUser = false;
     
     if (existingUser.rows.length > 0) {
       // Update existing user
@@ -385,10 +386,10 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         first_name, last_name, username, photo_url, walletAddress, id
       ]);
       user = result.rows[0];
+      console.log(`✅ Existing user ${id} updated`);
       
     } else {
       // NEW USER - Create account
-      isNewUser = true;
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       
       const insertQuery = `
@@ -400,13 +401,14 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         id, first_name, last_name, username, photo_url, userReferralCode, walletAddress
       ]);
       user = result.rows[0];
+      console.log(`🆕 New user ${id} created with referral code: ${userReferralCode}`);
       
       // ============================================
       // PROCESS REFERRAL (ONLY FOR NEW USERS)
       // ============================================
       
       if (referralCode && referralCode !== userReferralCode) {
-        console.log(`📝 Processing referral: New user ${id} used code ${referralCode}`);
+        console.log(`🔗 Processing referral: New user ${id} used code ${referralCode}`);
         
         // Clean the referral code (remove prefixes)
         let cleanReferralCode = referralCode;
@@ -415,20 +417,20 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         
         // Find the referrer
         let referrerResult = await client.query(
-          'SELECT id, tier, username, first_name, telegram_id, points FROM users WHERE referral_code = $1',
+          'SELECT id, tier, username, first_name, telegram_id, points, referral_code FROM users WHERE referral_code = $1',
           [cleanReferralCode]
         );
         
         if (referrerResult.rows.length === 0) {
           referrerResult = await client.query(
-            'SELECT id, tier, username, first_name, telegram_id, points FROM users WHERE referral_code = $1',
+            'SELECT id, tier, username, first_name, telegram_id, points, referral_code FROM users WHERE referral_code = $1',
             [`ref-${cleanReferralCode}`]
           );
         }
         
         if (referrerResult.rows.length === 0) {
           referrerResult = await client.query(
-            'SELECT id, tier, username, first_name, telegram_id, points FROM users WHERE referral_code = $1',
+            'SELECT id, tier, username, first_name, telegram_id, points, referral_code FROM users WHERE referral_code = $1',
             [`YZEMAN-${cleanReferralCode}`]
           );
         }
@@ -457,7 +459,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
           if (existingReferral.rows.length === 0) {
             // Insert referral record
             await client.query(
-              'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+              'INSERT INTO referrals (referrer_id, referred_id) VALUES ($1, $2)',
               [referrerId, user.id]
             );
             
@@ -497,27 +499,30 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               );
             }
             
-            console.log(`✅ Referral successful! Referrer ${referrerId} earned ${referrerReward} points, New user ${user.id} earned ${refereeBonus} points`);
+            console.log(`✅ REFERRAL SUCCESS! Referrer ${referrerId} earned ${referrerReward} points, New user ${user.id} earned ${refereeBonus} points`);
+            
+            // Update the user's points in the current object
+            user.points = (user.points || 0) + refereeBonus;
             
             // ============================================
             // SEND TELEGRAM NOTIFICATION TO REFERRER
             // ============================================
-            try {
-              const BOT_TOKEN = process.env.BOT_TOKEN;
-              if (BOT_TOKEN && referrerTelegramId) {
-                const newUserName = user.first_name || user.username || 'Someone';
-                const referrerCoins = (referrerReward / 1000000).toFixed(2);
-                const refereeCoins = (refereeBonus / 1000000).toFixed(2);
-                
-                const notificationMessage = `🎉 *NEW REFERRAL!* 🎉\n\n` +
-                  `👤 *${newUserName}* just joined using your referral link!\n\n` +
-                  `📊 *Your Stats:*\n` +
-                  `💰 You earned: +${referrerCoins} COINS\n` +
-                  `👥 Total referrals: ${count}\n` +
-                  `🏆 Current tier: ${newTierName}\n\n` +
-                  `✨ *Your friend also got:* +${refereeCoins} COINS bonus!\n\n` +
-                  `Keep sharing your link to earn more! 🚀`;
-                
+            const BOT_TOKEN = process.env.BOT_TOKEN;
+            if (BOT_TOKEN && referrerTelegramId) {
+              const newUserName = user.first_name || user.username || 'Someone';
+              const referrerCoins = (referrerReward / 1000000).toFixed(2);
+              const refereeCoins = (refereeBonus / 1000000).toFixed(2);
+              
+              const notificationMessage = `🎉 *NEW REFERRAL!* 🎉\n\n` +
+                `👤 *${newUserName}* just joined using your referral link!\n\n` +
+                `📊 *Your Stats:*\n` +
+                `💰 You earned: +${referrerCoins} COINS\n` +
+                `👥 Total referrals: ${count}\n` +
+                `🏆 Current tier: ${newTierName}\n\n` +
+                `✨ *Your friend also got:* +${refereeCoins} COINS bonus!\n\n` +
+                `Keep sharing your link to earn more! 🚀`;
+              
+              try {
                 const telegramResponse = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -529,29 +534,26 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
                 });
                 
                 const responseData = await telegramResponse.json();
-                if (!responseData.ok) {
-                  console.error('Telegram API error:', responseData.description);
-                } else {
+                if (responseData.ok) {
                   console.log(`📨 Referral notification sent to ${referrerTelegramId}`);
+                } else {
+                  console.error(`❌ Telegram API error: ${responseData.description}`);
                 }
-              } else {
-                console.log(`⚠️ Cannot send notification: BOT_TOKEN=${!!BOT_TOKEN}, referrerTelegramId=${referrerTelegramId}`);
+              } catch (notifyErr) {
+                console.error(`❌ Failed to send notification: ${notifyErr.message}`);
               }
-            } catch (notifyErr) {
-              console.error('Failed to send referral notification:', notifyErr.message);
+            } else {
+              console.log(`⚠️ Cannot send notification: BOT_TOKEN=${!!BOT_TOKEN}, referrerTelegramId=${referrerTelegramId}`);
             }
-            
-            // Update the user's points in the current object
-            user.points = (user.points || 0) + refereeBonus;
             
           } else {
             console.log(`⚠️ User ${user.id} was already referred by ${referrerId}`);
           }
         } else {
-          console.log(`⚠️ Invalid referral code or self-referral attempted`);
+          console.log(`⚠️ Invalid referral code or self-referral attempted for code: ${referralCode}`);
         }
       } else {
-        console.log(`ℹ️ No referral code provided for new user ${id}`);
+        console.log(`ℹ️ No valid referral code provided for new user ${id}`);
       }
     }
     
@@ -572,12 +574,12 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     
     await client.query('COMMIT');
     
-    // Send response with user data
+    console.log(`📤 Response sent for user ${id}: points=${user.points}, referrals=${stats?.referrals || 0}`);
     res.json({ ...user, ...stats });
     
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('User Error:', err);
+    console.error('❌ User Error:', err);
     res.status(500).json({ error: 'Database operation failed: ' + err.message });
   } finally {
     client.release();
