@@ -2005,31 +2005,19 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// BONUS CODES API (DATABASE VERSION)
+// BONUS CODES API (DATABASE VERSION - FIXED)
 // ============================================
 
-// Get all bonus codes (admin)
+// Get all active bonus codes (admin)
 app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
     try {
-        // First, create the table if it doesn't exist
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS bonus_codes (
-                id SERIAL PRIMARY KEY,
-                code TEXT UNIQUE NOT NULL,
-                points INTEGER NOT NULL,
-                description TEXT,
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `);
-        
         const result = await pool.query(
             'SELECT * FROM bonus_codes ORDER BY created_at DESC'
         );
         res.json(result.rows);
     } catch (err) {
         console.error('Get bonus codes error:', err);
-        res.status(500).json({ error: 'Failed to fetch bonus codes: ' + err.message });
+        res.status(500).json({ error: 'Failed to fetch bonus codes' });
     }
 });
 
@@ -2042,18 +2030,6 @@ app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
     }
     
     try {
-        // Create table if not exists
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS bonus_codes (
-                id SERIAL PRIMARY KEY,
-                code TEXT UNIQUE NOT NULL,
-                points INTEGER NOT NULL,
-                description TEXT,
-                is_active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `);
-        
         const result = await pool.query(
             'INSERT INTO bonus_codes (code, points, description, is_active) VALUES ($1, $2, $3, true) RETURNING *',
             [code.toUpperCase(), points, description || null]
@@ -2064,11 +2040,11 @@ app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
             return res.status(400).json({ error: 'Bonus code already exists' });
         }
         console.error('Add bonus code error:', err);
-        res.status(500).json({ error: 'Failed to add bonus code: ' + err.message });
+        res.status(500).json({ error: 'Failed to add bonus code' });
     }
 });
 
-// Delete bonus code (admin)
+// Delete bonus code (admin) - permanently removes so no one can redeem
 app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
     const { code } = req.params;
     try {
@@ -2080,7 +2056,7 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
     }
 });
 
-// Redeem bonus code (user)
+// Redeem bonus code (user) - ONE TIME ONLY PER USER FOREVER
 app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     const { code } = req.body;
     const telegramId = req.telegramUser.id;
@@ -2092,16 +2068,6 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        
-        // Create user_bonus_redemptions table if not exists
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS user_bonus_redemptions (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                bonus_code TEXT NOT NULL,
-                redeemed_at TIMESTAMP DEFAULT NOW()
-            )
-        `);
         
         // Get user
         const userResult = await client.query(
@@ -2115,7 +2081,7 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
         
         const userId = userResult.rows[0].id;
         
-        // Check if user already redeemed this code
+        // Check if user already redeemed this code (FOREVER check, not 24 hours)
         const existingRedemption = await client.query(
             'SELECT * FROM user_bonus_redemptions WHERE user_id = $1 AND bonus_code = $2',
             [userId, code.toUpperCase()]
@@ -2125,7 +2091,7 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
             return res.status(400).json({ error: 'You have already redeemed this code' });
         }
         
-        // Get bonus code from database
+        // Get bonus code from database (must be active)
         const bonusResult = await client.query(
             'SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true',
             [code.toUpperCase()]
@@ -2143,7 +2109,7 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
             [bonus.points, userId]
         );
         
-        // Record redemption
+        // Record redemption (permanent record, never expires)
         await client.query(
             'INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)',
             [userId, code.toUpperCase()]
@@ -2154,19 +2120,19 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
         res.json({ 
             success: true, 
             points: bonus.points,
-            message: `You redeemed ${(bonus.points / 1000000).toFixed(2)} COINS!`
+            message: `🎉 You redeemed ${(bonus.points / 1000000).toFixed(2)} COINS!`
         });
         
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Redeem bonus error:', err);
-        res.status(500).json({ error: 'Failed to redeem bonus code: ' + err.message });
+        res.status(500).json({ error: 'Failed to redeem bonus code' });
     } finally {
         client.release();
     }
 });
 
-// Get user's redeemed bonus codes history
+// Get user's redeemed bonus codes history (all time)
 app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
     const telegramId = req.telegramUser.id;
     
