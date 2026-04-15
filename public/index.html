@@ -5,54 +5,733 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>YzemanBot - Earn COINS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- TELEGRAM WEB APP SDK - CRITICAL! -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <style>
-        /* --- Your Existing Styles (Keep as they are) --- */
         :root {
-            --primary: #4CAF50; --secondary: #2196F3; --warning: #FF9800; --danger: #f44336;
-            --dark: #1a1a2e; --darker: #16213e; --light: #ffffff; --gray: #888888;
-            --success: #00c853; --gold: #FFD700;
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
+            --success: #00c853;
+            --gold: #FFD700;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--dark); color: var(--light); min-height: 100vh; padding-bottom: 80px;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
         }
-        /* ... (keep all your existing CSS styles from your current working index.html) ... */
-        /* Make sure you have styles for .task-card, .modal, .timer-popup, etc. */
         
-        /* --- NEW STYLES FOR TASK WORKFLOW --- */
-        .task-card.waiting {
-            opacity: 0.7;
-            cursor: wait;
+        .header {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            padding: 20px 15px 30px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .user-info {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .user-id {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .tier-badge-header {
+            background: var(--gold);
+            color: var(--dark);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .balance-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 10px;
+        }
+        
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .balance-label {
+            font-size: 14px;
+            color: var(--gray);
+        }
+        
+        .balance-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .balance-coin {
+            font-size: 14px;
+            color: var(--gray);
+            margin-left: 5px;
+        }
+        
+        .progress-section {
+            margin-top: 15px;
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--gray);
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 12px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--light);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 20px 15px;
+        }
+        
+        .feature-card {
+            background: var(--darker);
+            border-radius: 15px;
+            padding: 15px 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--light);
+        }
+        
+        .feature-card:hover {
+            background: #1e2a4a;
+            transform: translateY(-2px);
+        }
+        
+        .feature-card i {
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: var(--gold);
+        }
+        
+        .feature-card span {
+            font-size: 12px;
+            display: block;
+        }
+        
+        .tabs {
+            display: flex;
+            background: var(--darker);
+            padding: 5px;
+            border-radius: 30px;
+            margin: 0 15px 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 0 15px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .ad-streak-section {
+            background: linear-gradient(135deg, #ff6b6b20, #ffa50220);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid var(--gold);
+        }
+        
+        .streak-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .streak-fire {
+            font-size: 32px;
+        }
+        
+        .streak-info {
+            flex: 1;
+        }
+        
+        .streak-count {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .streak-label {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .daily-progress {
+            margin-top: 10px;
+        }
+        
+        .ad-card {
+            background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .ad-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .ad-card i {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+        
+        .ad-card h3 {
+            font-size: 22px;
+            margin-bottom: 5px;
+        }
+        
+        .ad-card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .ad-reward {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 15px 0 5px;
+        }
+        
+        .task-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .task-card {
+            background: var(--darker);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
             position: relative;
         }
-        .task-card.waiting::after {
-            content: "⏳";
+        
+        .task-card:hover {
+            background: #1e2a4a;
+            transform: translateY(-2px);
+        }
+        
+        .task-card.completed {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .task-card.completed:hover {
+            transform: none;
+        }
+        
+        .task-card i {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        .task-card .task-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .task-card .task-reward {
+            font-size: 12px;
+            color: var(--gold);
+        }
+        
+        .completed-badge {
             position: absolute;
             top: 5px;
             right: 5px;
-            font-size: 16px;
+            background: var(--success);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 8px;
         }
-        .claim-reward-btn {
-            background: var(--gold);
-            color: var(--dark);
+        
+        /* Social Media Colors */
+        .youtube i { color: #FF0000; }
+        .twitter i { color: #1DA1F2; }
+        .facebook i { color: #1877F2; }
+        .instagram i { color: #E4405F; }
+        .tiktok i { color: #000000; }
+        .telegram i { color: #26A5E4; }
+        .game i { color: #FF5722; }
+        .website i { color: var(--primary); }
+        
+        .referral-section {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .referral-link-box {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .referral-link {
+            flex: 1;
+            font-size: 12px;
+            word-break: break-all;
+            color: var(--gray);
+        }
+        
+        .copy-btn {
+            background: var(--primary);
+            color: white;
             border: none;
             padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
+            border-radius: 8px;
             cursor: pointer;
-            margin-top: 8px;
+            font-size: 12px;
+        }
+        
+        .wallet-section {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .wallet-input {
             width: 100%;
-            transition: transform 0.2s;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--gray);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 14px;
+            margin: 15px 0;
         }
-        .claim-reward-btn:hover {
-            transform: scale(1.02);
+        
+        .wallet-input:focus {
+            outline: none;
+            border-color: var(--primary);
         }
+        
+        .btn {
+            padding: 15px 25px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .bonus-section {
+            margin-top: 20px;
+        }
+        
+        .bonus-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .bonus-input {
+            flex: 1;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--gray);
+            background: rgba(0,0,0,0.3);
+            color: white;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        
+        .bonus-history-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .bonus-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .bonus-code-display {
+            font-weight: bold;
+            color: var(--gold);
+            font-family: monospace;
+            font-size: 16px;
+        }
+        
+        .bonus-reward-display {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .bonus-expiry {
+            font-size: 11px;
+            color: var(--gray);
+        }
+        
+        .bonus-used-badge {
+            background: var(--success);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 10px;
+        }
+        
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .history-amount {
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .history-date {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .status-pending {
+            color: var(--warning);
+            font-size: 12px;
+        }
+        
+        .status-completed {
+            color: var(--success);
+            font-size: 12px;
+        }
+        
+        .tier-progress-section {
+            margin-top: 20px;
+        }
+        
+        .reset-streak-btn {
+            background: transparent;
+            border: 1px solid var(--warning);
+            color: var(--warning);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 10px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            display: flex;
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 12px;
+            padding: 8px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-item i {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray);
+        }
+        
+        .bonus-info-note {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .bonus-info-note i {
+            color: var(--secondary);
+            margin-right: 5px;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 25px;
+            width: 85%;
+            max-width: 320px;
+            text-align: center;
+        }
+        
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--gold);
+        }
+        
+        .modal-message {
+            font-size: 14px;
+            margin-bottom: 25px;
+            color: var(--gray);
+            line-height: 1.5;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .modal-btn {
+            padding: 12px 25px;
+            border-radius: 12px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .modal-btn-yes {
+            background: var(--success);
+            color: white;
+        }
+        
+        .modal-btn-no {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Timer Popup */
         .timer-popup {
             position: fixed;
-            bottom: 20px;
+            bottom: 100px;
             left: 20px;
             right: 20px;
             background: var(--darker);
@@ -64,17 +743,20 @@
             animation: slideUp 0.3s ease;
             display: none;
         }
+        
         .timer-popup.active {
             display: block;
         }
+        
         .timer-popup .time-left {
             font-size: 36px;
             font-weight: bold;
             color: var(--gold);
             margin: 10px 0;
         }
+        
         .timer-popup button {
-            background: var(--primary);
+            background: var(--danger);
             border: none;
             padding: 8px 20px;
             border-radius: 20px;
@@ -85,25 +767,148 @@
     </style>
 </head>
 <body>
-    <!-- Your existing HTML structure (header, balance card, feature grid, tabs) -->
-    <div class="header"><!-- ... --></div>
-    <div class="feature-grid"><!-- ... --></div>
-    <div class="tabs"><!-- ... --></div>
-
-    <!-- Earn Tab Content -->
-    <div class="tab-content active" id="earnTab">
-        <!-- ... Ad streak section, Watch Ad card ... -->
+    <div class="header">
+        <div class="user-section">
+            <div class="avatar" id="userAvatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-info">
+                <div class="user-name" id="userName">Loading...</div>
+                <div class="user-id" id="userId"></div>
+            </div>
+            <div class="tier-badge-header" id="tier">Fresher</div>
+        </div>
         
-        <div class="section-title"><i class="fas fa-tasks"></i><span>Quick Tasks</span></div>
+        <div class="balance-card">
+            <div class="balance-row">
+                <span class="balance-label">Your Balance</span>
+                <div>
+                    <span class="balance-value" id="coins">0.00</span>
+                    <span class="balance-coin">COINS</span>
+                </div>
+            </div>
+            
+            <div class="progress-section">
+                <div class="progress-label">
+                    <span>Withdrawal Progress</span>
+                    <span id="progressAmount">0 / 100,000 COINS</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="referralCount">0</div>
+                    <div class="stat-label">Referrals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalAdsWatched">0</div>
+                    <div class="stat-label">Ads Watched</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="adStreak">0</div>
+                    <div class="stat-label">Ad Streak 🔥</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Feature Grid - Quick Access -->
+    <div class="feature-grid">
+        <a href="/daily.html" class="feature-card">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="feature-card">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="feature-card">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="feature-card">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+        <a href="/achievements.html" class="feature-card">
+            <i class="fas fa-medal"></i>
+            <span>Achieve</span>
+        </a>
+        <a href="/tournament.html" class="feature-card">
+            <i class="fas fa-crown"></i>
+            <span>Tourney</span>
+        </a>
+        <a href="/support.html" class="feature-card">
+            <i class="fas fa-headset"></i>
+            <span>Support</span>
+        </a>
+        <div class="feature-card" onclick="window.location.reload()">
+            <i class="fas fa-sync"></i>
+            <span>Refresh</span>
+        </div>
+    </div>
+    
+    <div class="tabs">
+        <div class="tab active" data-tab="earn">💰 Earn</div>
+        <div class="tab" data-tab="refer">👥 Refer</div>
+        <div class="tab" data-tab="wallet">💳 Wallet</div>
+        <div class="tab" data-tab="bonus">🎁 Bonus</div>
+    </div>
+    
+    <!-- Earn Tab -->
+    <div class="tab-content active" id="earnTab">
+        <div class="ad-streak-section">
+            <div class="streak-header">
+                <span class="streak-fire">🔥</span>
+                <div class="streak-info">
+                    <div class="streak-count" id="adStreakDisplay">0</div>
+                    <div class="streak-label">Current Ad Streak</div>
+                </div>
+                <button class="reset-streak-btn" onclick="window.resetAdStreak()">Reset</button>
+            </div>
+            <div class="daily-progress">
+                <div class="progress-label">
+                    <span>📊 Daily Goal: <span id="adsWatchedToday">0</span>/<span id="dailyAdGoal">20</span> ads</span>
+                    <span>+<span id="dailyGoalReward">0.5</span> COINS</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="dailyAdProgress" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="daily-progress" style="margin-top: 10px;">
+                <div class="progress-label">
+                    <span>📈 Weekly Goal: <span id="adsWatchedWeekDisplay">0</span>/<span id="weeklyAdGoal">100</span> ads</span>
+                    <span>+<span id="weeklyGoalReward">5</span> COINS</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="weeklyAdProgress" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ad-card" id="watchAdBtn">
+            <i class="fas fa-play-circle"></i>
+            <h3>Watch Ad</h3>
+            <p>Watch a short video to earn COINS</p>
+            <div class="ad-reward"><span id="adReward">0.005</span> COINS</div>
+            <p style="font-size: 12px; margin-top: 5px;">✨ Lucky ads can multiply your reward!</p>
+        </div>
+        
+        <div class="section-title">
+            <i class="fas fa-tasks"></i>
+            <span>Quick Tasks</span>
+        </div>
+        
         <div class="task-grid" id="quickTasksGrid">
-            <!-- Game Task -->
             <div class="task-card game" data-task="game" data-points="50000000" data-url="https://www.wikigame.top/register?ref=WGMNKOP32XDYR" data-time="60">
                 <i class="fas fa-gamepad"></i>
                 <div class="task-name">Play & Earn</div>
                 <div class="task-reward">+50 COINS</div>
                 <div class="task-status"></div>
             </div>
-            <!-- Website Task -->
             <div class="task-card website" data-task="website" data-points="5000000" data-url="https://yzeupdates.lat/articles" data-time="120">
                 <i class="fas fa-globe"></i>
                 <div class="task-name">Visit Website</div>
@@ -111,10 +916,13 @@
                 <div class="task-status"></div>
             </div>
         </div>
-
-        <div class="section-title"><i class="fas fa-share-alt"></i><span>Follow & Earn</span></div>
+        
+        <div class="section-title">
+            <i class="fas fa-share-alt"></i>
+            <span>Follow & Earn</span>
+        </div>
+        
         <div class="task-grid" id="socialTasksGrid">
-            <!-- Social Tasks -->
             <div class="task-card youtube" data-task="youtube" data-points="10000000" data-url="https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p" data-time="30">
                 <i class="fab fa-youtube"></i>
                 <div class="task-name">Subscribe on YouTube</div>
@@ -153,15 +961,162 @@
             </div>
         </div>
     </div>
-
-    <!-- Other Tabs (Refer, Wallet, Bonus) - Keep your existing HTML for these -->
-    <div class="tab-content" id="referTab"><!-- ... --></div>
-    <div class="tab-content" id="walletTab"><!-- ... --></div>
-    <div class="tab-content" id="bonusTab"><!-- ... --></div>
-
+    
+    <!-- Refer Tab -->
+    <div class="tab-content" id="referTab">
+        <div class="referral-section">
+            <div class="section-title">
+                <i class="fas fa-users"></i>
+                <span>Referral Program</span>
+            </div>
+            
+            <p style="margin-bottom: 15px; color: var(--gray);">
+                Invite friends and earn <strong style="color: var(--gold);" id="referralReward">0.5</strong> COINS per referral!
+            </p>
+            
+            <div class="referral-link-box">
+                <span class="referral-link" id="referralLink">https://t.me/YzemanBot?start=</span>
+                <button class="copy-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy</button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="referralCountTab">0</div>
+                    <div class="stat-label">Total Referrals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="currentTier">Fresher</div>
+                    <div class="stat-label">Current Tier</div>
+                </div>
+            </div>
+            
+            <div class="tier-progress-section">
+                <div class="progress-label">
+                    <span>Tier Progress: <span id="currentRefs">0</span>/<span id="nextTierReq">150</span> referrals</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="tierProgressBar" style="width: 0%;"></div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <p style="color: var(--gray); font-size: 13px; margin-bottom: 10px;">Tier Benefits:</p>
+                <div style="display: grid; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>🎯 Fresher (0 refs)</span>
+                        <span style="color: var(--gold);">0.005 COINS/ad</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>🔥 Brute (150 refs)</span>
+                        <span style="color: var(--gold);">0.0075 COINS/ad</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>🥈 Silver (350 refs)</span>
+                        <span style="color: var(--gold);">0.01 COINS/ad</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>🥇 Gold (700 refs)</span>
+                        <span style="color: var(--gold);">0.015 COINS/ad</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>💎 Platinum (1500 refs)</span>
+                        <span style="color: var(--gold);">0.025 COINS/ad</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wallet Tab -->
+    <div class="tab-content" id="walletTab">
+        <div class="wallet-section">
+            <div class="section-title">
+                <i class="fas fa-wallet"></i>
+                <span>Withdrawal</span>
+            </div>
+            
+            <p style="margin-bottom: 15px; color: var(--gray);">
+                Minimum withdrawal: <strong style="color: var(--gold);">100,000 COINS</strong>
+            </p>
+            
+            <label style="color: var(--gray); font-size: 14px;">USDT Wallet Address (TRC-20)</label>
+            <input type="text" class="wallet-input" id="walletAddress" placeholder="T... (starts with T)" />
+            
+            <button class="btn btn-secondary" id="saveWalletBtn" style="margin-bottom: 15px;">
+                <i class="fas fa-save"></i> Save Wallet
+            </button>
+            
+            <button class="btn btn-primary" id="withdrawBtn" disabled>
+                <i class="fas fa-paper-plane"></i> Request Withdrawal (100,000 COINS)
+            </button>
+            
+            <div style="margin-top: 20px;">
+                <div class="section-title">
+                    <i class="fas fa-history"></i>
+                    <span>Withdrawal History</span>
+                </div>
+                <div class="history-list" id="withdrawalHistoryList">
+                    <div style="text-align:center; padding:20px;">No withdrawal requests yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bonus Tab -->
+    <div class="tab-content" id="bonusTab">
+        <div class="bonus-section">
+            <div class="section-title">
+                <i class="fas fa-gift"></i>
+                <span>Redeem Bonus Code</span>
+            </div>
+            
+            <div class="bonus-info-note">
+                <i class="fas fa-info-circle"></i>
+                <span>Enter a special bonus code to earn extra COINS! Codes are given during events and by admins.</span>
+            </div>
+            
+            <div class="bonus-input-group">
+                <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code" />
+                <button class="btn btn-primary" id="redeemBonusBtn" style="width: auto; padding: 15px 25px;">
+                    Redeem
+                </button>
+            </div>
+            
+            <div class="section-title" style="margin-top: 25px;">
+                <i class="fas fa-history"></i>
+                <span>Your Bonus History</span>
+            </div>
+            
+            <div class="bonus-history-list" id="bonusHistoryList">
+                <div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Bottom Navigation -->
-    <div class="bottom-nav"><!-- ... --></div>
-
+    <div class="bottom-nav">
+        <a href="/" class="nav-item active">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/daily.html" class="nav-item">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="nav-item">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="nav-item">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+    </div>
+    
     <!-- Confirmation Modal -->
     <div class="modal" id="confirmationModal">
         <div class="modal-content">
@@ -173,25 +1128,36 @@
             </div>
         </div>
     </div>
-
-    <!-- Timer Popup (Shows while task is in progress) -->
+    
+    <!-- Timer Popup -->
     <div class="timer-popup" id="timerPopup">
         <i class="fas fa-hourglass-half"></i>
         <div>Please complete the action in the new tab...</div>
         <div class="time-left" id="timerTimeLeft">00:00</div>
         <button id="cancelTaskBtn">Cancel Task</button>
     </div>
-
+    
+    <!-- Notification -->
     <div class="notification" id="notification"></div>
-
+    
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@adsgram/telegram-sdk@latest/dist/adsgram.umd.js"></script>
     <script src="/app.js"></script>
-
+    
     <script>
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.expand(); tg.ready(); }
-
-        // --- Helper Functions ---
+        
+        // ============================================================
+        // TASK SYSTEM - BACKEND VERIFIED
+        // ============================================================
+        
+        let activeTask = null;
+        let taskWindow = null;
+        let timerInterval = null;
+        let taskStartTime = null;
+        let taskRequiredTime = 0;
+        
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             if (notif) {
@@ -201,7 +1167,7 @@
                 setTimeout(() => notif.style.display = 'none', 4000);
             }
         }
-
+        
         async function callApi(endpoint, data) {
             try {
                 const response = await fetch(endpoint, {
@@ -215,19 +1181,12 @@
                 return null;
             }
         }
-
-        // --- Task Completion Logic (Backend-Verified) ---
-        let activeTask = null;
-        let taskWindow = null;
-        let timerInterval = null;
-        let taskStartTime = null;
-        let taskRequiredTime = 0;
-
+        
         async function checkIfTaskCompleted(taskName) {
             const result = await callApi('/api/check-task', { taskName });
             return result?.completed || false;
         }
-
+        
         async function completeTaskOnServer(taskName, points) {
             const result = await callApi('/api/complete-task', { taskName, points, proof: 'user_completed' });
             if (result?.success) {
@@ -248,29 +1207,28 @@
                 return false;
             }
         }
-
+        
         function startTaskTimer(taskName, requiredSeconds, url, points) {
             if (timerInterval) clearInterval(timerInterval);
             activeTask = taskName;
             taskRequiredTime = requiredSeconds;
             taskStartTime = Date.now();
-
+            
             // Open the link in a new tab
             taskWindow = window.open(url, '_blank');
-
+            
             const timerPopup = document.getElementById('timerPopup');
             const timerTimeLeft = document.getElementById('timerTimeLeft');
             timerPopup.classList.add('active');
-
+            
             timerInterval = setInterval(() => {
                 const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
                 const remaining = Math.max(0, taskRequiredTime - elapsed);
                 const minutes = Math.floor(remaining / 60);
                 const seconds = remaining % 60;
                 timerTimeLeft.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-
+                
                 if (remaining <= 0) {
-                    // Time's up! Stop timer and give reward.
                     clearInterval(timerInterval);
                     timerInterval = null;
                     timerPopup.classList.remove('active');
@@ -282,7 +1240,7 @@
                 }
             }, 1000);
         }
-
+        
         function cancelCurrentTask() {
             if (timerInterval) {
                 clearInterval(timerInterval);
@@ -294,37 +1252,41 @@
             activeTask = null;
             taskWindow = null;
         }
-
-        // --- Task Button Handler ---
+        
         async function handleTaskClick(taskCard) {
             if (activeTask) {
                 showNotification('Please complete your current task first!', true);
                 return;
             }
-
+            
             const taskName = taskCard.dataset.task;
             const points = parseInt(taskCard.dataset.points);
             const url = taskCard.dataset.url;
-            const requiredTime = parseInt(taskCard.dataset.time); // in seconds
-
-            // Check if already completed
+            const requiredTime = parseInt(taskCard.dataset.time);
+            
             const isCompleted = await checkIfTaskCompleted(taskName);
             if (isCompleted) {
                 showNotification('You have already completed this task!', true);
                 return;
             }
-
-            // Show confirmation modal
+            
             const modal = document.getElementById('confirmationModal');
             const modalMessage = document.getElementById('modalMessage');
-            modalMessage.innerHTML = `You are about to earn ${(points / 1000000).toFixed(1)} COINS!<br><br>A new tab will open. Please stay on that page for ${Math.floor(requiredTime / 60)} minute${requiredTime > 60 ? 's' : ''} to claim your reward.`;
+            const minutes = Math.floor(requiredTime / 60);
+            const seconds = requiredTime % 60;
+            let timeText = '';
+            if (minutes > 0) {
+                timeText = `${minutes} minute${minutes > 1 ? 's' : ''}`;
+                if (seconds > 0) timeText += ` and ${seconds} second${seconds > 1 ? 's' : ''}`;
+            } else {
+                timeText = `${seconds} second${seconds > 1 ? 's' : ''}`;
+            }
+            modalMessage.innerHTML = `You are about to earn ${(points / 1000000).toFixed(1)} COINS!<br><br>A new tab will open. Please stay on that page for ${timeText} to claim your reward.`;
             modal.style.display = 'flex';
-
-            // Store task info for the "Yes" button
+            
             window.pendingTask = { taskName, points, url, requiredTime, taskCard };
         }
-
-        // --- Initialize Task Buttons and Check Completion Status ---
+        
         async function initTasks() {
             const allTaskCards = document.querySelectorAll('.task-card[data-task]');
             for (const card of allTaskCards) {
@@ -347,8 +1309,8 @@
                 });
             }
         }
-
-        // --- Modal Event Listeners ---
+        
+        // Modal event listeners
         document.getElementById('modalYesBtn').onclick = () => {
             document.getElementById('confirmationModal').style.display = 'none';
             if (window.pendingTask) {
@@ -357,13 +1319,14 @@
                 window.pendingTask = null;
             }
         };
+        
         document.getElementById('modalNoBtn').onclick = () => {
             document.getElementById('confirmationModal').style.display = 'none';
             window.pendingTask = null;
         };
+        
         document.getElementById('cancelTaskBtn').onclick = cancelCurrentTask;
-
-        // Close modal if clicking outside
+        
         window.onclick = (e) => {
             const modal = document.getElementById('confirmationModal');
             if (e.target === modal) {
@@ -371,8 +1334,8 @@
                 window.pendingTask = null;
             }
         };
-
-        // --- Tab Switching (Keep your existing tab logic) ---
+        
+        // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const tabName = tab.dataset.tab;
@@ -382,20 +1345,17 @@
                 document.getElementById(tabName + 'Tab').classList.add('active');
             });
         });
-
-        // --- Initial Load ---
+        
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
-            // Set static display values
             document.getElementById('dailyAdGoal').textContent = '20';
             document.getElementById('dailyGoalReward').textContent = '0.5';
             document.getElementById('weeklyAdGoal').textContent = '100';
             document.getElementById('weeklyGoalReward').textContent = '5';
             const nextTierReqEl = document.getElementById('nextTierReq');
             if (nextTierReqEl) nextTierReqEl.textContent = '150';
-
-            // Initialize the task system
+            
             initTasks();
-
             console.log('✅ YzemanBot loaded with secure task system!');
         });
     </script>
