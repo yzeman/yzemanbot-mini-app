@@ -96,7 +96,6 @@ if (referralCode) {
 
 let currentUser = null;
 let completedSocial = JSON.parse(localStorage.getItem('completedSocial') || '{}');
-let usedBonusCodes = JSON.parse(localStorage.getItem('usedBonusCodes') || '{}');
 
 let isWatchingAd = false;
 let adOverlay = null;
@@ -232,7 +231,7 @@ async function refreshUser() {
         updateUI();
         loadWithdrawalHistory();
         updateAdStreakDisplay();
-        loadBonusHistory(); // Reload bonus history
+        loadBonusHistory();
     } catch (err) { console.error('Refresh error:', err); }
 }
 
@@ -506,13 +505,14 @@ async function completeSocialTask(taskName, reward) {
 }
 
 // ============================================================
-// BONUS CODES & HISTORY - USING BACKEND DATABASE
+// BONUS CODES & HISTORY - FULLY WORKING
 // ============================================================
 
 // Load bonus history from backend
 async function loadBonusHistory() {
     if (!currentUser) return;
     try {
+        console.log('📜 Loading bonus history...');
         const response = await fetch('/api/bonus-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -520,32 +520,48 @@ async function loadBonusHistory() {
         });
         if (response.ok) {
             const history = await response.json();
+            console.log('✅ Bonus history loaded:', history.length, 'items');
             displayBonusHistoryUI(history);
+        } else {
+            console.error('Failed to load history:', await response.text());
         }
-    } catch (err) { console.error('Failed to load bonus history:', err); }
+    } catch (err) { 
+        console.error('Failed to load bonus history:', err); 
+    }
 }
 
 function displayBonusHistoryUI(history) {
     const container = document.getElementById('bonusHistoryList');
-    if (!container) return;
+    if (!container) {
+        console.log('⚠️ bonusHistoryList container not found');
+        return;
+    }
+    
     if (!history || history.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
         return;
     }
-    container.innerHTML = history.map(item => `
-        <div class="bonus-history-item">
-            <div>
-                <div class="bonus-code-display">${item.bonus_code}</div>
-                <div class="bonus-expiry">Redeemed: ${new Date(item.redeemed_at).toLocaleDateString()}</div>
+    
+    console.log('📊 Rendering bonus history, count:', history.length);
+    
+    container.innerHTML = history.map(item => {
+        const redeemedDate = new Date(item.redeemed_at);
+        const formattedDate = redeemedDate.toLocaleDateString() + ' ' + redeemedDate.toLocaleTimeString();
+        return `
+            <div class="bonus-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 8px;">
+                <div>
+                    <div class="bonus-code-display" style="font-weight: bold; color: var(--gold); font-family: monospace; font-size: 14px;">${item.bonus_code}</div>
+                    <div class="bonus-expiry" style="font-size: 10px; color: var(--gray);">Redeemed: ${formattedDate}</div>
+                </div>
+                <div>
+                    <span class="bonus-used-badge" style="background: var(--success); color: white; padding: 3px 8px; border-radius: 5px; font-size: 10px;">✅ Redeemed</span>
+                </div>
             </div>
-            <div style="text-align: right;">
-                <span class="bonus-used-badge">✅ Redeemed</span>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
-// Redeem bonus code - ONE TIME ONLY
+// Redeem bonus code - ONE TIME ONLY PER USER FOREVER
 async function redeemBonus() {
     const codeInput = document.getElementById('bonusCodeInput');
     if (!codeInput) return;
@@ -572,51 +588,16 @@ async function redeemBonus() {
         }
         
         if (result.success) {
-            showNotification(result.message);
+            showNotification(result.message || 'Bonus code redeemed!');
             await refreshUser(); // Refresh to update balance
             codeInput.value = '';
             await loadBonusHistory(); // Reload history immediately
+            console.log('✅ Bonus redeemed and history refreshed');
         }
     } catch (err) {
         console.error('Redeem error:', err);
         showNotification('Failed to redeem code', true);
     }
-}
-
-// Load bonus history - shows ALL redeemed codes forever
-async function loadBonusHistory() {
-    if (!currentUser) return;
-    try {
-        const response = await fetch('/api/bonus-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: tg.initData })
-        });
-        if (response.ok) {
-            const history = await response.json();
-            displayBonusHistoryUI(history);
-        }
-    } catch (err) { console.error('Failed to load bonus history:', err); }
-}
-
-function displayBonusHistoryUI(history) {
-    const container = document.getElementById('bonusHistoryList');
-    if (!container) return;
-    if (!history || history.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
-        return;
-    }
-    container.innerHTML = history.map(item => `
-        <div class="bonus-history-item">
-            <div>
-                <div class="bonus-code-display">${item.bonus_code}</div>
-                <div class="bonus-expiry">Redeemed: ${new Date(item.redeemed_at).toLocaleDateString()}</div>
-            </div>
-            <div style="text-align: right;">
-                <span class="bonus-used-badge">✅ Redeemed</span>
-            </div>
-        </div>
-    `).join('');
 }
 
 // ============================================================
