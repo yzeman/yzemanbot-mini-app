@@ -74,6 +74,12 @@ let referralCode = urlParams.get('start');
 console.log('🔍 Current URL:', window.location.href);
 console.log('🔍 Raw referral code from URL:', referralCode);
 
+// Check if referral was already used in this session
+if (sessionStorage.getItem('referralProcessed') === 'true') {
+    referralCode = null;
+    console.log('ℹ️ Referral already processed this session, ignoring');
+}
+
 // If no code in URL, check localStorage
 if (!referralCode) {
     referralCode = localStorage.getItem('pendingReferralCode');
@@ -128,7 +134,7 @@ if (lastWeekStart !== weekStartStr) {
 }
 
 // ============================================================
-// BONUS CODES
+// BONUS CODES - Sync with Admin Panel
 // ============================================================
 
 const DEFAULT_BONUS_CODES = {
@@ -154,7 +160,7 @@ function loadBonusCodes() {
     return DEFAULT_BONUS_CODES;
 }
 
-const bonusCodesList = loadBonusCodes();
+let bonusCodesList = loadBonusCodes();
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -239,6 +245,7 @@ async function registerUser() {
         if (codeToSend) {
             showNotification('🎉 Referral bonus applied!');
             localStorage.removeItem('pendingReferralCode');
+            sessionStorage.setItem('referralProcessed', 'true');
             referralCode = null;
             console.log('✅ Referral code used and cleared');
         }
@@ -567,8 +574,16 @@ async function redeemBonus() {
     if (!codeInput) return;
     const code = codeInput.value.trim().toUpperCase();
     if (!code) { showNotification('Enter a bonus code', true); return; }
+    
+    // Refresh bonus codes from localStorage (admin panel syncs here)
     const saved = localStorage.getItem('bonusCodesList');
-    if (saved) { try { Object.assign(bonusCodesList, JSON.parse(saved)); } catch (e) {} }
+    if (saved) { 
+        try { 
+            bonusCodesList = JSON.parse(saved); 
+            console.log('🔄 Bonus codes refreshed from admin');
+        } catch (e) {} 
+    }
+    
     const bonus = bonusCodesList[code];
     if (!bonus) { showNotification(`Invalid bonus code`, true); return; }
     const today = new Date().toDateString();
@@ -589,8 +604,15 @@ function displayBonusList() {
     const today = new Date().toDateString();
     const list = document.getElementById('bonusList');
     if (!list) return;
+    
+    // Refresh from localStorage
     const saved = localStorage.getItem('bonusCodesList');
-    if (saved) { try { Object.assign(bonusCodesList, JSON.parse(saved)); } catch (e) {} }
+    if (saved) { 
+        try { 
+            bonusCodesList = JSON.parse(saved); 
+        } catch (e) {} 
+    }
+    
     list.innerHTML = '';
     for (const [code, bonus] of Object.entries(bonusCodesList)) {
         const rewardCoins = (bonus.points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2);
