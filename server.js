@@ -439,7 +439,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
           const referrerId = referrerResult.rows[0].id;
           const referrerTier = referrerResult.rows[0].tier;
           const referrerTelegramId = referrerResult.rows[0].telegram_id;
-          const referrerName = referrerResult.rows[0].first_name || referrerResult.rows[0].username || 'User';
           
           // Get referral reward based on referrer's tier
           const tierResult = await client.query(
@@ -448,7 +447,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
           );
           
           const referrerReward = tierResult.rows[0]?.referral_reward || 500000;
-          const refereeBonus = 250000; // Bonus for new user
+          const refereeBonus = 250000;
           
           // Check if already referred (prevent double referral)
           const existingReferral = await client.query(
@@ -557,7 +556,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       }
     }
     
-    // Get user stats (referrals count, tier info)
+    // Get user stats
     const { rows: [stats] } = await client.query(`
       SELECT 
         COUNT(r.*) AS referrals,
@@ -1317,10 +1316,9 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
 // Get user's team info (or team info by ID for admin panel)
 app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   try {
-    let teamId = req.body.teamId; // For admin panel calls
+    let teamId = req.body.teamId;
     const telegramId = req.telegramUser?.id;
     
-    // If no teamId provided, get from current user
     if (!teamId && telegramId) {
       const userResult = await pool.query(
         'SELECT team_id FROM users WHERE telegram_id = $1',
@@ -1335,7 +1333,6 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
       return res.json({ has_team: false });
     }
     
-    // Get team details with total points
     const teamResult = await pool.query(`
       SELECT t.*, 
         COALESCE(SUM(u.points), 0) as total_points,
@@ -1354,7 +1351,6 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
     
     const team = teamResult.rows[0];
     
-    // Get team members (ordered by join date, then points)
     const membersResult = await pool.query(`
       SELECT u.id, u.telegram_id, u.first_name, u.username, u.photo_url, u.points, u.referrals, u.tier,
         (u.id = t.created_by) as is_leader,
@@ -1399,7 +1395,6 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'You are not in a team' });
     }
     
-    // Check if user is the leader
     const teamResult = await client.query(
       'SELECT created_by FROM teams WHERE id = $1',
       [teamId]
@@ -1409,7 +1404,6 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    // Remove user from team
     await client.query(
       'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
@@ -1420,18 +1414,15 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       [userId]
     );
     
-    // Check remaining members
     const remainingMembers = await client.query(
       'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
       [teamId]
     );
     
     if (remainingMembers.rows.length === 0) {
-      // No members left - delete the team
       await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
       console.log(`🗑️ Team ${teamId} deleted (no members remaining)`);
     } else if (isLeader && remainingMembers.rows.length > 0) {
-      // Leader left - assign new leader (oldest member)
       const newLeaderId = remainingMembers.rows[0].user_id;
       await client.query(
         'UPDATE teams SET created_by = $1 WHERE id = $2',
@@ -1452,7 +1443,7 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Team leaderboard (with caching headers)
+// Team leaderboard
 app.get('/api/team/leaderboard', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -1505,7 +1496,7 @@ app.post('/api/team/monthly-competition', async (req, res) => {
   }
 });
 
-// Check if team name exists (for real-time validation)
+// Check if team name exists
 app.post('/api/team/check-name', verifyTelegramData, async (req, res) => {
   try {
     const { teamName } = req.body;
@@ -1525,7 +1516,7 @@ app.post('/api/team/check-name', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Check if team code exists (for validation before joining)
+// Check if team code exists
 app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
   try {
     const { teamCode } = req.body;
@@ -1669,7 +1660,6 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get user info before deletion (for team handling)
     const userResult = await client.query(
       'SELECT id, team_id, telegram_id, first_name FROM users WHERE id = $1',
       [userId]
@@ -1684,9 +1674,7 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     let wasLeader = false;
     let teamDeleted = false;
     
-    // If user was in a team, handle team cleanup
     if (teamId) {
-      // Check if user is the team leader
       const teamResult = await client.query(
         'SELECT created_by FROM teams WHERE id = $1',
         [teamId]
@@ -1695,25 +1683,21 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
       if (teamResult.rows.length > 0) {
         wasLeader = teamResult.rows[0].created_by === userId;
         
-        // Remove user from team_members
         await client.query(
           'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
           [teamId, userId]
         );
         
-        // Check remaining members
         const remainingMembers = await client.query(
           'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
           [teamId]
         );
         
         if (remainingMembers.rows.length === 0) {
-          // No members left - delete the team
           await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
           teamDeleted = true;
           console.log(`🗑️ Team ${teamId} deleted (no members remaining after user deletion)`);
         } else if (wasLeader && remainingMembers.rows.length > 0) {
-          // Leader was deleted - assign new leader (oldest member)
           const newLeaderId = remainingMembers.rows[0].user_id;
           await client.query(
             'UPDATE teams SET created_by = $1 WHERE id = $2',
@@ -1724,42 +1708,16 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
       }
     }
     
-    // Delete all user-related data (complete cleanup)
-    
-    // 1. Delete from referrals (where user is referrer OR referred)
-    await client.query(
-      'DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1',
-      [userId]
-    );
-    
-    // 2. Delete ad rewards
+    await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [userId]);
     await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
-    
-    // 3. Delete withdrawals
     await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
-    
-    // 4. Delete daily rewards
     await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
-    
-    // 5. Delete wheel spins
     await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
-    
-    // 6. Delete user achievements
     await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
-    
-    // 7. Delete tournament participants
     await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
-    
-    // 8. Delete team_members (already done above if in team, but safe to do again)
     await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-    
-    // 9. Delete ad statistics
     await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
-    
-    // 10. Delete bonus redemptions
     await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
-    
-    // 11. Finally, delete the user
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     
     await client.query('COMMIT');
@@ -1793,7 +1751,6 @@ app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get the user by telegram_id
     const userResult = await client.query(
       'SELECT id, team_id FROM users WHERE telegram_id = $1',
       [memberTelegramId]
@@ -1805,12 +1762,10 @@ app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
     
     const userId = userResult.rows[0].id;
     
-    // Check if user is in this team
     if (userResult.rows[0].team_id !== teamId) {
       return res.status(400).json({ error: 'User is not in this team' });
     }
     
-    // Check if user is the leader
     const teamResult = await client.query(
       'SELECT created_by FROM teams WHERE id = $1',
       [teamId]
@@ -1818,30 +1773,25 @@ app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
     
     const isLeader = teamResult.rows[0]?.created_by === userId;
     
-    // Remove from team_members
     await client.query(
       'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
       [teamId, userId]
     );
     
-    // Update user's team_id
     await client.query(
       'UPDATE users SET team_id = NULL WHERE id = $1',
       [userId]
     );
     
-    // Check remaining members
     const remainingMembers = await client.query(
       'SELECT user_id FROM team_members WHERE team_id = $1',
       [teamId]
     );
     
     if (remainingMembers.rows.length === 0) {
-      // No members left - delete the team
       await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
       console.log(`🗑️ Team ${teamId} deleted (no members remaining after admin removal)`);
     } else if (isLeader && remainingMembers.rows.length > 0) {
-      // Leader removed - assign new leader (oldest member)
       const newLeaderId = remainingMembers.rows[0].user_id;
       await client.query(
         'UPDATE teams SET created_by = $1 WHERE id = $2',
@@ -1874,13 +1824,11 @@ app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get all members of the team
     const members = await client.query(
       'SELECT user_id FROM team_members WHERE team_id = $1',
       [teamId]
     );
     
-    // Remove team_id from all members
     for (const member of members.rows) {
       await client.query(
         'UPDATE users SET team_id = NULL WHERE id = $1',
@@ -1888,10 +1836,7 @@ app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
       );
     }
     
-    // Delete team members
     await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
-    
-    // Delete the team
     await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
     
     await client.query('COMMIT');
@@ -2064,13 +2009,20 @@ if (process.env.BOT_TOKEN) {
         }
     }
     
-    // --- FIXED START COMMAND ---
+    // Wait for bot info to be available
+    bot.telegram.getMe().then((botInfo) => {
+        bot.botInfo = botInfo;
+        console.log(`✅ Bot @${botInfo.username} is ready!`);
+    }).catch((err) => {
+        console.error('❌ Failed to get bot info:', err.message);
+    });
+    
+    // START COMMAND - Captures referral code
     bot.start(async (ctx) => {
         const firstName = ctx.from.first_name;
-        const startPayload = ctx.startPayload || ''; // THIS captures the referral code from the link!
+        const startPayload = ctx.startPayload || '';
         let miniAppUrl = MINI_APP_URL;
         
-        // Pass the referral code to the mini app
         if (startPayload) {
             miniAppUrl += `?start=${startPayload}`;
         }
@@ -2090,7 +2042,6 @@ if (process.env.BOT_TOKEN) {
             }
         );
     });
-    // --- END OF FIXED START COMMAND ---
     
     bot.help(async (ctx) => {
         await ctx.reply(
@@ -2132,7 +2083,6 @@ if (process.env.BOT_TOKEN) {
         );
     });
     
-    // --- FIXED MY REFERRAL BUTTON ---
     bot.hears('👥 MY REFERRAL', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
@@ -2146,7 +2096,6 @@ if (process.env.BOT_TOKEN) {
         }
         
         const botUsername = ctx.bot.botInfo?.username || 'YzemanBot';
-        // The referral code is the user's unique code (e.g., "ref-ABCD1234")
         const referralLink = `https://t.me/${botUsername}?start=${userData.referral_code}`;
         
         await ctx.reply(
@@ -2165,9 +2114,7 @@ if (process.env.BOT_TOKEN) {
             }
         );
     });
-    // --- END OF FIXED MY REFERRAL BUTTON ---
     
-    // Copy link callback
     bot.action('copy_link', async (ctx) => {
         const telegramId = ctx.from.id;
         const userData = await getUserData(telegramId);
@@ -2234,14 +2181,13 @@ if (process.env.BOT_TOKEN) {
         }
     });
     
-    // Launch bot in polling mode (NO WEBHOOK NEEDED!)
+    // Launch bot in polling mode
     bot.launch()
         .then(() => {
             console.log('🤖 Telegram Bot started in POLLING mode');
-            console.log(`✅ Bot @${bot.botInfo?.username} is ready!`);
         })
         .catch((err) => {
-            console.error('❌ Bot failed:', err.message);
+            console.error('❌ Bot failed to start:', err.message);
         });
     
     // Graceful stop
