@@ -2050,7 +2050,7 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // START COMMAND - With Persistent Keyboard
+    // START COMMAND - CRITICAL: Passes referral code to mini app
     // ============================================
     
     bot.start(async (ctx) => {
@@ -2058,11 +2058,13 @@ if (process.env.BOT_TOKEN) {
         const startPayload = ctx.startPayload || '';
         let miniAppUrl = MINI_APP_URL;
         
+        // CRITICAL: Add referral code to mini app URL
         if (startPayload) {
             miniAppUrl += `?start=${startPayload}`;
         }
         
         console.log(`📨 /start from ${firstName}, payload: ${startPayload || 'none'}`);
+        console.log(`🔗 Mini app URL: ${miniAppUrl}`);
         
         // Check if user exists
         const userData = await getUserData(ctx.from.id);
@@ -2082,10 +2084,21 @@ if (process.env.BOT_TOKEN) {
                 `• Inviting friends\n` +
                 `• Daily rewards\n` +
                 `• Spinning the wheel\n\n` +
-                `👇 *Use the buttons below to get started!*`;
+                `👇 *Tap OPEN YZEMANBOT to start earning!*`;
         }
         
+        // Send message with inline keyboard (contains referral URL)
         await ctx.reply(message, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: miniAppUrl } }]
+                ]
+            }
+        });
+        
+        // Also show the persistent menu keyboard
+        await ctx.reply(`👇 *Choose an option below:*`, {
             parse_mode: 'Markdown',
             ...mainMenuKeyboard
         });
@@ -2097,6 +2110,7 @@ if (process.env.BOT_TOKEN) {
     
     bot.hears('🚀 LAUNCH APP', async (ctx) => {
         let miniAppUrl = MINI_APP_URL;
+        
         await ctx.reply(
             `🚀 *Launching YzemanBot...*\n\nTap the button below to open the mini app!`,
             {
@@ -2352,7 +2366,7 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // LAUNCH BOT
+    // LAUNCH BOT IN POLLING MODE
     // ============================================
     
     bot.launch()
@@ -2363,6 +2377,7 @@ if (process.env.BOT_TOKEN) {
             console.error('❌ Bot failed to start:', err.message);
         });
     
+    // Graceful stop
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }
