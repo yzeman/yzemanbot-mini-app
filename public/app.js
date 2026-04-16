@@ -169,98 +169,135 @@ async function apiCall(endpoint, data = null) {
 }
 
 // ============================================================
-// AUDIO MANAGER (Background Music + Sound Effects)
+// AUDIO MANAGER (Background Music + Sound Effects) - IMPROVED
 // ============================================================
 
 const AudioManager = {
     bgMusic: null,
     sounds: {},
-    musicEnabled: localStorage.getItem('musicEnabled') === 'true',
-    sfxEnabled: localStorage.getItem('sfxEnabled') !== 'false', // Default true
+    initialized: false,
+    userInteracted: false,
+    
+    // Volume settings from localStorage
+    bgmVolume: parseFloat(localStorage.getItem('bgmVolume')) ?? 0.3,
+    sfxVolume: parseFloat(localStorage.getItem('sfxVolume')) ?? 0.5,
+    bgmEnabled: localStorage.getItem('bgmEnabled') !== 'false', // default true
+    sfxEnabled: localStorage.getItem('sfxEnabled') !== 'false',
     
     init() {
-        // Create background music element
+        if (this.initialized) return;
+        
+        // Create background music
         this.bgMusic = new Audio('/sounds/bground.mp3');
         this.bgMusic.loop = true;
-        this.bgMusic.volume = 0.3;
+        this.bgMusic.volume = this.bgmEnabled ? this.bgmVolume : 0;
         
-        // Restore saved playback position (for seamless cross-page continuation)
+        // Restore playback position
         const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
-        if (savedTime > 0) {
-            this.bgMusic.currentTime = savedTime;
+        if (savedTime > 0) this.bgMusic.currentTime = savedTime;
+        
+        // Preload sound effects
+        const soundFiles = {
+            click: '/sounds/click.mp3',
+            notification: '/sounds/notification.mp3',
+            reward: '/sounds/reward.mp3',
+            error: '/sounds/error.mp3',
+            success: '/sounds/success.mp3'
+        };
+        
+        for (const [name, path] of Object.entries(soundFiles)) {
+            const audio = new Audio(path);
+            audio.preload = 'auto';
+            audio.volume = this.sfxEnabled ? this.sfxVolume : 0;
+            this.sounds[name] = audio;
         }
         
-        // Preload sound effects with your exact file names
-        this.sounds.click = new Audio('/sounds/click.mp3');
-        this.sounds.notification = new Audio('/sounds/notification.mp3');
-        this.sounds.reward = new Audio('/sounds/reward.mp3');
-        this.sounds.error = new Audio('/sounds/error.mp3');
-        this.sounds.success = new Audio('/sounds/success.mp3');
-        
-        // Set volumes
-        Object.values(this.sounds).forEach(sound => sound.volume = 0.5);
-        
-        // Save playback time periodically for cross-page continuity
+        // Save playback time every second
         setInterval(() => {
-            if (this.musicEnabled && this.bgMusic && !this.bgMusic.paused) {
+            if (this.bgmEnabled && this.bgMusic && !this.bgMusic.paused) {
                 localStorage.setItem('bgMusicTime', this.bgMusic.currentTime);
             }
         }, 1000);
         
-        // If music was enabled, attempt to resume (requires user gesture)
-        if (this.musicEnabled) {
-            console.log('Music enabled, waiting for interaction to resume...');
+        // Try to resume music if it was playing before
+        if (this.bgmEnabled) {
+            this._attemptPlay();
         }
         
-        this.updateMusicToggleUI();
-        this.updateSFXToggleUI();
+        this.initialized = true;
+        console.log('AudioManager initialized');
     },
     
-    enableMusic() {
-        this.musicEnabled = true;
-        localStorage.setItem('musicEnabled', 'true');
+    _attemptPlay() {
+        if (!this.bgMusic) return;
         const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
         this.bgMusic.currentTime = savedTime;
-        this.bgMusic.play().catch(e => console.warn('Play failed, waiting for interaction:', e));
-        this.updateMusicToggleUI();
+        this.bgMusic.play().catch(e => {
+            // Expected if no user interaction yet
+            console.log('Waiting for user interaction to play music');
+        });
     },
     
-    disableMusic() {
-        this.musicEnabled = false;
-        localStorage.setItem('musicEnabled', 'false');
-        localStorage.setItem('bgMusicTime', this.bgMusic.currentTime);
-        this.bgMusic.pause();
-        this.updateMusicToggleUI();
-    },
-    
-    toggleMusic() {
-        if (this.musicEnabled) {
-            this.disableMusic();
-        } else {
-            this.enableMusic();
+    // Called after any user click to unlock audio
+    unlockAudio() {
+        if (this.userInteracted) return;
+        this.userInteracted = true;
+        
+        // Resume music if enabled
+        if (this.bgmEnabled && this.bgMusic) {
+            this._attemptPlay();
         }
-        // Try to resume on any music toggle click (user gesture)
-        AudioManager.tryResumeMusic();
+        
+        // Pre-unlock sound effects by playing silent
+        Object.values(this.sounds).forEach(sound => {
+            sound.volume = 0;
+            sound.play().then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+                sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
+            }).catch(() => {});
+        });
     },
     
-    enableSFX() {
-        this.sfxEnabled = true;
-        localStorage.setItem('sfxEnabled', 'true');
-        this.updateSFXToggleUI();
-    },
-    
-    disableSFX() {
-        this.sfxEnabled = false;
-        localStorage.setItem('sfxEnabled', 'false');
-        this.updateSFXToggleUI();
-    },
-    
-    toggleSFX() {
-        if (this.sfxEnabled) {
-            this.disableSFX();
-        } else {
-            this.enableSFX();
+    // Volume controls
+    setBgmVolume(value) {
+        this.bgmVolume = Math.max(0, Math.min(1, value));
+        localStorage.setItem('bgmVolume', this.bgmVolume);
+        if (this.bgMusic) {
+            this.bgMusic.volume = this.bgmEnabled ? this.bgmVolume : 0;
         }
+        this.updateVolumeUI();
+    },
+    
+    setSfxVolume(value) {
+        this.sfxVolume = Math.max(0, Math.min(1, value));
+        localStorage.setItem('sfxVolume', this.sfxVolume);
+        Object.values(this.sounds).forEach(sound => {
+            sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
+        });
+        this.updateVolumeUI();
+    },
+    
+    toggleBgm() {
+        this.bgmEnabled = !this.bgmEnabled;
+        localStorage.setItem('bgmEnabled', this.bgmEnabled);
+        if (this.bgmEnabled) {
+            this.bgMusic.volume = this.bgmVolume;
+            this._attemptPlay();
+        } else {
+            this.bgMusic.pause();
+            this.bgMusic.volume = 0;
+        }
+        this.updateVolumeUI();
+    },
+    
+    toggleSfx() {
+        this.sfxEnabled = !this.sfxEnabled;
+        localStorage.setItem('sfxEnabled', this.sfxEnabled);
+        Object.values(this.sounds).forEach(sound => {
+            sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
+        });
+        this.updateVolumeUI();
     },
     
     playSound(soundName) {
@@ -268,61 +305,68 @@ const AudioManager = {
         const sound = this.sounds[soundName];
         if (sound) {
             sound.currentTime = 0;
-            sound.play().catch(e => console.warn(`Sound "${soundName}" play failed:`, e));
+            sound.play().catch(e => console.warn(`Sound "${soundName}" failed:`, e));
         }
     },
     
-    updateMusicToggleUI() {
-        const btn = document.getElementById('musicToggleBtn');
-        if (btn) {
-            btn.innerHTML = this.musicEnabled ? '<i class="fas fa-music"></i>' : '<i class="fas fa-music" style="opacity:0.5;"></i>';
-        }
+    updateVolumeUI() {
+        // Update sliders and toggle buttons if they exist
+        const bgmSlider = document.getElementById('bgmVolumeSlider');
+        const sfxSlider = document.getElementById('sfxVolumeSlider');
+        const bgmToggle = document.getElementById('bgmToggleBtn');
+        const sfxToggle = document.getElementById('sfxToggleBtn');
+        
+        if (bgmSlider) bgmSlider.value = this.bgmVolume;
+        if (sfxSlider) sfxSlider.value = this.sfxVolume;
+        if (bgmToggle) bgmToggle.innerHTML = this.bgmEnabled ? '<i class="fas fa-music"></i>' : '<i class="fas fa-music" style="opacity:0.4;"></i>';
+        if (sfxToggle) sfxToggle.innerHTML = this.sfxEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
     },
     
-    updateSFXToggleUI() {
-        const btn = document.getElementById('sfxToggleBtn');
-        if (btn) {
-            btn.innerHTML = this.sfxEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
-        }
-    },
-    
-    tryResumeMusic() {
-        if (this.musicEnabled && this.bgMusic.paused) {
-            const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
-            this.bgMusic.currentTime = savedTime;
-            this.bgMusic.play().catch(e => console.warn('Resume failed:', e));
+    // Force music to play (called after user interaction)
+    ensureMusicPlaying() {
+        this.unlockAudio();
+        if (this.bgmEnabled && this.bgMusic && this.bgMusic.paused) {
+            this._attemptPlay();
         }
     }
 };
 
-// Initialize immediately
+// Initialize
 AudioManager.init();
 
-// Override showNotification to play appropriate sound
+// Unlock audio on first user interaction anywhere
+document.addEventListener('click', function unlockOnce() {
+    AudioManager.unlockAudio();
+    document.removeEventListener('click', unlockOnce);
+}, { once: true, capture: true });
+
+// Also try to play on any click (ensures music starts quickly)
+document.addEventListener('click', () => {
+    AudioManager.ensureMusicPlaying();
+}, { passive: true });
+
+// Override notification and celebration to use sound effects
 const originalShowNotification = showNotification;
 showNotification = function(msg, isError = false) {
     originalShowNotification(msg, isError);
     AudioManager.playSound(isError ? 'error' : 'notification');
 };
 
-// Override showCelebration to play reward sound
 const originalShowCelebration = showCelebration;
 showCelebration = function(msg, points) {
     originalShowCelebration(msg, points);
     AudioManager.playSound('reward');
 };
 
-// Global click handler for all interactive elements (plays click sound)
+// Play click sound on any button-like element
 document.addEventListener('click', function(e) {
-    // Find closest interactive element
     const target = e.target.closest('button, .feature-card, .tab, .task-card, .ad-card, .nav-item, .copy-btn, [onclick]');
     if (target) {
         AudioManager.playSound('click');
-        AudioManager.tryResumeMusic(); // Attempt to start music on any click
     }
 }, true);
 
-// Expose to window for inline onclick handlers
+// Expose to window
 window.AudioManager = AudioManager;
 
 // ============================================================
@@ -1102,15 +1146,8 @@ async function loadWheelStatus() {
 async function init() {
     initMonetag();
     
-    // Initialize AudioManager UI
-    AudioManager.updateMusicToggleUI();
-    AudioManager.updateSFXToggleUI();
-    
-    // Try to resume background music on first user interaction
-    document.body.addEventListener('click', function resumeOnce() {
-        AudioManager.tryResumeMusic();
-        document.body.removeEventListener('click', resumeOnce);
-    }, { once: true });
+    // Update audio settings UI if sliders exist
+    AudioManager.updateVolumeUI();
     
     currentUser = await registerUser();
     if (currentUser) {
