@@ -652,12 +652,13 @@ async function handleTaskClick(taskKey) {
     startTimer(taskKey, task);
 }
 
-// Make task functions available globally (for index.html)
+// Make task functions globally available (add this at the end of app.js)
+window.TASK_CONFIG = window.TASK_CONFIG || {};
+window.handleTaskClick = handleTaskClick;
+window.cancelTask = cancelTask;
+window.startTimer = startTimer;
 window.checkTask = checkTask;
 window.completeTask = completeTask;
-window.startTimer = startTimer;
-window.cancelTask = cancelTask;
-window.handleTaskClick = handleTaskClick;
 
 // ============================================================
 // YOUTUBE & WEBSITE TASKS (legacy functions, kept for compatibility)
