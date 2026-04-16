@@ -220,6 +220,20 @@ async function initDB() {
       )
     `);
 
+    // ============================================
+    // NEW: Social Tasks Table for One-Time Rewards
+    // ============================================
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS social_tasks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        task_name TEXT NOT NULL,
+        completed_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, task_name)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_social_tasks_user_task ON social_tasks(user_id, task_name)`);
+
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
         ('Loyal User', '30 day login streak', '🔥', 30, 50000000),
@@ -239,7 +253,7 @@ async function initDB() {
     `);
 
     await client.query('COMMIT');
-    console.log('✅ Database initialized successfully');
+    console.log('✅ Database initialized successfully (including social_tasks table)');
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('❌ Database initialization failed:', err.stack);
@@ -676,39 +690,107 @@ app.post('/api/ad-stats', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// SOCIAL TASKS API - SIMPLE VERSION
+// NEW: SOCIAL TASKS API - ONE-TIME REWARDS
 // ============================================
 
+// Check if a task has been completed by the user
 app.post('/api/check-task', verifyTelegramData, async (req, res) => {
-    const { taskName } = req.body;
-    const telegramId = req.telegramUser.id;
-    try {
-        const user = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-        if (user.rows.length === 0) return res.json({ completed: false });
-        const task = await pool.query('SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2', [user.rows[0].id, taskName]);
-        res.json({ completed: task.rows.length > 0 });
-    } catch(e) { res.json({ completed: false }); }
+  const { taskName } = req.body;
+  const telegramId = req.telegramUser.id;
+  
+  try {
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.json({ completed: false });
+    }
+    
+    const userId = userResult.rows[0].id;
+    
+    const taskResult = await pool.query(
+      'SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2',
+      [userId, taskName]
+    );
+    
+    res.json({ completed: taskResult.rows.length > 0 });
+  } catch (err) {
+    console.error('Check task error:', err);
+    res.status(500).json({ error: 'Failed to check task status' });
+  }
 });
 
+// Complete a task and award points (ensuring one-time reward)
 app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
-    const { taskName, points } = req.body;
-    const telegramId = req.telegramUser.id;
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        const user = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-        if (user.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-        const userId = user.rows[0].id;
-        const existing = await client.query('SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2', [userId, taskName]);
-        if (existing.rows.length > 0) return res.status(400).json({ error: 'Already completed' });
-        await client.query('UPDATE users SET points = points + $1 WHERE id = $2', [points, userId]);
-        await client.query('INSERT INTO social_tasks (user_id, task_name) VALUES ($1, $2)', [userId, taskName]);
-        await client.query('COMMIT');
-        res.json({ success: true, message: `+${points/1000000} COINS!` });
-    } catch(e) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Failed' });
-    } finally { client.release(); }
+  const { taskName, points } = req.body;
+  const telegramId = req.telegramUser.id;
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Get user ID
+    const userResult = await client.query(
+      'SELECT id, points FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const userId = userResult.rows[0].id;
+    
+    // Check if task already completed
+    const existing = await client.query(
+      'SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2',
+      [userId, taskName]
+    );
+    if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Task already completed' });
+    }
+    
+    // Award points to user
+    await client.query(
+      'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
+      [points, userId]
+    );
+    
+    // Record task completion
+    await client.query(
+      'INSERT INTO social_tasks (user_id, task_name) VALUES ($1, $2)',
+      [userId, taskName]
+    );
+    
+    // Check for "Social Butterfly" achievement (complete all social tasks)
+    const socialTasks = ['youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+    const completedTasksResult = await client.query(
+      'SELECT task_name FROM social_tasks WHERE user_id = $1 AND task_name = ANY($2::text[])',
+      [userId, socialTasks]
+    );
+    
+    // If all social tasks are completed, award achievement
+    if (completedTasksResult.rows.length === socialTasks.length) {
+      await awardAchievement(userId, 'Social Butterfly');
+    }
+    
+    await client.query('COMMIT');
+    
+    const coinsEarned = (points / POINTS_PER_COIN).toFixed(2);
+    res.json({ 
+      success: true, 
+      message: `+${coinsEarned} COINS earned!` 
+    });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Complete task error:', err);
+    res.status(500).json({ error: 'Failed to complete task' });
+  } finally {
+    client.release();
+  }
 });
 
 // ============================================
@@ -1286,15 +1368,15 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Join a team by code (with proper error handling)
+// Join a team by code
 app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
     const { teamCode } = req.body;
     const telegramId = req.telegramUser.id;
     
-    if (!teamCode || teamCode.trim().length < 4) {
-      return res.status(400).json({ error: 'Invalid team code' });
+    if (!teamCode) {
+      return res.status(400).json({ error: 'Team code is required' });
     }
     
     const userResult = await client.query(
@@ -1309,37 +1391,37 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     
     if (userResult.rows[0].team_id) {
-      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
+      return res.status(400).json({ error: 'You are already in a team' });
     }
     
     const teamResult = await client.query(
-      'SELECT * FROM teams WHERE code = $1',
-      [teamCode.trim().toUpperCase()]
+      'SELECT id FROM teams WHERE code = $1',
+      [teamCode.toUpperCase()]
     );
     
     if (teamResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
+      return res.status(404).json({ error: 'Invalid team code' });
     }
     
-    const team = teamResult.rows[0];
+    const teamId = teamResult.rows[0].id;
     
     await client.query('BEGIN');
     
     await client.query(
       'INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)',
-      [team.id, userId]
+      [teamId, userId]
     );
     
     await client.query(
       'UPDATE users SET team_id = $1 WHERE id = $2',
-      [team.id, userId]
+      [teamId, userId]
     );
     
     await awardAchievement(userId, 'Team Player');
     
     await client.query('COMMIT');
     
-    res.json({ success: true, team });
+    res.json({ success: true, message: 'Joined team successfully!' });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Join team error:', err);
@@ -1349,74 +1431,31 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Get user's team info (or team info by ID for admin panel)
-app.post('/api/team/info', verifyTelegramData, async (req, res) => {
-  try {
-    let teamId = req.body.teamId;
-    const telegramId = req.telegramUser?.id;
-    
-    if (!teamId && telegramId) {
-      const userResult = await pool.query(
-        'SELECT team_id FROM users WHERE telegram_id = $1',
-        [telegramId]
-      );
-      if (userResult.rows.length > 0 && userResult.rows[0].team_id) {
-        teamId = userResult.rows[0].team_id;
-      }
-    }
-    
-    if (!teamId) {
-      return res.json({ has_team: false });
-    }
-    
-    const teamResult = await pool.query(`
-      SELECT t.*, 
-        COALESCE(SUM(u.points), 0) as total_points,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.referrals), 0) as total_referrals
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      WHERE t.id = $1
-      GROUP BY t.id
-    `, [teamId]);
-    
-    if (teamResult.rows.length === 0) {
-      return res.json({ has_team: false });
-    }
-    
-    const team = teamResult.rows[0];
-    
-    const membersResult = await pool.query(`
-      SELECT u.id, u.telegram_id, u.first_name, u.username, u.photo_url, u.points, u.referrals, u.tier,
-        (u.id = t.created_by) as is_leader,
-        tm.joined_at
-      FROM team_members tm
-      JOIN users u ON tm.user_id = u.id
-      JOIN teams t ON tm.team_id = t.id
-      WHERE tm.team_id = $1
-      ORDER BY tm.joined_at ASC, u.points DESC
-    `, [teamId]);
-    
-    res.json({
-      has_team: true,
-      team,
-      members: membersResult.rows
-    });
-  } catch (err) {
-    console.error('Team info error:', err);
-    res.status(500).json({ error: 'Failed to fetch team info' });
-  }
-});
+// ============================================
+// BONUS CODE API
+// ============================================
 
-// Leave team (with leader reassignment and auto-delete)
-app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
+app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
+  const { code } = req.body;
+  const telegramId = req.telegramUser.id;
   const client = await pool.connect();
+  
   try {
-    const telegramId = req.telegramUser.id;
+    // For now, a simple static bonus code system
+    const bonusCodes = {
+      'WELCOME': 5000000,
+      'YZEMAN': 10000000,
+      'BONUS100': 100000000
+    };
+    
+    if (!code || !bonusCodes[code]) {
+      return res.status(400).json({ error: 'Invalid bonus code' });
+    }
+    
+    const rewardPoints = bonusCodes[code];
     
     const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      'SELECT id FROM users WHERE telegram_id = $1',
       [telegramId]
     );
     
@@ -1425,197 +1464,70 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
     }
     
     const userId = userResult.rows[0].id;
-    const teamId = userResult.rows[0].team_id;
     
-    if (!teamId) {
-      return res.status(400).json({ error: 'You are not in a team' });
-    }
-    
-    const teamResult = await client.query(
-      'SELECT created_by FROM teams WHERE id = $1',
-      [teamId]
+    // Check if already redeemed
+    const existing = await client.query(
+      'SELECT * FROM bonus_redemptions WHERE user_id = $1 AND bonus_code = $2',
+      [userId, code]
     );
     
-    const isLeader = teamResult.rows[0]?.created_by === userId;
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Bonus code already redeemed' });
+    }
     
     await client.query('BEGIN');
     
     await client.query(
-      'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
-      [teamId, userId]
+      'INSERT INTO bonus_redemptions (user_id, bonus_code, reward_points) VALUES ($1, $2, $3)',
+      [userId, code, rewardPoints]
     );
     
     await client.query(
-      'UPDATE users SET team_id = NULL WHERE id = $1',
-      [userId]
+      'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
+      [rewardPoints, userId]
     );
-    
-    const remainingMembers = await client.query(
-      'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
-      [teamId]
-    );
-    
-    if (remainingMembers.rows.length === 0) {
-      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-      console.log(`🗑️ Team ${teamId} deleted (no members remaining)`);
-    } else if (isLeader && remainingMembers.rows.length > 0) {
-      const newLeaderId = remainingMembers.rows[0].user_id;
-      await client.query(
-        'UPDATE teams SET created_by = $1 WHERE id = $2',
-        [newLeaderId, teamId]
-      );
-      console.log(`👑 New leader assigned to team ${teamId}: user ${newLeaderId}`);
-    }
     
     await client.query('COMMIT');
     
-    res.json({ success: true });
+    const coinsEarned = (rewardPoints / POINTS_PER_COIN).toFixed(2);
+    res.json({ 
+      success: true, 
+      message: `Bonus code redeemed! +${coinsEarned} COINS added!` 
+    });
+    
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Leave team error:', err);
-    res.status(500).json({ error: 'Failed to leave team' });
+    console.error('Redeem bonus error:', err);
+    res.status(500).json({ error: 'Failed to redeem bonus' });
   } finally {
     client.release();
   }
 });
 
-// Team leaderboard
-app.get('/api/team/leaderboard', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name, t.code,
-        COALESCE(SUM(u.points), 0) as total_points,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name
-      FROM teams t
-      LEFT JOIN team_members tm ON t.id = tm.team_id
-      LEFT JOIN users u ON tm.user_id = u.id
-      GROUP BY t.id
-      ORDER BY total_points DESC
-      LIMIT 50
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Team leaderboard error:', err);
-    res.status(500).json({ error: 'Failed to fetch leaderboard' });
-  }
-});
-
-// Monthly competition standings
-app.post('/api/team/monthly-competition', async (req, res) => {
-  try {
-    const now = new Date();
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name,
-        COALESCE(SUM(u.points), 0) as team_points,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name
-      FROM teams t
-      JOIN team_members tm ON t.id = tm.team_id
-      JOIN users u ON tm.user_id = u.id
-      GROUP BY t.id
-      ORDER BY team_points DESC
-      LIMIT 10
-    `);
-    
-    res.json({
-      month: currentMonth,
-      standings: result.rows
-    });
-  } catch (err) {
-    console.error('Monthly competition error:', err);
-    res.status(500).json({ error: 'Failed to fetch monthly standings' });
-  }
-});
-
-// Check if team name exists
-app.post('/api/team/check-name', verifyTelegramData, async (req, res) => {
-  try {
-    const { teamName } = req.body;
-    if (!teamName) {
-      return res.json({ exists: false });
-    }
-    
-    const result = await pool.query(
-      'SELECT id FROM teams WHERE name = $1',
-      [teamName.trim()]
-    );
-    
-    res.json({ exists: result.rows.length > 0 });
-  } catch (err) {
-    console.error('Check team name error:', err);
-    res.json({ exists: false });
-  }
-});
-
-// Check if team code exists
-app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
-  try {
-    const { teamCode } = req.body;
-    if (!teamCode) {
-      return res.json({ exists: false });
-    }
-    
-    const result = await pool.query(
-      'SELECT id, name FROM teams WHERE code = $1',
-      [teamCode.trim().toUpperCase()]
-    );
-    
-    res.json({ 
-      exists: result.rows.length > 0,
-      teamName: result.rows[0]?.name || null
-    });
-  } catch (err) {
-    console.error('Check team code error:', err);
-    res.json({ exists: false });
-  }
-});
-
-// ============================================
-// BONUS REDEMPTION API
-// ============================================
-
-app.post('/api/bonus-redeem', verifyTelegramData, async (req, res) => {
-  const { bonusCode, points } = req.body;
-  const telegramId = req.telegramUser.id;
-  
-  try {
-    const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    
-    const userId = userResult.rows[0].id;
-    await pool.query(
-      'INSERT INTO bonus_redemptions (user_id, bonus_code, reward_points) VALUES ($1, $2, $3)',
-      [userId, bonusCode, points]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Bonus redeem error:', err);
-    res.status(500).json({ error: 'Failed to save bonus redemption' });
-  }
-});
-
 app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
-  const telegramId = req.telegramUser.id;
-  
   try {
-    const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) return res.json([]);
+    const telegramId = req.telegramUser.id;
+    
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.json([]);
+    }
     
     const userId = userResult.rows[0].id;
-    const history = await pool.query(`
-      SELECT bonus_code, reward_points, redeemed_at
-      FROM bonus_redemptions WHERE user_id = $1
-      ORDER BY redeemed_at DESC
-    `, [userId]);
+    
+    const history = await pool.query(
+      'SELECT bonus_code, reward_points, redeemed_at FROM bonus_redemptions WHERE user_id = $1 ORDER BY redeemed_at DESC',
+      [userId]
+    );
+    
     res.json(history.rows);
   } catch (err) {
     console.error('Bonus history error:', err);
-    res.json([]);
+    res.status(500).json({ error: 'Failed to fetch bonus history' });
   }
 });
 
@@ -1624,203 +1536,14 @@ app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
 // ============================================
 
 app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { amount, walletAddress } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    const userResult = await client.query('SELECT id, points FROM users WHERE telegram_id = $1', [String(telegramId)]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    
-    const user = userResult.rows[0];
-    const pointsNeeded = amount * POINTS_PER_COIN;
-    
-    if (amount < MIN_WITHDRAWAL_COINS) {
-      return res.status(400).json({ error: `Minimum withdrawal is ${MIN_WITHDRAWAL_COINS} COINS` });
-    }
-    
-    if (user.points < pointsNeeded) {
-      return res.status(400).json({ error: `Insufficient points. You need ${MIN_WITHDRAWAL_COINS} COINS to withdraw.` });
-    }
-    
-    await client.query('BEGIN');
-    await client.query('UPDATE users SET points = points - $1 WHERE id = $2', [pointsNeeded, user.id]);
-    await client.query(
-      `INSERT INTO withdrawals (user_id, amount, wallet_address, status) VALUES ($1, $2, $3, 'pending')`,
-      [user.id, amount, walletAddress]
-    );
-    await client.query('COMMIT');
-    res.json({ success: true, message: 'Withdrawal request submitted' });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Withdrawal Error:', err);
-    res.status(500).json({ error: 'Failed to process withdrawal' });
-  } finally {
-    client.release();
-  }
-});
-
-// ============================================
-// HEALTH CHECK
-// ============================================
-
-app.get('/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.status(200).json({ status: 'OK', uptime: process.uptime(), timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(503).json({ status: 'DB unavailable' });
-  }
-});
-
-// ============================================
-// WEBHOOK HEALTH CHECK (Required for Render)
-// ============================================
-
-app.get('/webhook', (req, res) => {
-    res.status(200).send('Webhook is active');
-});
-
-app.post('/webhook', (req, res) => {
-    res.status(200).send('OK');
-});
-
-// ============================================
-// ADMIN DELETE USER - COMPLETE CLEANUP WITH TEAM HANDLING
-// ============================================
-
-app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
-  const { userId } = req.body;
+  const { amount, walletAddress } = req.body;
+  const telegramId = req.telegramUser.id;
   const client = await pool.connect();
   
   try {
-    await client.query('BEGIN');
-    
-    // Get user info before deletion (for team handling)
     const userResult = await client.query(
-      'SELECT id, team_id, telegram_id, first_name FROM users WHERE id = $1',
-      [userId]
-    );
-    
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const user = userResult.rows[0];
-    const teamId = user.team_id;
-    let wasLeader = false;
-    let teamDeleted = false;
-    
-    // If user was in a team, handle team cleanup
-    if (teamId) {
-      const teamResult = await client.query(
-        'SELECT created_by FROM teams WHERE id = $1',
-        [teamId]
-      );
-      
-      if (teamResult.rows.length > 0) {
-        wasLeader = teamResult.rows[0].created_by === userId;
-        
-        await client.query(
-          'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
-          [teamId, userId]
-        );
-        
-        const remainingMembers = await client.query(
-          'SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC',
-          [teamId]
-        );
-        
-        if (remainingMembers.rows.length === 0) {
-          await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-          teamDeleted = true;
-          console.log(`🗑️ Team ${teamId} deleted (no members remaining after user deletion)`);
-        } else if (wasLeader && remainingMembers.rows.length > 0) {
-          const newLeaderId = remainingMembers.rows[0].user_id;
-          await client.query(
-            'UPDATE teams SET created_by = $1 WHERE id = $2',
-            [newLeaderId, teamId]
-          );
-          console.log(`👑 New leader assigned to team ${teamId}: user ${newLeaderId} after leader deletion`);
-        }
-      }
-    }
-    
-    // Delete all user-related data (complete cleanup)
-    
-    // 1. Delete from referrals (where user is referrer OR referred)
-    await client.query(
-      'DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1',
-      [userId]
-    );
-    
-    // 2. Delete ad rewards
-    await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [userId]);
-    
-    // 3. Delete withdrawals
-    await client.query('DELETE FROM withdrawals WHERE user_id = $1', [userId]);
-    
-    // 4. Delete daily rewards
-    await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [userId]);
-    
-    // 5. Delete wheel spins
-    await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [userId]);
-    
-    // 6. Delete user achievements
-    await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
-    
-    // 7. Delete tournament participants
-    await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [userId]);
-    
-    // 8. Delete team_members (already done above if in team, but safe to do again)
-    await client.query('DELETE FROM team_members WHERE user_id = $1', [userId]);
-    
-    // 9. Delete ad statistics
-    await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [userId]);
-    
-    // 10. Delete bonus redemptions
-    await client.query('DELETE FROM bonus_redemptions WHERE user_id = $1', [userId]);
-    
-    // 11. Delete pending referrals (NEW - cleanup referral cache)
-    await client.query('DELETE FROM pending_referrals WHERE telegram_id = $1', [user.telegram_id]);
-    
-    // 12. Finally, delete the user
-    await client.query('DELETE FROM users WHERE id = $1', [userId]);
-    
-    await client.query('COMMIT');
-    
-    console.log(`✅ User ${userId} (${user.first_name || 'Unknown'}) completely deleted. Team cleanup: ${teamDeleted ? 'Team deleted' : (wasLeader ? 'New leader assigned' : 'Just removed from team')}`);
-    
-    res.json({ 
-      success: true, 
-      message: 'User completely deleted',
-      teamHandled: teamId ? true : false,
-      teamDeleted: teamDeleted
-    });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Delete user error:', err);
-    res.status(500).json({ error: 'Failed to delete user: ' + err.message });
-  } finally {
-    client.release();
-  }
-});
-
-// ============================================
-// ADMIN REMOVE MEMBER FROM TEAM
-// ============================================
-
-app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
-  const { teamId, memberTelegramId } = req.body;
-  const client = await pool.connect();
-  
-  try {
-    await client.query('BEGIN');
-    
-    const userResult = await client.query(
-      'SELECT id, team_id FROM users WHERE telegram_id = $1',
-      [memberTelegramId]
+      'SELECT id, points FROM users WHERE telegram_id = $1',
+      [telegramId]
     );
     
     if (userResult.rows.length === 0) {
@@ -1828,792 +1551,72 @@ app.post('/api/team/remove-member', verifyAdmin, async (req, res) => {
     }
     
     const userId = userResult.rows[0].id;
+    const userPoints = userResult.rows[0].points;
+    const coins = userPoints / POINTS_PER_COIN;
     
-    if (userResult.rows[0].team_id !== teamId) {
-      return res.status(400).json({ error: 'User is not in this team' });
+    if (coins < MIN_WITHDRAWAL_COINS) {
+      return res.status(400).json({ error: `Minimum withdrawal is ${MIN_WITHDRAWAL_COINS} COINS` });
     }
     
-    const teamResult = await client.query(
-      'SELECT created_by FROM teams WHERE id = $1',
-      [teamId]
-    );
-    
-    const isLeader = teamResult.rows[0]?.created_by === userId;
-    
-    await client.query(
-      'DELETE FROM team_members WHERE team_id = $1 AND user_id = $2',
-      [teamId, userId]
-    );
-    
-    await client.query(
-      'UPDATE users SET team_id = NULL WHERE id = $1',
-      [userId]
-    );
-    
-    const remainingMembers = await client.query(
-      'SELECT user_id FROM team_members WHERE team_id = $1',
-      [teamId]
-    );
-    
-    if (remainingMembers.rows.length === 0) {
-      await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
-      console.log(`🗑️ Team ${teamId} deleted (no members remaining after admin removal)`);
-    } else if (isLeader && remainingMembers.rows.length > 0) {
-      const newLeaderId = remainingMembers.rows[0].user_id;
-      await client.query(
-        'UPDATE teams SET created_by = $1 WHERE id = $2',
-        [newLeaderId, teamId]
-      );
-      console.log(`👑 New leader assigned to team ${teamId} after admin removal`);
+    if (amount < MIN_WITHDRAWAL_COINS) {
+      return res.status(400).json({ error: `Withdrawal amount must be at least ${MIN_WITHDRAWAL_COINS} COINS` });
     }
     
-    await client.query('COMMIT');
+    const pointsToDeduct = amount * POINTS_PER_COIN;
+    if (userPoints < pointsToDeduct) {
+      return res.status(400).json({ error: 'Insufficient balance' });
+    }
     
-    res.json({ success: true, message: 'Member removed from team' });
-    
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('Remove member error:', err);
-    res.status(500).json({ error: 'Failed to remove member' });
-  } finally {
-    client.release();
-  }
-});
-
-// ============================================
-// ADMIN TEAM MANAGEMENT ENDPOINTS
-// ============================================   
-// Admin delete entire team
-app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
-  const { teamId } = req.body;
-  const client = await pool.connect();
-  
-  try {
     await client.query('BEGIN');
     
-    const members = await client.query(
-      'SELECT user_id FROM team_members WHERE team_id = $1',
-      [teamId]
+    await client.query(
+      'UPDATE users SET points = points - $1 WHERE id = $2',
+      [pointsToDeduct, userId]
     );
     
-    for (const member of members.rows) {
-      await client.query(
-        'UPDATE users SET team_id = NULL WHERE id = $1',
-        [member.user_id]
-      );
-    }
-    
-    await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
-    await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+    await client.query(
+      'INSERT INTO withdrawals (user_id, amount, wallet_address, status) VALUES ($1, $2, $3, $4)',
+      [userId, amount, walletAddress, 'pending']
+    );
     
     await client.query('COMMIT');
     
-    console.log(`🗑️ Team ${teamId} deleted by admin. ${members.rows.length} members affected.`);
-    
-    res.json({ success: true, message: 'Team deleted', membersAffected: members.rows.length });
+    res.json({ success: true, message: `Withdrawal request for ${amount} COINS submitted!` });
     
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Delete team error:', err);
-    res.status(500).json({ error: 'Failed to delete team' });
+    console.error('Withdrawal error:', err);
+    res.status(500).json({ error: 'Failed to process withdrawal' });
   } finally {
     client.release();
   }
 });
 
-// ============================================
-// ADMIN API ENDPOINTS
-// ============================================
-
-// Get all users (for admin panel)
-app.get('/api/admin/users', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
-             referral_code, points, tier, referrals, wallet_address, created_at, team_id
-      FROM users 
-      ORDER BY id DESC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Admin users error:', err);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-// Get all withdrawals (for admin panel)
+// Admin endpoint to view withdrawals
 app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT w.*, u.username, u.first_name, u.telegram_id
-      FROM withdrawals w 
+      SELECT w.*, u.telegram_id, u.first_name, u.username 
+      FROM withdrawals w
       JOIN users u ON w.user_id = u.id
       ORDER BY w.created_at DESC
     `);
     res.json(result.rows);
   } catch (err) {
     console.error('Admin withdrawals error:', err);
-    res.json([]);
+    res.status(500).json({ error: 'Failed to fetch withdrawals' });
   }
 });
-
-// Update withdrawal status
-app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
-  const { withdrawalId, status } = req.body;
-  try {
-    const withdrawalResult = await pool.query('SELECT user_id, amount FROM withdrawals WHERE id = $1', [withdrawalId]);
-    if (withdrawalResult.rows.length === 0) return res.status(404).json({ error: 'Withdrawal not found' });
-    
-    const withdrawal = withdrawalResult.rows[0];
-    if (status === 'rejected' || status === 'failed') {
-      const pointsToRefund = withdrawal.amount * POINTS_PER_COIN;
-      await pool.query('UPDATE users SET points = points + $1 WHERE id = $2', [pointsToRefund, withdrawal.user_id]);
-    }
-    
-    await pool.query("UPDATE withdrawals SET status = $1, updated_at = NOW() WHERE id = $2", [status, withdrawalId]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Update withdrawal error:', err);
-    res.status(500).json({ error: 'Failed to update withdrawal' });
-  }
-});
-
-// Add points to user
-app.post('/api/admin/add-points', verifyAdmin, async (req, res) => {
-  const { userId, points } = req.body;
-  try {
-    await pool.query('UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2', [points, userId]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Add points error:', err);
-    res.status(500).json({ error: 'Failed to add points' });
-  }
-});
-
-// Deduct points from user
-app.post('/api/admin/deduct-points', verifyAdmin, async (req, res) => {
-  const { userId, points } = req.body;
-  try {
-    const result = await pool.query('UPDATE users SET points = points - $1 WHERE id = $2 AND points >= $1 RETURNING points', [points, userId]);
-    if (result.rows.length === 0) return res.status(400).json({ error: 'Insufficient points' });
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Deduct points error:', err);
-    res.status(500).json({ error: 'Failed to deduct points' });
-  }
-});
-
-// Get analytics data
-app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
-  try {
-    const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
-    const today = new Date().toISOString().split('T')[0];
-    const activeToday = await pool.query('SELECT COUNT(*) FROM users WHERE last_login_date = $1', [today]);
-    const activeWeek = await pool.query("SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'");
-    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
-    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
-    const totalPoints = await pool.query('SELECT COALESCE(SUM(points), 0) as total FROM users');
-    const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
-    const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
-    const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
-    const dailyActive = await pool.query(`
-      SELECT last_login_date, COUNT(*) as count
-      FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY last_login_date ORDER BY last_login_date DESC
-    `);
-    
-    res.json({
-      totalUsers: parseInt(totalUsers.rows[0].count),
-      activeToday: parseInt(activeToday.rows[0].count),
-      activeWeek: parseInt(activeWeek.rows[0].count),
-      totalAds: parseInt(totalAds.rows[0].count),
-      adsToday: parseInt(adsToday.rows[0].count),
-      totalCoins: Math.floor(parseInt(totalPoints.rows[0].total) / POINTS_PER_COIN),
-      totalReferrals: parseInt(totalReferrals.rows[0].count),
-      pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
-      tierDistribution: tierDistribution.rows,
-      dailyActive: dailyActive.rows
-    });
-  } catch (err) {
-    console.error('Analytics error:', err);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
-  }
-});
-
-// ============================================
-// BONUS CODES API (DATABASE VERSION - FIXED)
-// ============================================
-
-// Get all active bonus codes (admin)
-app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
-    try {
-        const result = await pool.query(
-            'SELECT * FROM bonus_codes ORDER BY created_at DESC'
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Get bonus codes error:', err);
-        res.status(500).json({ error: 'Failed to fetch bonus codes' });
-    }
-});
-
-// Add new bonus code (admin)
-app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
-    const { code, points, description } = req.body;
-    
-    if (!code || !points) {
-        return res.status(400).json({ error: 'Code and points required' });
-    }
-    
-    try {
-        const result = await pool.query(
-            'INSERT INTO bonus_codes (code, points, description, is_active) VALUES ($1, $2, $3, true) RETURNING *',
-            [code.toUpperCase(), points, description || null]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        if (err.code === '23505') {
-            return res.status(400).json({ error: 'Bonus code already exists' });
-        }
-        console.error('Add bonus code error:', err);
-        res.status(500).json({ error: 'Failed to add bonus code' });
-    }
-});
-
-// Delete bonus code (admin) - permanently removes so no one can redeem
-app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
-    const { code } = req.params;
-    try {
-        await pool.query('DELETE FROM bonus_codes WHERE code = $1', [code.toUpperCase()]);
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Delete bonus code error:', err);
-        res.status(500).json({ error: 'Failed to delete bonus code' });
-    }
-});
-
-// Redeem bonus code (user) - ONE TIME ONLY PER USER FOREVER
-app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
-    const { code } = req.body;
-    const telegramId = req.telegramUser.id;
-    
-    if (!code) {
-        return res.status(400).json({ error: 'Bonus code required' });
-    }
-    
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        
-        // Get user
-        const userResult = await client.query(
-            'SELECT id FROM users WHERE telegram_id = $1',
-            [telegramId]
-        );
-        
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        
-        const userId = userResult.rows[0].id;
-        
-        // Check if user already redeemed this code (FOREVER check, not 24 hours)
-        const existingRedemption = await client.query(
-            'SELECT * FROM user_bonus_redemptions WHERE user_id = $1 AND bonus_code = $2',
-            [userId, code.toUpperCase()]
-        );
-        
-        if (existingRedemption.rows.length > 0) {
-            return res.status(400).json({ error: 'You have already redeemed this code' });
-        }
-        
-        // Get bonus code from database (must be active)
-        const bonusResult = await client.query(
-            'SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true',
-            [code.toUpperCase()]
-        );
-        
-        if (bonusResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Invalid bonus code' });
-        }
-        
-        const bonus = bonusResult.rows[0];
-        
-        // Add points to user
-        await client.query(
-            'UPDATE users SET points = points + $1, total_points_earned = total_points_earned + $1 WHERE id = $2',
-            [bonus.points, userId]
-        );
-        
-        // Record redemption (permanent record, never expires)
-        await client.query(
-            'INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)',
-            [userId, code.toUpperCase()]
-        );
-        
-        await client.query('COMMIT');
-        
-        res.json({ 
-            success: true, 
-            points: bonus.points,
-            message: `🎉 You redeemed ${(bonus.points / 1000000).toFixed(2)} COINS!`
-        });
-        
-    } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Redeem bonus error:', err);
-        res.status(500).json({ error: 'Failed to redeem bonus code' });
-    } finally {
-        client.release();
-    }
-});
-
-// Get user's redeemed bonus codes history (all time)
-app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
-    const telegramId = req.telegramUser.id;
-    
-    try {
-        const userResult = await pool.query(
-            'SELECT id FROM users WHERE telegram_id = $1',
-            [telegramId]
-        );
-        
-        if (userResult.rows.length === 0) {
-            return res.json([]);
-        }
-        
-        const userId = userResult.rows[0].id;
-        
-        const history = await pool.query(
-            'SELECT bonus_code, redeemed_at FROM user_bonus_redemptions WHERE user_id = $1 ORDER BY redeemed_at DESC',
-            [userId]
-        );
-        
-        res.json(history.rows);
-    } catch (err) {
-        console.error('Bonus history error:', err);
-        res.json([]);
-    }
-});
-
-// ============================================
-// TELEGRAM BOT - COMPLETE FIXED VERSION
-// ============================================
-
-if (process.env.BOT_TOKEN) {
-    const bot = new Telegraf(process.env.BOT_TOKEN);
-    const MINI_APP_URL = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
-    const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
-    const SUPPORT_URL = 'https://t.me/yzemanreal';
-    const COMMUNITY_URL = 'https://t.me/YzemanEarnBotCommunity';
-    
-    // Hardcoded bot username
-    const BOT_USERNAME = 'YzemanBot';
-    
-    // Store referral codes in memory for 5 minutes
-    const referralCache = new Map();
-    
-    // ============================================
-    // PERSISTENT MENU KEYBOARD
-    // ============================================
-    
-    const mainMenuKeyboard = {
-        reply_markup: {
-            keyboard: [
-                [{ text: "🚀 OPEN YZEMANBOT" }, { text: "💰 MY EARNINGS" }],
-                [{ text: "👥 MY REFERRAL" }, { text: "📢 CHANNEL" }],
-                [{ text: "❓ HELP" }, { text: "ℹ️ ABOUT" }],
-                [{ text: "👤 SUPPORT" }, { text: "🏆 LEADERBOARD" }]
-            ],
-            resize_keyboard: true,
-            persistent: true
-        }
-    };
-    
-    // Helper to store pending referral in cache
-    function storePendingReferral(telegramId, referralCode) {
-        referralCache.set(telegramId, { code: referralCode, timestamp: Date.now() });
-        console.log(`📝 Stored pending referral for ${telegramId}: ${referralCode}`);
-    }
-    
-    // Helper to get and clear pending referral
-    function getAndClearPendingReferral(telegramId) {
-        const pending = referralCache.get(telegramId);
-        if (pending && (Date.now() - pending.timestamp) < 300000) { // 5 minutes expiry
-            referralCache.delete(telegramId);
-            console.log(`🔗 Retrieved pending referral for ${telegramId}: ${pending.code}`);
-            return pending.code;
-        }
-        return null;
-    }
-    
-    // Helper to get user data
-    async function getUserData(telegramId) {
-        try {
-            const result = await pool.query(
-                'SELECT points, referrals, tier, referral_code FROM users WHERE telegram_id = $1',
-                [telegramId]
-            );
-            return result.rows[0] || null;
-        } catch (err) {
-            console.error('Get user error:', err.message);
-            return null;
-        }
-    }
-    
-    async function getUserRank(telegramId) {
-        try {
-            const result = await pool.query(`
-                SELECT COUNT(*) as rank FROM users 
-                WHERE points > (SELECT COALESCE(points, 0) FROM users WHERE telegram_id = $1)
-            `, [telegramId]);
-            return (result.rows[0]?.rank || 0) + 1;
-        } catch (err) {
-            return '?';
-        }
-    }
-    
-    function getNextTier(currentTier) {
-        const tiers = [
-            { name: 'Fresher', refsNeeded: 0, multiplier: 1 },
-            { name: 'Brute', refsNeeded: 150, multiplier: 1.5 },
-            { name: 'Silver', refsNeeded: 350, multiplier: 2 },
-            { name: 'Gold', refsNeeded: 700, multiplier: 2.5 },
-            { name: 'Platinum', refsNeeded: 1500, multiplier: 3 }
-        ];
-        const currentIndex = tiers.findIndex(t => t.name === currentTier);
-        if (currentIndex >= 0 && currentIndex < tiers.length - 1) {
-            return tiers[currentIndex + 1];
-        }
-        return null;
-    }
-    
-    // ============================================
-    // START COMMAND - Stores referral code
-    // ============================================
-    
-    bot.start(async (ctx) => {
-        const userId = ctx.from.id;
-        const firstName = ctx.from.first_name;
-        const startPayload = ctx.startPayload || '';
-        
-        let miniAppUrl = MINI_APP_URL;
-        
-        // Store referral code for this user
-        if (startPayload) {
-            storePendingReferral(userId, startPayload);
-            miniAppUrl += `?start=${startPayload}`;
-        }
-        
-        console.log(`📨 /start from ${firstName}, payload: ${startPayload || 'none'}`);
-        
-        const userData = await getUserData(userId);
-        
-        let message = '';
-        if (userData) {
-            const coins = (userData.points || 0) / 1000000;
-            message = `🎉 *Welcome back, ${firstName}!*\n\n` +
-                `💰 *Balance:* ${coins.toFixed(2)} COINS\n` +
-                `👑 *Tier:* ${userData.tier || 'Fresher'}\n` +
-                `👥 *Referrals:* ${userData.referrals || 0}\n\n` +
-                `🚀 *Tap OPEN YZEMANBOT to continue earning!*`;
-        } else {
-            message = `🎉 *Welcome to YzemanBot, ${firstName}!*\n\n` +
-                `💰 *Earn COINS by:*\n` +
-                `• Watching ads\n` +
-                `• Inviting friends\n` +
-                `• Daily rewards\n` +
-                `• Spinning the wheel\n\n` +
-                `🚀 *Tap OPEN YZEMANBOT to start earning!*\n\n` +
-                `⚠️ *IMPORTANT: Always use OPEN YZEMANBOT to open the app to get your referral bonus!*`;
-        }
-        
-        // Send welcome message with inline button
-        await ctx.reply(message, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '🚀 OPEN YZEMANBOT', web_app: { url: miniAppUrl } }]
-                ]
-            }
-        });
-        
-        // Show persistent menu (without the extra "Choose an option" message)
-        await ctx.reply(`🚀 *Use OPEN YZEMANBOT to launch the app*`, {
-            parse_mode: 'Markdown',
-            ...mainMenuKeyboard
-        });
-    });
-    
-    // ============================================
-    // OPEN YZEMANBOT BUTTON - Main button (renamed from LAUNCH APP)
-    // ============================================
-    
-    bot.hears('🚀 OPEN YZEMANBOT', async (ctx) => {
-        const userId = ctx.from.id;
-        let miniAppUrl = MINI_APP_URL;
-        
-        // Check if there's a pending referral code
-        const pendingCode = getAndClearPendingReferral(userId);
-        if (pendingCode) {
-            miniAppUrl += `?start=${pendingCode}`;
-            console.log(`🔗 OPEN YZEMANBOT using stored referral for ${userId}: ${pendingCode}`);
-        }
-        
-        await ctx.reply(
-            `🚀 *Opening YzemanBot...*`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🚀 LAUNCH APP', web_app: { url: miniAppUrl } }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // ============================================
-    // MY EARNINGS BUTTON
-    // ============================================
-    
-    bot.hears('💰 MY EARNINGS', async (ctx) => {
-        const telegramId = ctx.from.id;
-        const userData = await getUserData(telegramId);
-        
-        if (!userData) {
-            await ctx.reply(
-                `⚠️ *No account yet!*\n\nTap OPEN YZEMANBOT to create your account.`,
-                { parse_mode: 'Markdown', ...mainMenuKeyboard }
-            );
-            return;
-        }
-        
-        const userRank = await getUserRank(telegramId);
-        const coins = (userData.points || 0) / 1000000;
-        const nextTier = getNextTier(userData.tier);
-        
-        let message = `💎 *YOUR EARNINGS*\n\n` +
-            `💰 *Balance:* ${coins.toFixed(2)} COINS\n` +
-            `👑 *Tier:* ${userData.tier || 'Fresher'}\n` +
-            `👥 *Referrals:* ${userData.referrals || 0}\n` +
-            `🏆 *Global Rank:* #${userRank}\n\n`;
-        
-        if (nextTier) {
-            message += `📈 *Next Tier:* ${nextTier.name}\n` +
-                `🎯 *Referrals needed:* ${nextTier.refsNeeded - (userData.referrals || 0)} more\n` +
-                `⚡ *Next multiplier:* ${nextTier.multiplier}x\n\n`;
-        }
-        
-        message += `🎁 *Withdrawal:* Minimum 100,000 COINS`;
-        
-        await ctx.reply(message, {
-            parse_mode: 'Markdown',
-            ...mainMenuKeyboard
-        });
-    });
-    
-    // ============================================
-    // MY REFERRAL BUTTON
-    // ============================================
-    
-    bot.hears('👥 MY REFERRAL', async (ctx) => {
-        const telegramId = ctx.from.id;
-        const userData = await getUserData(telegramId);
-        
-        if (!userData || !userData.referral_code) {
-            await ctx.reply(
-                `⚠️ *Create account first!*\n\nTap OPEN YZEMANBOT to start.`,
-                { parse_mode: 'Markdown', ...mainMenuKeyboard }
-            );
-            return;
-        }
-        
-        const referralLink = `https://t.me/${BOT_USERNAME}?start=${userData.referral_code}`;
-        const coinsEarned = (userData.referrals || 0) * 0.5;
-        
-        const message = `👥 *YOUR REFERRAL PROGRAM*\n\n` +
-            `🔗 *Your Referral Link:*\n` +
-            `\`${referralLink}\`\n\n` +
-            `📊 *Your Stats:*\n` +
-            `• Total Referrals: ${userData.referrals || 0}\n` +
-            `• COINS Earned: ${coinsEarned.toFixed(2)} COINS\n` +
-            `• Current Tier: ${userData.tier || 'Fresher'}\n\n` +
-            `🎁 *Referral Rewards:*\n` +
-            `• You earn 0.5 COINS per referral\n` +
-            `• Your friend earns 0.25 COINS bonus\n\n` +
-            `💡 *Share your link with friends!*`;
-        
-        await ctx.reply(message, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [{ text: '📤 COPY LINK', callback_data: 'copy_link' }]
-                ]
-            }
-        });
-    });
-    
-    bot.action('copy_link', async (ctx) => {
-        const telegramId = ctx.from.id;
-        const userData = await getUserData(telegramId);
-        if (userData && userData.referral_code) {
-            const referralLink = `https://t.me/${BOT_USERNAME}?start=${userData.referral_code}`;
-            await ctx.answerCbQuery();
-            await ctx.reply(`🔗 \`${referralLink}\``, { parse_mode: 'Markdown' });
-        } else {
-            await ctx.answerCbQuery('Error getting link');
-        }
-    });
-    
-    // ============================================
-    // CHANNEL BUTTON
-    // ============================================
-    
-    bot.hears('📢 CHANNEL', async (ctx) => {
-        await ctx.reply(
-            `📢 *Official Channel*\n\nJoin for updates and bonus codes!`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '📢 JOIN CHANNEL', url: CHANNEL_URL }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // ============================================
-    // HELP BUTTON
-    // ============================================
-    
-    bot.hears('❓ HELP', async (ctx) => {
-        await ctx.reply(
-            `📚 *Help Center*\n\n` +
-            `*How to earn:*\n` +
-            `🎬 Watch Ads\n👥 Refer Friends\n📅 Daily Rewards\n` +
-            `🎡 Wheel Spins\n🏆 Tournaments\n\n` +
-            `*Withdrawal:* 100,000 COINS min\n` +
-            `*Support:* @yzemanreal\n\n` +
-            `🚀 *Always use OPEN YZEMANBOT to open the app for referral bonuses!*`,
-            {
-                parse_mode: 'Markdown',
-                ...mainMenuKeyboard
-            }
-        );
-    });
-    
-    // ============================================
-    // ABOUT BUTTON
-    // ============================================
-    
-    bot.hears('ℹ️ ABOUT', async (ctx) => {
-        await ctx.reply(
-            `ℹ️ *YzemanBot v2.0*\n\n` +
-            `Earn COINS through ads, referrals, daily rewards, and wheel spins!\n\n` +
-            `💎 1 COIN = 1,000,000 points\n` +
-            `💰 Withdraw to USDT (100K COINS min)`,
-            {
-                parse_mode: 'Markdown',
-                ...mainMenuKeyboard
-            }
-        );
-    });
-    
-    // ============================================
-    // SUPPORT BUTTON
-    // ============================================
-    
-    bot.hears('👤 SUPPORT', async (ctx) => {
-        await ctx.reply(
-            `👤 *Need Help?*\n\nContact: @yzemanreal\n\nJoin Community: ${COMMUNITY_URL}`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '📧 CONTACT', url: SUPPORT_URL }],
-                        [{ text: '💬 COMMUNITY', url: COMMUNITY_URL }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // ============================================
-    // LEADERBOARD BUTTON
-    // ============================================
-    
-    bot.hears('🏆 LEADERBOARD', async (ctx) => {
-        await ctx.reply(
-            `🏆 *Global Leaderboard*\n\nTap below to view top earners!`,
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: '🏆 VIEW LEADERBOARD', web_app: { url: `${MINI_APP_URL}/leaderboard.html` } }]
-                    ]
-                }
-            }
-        );
-    });
-    
-    // ============================================
-    // DEFAULT RESPONSE
-    // ============================================
-    
-    bot.on('text', async (ctx) => {
-        const text = ctx.message.text;
-        const validCommands = ['🚀 OPEN YZEMANBOT', '💰 MY EARNINGS', '👥 MY REFERRAL', '📢 CHANNEL', '❓ HELP', 'ℹ️ ABOUT', '👤 SUPPORT', '🏆 LEADERBOARD'];
-        
-        if (!validCommands.includes(text) && !text.startsWith('/')) {
-            await ctx.reply(
-                `❓ Please use OPEN YZEMANBOT to launch the app:`,
-                { ...mainMenuKeyboard }
-            );
-        }
-    });
-    
-    // ============================================
-    // LAUNCH BOT
-    // ============================================
-    
-    bot.launch()
-        .then(() => {
-            console.log('🤖 Telegram Bot started successfully!');
-        })
-        .catch((err) => {
-            console.error('❌ Bot failed:', err.message);
-        });
-    
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
-}
 
 // ============================================
 // START SERVER
 // ============================================
 
-async function startServer() {
-  try {
-    await initDB();
-    console.log('✅ Database initialized and ready');
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`========================================`);
-      console.log(`🚀 SERVER IS RUNNING!`);
-      console.log(`📡 Port: ${PORT}`);
-      console.log(`🌐 URL: ${process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com'}`);
-      console.log(`❤️  Health: ${process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com'}/health`);
-      console.log(`💰 1 COIN = ${POINTS_PER_COIN.toLocaleString()} points`);
-      console.log(`💵 Min Withdrawal: ${MIN_WITHDRAWAL_COINS.toLocaleString()} COINS`);
-      console.log(`========================================`);
-    });
-    
-  } catch (err) {
-    console.error('❌ Failed to start server:', err);
-    process.exit(1);
-  }
-}
-
-startServer();
+initDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`✅ YzemanBot server running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
+});
