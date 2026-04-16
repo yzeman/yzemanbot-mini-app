@@ -738,7 +738,6 @@
         // Complete task on backend and refresh balance
         async function completeTaskOnServer(taskName, points) {
             try {
-                // Ensure initData is available
                 const initData = tg?.initData || '';
                 console.log(`📤 Completing task "${taskName}" with ${points} points`);
                 
@@ -747,6 +746,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ taskName, points, initData })
                 });
+                
                 const data = await res.json();
                 
                 if (res.ok && data.success) {
@@ -754,13 +754,14 @@
                     if (window.refreshUser) await window.refreshUser();
                     return true;
                 } else {
-                    const errorMsg = data.error || 'Failed to claim reward';
-                    console.error('Server error:', errorMsg);
+                    // Show the specific error from server
+                    const errorMsg = data.error || `Server error ${res.status}`;
+                    console.error('Server rejected:', errorMsg);
                     showNotification(errorMsg, true);
                     return false;
                 }
             } catch (e) {
-                console.error('Complete task network error:', e);
+                console.error('Network exception:', e);
                 showNotification('Network error. Check connection and try again.', true);
                 return false;
             }
