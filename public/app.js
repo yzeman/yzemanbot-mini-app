@@ -169,7 +169,7 @@ async function apiCall(endpoint, data = null) {
 }
 
 // ============================================================
-// AUDIO MANAGER (Background Music + Sound Effects) - IMPROVED
+// AUDIO MANAGER (Background Music + Sound Effects) - SAFE INIT
 // ============================================================
 
 const AudioManager = {
@@ -178,25 +178,25 @@ const AudioManager = {
     initialized: false,
     userInteracted: false,
     
-    // Volume settings from localStorage
     bgmVolume: parseFloat(localStorage.getItem('bgmVolume')) ?? 0.3,
     sfxVolume: parseFloat(localStorage.getItem('sfxVolume')) ?? 0.5,
-    bgmEnabled: localStorage.getItem('bgmEnabled') !== 'false', // default true
+    bgmEnabled: localStorage.getItem('bgmEnabled') !== 'false',
     sfxEnabled: localStorage.getItem('sfxEnabled') !== 'false',
     
     init() {
         if (this.initialized) return;
         
-        // Create background music
-        this.bgMusic = new Audio('/sounds/bground.mp3');
-        this.bgMusic.loop = true;
-        this.bgMusic.volume = this.bgmEnabled ? this.bgmVolume : 0;
+        try {
+            this.bgMusic = new Audio('/sounds/bground.mp3');
+            this.bgMusic.loop = true;
+            this.bgMusic.volume = this.bgmEnabled ? this.bgmVolume : 0;
+            
+            const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
+            if (savedTime > 0) this.bgMusic.currentTime = savedTime;
+        } catch (e) {
+            console.warn('Background music file not found or invalid:', e);
+        }
         
-        // Restore playback position
-        const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
-        if (savedTime > 0) this.bgMusic.currentTime = savedTime;
-        
-        // Preload sound effects
         const soundFiles = {
             click: '/sounds/click.mp3',
             notification: '/sounds/notification.mp3',
@@ -206,23 +206,21 @@ const AudioManager = {
         };
         
         for (const [name, path] of Object.entries(soundFiles)) {
-            const audio = new Audio(path);
-            audio.preload = 'auto';
-            audio.volume = this.sfxEnabled ? this.sfxVolume : 0;
-            this.sounds[name] = audio;
+            try {
+                const audio = new Audio(path);
+                audio.preload = 'auto';
+                audio.volume = this.sfxEnabled ? this.sfxVolume : 0;
+                this.sounds[name] = audio;
+            } catch (e) {
+                console.warn(`Sound ${name} failed to load:`, e);
+            }
         }
         
-        // Save playback time every second
         setInterval(() => {
             if (this.bgmEnabled && this.bgMusic && !this.bgMusic.paused) {
                 localStorage.setItem('bgMusicTime', this.bgMusic.currentTime);
             }
         }, 1000);
-        
-        // Try to resume music if it was playing before
-        if (this.bgmEnabled) {
-            this._attemptPlay();
-        }
         
         this.initialized = true;
         console.log('AudioManager initialized');
@@ -230,25 +228,20 @@ const AudioManager = {
     
     _attemptPlay() {
         if (!this.bgMusic) return;
+        if (!this.bgmEnabled) return;
         const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
         this.bgMusic.currentTime = savedTime;
-        this.bgMusic.play().catch(e => {
-            // Expected if no user interaction yet
-            console.log('Waiting for user interaction to play music');
-        });
+        this.bgMusic.play().catch(e => {});
     },
     
-    // Called after any user click to unlock audio
     unlockAudio() {
         if (this.userInteracted) return;
         this.userInteracted = true;
         
-        // Resume music if enabled
         if (this.bgmEnabled && this.bgMusic) {
             this._attemptPlay();
         }
         
-        // Pre-unlock sound effects by playing silent
         Object.values(this.sounds).forEach(sound => {
             sound.volume = 0;
             sound.play().then(() => {
@@ -259,7 +252,6 @@ const AudioManager = {
         });
     },
     
-    // Volume controls
     setBgmVolume(value) {
         this.bgmVolume = Math.max(0, Math.min(1, value));
         localStorage.setItem('bgmVolume', this.bgmVolume);
@@ -282,11 +274,12 @@ const AudioManager = {
         this.bgmEnabled = !this.bgmEnabled;
         localStorage.setItem('bgmEnabled', this.bgmEnabled);
         if (this.bgmEnabled) {
-            this.bgMusic.volume = this.bgmVolume;
-            this._attemptPlay();
+            if (this.bgMusic) {
+                this.bgMusic.volume = this.bgmVolume;
+                this._attemptPlay();
+            }
         } else {
-            this.bgMusic.pause();
-            this.bgMusic.volume = 0;
+            if (this.bgMusic) this.bgMusic.pause();
         }
         this.updateVolumeUI();
     },
@@ -305,12 +298,11 @@ const AudioManager = {
         const sound = this.sounds[soundName];
         if (sound) {
             sound.currentTime = 0;
-            sound.play().catch(e => console.warn(`Sound "${soundName}" failed:`, e));
+            sound.play().catch(e => {});
         }
     },
     
     updateVolumeUI() {
-        // Update sliders and toggle buttons if they exist
         const bgmSlider = document.getElementById('bgmVolumeSlider');
         const sfxSlider = document.getElementById('sfxVolumeSlider');
         const bgmToggle = document.getElementById('bgmToggleBtn');
@@ -322,7 +314,6 @@ const AudioManager = {
         if (sfxToggle) sfxToggle.innerHTML = this.sfxEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
     },
     
-    // Force music to play (called after user interaction)
     ensureMusicPlaying() {
         this.unlockAudio();
         if (this.bgmEnabled && this.bgMusic && this.bgMusic.paused) {
@@ -331,42 +322,44 @@ const AudioManager = {
     }
 };
 
-// Initialize
-AudioManager.init();
+// Initialize AudioManager safely
+try {
+    AudioManager.init();
+} catch (e) {
+    console.error('AudioManager init error:', e);
+}
 
-// Unlock audio on first user interaction anywhere
+// Unlock audio on first user interaction
 document.addEventListener('click', function unlockOnce() {
     AudioManager.unlockAudio();
     document.removeEventListener('click', unlockOnce);
 }, { once: true, capture: true });
 
-// Also try to play on any click (ensures music starts quickly)
 document.addEventListener('click', () => {
     AudioManager.ensureMusicPlaying();
 }, { passive: true });
 
-// Override notification and celebration to use sound effects
+// Override notification and celebration (preserve original functionality)
 const originalShowNotification = showNotification;
 showNotification = function(msg, isError = false) {
     originalShowNotification(msg, isError);
-    AudioManager.playSound(isError ? 'error' : 'notification');
+    try { AudioManager.playSound(isError ? 'error' : 'notification'); } catch (e) {}
 };
 
 const originalShowCelebration = showCelebration;
 showCelebration = function(msg, points) {
     originalShowCelebration(msg, points);
-    AudioManager.playSound('reward');
+    try { AudioManager.playSound('reward'); } catch (e) {}
 };
 
-// Play click sound on any button-like element
+// Play click sound on interactive elements
 document.addEventListener('click', function(e) {
     const target = e.target.closest('button, .feature-card, .tab, .task-card, .ad-card, .nav-item, .copy-btn, [onclick]');
     if (target) {
-        AudioManager.playSound('click');
+        try { AudioManager.playSound('click'); } catch (e) {}
     }
 }, true);
 
-// Expose to window
 window.AudioManager = AudioManager;
 
 // ============================================================
@@ -602,7 +595,6 @@ async function preloadMonetagAd() {
         if (!initMonetag()) return;
     }
     
-    // Get user identifier for tracking
     const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
     
     try {
@@ -652,7 +644,6 @@ async function awardAdReward() {
     if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
     if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
     
-    // Preload next ad after successful watch
     adPreloaded = false;
     setTimeout(() => preloadMonetagAd(), 2000);
 }
@@ -685,19 +676,15 @@ window.watchAd = async function() {
     try {
         console.log('📺 Showing Monetag Rewarded Interstitial...');
         
-        // Get user identifier for tracking
         const userId = currentUser.telegram_id || currentUser.id || 'guest';
         
-        // Show the ad - promise resolves ONLY after user finishes watching
         await window.show_9683863({ 
             ymid: String(userId)
         });
         
-        // User watched the ad completely!
         await awardAdReward();
         
     } catch (error) {
-        // Ad failed to load, was skipped, or user closed it early
         console.error('Monetag ad error or skipped:', error);
         adStreak = 0;
         localStorage.setItem('adStreak', '0');
@@ -711,7 +698,6 @@ window.watchAd = async function() {
         }
         showNotification(errorMsg, true);
         
-        // Try to preload another ad
         adPreloaded = false;
         setTimeout(() => preloadMonetagAd(), 3000);
     } finally {
@@ -1147,7 +1133,7 @@ async function init() {
     initMonetag();
     
     // Update audio settings UI if sliders exist
-    AudioManager.updateVolumeUI();
+    try { AudioManager.updateVolumeUI(); } catch (e) {}
     
     currentUser = await registerUser();
     if (currentUser) {
@@ -1158,7 +1144,6 @@ async function init() {
         if (document.getElementById('streakCount')) loadDailyStats();
         if (document.getElementById('wheelCanvas')) loadWheelStatus();
         
-        // Preload first ad after user data is loaded
         setTimeout(preloadMonetagAd, 2000);
     }
     
