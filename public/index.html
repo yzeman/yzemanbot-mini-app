@@ -691,6 +691,12 @@
                 return;
             }
             
+            // For website task, use window.open to ensure it opens in a new tab
+            if (task.useFrame) {
+                window.open(task.url, '_blank');
+                return;
+            }
+            
             if (tgWebApp && typeof tgWebApp.openLink === 'function') {
                 tgWebApp.openLink(task.url, { try_instant_view: false });
             } else {
@@ -758,7 +764,6 @@
                     const errorMsg = data.error || `Server error ${res.status}`;
                     console.error('Server rejected:', errorMsg);
                     
-                    // Retry on network errors or specific server errors
                     if (retryCount < maxRetries && (res.status >= 500 || res.status === 0)) {
                         console.log(`⏳ Retrying in ${(retryCount + 1) * 1000}ms...`);
                         await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
@@ -821,9 +826,15 @@
             taskStartTime = Date.now();
             taskCompleted = false;
             
-            // Open the link / window
+            // Open the link/window FIRST before starting timer
             if (task.useFrame) {
                 taskWindow = window.open(task.url, '_blank');
+                if (!taskWindow) {
+                    // Popup blocked - show message
+                    showNotification('Please allow popups for this site', true);
+                    activeTask = null;
+                    return;
+                }
             } else {
                 openTaskUrl(task);
             }
@@ -841,6 +852,11 @@
             
             if (task.showTimer) {
                 popup.classList.add('active');
+                // Update popup text for website task
+                const popupText = popup.querySelector('div');
+                if (popupText && taskKey === 'website') {
+                    popupText.innerHTML = 'Stay on the website for 2 minutes to earn your reward...';
+                }
             }
             
             // For tasks with hidden timer, set up early-return detection
@@ -850,7 +866,7 @@
                         const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
                         if (elapsed < task.time && !taskCompleted) {
                             cleanupTimer();
-                            showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
+                            showNotification('Task incomplete – you didn't follow the rules. No reward.', true);
                         }
                     }
                 };
@@ -975,7 +991,7 @@
             });
         }
 
-        console.log('✅ Task system initialized with retry logic');
+        console.log('✅ Task system initialized with website fix');
     })();
 </script>
 </body>
