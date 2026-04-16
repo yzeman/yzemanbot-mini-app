@@ -232,7 +232,7 @@ async function initDB() {
         ('Wheel Champion', 'Win 10,000 points on wheel', '🎡', 10000, 25000000),
         ('Daily Streak 7', '7 day login streak', '📅', 7, 5000000),
         ('Super Referrer', 'Get 500 referrals', '⭐', 500, 500000000),
-        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 50000000)
+        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 5000000000)
       ON CONFLICT (name) DO UPDATE SET
         description = EXCLUDED.description,
         points_reward = EXCLUDED.points_reward
