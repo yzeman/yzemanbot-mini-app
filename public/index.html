@@ -735,11 +735,12 @@
         }
         window.cancelTask = cancelTask;
 
-        // Complete task on backend and refresh balance
-        async function completeTaskOnServer(taskName, points) {
+        // Complete task on backend with retry logic
+        async function completeTaskOnServer(taskName, points, retryCount = 0) {
+            const maxRetries = 3;
             try {
                 const initData = tg?.initData || '';
-                console.log(`📤 Completing task "${taskName}" with ${points} points`);
+                console.log(`📤 Completing task "${taskName}" with ${points} points (attempt ${retryCount + 1})`);
                 
                 const res = await fetch('/api/complete-task', {
                     method: 'POST',
@@ -754,14 +755,28 @@
                     if (window.refreshUser) await window.refreshUser();
                     return true;
                 } else {
-                    // Show the specific error from server
                     const errorMsg = data.error || `Server error ${res.status}`;
                     console.error('Server rejected:', errorMsg);
+                    
+                    // Retry on network errors or specific server errors
+                    if (retryCount < maxRetries && (res.status >= 500 || res.status === 0)) {
+                        console.log(`⏳ Retrying in ${(retryCount + 1) * 1000}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+                        return completeTaskOnServer(taskName, points, retryCount + 1);
+                    }
+                    
                     showNotification(errorMsg, true);
                     return false;
                 }
             } catch (e) {
                 console.error('Network exception:', e);
+                
+                if (retryCount < maxRetries) {
+                    console.log(`⏳ Retrying after network error in ${(retryCount + 1) * 1000}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+                    return completeTaskOnServer(taskName, points, retryCount + 1);
+                }
+                
                 showNotification('Network error. Check connection and try again.', true);
                 return false;
             }
@@ -960,7 +975,7 @@
             });
         }
 
-        console.log('✅ Task system initialized');
+        console.log('✅ Task system initialized with retry logic');
     })();
 </script>
 </body>
