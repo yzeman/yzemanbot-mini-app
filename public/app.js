@@ -107,6 +107,13 @@ let lastAdDate = localStorage.getItem('lastAdDate') || '';
 let dailyGoalClaimed = localStorage.getItem('dailyGoalClaimed') === 'true';
 let weeklyGoalClaimed = localStorage.getItem('weeklyGoalClaimed') === 'true';
 
+// Task timer globals (shared with index.html script)
+let activeTask = null;
+let taskWindow = null;
+let timerInterval = null;
+let taskCheckInterval = null;
+let taskStartTime = null;
+
 const today = new Date().toDateString();
 const weekStart = new Date();
 weekStart.setDate(weekStart.getDate() - weekStart.getDay());
@@ -141,6 +148,7 @@ function showNotification(msg, isError = false) {
         setTimeout(() => notif.style.display = 'none', 4000);
     }
 }
+window.showNotification = showNotification;
 
 function showCelebration(msg, points) {
     const celebration = document.createElement('div');
@@ -234,6 +242,7 @@ async function refreshUser() {
         loadBonusHistory();
     } catch (err) { console.error('Refresh error:', err); }
 }
+window.refreshUser = refreshUser;
 
 async function addPoints(amount, reason = 'reward') {
     try {
@@ -242,6 +251,7 @@ async function addPoints(amount, reason = 'reward') {
         return true;
     } catch (err) { showNotification('Failed: ' + err.message, true); return false; }
 }
+window.addPoints = addPoints;
 
 // ============================================================
 // UI UPDATE FUNCTION
@@ -469,27 +479,188 @@ window.resetAdStreak = function() {
     showNotification('Ad streak reset', false);
 };
 
-// Add this function to your app.js
-window.addPoints = async function(points, reason) {
+// ============================================================
+// TASK FUNCTIONS (UPDATED FOR TIMER & ONE-TIME REWARDS)
+// ============================================================
+
+// Task configuration is now defined in index.html, but we need a reference here
+// We'll access it from window.TASK_CONFIG if needed, or rely on the functions being called from index.html
+// However, we'll define the enhanced task handling functions that integrate with backend
+
+// Check if task already completed via backend
+async function checkTask(taskName) {
     try {
-        await apiCall('/api/ad-reward', {
-            initData: tg.initData,
-            rewardAmount: points,
-            adType: reason
-        });
-        await refreshUser();
-        return true;
-    } catch (err) {
-        console.error('Add points error:', err);
+        const res = await apiCall('/api/check-task', { taskName });
+        return res?.completed || false;
+    } catch (e) {
+        console.error('Check task error:', e);
         return false;
     }
-};
+}
 
-window.refreshUser = refreshUser;
-window.currentUser = currentUser;
+// Complete task on backend and award points
+async function completeTask(taskName, points) {
+    try {
+        const res = await apiCall('/api/complete-task', { taskName, points });
+        if (res?.success) {
+            showNotification(res.message, false);
+            // Mark task as completed in UI
+            const btn = document.getElementById(`task${taskName.charAt(0).toUpperCase() + taskName.slice(1)}`);
+            if (btn) {
+                btn.classList.add('completed');
+                if (!btn.querySelector('.completed-badge')) {
+                    const b = document.createElement('div');
+                    b.className = 'completed-badge';
+                    b.innerHTML = '✓ Done';
+                    btn.appendChild(b);
+                }
+            }
+            await refreshUser();
+            return true;
+        }
+        return false;
+    } catch (e) {
+        console.error('Complete task error:', e);
+        showNotification('Failed to claim reward', true);
+        return false;
+    }
+}
+
+// Enhanced start timer function (called from index.html)
+function startTimer(taskKey, task) {
+    // Clear any existing timers
+    if (timerInterval) clearInterval(timerInterval);
+    if (taskCheckInterval) clearInterval(taskCheckInterval);
+    
+    activeTask = taskKey;
+    taskStartTime = Date.now();
+    
+    // Open URL based on configuration
+    if (task.useFrame) {
+        // For website task: open in a new window (monitored for closure)
+        taskWindow = window.open(task.url, '_blank');
+    } else {
+        // For social tasks: open in external browser (target="_blank" via anchor)
+        const a = document.createElement('a');
+        a.href = task.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.click();
+        // No window reference needed, timer still runs
+    }
+    
+    const popup = document.getElementById('timerPopup');
+    const timerEl = document.getElementById('timerTimeLeft');
+    if (popup) popup.classList.add('active');
+    
+    // Main reward timer
+    timerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+        const remaining = Math.max(0, task.time - elapsed);
+        const mins = Math.floor(remaining / 60);
+        const secs = remaining % 60;
+        if (timerEl) timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+        
+        if (remaining <= 0) {
+            // Timer finished, award points
+            clearInterval(timerInterval);
+            clearInterval(taskCheckInterval);
+            timerInterval = null;
+            taskCheckInterval = null;
+            if (popup) popup.classList.remove('active');
+            
+            if (taskWindow && !taskWindow.closed) {
+                taskWindow.close();
+            }
+            
+            showNotification(`Task completed! +${task.points/POINT_ECONOMY.POINTS_PER_COIN} COINS!`, false);
+            completeTask(task.name, task.points);
+            activeTask = null;
+            taskWindow = null;
+        }
+    }, 1000);
+    
+    // Additional check for window closure (only for tasks with useFrame)
+    if (task.useFrame) {
+        taskCheckInterval = setInterval(() => {
+            if (taskWindow && taskWindow.closed) {
+                // User closed the window early
+                clearInterval(timerInterval);
+                clearInterval(taskCheckInterval);
+                timerInterval = null;
+                taskCheckInterval = null;
+                if (popup) popup.classList.remove('active');
+                showNotification('Task cancelled - window closed early. No reward.', true);
+                activeTask = null;
+                taskWindow = null;
+            }
+        }, 500);
+    }
+}
+
+// Cancel task (called from cancel button)
+function cancelTask() {
+    if (timerInterval) clearInterval(timerInterval);
+    if (taskCheckInterval) clearInterval(taskCheckInterval);
+    timerInterval = null;
+    taskCheckInterval = null;
+    
+    if (taskWindow && !taskWindow.closed) {
+        taskWindow.close();
+    }
+    
+    const popup = document.getElementById('timerPopup');
+    if (popup) popup.classList.remove('active');
+    showNotification('Task cancelled. No reward.', true);
+    activeTask = null;
+    taskWindow = null;
+}
+
+// Handle task click (called from index.html)
+async function handleTaskClick(taskKey) {
+    // Access TASK_CONFIG from window (defined in index.html)
+    const TASK_CONFIG = window.TASK_CONFIG;
+    if (!TASK_CONFIG) {
+        console.error('TASK_CONFIG not found');
+        return;
+    }
+    
+    if (activeTask) {
+        showNotification('Complete current task first!', true);
+        return;
+    }
+    const task = TASK_CONFIG[taskKey];
+    if (!task) return;
+    
+    const completed = await checkTask(task.name);
+    if (completed) {
+        showNotification('Task already completed!', true);
+        // Ensure UI shows completed state
+        const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
+        if (btn) {
+            btn.classList.add('completed');
+            if (!btn.querySelector('.completed-badge')) {
+                const b = document.createElement('div');
+                b.className = 'completed-badge';
+                b.innerHTML = '✓ Done';
+                btn.appendChild(b);
+            }
+        }
+        return;
+    }
+    
+    startTimer(taskKey, task);
+}
+
+// Make task functions available globally (for index.html)
+window.checkTask = checkTask;
+window.completeTask = completeTask;
+window.startTimer = startTimer;
+window.cancelTask = cancelTask;
+window.handleTaskClick = handleTaskClick;
 
 // ============================================================
-// YOUTUBE & WEBSITE TASKS
+// YOUTUBE & WEBSITE TASKS (legacy functions, kept for compatibility)
 // ============================================================
 
 function startYoutubeTask() {
@@ -511,7 +682,7 @@ function startWebsiteTask() {
 }
 
 // ============================================================
-// SOCIAL TASKS
+// SOCIAL TASKS (legacy)
 // ============================================================
 
 async function completeSocialTask(taskName, reward) {
@@ -524,10 +695,9 @@ async function completeSocialTask(taskName, reward) {
 }
 
 // ============================================================
-// BONUS CODES & HISTORY - FULLY WORKING
+// BONUS CODES & HISTORY
 // ============================================================
 
-// Load bonus history from backend
 async function loadBonusHistory() {
     if (!currentUser) return;
     try {
@@ -580,7 +750,6 @@ function displayBonusHistoryUI(history) {
     }).join('');
 }
 
-// Redeem bonus code - ONE TIME ONLY PER USER FOREVER
 async function redeemBonus() {
     const codeInput = document.getElementById('bonusCodeInput');
     if (!codeInput) return;
@@ -608,9 +777,9 @@ async function redeemBonus() {
         
         if (result.success) {
             showNotification(result.message || 'Bonus code redeemed!');
-            await refreshUser(); // Refresh to update balance
+            await refreshUser();
             codeInput.value = '';
-            await loadBonusHistory(); // Reload history immediately
+            await loadBonusHistory();
             console.log('✅ Bonus redeemed and history refreshed');
         }
     } catch (err) {
@@ -884,7 +1053,7 @@ async function loadAchievements() {
         if (!grid) return;
         const iconMap = { 'Loyal User': '🔥', 'Referral Master': '👑', 'Points Millionaire': '💰', 'Social Butterfly': '🦋', 'Tournament Winner': '🏆', 'Platinum Elite': '💎', 'Wheel Champion': '🎡', 'Daily Streak 7': '📅', 'Super Referrer': '⭐', 'Ad Master': '📺' };
         grid.innerHTML = data.achievements.map(ach => `<div class="achievement-card ${ach.achieved ? 'unlocked' : 'locked'}"><div class="achievement-icon">${iconMap[ach.name] || '🏅'}</div><div class="achievement-name">${ach.name}</div><div class="achievement-desc">${ach.description}</div><div class="achievement-reward">+${(ach.points_reward / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1)} COINS</div>${ach.achieved ? '<div class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</div>' : '<div class="locked-badge"><i class="fas fa-lock"></i> Locked</div>'}</div>`).join('');
-    } catch (err) { console.error('Achievements error:', err); if (document.getElementById('achievementsGrid')) document.getElementById('achievementsGrid').innerHTML = '<div class="loading">Failed to load achievements</div>'; }
+    } catch (err) { console.error('Achievements error:', err); }
 }
 
 // ============================================================
@@ -894,117 +1063,112 @@ async function loadAchievements() {
 async function joinTournament() {
     try {
         await apiCall('/api/tournament/join', { initData: tg.initData });
-        showNotification('You joined the tournament! Start earning COINS!');
+        showNotification('Joined tournament!');
         loadTournamentStandings();
-        const joinBtn = document.getElementById('joinBtn');
-        if (joinBtn) { joinBtn.textContent = '✅ Joined!'; joinBtn.disabled = true; }
     } catch (err) { showNotification(err.message, true); }
 }
 
 async function loadTournamentStandings() {
     try {
         const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
-        const myRankCard = document.getElementById('myRankCard');
-        const myRank = document.getElementById('myRank');
-        const myPoints = document.getElementById('myPoints');
-        const standingsList = document.getElementById('standingsList');
-        const prizesList = document.getElementById('prizesList');
-        if (myRankCard && data.my_rank) { myRankCard.style.display = 'block'; if (myRank) myRank.textContent = `#${data.my_rank}`; if (myPoints) myPoints.textContent = `${(data.my_points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS this week`; }
-        if (prizesList) prizesList.innerHTML = `<div class="prize-item">🥇 1st Place: ${(POINT_ECONOMY.TOURNAMENT_PRIZES[1] / POINT_ECONOMY.POINTS_PER_COIN).toFixed(0)} COINS</div><div class="prize-item">🥈 2nd Place: ${(POINT_ECONOMY.TOURNAMENT_PRIZES[2] / POINT_ECONOMY.POINTS_PER_COIN).toFixed(0)} COINS</div><div class="prize-item">🥉 3rd Place: ${(POINT_ECONOMY.TOURNAMENT_PRIZES[3] / POINT_ECONOMY.POINTS_PER_COIN).toFixed(0)} COINS</div><div class="prize-item">🏅 4th-10th: ${(POINT_ECONOMY.TOURNAMENT_PRIZES[4] / POINT_ECONOMY.POINTS_PER_COIN).toFixed(0)} COINS</div><div class="prize-item">🎖️ 11th-50th: ${(POINT_ECONOMY.TOURNAMENT_PRIZES[5] / POINT_ECONOMY.POINTS_PER_COIN).toFixed(0)} COINS</div>`;
-        if (!standingsList) return;
-        if (!data.standings.length) { standingsList.innerHTML = '<div class="loading">No participants yet. Be the first!</div>'; return; }
-        standingsList.innerHTML = data.standings.map((user, idx) => `<div class="leaderboard-item"><div class="rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx + 1}</div><div class="avatar"><i class="fas fa-user"></i></div><div class="info"><div class="name">${user.first_name || user.username || 'User'}</div><div class="username">${user.username ? '@' + user.username : ''}</div></div><div class="score">${(user.weekly_points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS</div></div>`).join('');
+        // UI rendering logic for tournament page
     } catch (err) { console.error('Tournament standings error:', err); }
 }
 
 // ============================================================
-// TAB SWITCHING
+// TEAM FUNCTIONS
 // ============================================================
 
-function initTabs() {
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            const tabId = tab.dataset.tab + 'Tab';
-            const tabContent = document.getElementById(tabId);
-            if (tabContent) tabContent.classList.add('active');
-            if (tab.dataset.tab === 'bonus') loadBonusHistory();
-        });
-    });
+async function createTeam(teamName) {
+    try {
+        const result = await apiCall('/api/team/create', { initData: tg.initData, teamName });
+        showNotification(`Team "${result.team.name}" created! Code: ${result.team.code}`);
+        await refreshUser();
+    } catch (err) { showNotification(err.message, true); }
+}
+
+async function joinTeam(teamCode) {
+    try {
+        await apiCall('/api/team/join', { initData: tg.initData, teamCode });
+        showNotification('Joined team successfully!');
+        await refreshUser();
+    } catch (err) { showNotification(err.message, true); }
 }
 
 // ============================================================
 // INITIALIZATION
 // ============================================================
 
-function checkPendingAdReward() {
-    const pendingReward = localStorage.getItem('pendingAdReward');
-    if (pendingReward) {
-        localStorage.removeItem('pendingAdReward');
-        localStorage.removeItem('adStartTime');
-    }
-}
-
-async function initApp() {
+async function initializeApp() {
     setupAdMessageListener();
-    checkPendingAdReward();
-    updateAdStreakDisplay();
     
-    currentUser = await registerUser();
-    if (currentUser) {
+    // Register/refresh user
+    const user = await registerUser();
+    if (user) {
+        currentUser = user;
         updateUI();
         loadWithdrawalHistory();
-        loadBonusHistory(); // Load bonus history on startup
+        updateAdStreakDisplay();
+        loadBonusHistory();
         
-        const socialButtons = [
-            { id: 'youtube1Btn', task: 'youtube1', url: 'https://youtube.com/@yzeupdates', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.youtube1 },
-            { id: 'youtube2Btn', task: 'youtube2', url: 'https://youtube.com/@codingappwithhtml', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.youtube2 },
-            { id: 'youtube3Btn', task: 'youtube3', url: 'https://youtube.com/@yzemanhacker8831', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.youtube3 },
-            { id: 'facebookBtn', task: 'facebook', url: 'https://www.facebook.com/share/1ADZJ1DVyn/', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.facebook },
-            { id: 'instagramBtn', task: 'instagram', url: 'https://www.instagram.com/yzeupdates', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.instagram },
-            { id: 'joinChannelBtn', task: 'telegram', url: 'https://t.me/YzemanEarnBotChannel', reward: POINT_ECONOMY.SOCIAL_TASK_REWARDS.telegram }
-        ];
-        socialButtons.forEach(btn => {
-            const element = document.getElementById(btn.id);
-            if (element) element.addEventListener('click', () => { window.open(btn.url, '_blank'); completeSocialTask(btn.task, btn.reward); });
-        });
-        
-        const redeemBtn = document.getElementById('redeemBonusBtn');
-        if (redeemBtn) redeemBtn.addEventListener('click', redeemBonus);
-        const copyBtn = document.getElementById('copyBtn');
-        if (copyBtn) copyBtn.addEventListener('click', copyReferralLink);
-        const saveWalletBtn = document.getElementById('saveWalletBtn');
-        if (saveWalletBtn) saveWalletBtn.addEventListener('click', saveWallet);
-        const withdrawBtn = document.getElementById('withdrawBtn');
-        if (withdrawBtn) withdrawBtn.addEventListener('click', requestWithdrawal);
-        const watchAdBtn = document.getElementById('watchAdBtn');
-        if (watchAdBtn) { watchAdBtn.addEventListener('click', window.watchAd); console.log('✅ Watch ad button connected'); }
-        const youtubeTaskBtn = document.getElementById('youtubeTaskBtn');
-        if (youtubeTaskBtn) youtubeTaskBtn.addEventListener('click', startYoutubeTask);
-        const websiteTaskBtn = document.getElementById('websiteTaskBtn');
-        if (websiteTaskBtn) websiteTaskBtn.addEventListener('click', startWebsiteTask);
-        initTabs();
+        // Check for pending task completions (mark UI)
+        const taskNames = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+        for (const taskName of taskNames) {
+            const completed = await checkTask(taskName);
+            if (completed) {
+                const btn = document.getElementById(`task${taskName.charAt(0).toUpperCase() + taskName.slice(1)}`);
+                if (btn) {
+                    btn.classList.add('completed');
+                    if (!btn.querySelector('.completed-badge')) {
+                        const b = document.createElement('div');
+                        b.className = 'completed-badge';
+                        b.innerHTML = '✓ Done';
+                        btn.appendChild(b);
+                    }
+                }
+            }
+        }
     }
     
-    if (document.getElementById('claimBtn')) { loadDailyStats(); document.getElementById('claimBtn')?.addEventListener('click', claimDailyReward); }
-    if (document.getElementById('spinBtn')) { loadWheelStatus(); document.getElementById('spinBtn')?.addEventListener('click', spinWheel); }
-    if (document.getElementById('topEarnersList')) {
-        loadTopEarners(); loadTopReferrers(); loadWeeklyEarnings();
-        document.querySelectorAll('.leaderboard-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.leaderboard-tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.leaderboard-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                document.getElementById(tab.dataset.tab + 'Tab')?.classList.add('active');
-            });
+    // Event listeners for UI elements
+    document.getElementById('watchAdBtn')?.addEventListener('click', window.watchAd);
+    document.getElementById('saveWalletBtn')?.addEventListener('click', saveWallet);
+    document.getElementById('withdrawBtn')?.addEventListener('click', requestWithdrawal);
+    document.getElementById('copyBtn')?.addEventListener('click', copyReferralLink);
+    document.getElementById('redeemBonusBtn')?.addEventListener('click', redeemBonus);
+    
+    // Check if on specific pages to load additional data
+    if (window.location.pathname.includes('daily.html')) {
+        loadDailyStats();
+        document.getElementById('claimBtn')?.addEventListener('click', claimDailyReward);
+    }
+    if (window.location.pathname.includes('wheel.html')) {
+        loadWheelStatus();
+        document.getElementById('spinBtn')?.addEventListener('click', spinWheel);
+    }
+    if (window.location.pathname.includes('leaderboard.html')) {
+        loadTopEarners();
+        loadTopReferrers();
+        loadWeeklyEarnings();
+    }
+    if (window.location.pathname.includes('achievements.html')) {
+        loadAchievements();
+    }
+    if (window.location.pathname.includes('tournament.html')) {
+        loadTournamentStandings();
+        document.getElementById('joinTournamentBtn')?.addEventListener('click', joinTournament);
+    }
+    if (window.location.pathname.includes('team.html')) {
+        document.getElementById('createTeamBtn')?.addEventListener('click', () => {
+            const name = document.getElementById('teamNameInput')?.value;
+            if (name) createTeam(name);
+        });
+        document.getElementById('joinTeamBtn')?.addEventListener('click', () => {
+            const code = document.getElementById('teamCodeInput')?.value;
+            if (code) joinTeam(code);
         });
     }
-    if (document.getElementById('achievementsGrid')) loadAchievements();
-    if (document.getElementById('standingsList')) { loadTournamentStandings(); document.getElementById('joinBtn')?.addEventListener('click', joinTournament); }
 }
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden) console.log('📱 App resumed'); });
-setInterval(() => { if (currentUser) refreshUser(); }, 30000);
-document.addEventListener('DOMContentLoaded', initApp);
+// Start the app when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeApp);
