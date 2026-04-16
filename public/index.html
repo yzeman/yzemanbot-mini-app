@@ -636,278 +636,290 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@adsgram/telegram-sdk@latest/dist/adsgram.umd.js"></script>
     <script src="/app.js"></script>
-    
     <script>
-        // ============================================
-        // TASK CONFIGURATION
-        // ============================================
-        window.TASK_CONFIG = {
-            game: { 
-                name: 'game', 
-                points: 50000000, 
-                url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', 
-                time: 60,
-                useFrame: false 
-            },
-            website: { 
-                name: 'website', 
-                points: 5000000, 
-                url: 'https://yzeupdates.lat/articles', 
-                time: 120,
-                useFrame: true 
-            },
-            youtube: { 
-                name: 'youtube', 
-                points: 10000000, 
-                url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', 
-                time: 10, 
-                useFrame: false 
-            },
-            twitter: { 
-                name: 'twitter', 
-                points: 10000000, 
-                url: 'https://x.com/yzemanbot?s=21', 
-                time: 10, 
-                useFrame: false 
-            },
-            facebook: { 
-                name: 'facebook', 
-                points: 10000000, 
-                url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', 
-                time: 10, 
-                useFrame: false 
-            },
-            instagram: { 
-                name: 'instagram', 
-                points: 10000000, 
-                url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', 
-                time: 10, 
-                useFrame: false 
-            },
-            tiktok: { 
-                name: 'tiktok', 
-                points: 10000000, 
-                url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', 
-                time: 10, 
-                useFrame: false 
-            },
-            telegram: { 
-                name: 'telegram', 
-                points: 10000000, 
-                url: 'https://t.me/YzemanEarnBotChannel',  // Use https link as fallback
-                telegramDeepLink: 'tg://resolve?domain=YzemanEarnBotChannel', // Specific deep link
-                time: 10, 
-                useFrame: false 
-            }
-        };
-
-        // Simple notification fallback
-        function showNotification(msg, isError) {
-            const n = document.getElementById('notification');
-            if (n) {
-                n.textContent = msg;
-                n.style.background = isError ? '#ff5252' : '#00c853';
-                n.style.display = 'block';
-                setTimeout(() => n.style.display = 'none', 4000);
-            }
+    // ============================================
+    // TASK CONFIGURATION
+    // ============================================
+    window.TASK_CONFIG = {
+        game: { 
+            name: 'game', 
+            points: 50000000, 
+            url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', 
+            time: 60,
+            showTimer: false   // <-- Hide timer for this task
+        },
+        website: { 
+            name: 'website', 
+            points: 5000000, 
+            url: 'https://yzeupdates.lat/articles', 
+            time: 120,
+            showTimer: true    // <-- Show timer for website (2 min)
+        },
+        youtube: { 
+            name: 'youtube', 
+            points: 10000000, 
+            url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', 
+            time: 10, 
+            showTimer: false 
+        },
+        twitter: { 
+            name: 'twitter', 
+            points: 10000000, 
+            url: 'https://x.com/yzemanbot?s=21', 
+            time: 10, 
+            showTimer: false 
+        },
+        facebook: { 
+            name: 'facebook', 
+            points: 10000000, 
+            url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', 
+            time: 10, 
+            showTimer: false 
+        },
+        instagram: { 
+            name: 'instagram', 
+            points: 10000000, 
+            url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', 
+            time: 10, 
+            showTimer: false 
+        },
+        tiktok: { 
+            name: 'tiktok', 
+            points: 10000000, 
+            url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', 
+            time: 10, 
+            showTimer: false 
+        },
+        telegram: { 
+            name: 'telegram', 
+            points: 10000000, 
+            url: 'https://t.me/YzemanEarnBotChannel',   // Full HTTPS link
+            time: 10, 
+            showTimer: false 
         }
-        window.showNotification = showNotification;
+    };
 
-        // Helper to open links using Telegram WebApp if available
-        function openTaskUrl(task) {
-            const tgWebApp = window.Telegram?.WebApp;
-            
-            // Special handling for Telegram channel
-            if (task.name === 'telegram') {
-                if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
-                    tgWebApp.openTelegramLink(task.telegramDeepLink);
-                } else {
-                    window.open(task.url, '_blank');
-                }
-                return;
-            }
-            
-            // For all other external links
-            if (tgWebApp && typeof tgWebApp.openLink === 'function') {
-                // openLink with try_instant_view=false forces external browser
-                tgWebApp.openLink(task.url, { try_instant_view: false });
+    // Notification helper
+    function showNotification(msg, isError) {
+        const n = document.getElementById('notification');
+        if (n) {
+            n.textContent = msg;
+            n.style.background = isError ? '#ff5252' : '#00c853';
+            n.style.display = 'block';
+            setTimeout(() => n.style.display = 'none', 4000);
+        }
+    }
+    window.showNotification = showNotification;
+
+    // Open URL using Telegram API
+    function openTaskUrl(task) {
+        const tgWebApp = window.Telegram?.WebApp;
+        
+        // Telegram channel
+        if (task.name === 'telegram') {
+            if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
+                tgWebApp.openTelegramLink(task.url);
             } else {
-                // Fallback for non-Telegram environments
                 window.open(task.url, '_blank');
             }
+            return;
         }
+        
+        // External links
+        if (tgWebApp && typeof tgWebApp.openLink === 'function') {
+            tgWebApp.openLink(task.url, { try_instant_view: false });
+        } else {
+            window.open(task.url, '_blank');
+        }
+    }
 
-        // Modified startTimer that opens links properly
-        function startTimer(taskKey, task) {
-            // Clear any existing timers
-            if (window.timerInterval) clearInterval(window.timerInterval);
-            if (window.taskCheckInterval) clearInterval(window.taskCheckInterval);
+    // Timer variables
+    let activeTask = null;
+    let taskStartTime = null;
+    let timerInterval = null;
+    let visibilityCheckInterval = null;
+    let taskCompletedCalled = false;
+
+    // Clean up timer
+    function cleanupTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+        timerInterval = null;
+        visibilityCheckInterval = null;
+        document.getElementById('timerPopup').classList.remove('active');
+        activeTask = null;
+        taskCompletedCalled = false;
+    }
+
+    // Cancel task (no reward)
+    function cancelTask() {
+        cleanupTimer();
+        showNotification('Task cancelled. No reward.', true);
+    }
+
+    // Start timer for a task
+    function startTimer(taskKey, task) {
+        cleanupTimer(); // Clear any existing
+        
+        activeTask = taskKey;
+        taskStartTime = Date.now();
+        taskCompletedCalled = false;
+        
+        // Open the link
+        openTaskUrl(task);
+        
+        const popup = document.getElementById('timerPopup');
+        const timerEl = document.getElementById('timerTimeLeft');
+        
+        // Show popup only if task.showTimer is true
+        if (task.showTimer) {
+            popup.classList.add('active');
+        }
+        
+        // Main timer: count down and award points when time is up
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+            const remaining = Math.max(0, task.time - elapsed);
             
-            window.activeTask = taskKey;
-            window.taskStartTime = Date.now();
-            
-            // Open the URL using the appropriate method
-            openTaskUrl(task);
-            
-            const popup = document.getElementById('timerPopup');
-            const timerEl = document.getElementById('timerTimeLeft');
-            if (popup) popup.classList.add('active');
-            
-            // Main reward timer
-            window.timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - window.taskStartTime) / 1000);
-                const remaining = Math.max(0, task.time - elapsed);
+            // Update timer display only if popup is visible
+            if (task.showTimer && timerEl) {
                 const mins = Math.floor(remaining / 60);
                 const secs = remaining % 60;
-                if (timerEl) timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-                
-                if (remaining <= 0) {
-                    // Timer finished
-                    clearInterval(window.timerInterval);
-                    clearInterval(window.taskCheckInterval);
-                    window.timerInterval = null;
-                    window.taskCheckInterval = null;
-                    if (popup) popup.classList.remove('active');
-                    
-                    showNotification(`Task completed! +${task.points/1000000} COINS!`, false);
-                    if (window.completeTask) {
-                        window.completeTask(task.name, task.points);
+                timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            }
+            
+            if (remaining <= 0 && !taskCompletedCalled) {
+                taskCompletedCalled = true;
+                cleanupTimer();
+                showNotification(`Task completed! +${task.points/1000000} COINS!`, false);
+                if (window.completeTask) {
+                    window.completeTask(task.name, task.points);
+                }
+            }
+        }, 1000);
+        
+        // For tasks without visible timer, we need to detect if the user returns early
+        // We'll use the Page Visibility API to see when the user comes back to the app
+        if (!task.showTimer) {
+            const handleVisibilityChange = () => {
+                if (!document.hidden) {
+                    // User has returned to the mini app
+                    const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                    if (elapsed < task.time) {
+                        // Returned too early – cancel task
+                        if (!taskCompletedCalled) {
+                            cleanupTimer();
+                            showNotification('Task incomplete – you returned too early. No reward.', true);
+                        }
                     }
-                    window.activeTask = null;
+                    // Remove listener after first visibility change
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                    if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+                }
+            };
+            
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // Backup: also check periodically if the user is back (for browsers that don't fire visibilitychange reliably)
+            visibilityCheckInterval = setInterval(() => {
+                if (!document.hidden) {
+                    const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                    if (elapsed < task.time && !taskCompletedCalled) {
+                        cleanupTimer();
+                        showNotification('Task incomplete – you returned too early. No reward.', true);
+                    }
                 }
             }, 1000);
-            
-            // For website task, monitor window closure
-            if (task.useFrame && window.taskWindow) {
-                window.taskCheckInterval = setInterval(() => {
-                    if (window.taskWindow && window.taskWindow.closed) {
-                        clearInterval(window.timerInterval);
-                        clearInterval(window.taskCheckInterval);
-                        window.timerInterval = null;
-                        window.taskCheckInterval = null;
-                        if (popup) popup.classList.remove('active');
-                        showNotification('Task cancelled - window closed early. No reward.', true);
-                        window.activeTask = null;
-                        window.taskWindow = null;
-                    }
-                }, 500);
+        }
+    }
+
+    // Handle task click
+    async function handleTaskClick(taskKey) {
+        if (activeTask) {
+            showNotification('Complete current task first!', true);
+            return;
+        }
+        const task = window.TASK_CONFIG[taskKey];
+        if (!task) return;
+        
+        // Check if already completed (via backend)
+        if (window.checkTask) {
+            const completed = await window.checkTask(task.name);
+            if (completed) {
+                showNotification('Task already completed!', true);
+                return;
             }
         }
+        
+        startTimer(taskKey, task);
+    }
 
-        // Cancel task
-        function cancelTask() {
-            if (window.timerInterval) clearInterval(window.timerInterval);
-            if (window.taskCheckInterval) clearInterval(window.taskCheckInterval);
-            window.timerInterval = null;
-            window.taskCheckInterval = null;
-            
-            if (window.taskWindow && !window.taskWindow.closed) {
-                window.taskWindow.close();
-            }
-            
-            document.getElementById('timerPopup').classList.remove('active');
-            showNotification('Task cancelled. No reward.', true);
-            window.activeTask = null;
-            window.taskWindow = null;
-        }
-
-        // Handle task click (uses app.js's handleTaskClick if available, otherwise local)
-        async function handleTaskClick(taskKey) {
-            // If app.js has a better handler, use it
-            if (window.handleTaskClick && typeof window.handleTaskClick === 'function' && window.handleTaskClick !== handleTaskClick) {
-                return window.handleTaskClick(taskKey);
-            }
-            
-            const task = window.TASK_CONFIG[taskKey];
-            if (!task) return;
-            
-            // Check if already completed (simple check)
-            if (window.checkTask) {
-                const completed = await window.checkTask(task.name);
-                if (completed) {
-                    showNotification('Task already completed!', true);
-                    return;
-                }
-            }
-            
-            startTimer(taskKey, task);
-        }
-
-        // Attach click handlers to task buttons
-        function attachTaskHandlers() {
-            console.log('🔧 Attaching task click handlers...');
-            
-            const taskIds = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
-            
-            taskIds.forEach(taskKey => {
-                const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
-                if (btn) {
-                    const newBtn = btn.cloneNode(true);
-                    btn.parentNode.replaceChild(newBtn, btn);
-                    
-                    newBtn.onclick = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log(`🖱️ Task clicked: ${taskKey}`);
-                        handleTaskClick(taskKey);
-                    };
-                    
-                    console.log(`✅ Handler attached for: ${taskKey}`);
-                }
-            });
-            
-            // Cancel button
-            const cancelBtn = document.getElementById('cancelTaskBtn');
-            if (cancelBtn) {
-                const newCancelBtn = cancelBtn.cloneNode(true);
-                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-                newCancelBtn.onclick = (e) => {
+    // Attach click handlers
+    function attachTaskHandlers() {
+        console.log('🔧 Attaching task click handlers...');
+        const taskIds = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+        taskIds.forEach(taskKey => {
+            const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
+            if (btn) {
+                const newBtn = btn.cloneNode(true);
+                btn.parentNode.replaceChild(newBtn, btn);
+                newBtn.onclick = (e) => {
                     e.preventDefault();
-                    cancelTask();
+                    e.stopPropagation();
+                    console.log(`🖱️ Task clicked: ${taskKey}`);
+                    handleTaskClick(taskKey);
                 };
             }
-        }
-
-        // Tab switching
-        function setupTabs() {
-            document.querySelectorAll('.tab').forEach(t => {
-                t.onclick = () => {
-                    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                    t.classList.add('active');
-                    const tabId = t.dataset.tab;
-                    if (tabId) {
-                        document.getElementById(tabId + 'Tab').classList.add('active');
-                    }
-                };
-            });
-        }
-
-        // Initialize on DOM ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('📄 DOM loaded, setting up...');
-            
-            setupTabs();
-            
-            // Set display values
-            if (document.getElementById('dailyAdGoal')) document.getElementById('dailyAdGoal').textContent = '20';
-            if (document.getElementById('dailyGoalReward')) document.getElementById('dailyGoalReward').textContent = '0.5';
-            if (document.getElementById('weeklyAdGoal')) document.getElementById('weeklyAdGoal').textContent = '100';
-            if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
-            if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
-            
-            // Attach handlers after delays to ensure everything is ready
-            setTimeout(attachTaskHandlers, 500);
-            setTimeout(attachTaskHandlers, 1500);
         });
+        
+        const cancelBtn = document.getElementById('cancelTaskBtn');
+        if (cancelBtn) {
+            const newCancelBtn = cancelBtn.cloneNode(true);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+            newCancelBtn.onclick = (e) => {
+                e.preventDefault();
+                cancelTask();
+            };
+        }
+    }
 
-        // Expose functions globally
-        window.startTimer = startTimer;
-        window.cancelTask = cancelTask;
-        window.handleTaskClick = handleTaskClick;
-        window.openTaskUrl = openTaskUrl;
+    // Tab switching
+    function setupTabs() {
+        document.querySelectorAll('.tab').forEach(t => {
+            t.onclick = () => {
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                t.classList.add('active');
+                const tabId = t.dataset.tab;
+                if (tabId) {
+                    document.getElementById(tabId + 'Tab').classList.add('active');
+                }
+            };
+        });
+    }
 
-        console.log('✅ index.html script loaded');
-    </script>
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('📄 DOM loaded, setting up...');
+        setupTabs();
+        
+        // Set display values
+        if (document.getElementById('dailyAdGoal')) document.getElementById('dailyAdGoal').textContent = '20';
+        if (document.getElementById('dailyGoalReward')) document.getElementById('dailyGoalReward').textContent = '0.5';
+        if (document.getElementById('weeklyAdGoal')) document.getElementById('weeklyAdGoal').textContent = '100';
+        if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
+        if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
+        
+        setTimeout(attachTaskHandlers, 500);
+        setTimeout(attachTaskHandlers, 1500);
+    });
+
+    // Expose functions
+    window.startTimer = startTimer;
+    window.cancelTask = cancelTask;
+    window.handleTaskClick = handleTaskClick;
+
+    console.log('✅ index.html script loaded');
+</script>
 </body>
 </html>
