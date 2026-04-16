@@ -379,79 +379,24 @@ function updateAdStats() {
 }
 
 // ============================================================
-// ADSGRAM INTEGRATION (Block ID: 27449)
+// MONETAG REWARDED POPUP INTEGRATION (Zone: 9683863)
 // ============================================================
 
-function initAdsgram() {
-    if (typeof window.Adsgram === 'undefined') {
-        const msg = 'Adsgram SDK not loaded. Check network or ad blocker.';
-        console.error('❌ ' + msg);
-        if (!adsgramErrorShown) {
-            showNotification(msg, true);
-            adsgramErrorShown = true;
-        }
-        return false;
-    }
-    
-    try {
-        adsgramController = window.Adsgram.init({ blockId: '27449' });
-        if (!adsgramController || typeof adsgramController.show !== 'function') {
-            throw new Error('Adsgram controller invalid - show() method missing');
-        }
-        adsgramReady = true;
-        adsgramErrorShown = false;
-        console.log('✅ Adsgram initialized with Block ID 27449');
-        return true;
-    } catch (error) {
-        const msg = 'Adsgram init error: ' + (error.message || 'Unknown');
-        console.error('❌ ' + msg);
-        if (!adsgramErrorShown) {
-            showNotification(msg, true);
-            adsgramErrorShown = true;
-        }
-        return false;
-    }
-}
+let monetagReady = false;
 
-// Try to initialize as soon as possible
-if (typeof window.Adsgram !== 'undefined') {
-    initAdsgram();
-} else {
-    let attempts = 0;
-    const maxAttempts = 10;
-    const checkInterval = setInterval(() => {
-        attempts++;
-        if (typeof window.Adsgram !== 'undefined') {
-            clearInterval(checkInterval);
-            initAdsgram();
-        } else if (attempts >= maxAttempts) {
-            clearInterval(checkInterval);
-            console.error('Adsgram SDK failed to load after ' + maxAttempts + ' attempts');
-            if (!adsgramErrorShown) {
-                showNotification('Adsgram SDK failed to load. Please refresh.', true);
-                adsgramErrorShown = true;
-            }
-        }
-    }, 300);
+function initMonetag() {
+    if (typeof window.show_9683863 === 'undefined') {
+        console.warn('Monetag SDK not loaded yet');
+        return false;
+    }
+    monetagReady = true;
+    console.log('✅ Monetag ready');
+    return true;
 }
 
 window.watchAd = async function() {
     if (!window.Telegram?.WebApp) {
         showNotification('Must open inside Telegram app', true);
-        return;
-    }
-    
-    if (!adsgramReady || !adsgramController) {
-        showNotification('Ad system not ready. Trying to initialize...', false);
-        if (initAdsgram()) {
-            showNotification('Ad system ready now. Try again.', false);
-        } else {
-            if (typeof window.Adsgram === 'undefined') {
-                showNotification('Adsgram SDK not loaded. Check your internet or disable ad blocker.', true);
-            } else {
-                showNotification('Ad block may not be active. Verify Block ID in Adsgram dashboard.', true);
-            }
-        }
         return;
     }
     
@@ -465,76 +410,75 @@ window.watchAd = async function() {
         return;
     }
     
+    if (!monetagReady) {
+        if (!initMonetag()) {
+            showNotification('Ad network loading... Try again in a moment.', true);
+            return;
+        }
+    }
+    
     isWatchingAd = true;
     
     try {
-        console.log('📺 Calling adsgramController.show()...');
-        const result = await adsgramController.show();
-        console.log('Ad result:', result);
+        console.log('📺 Showing Monetag Rewarded Popup...');
         
-        if (result && result.done) {
-            const { finalReward, luckyType } = calculateAdReward();
-            updateAdStats();
-            const streakBonus = checkAndAwardStreakBonus();
-            const milestoneBonus = checkAndAwardMilestones();
-            let totalPoints = finalReward + streakBonus + milestoneBonus;
-            
-            let dailyGoalBonus = 0, weeklyGoalBonus = 0;
-            if (adsWatchedToday >= POINT_ECONOMY.DAILY_AD_GOAL && !dailyGoalClaimed) {
-                dailyGoalBonus = POINT_ECONOMY.DAILY_AD_GOAL_REWARD;
-                dailyGoalClaimed = true;
-                localStorage.setItem('dailyGoalClaimed', 'true');
-            }
-            if (adsWatchedWeek >= POINT_ECONOMY.WEEKLY_AD_GOAL && !weeklyGoalClaimed) {
-                weeklyGoalBonus = POINT_ECONOMY.WEEKLY_AD_GOAL_REWARD;
-                weeklyGoalClaimed = true;
-                localStorage.setItem('weeklyGoalClaimed', 'true');
-            }
-            totalPoints += dailyGoalBonus + weeklyGoalBonus;
-            
-            let celebrationMsg = 'Ad Completed!';
-            if (luckyType === 'mega') celebrationMsg = '🌟 MEGA AD! 10x REWARD! 🌟';
-            else if (luckyType === 'golden') celebrationMsg = '⭐ GOLDEN AD! 5x REWARD! ⭐';
-            else if (luckyType === 'lucky') celebrationMsg = '✨ LUCKY AD! 2x REWARD! ✨';
-            
-            showCelebration(celebrationMsg, totalPoints);
-            await addPoints(totalPoints, 'adsgram');
-            
-            if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
-            if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
-            if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
-            if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
-        } else {
-            adStreak = 0;
-            localStorage.setItem('adStreak', '0');
-            updateAdStreakDisplay();
-            showNotification('Ad skipped - streak reset', true);
-        }
+        // Call the rewarded popup method
+        await window.show_9683863('pop');
+        
+        // If we reach here, user completed the ad (or closed interstitial version)
+        // For rewarded format, this means they should get reward
+        await awardAdReward();
+        
     } catch (error) {
-        console.error('Adsgram show error:', error);
+        // User got error or closed before completion
+        console.error('Monetag ad error or closed:', error);
         adStreak = 0;
         localStorage.setItem('adStreak', '0');
         updateAdStreakDisplay();
-        
-        let errorMsg = 'Ad error: ';
-        if (error.message) {
-            if (error.message.includes('no ad') || error.message.includes('no fill')) errorMsg = 'No ads available. Try again later.';
-            else if (error.message.includes('timeout')) errorMsg = 'Request timed out. Check connection.';
-            else if (error.message.includes('not supported')) errorMsg = 'Ads not supported here. Use Telegram mobile.';
-            else errorMsg += error.message;
-        } else errorMsg += 'Unknown reason';
-        showNotification(errorMsg, true);
+        showNotification('Ad not completed - streak reset', true);
     } finally {
         isWatchingAd = false;
     }
 };
 
-window.resetAdStreak = function() {
-    adStreak = 0;
-    localStorage.setItem('adStreak', '0');
-    updateAdStreakDisplay();
-    showNotification('Ad streak reset', false);
-};
+async function awardAdReward() {
+    const { finalReward, luckyType } = calculateAdReward();
+    updateAdStats();
+    const streakBonus = checkAndAwardStreakBonus();
+    const milestoneBonus = checkAndAwardMilestones();
+    let totalPoints = finalReward + streakBonus + milestoneBonus;
+    
+    let dailyGoalBonus = 0, weeklyGoalBonus = 0;
+    if (adsWatchedToday >= POINT_ECONOMY.DAILY_AD_GOAL && !dailyGoalClaimed) {
+        dailyGoalBonus = POINT_ECONOMY.DAILY_AD_GOAL_REWARD;
+        dailyGoalClaimed = true;
+        localStorage.setItem('dailyGoalClaimed', 'true');
+    }
+    if (adsWatchedWeek >= POINT_ECONOMY.WEEKLY_AD_GOAL && !weeklyGoalClaimed) {
+        weeklyGoalBonus = POINT_ECONOMY.WEEKLY_AD_GOAL_REWARD;
+        weeklyGoalClaimed = true;
+        localStorage.setItem('weeklyGoalClaimed', 'true');
+    }
+    totalPoints += dailyGoalBonus + weeklyGoalBonus;
+    
+    let celebrationMsg = 'Ad Completed!';
+    if (luckyType === 'mega') celebrationMsg = '🌟 MEGA AD! 10x REWARD! 🌟';
+    else if (luckyType === 'golden') celebrationMsg = '⭐ GOLDEN AD! 5x REWARD! ⭐';
+    else if (luckyType === 'lucky') celebrationMsg = '✨ LUCKY AD! 2x REWARD! ✨';
+    
+    showCelebration(celebrationMsg, totalPoints);
+    await addPoints(totalPoints, 'monetag');
+    
+    if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
+    if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
+    if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
+    if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
+}
+
+// Initialize on page load
+window.addEventListener('load', () => {
+    setTimeout(initMonetag, 1000);
+});
 
 // ============================================================
 // TASK FUNCTIONS (TIMER & ONE-TIME REWARDS)
