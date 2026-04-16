@@ -738,36 +738,46 @@
         // Complete task on backend and refresh balance
         async function completeTaskOnServer(taskName, points) {
             try {
+                // Ensure initData is available
+                const initData = tg?.initData || '';
+                console.log(`📤 Completing task "${taskName}" with ${points} points`);
+                
                 const res = await fetch('/api/complete-task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ taskName, points, initData: window.Telegram?.WebApp?.initData })
+                    body: JSON.stringify({ taskName, points, initData })
                 });
                 const data = await res.json();
-                if (data.success) {
+                
+                if (res.ok && data.success) {
                     showNotification(data.message, false);
                     if (window.refreshUser) await window.refreshUser();
                     return true;
                 } else {
-                    showNotification(data.error || 'Failed to claim reward', true);
+                    const errorMsg = data.error || 'Failed to claim reward';
+                    console.error('Server error:', errorMsg);
+                    showNotification(errorMsg, true);
+                    return false;
                 }
             } catch (e) {
-                console.error('Complete task error:', e);
-                showNotification('Network error. Please try again.', true);
+                console.error('Complete task network error:', e);
+                showNotification('Network error. Check connection and try again.', true);
+                return false;
             }
-            return false;
         }
 
         async function checkTaskCompleted(taskName) {
             try {
+                const initData = tg?.initData || '';
                 const res = await fetch('/api/check-task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ taskName, initData: window.Telegram?.WebApp?.initData })
+                    body: JSON.stringify({ taskName, initData })
                 });
                 const data = await res.json();
                 return data.completed || false;
             } catch (e) {
+                console.error('Check task error:', e);
                 return false;
             }
         }
@@ -823,7 +833,6 @@
                     if (document.visibilityState === 'visible') {
                         const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
                         if (elapsed < task.time && !taskCompleted) {
-                            // User returned too early – cancel the task
                             cleanupTimer();
                             showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
                         }
@@ -952,6 +961,6 @@
 
         console.log('✅ Task system initialized');
     })();
-    </script>
+</script>
 </body>
 </html>
