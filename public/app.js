@@ -1,8 +1,8 @@
 // ============================================================
-// YZEMANBOT - COMPLETE APP WITH ADSGRAM INTEGRATION
+// YZEMANBOT - COMPLETE APP WITH MONETAG INTEGRATION
 // POINT ECONOMY: 1,000,000 points = 1 COIN
 // WITHDRAWAL: 100,000 COINS minimum
-// ADSGRAM BLOCK ID: 27449
+// MONETAG ZONE ID: 9683863
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -18,6 +18,7 @@ if (tg) {
 const POINT_ECONOMY = {
     POINTS_PER_COIN: 1000000,
     MIN_WITHDRAWAL_COINS: 100000,
+    
     AD_REWARDS: {
         'Fresher': 5000,
         'Brute': 7500,
@@ -25,6 +26,7 @@ const POINT_ECONOMY = {
         'Gold': 15000,
         'Platinum': 25000
     },
+    
     TIER_REQUIREMENTS: {
         'Fresher': 0,
         'Brute': 150,
@@ -32,6 +34,7 @@ const POINT_ECONOMY = {
         'Gold': 700,
         'Platinum': 1500
     },
+    
     REFERRAL_REWARDS: {
         'Fresher': 500000,
         'Brute': 750000,
@@ -39,7 +42,9 @@ const POINT_ECONOMY = {
         'Gold': 1500000,
         'Platinum': 2500000
     },
+    
     INVITEE_BONUS: 250000,
+    
     AD_STREAK_BONUSES: { 5: 10000, 10: 25000, 25: 100000, 50: 500000, 100: 2000000 },
     LUCKY_AD_CHANCE: 0.10,
     GOLDEN_AD_CHANCE: 0.02,
@@ -100,9 +105,7 @@ let lastAdDate = localStorage.getItem('lastAdDate') || '';
 let dailyGoalClaimed = localStorage.getItem('dailyGoalClaimed') === 'true';
 let weeklyGoalClaimed = localStorage.getItem('weeklyGoalClaimed') === 'true';
 
-let adsgramController = null;
-let adsgramReady = false;
-let adsgramErrorShown = false;
+let monetagReady = false;
 
 let activeTask = null;
 let taskWindow = null;
@@ -329,7 +332,7 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// AD HELPER FUNCTIONS (REQUIRED FOR REWARD CALCULATION)
+// AD HELPER FUNCTIONS
 // ============================================================
 
 function calculateAdReward() {
@@ -382,8 +385,6 @@ function updateAdStats() {
 // MONETAG REWARDED POPUP INTEGRATION (Zone: 9683863)
 // ============================================================
 
-let monetagReady = false;
-
 function initMonetag() {
     if (typeof window.show_9683863 === 'undefined') {
         console.warn('Monetag SDK not loaded yet');
@@ -393,53 +394,6 @@ function initMonetag() {
     console.log('✅ Monetag ready');
     return true;
 }
-
-window.watchAd = async function() {
-    if (!window.Telegram?.WebApp) {
-        showNotification('Must open inside Telegram app', true);
-        return;
-    }
-    
-    if (!currentUser) {
-        showNotification('Loading user data...', false);
-        return;
-    }
-    
-    if (isWatchingAd) {
-        showNotification('Ad already in progress', true);
-        return;
-    }
-    
-    if (!monetagReady) {
-        if (!initMonetag()) {
-            showNotification('Ad network loading... Try again in a moment.', true);
-            return;
-        }
-    }
-    
-    isWatchingAd = true;
-    
-    try {
-        console.log('📺 Showing Monetag Rewarded Popup...');
-        
-        // Call the rewarded popup method
-        await window.show_9683863('pop');
-        
-        // If we reach here, user completed the ad (or closed interstitial version)
-        // For rewarded format, this means they should get reward
-        await awardAdReward();
-        
-    } catch (error) {
-        // User got error or closed before completion
-        console.error('Monetag ad error or closed:', error);
-        adStreak = 0;
-        localStorage.setItem('adStreak', '0');
-        updateAdStreakDisplay();
-        showNotification('Ad not completed - streak reset', true);
-    } finally {
-        isWatchingAd = false;
-    }
-};
 
 async function awardAdReward() {
     const { finalReward, luckyType } = calculateAdReward();
@@ -475,10 +429,53 @@ async function awardAdReward() {
     if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
 }
 
-// Initialize on page load
-window.addEventListener('load', () => {
-    setTimeout(initMonetag, 1000);
-});
+window.watchAd = async function() {
+    if (!window.Telegram?.WebApp) {
+        showNotification('Must open inside Telegram app', true);
+        return;
+    }
+    
+    if (!currentUser) {
+        showNotification('Loading user data...', false);
+        return;
+    }
+    
+    if (isWatchingAd) {
+        showNotification('Ad already in progress', true);
+        return;
+    }
+    
+    if (!monetagReady) {
+        if (!initMonetag()) {
+            showNotification('Ad network loading... Try again in a moment.', true);
+            return;
+        }
+    }
+    
+    isWatchingAd = true;
+    
+    try {
+        console.log('📺 Showing Monetag Rewarded Popup...');
+        await window.show_9683863('pop');
+        // If promise resolves, user completed the ad (or closed interstitial version)
+        await awardAdReward();
+    } catch (error) {
+        console.error('Monetag ad error or closed:', error);
+        adStreak = 0;
+        localStorage.setItem('adStreak', '0');
+        updateAdStreakDisplay();
+        showNotification('Ad not completed - streak reset', true);
+    } finally {
+        isWatchingAd = false;
+    }
+};
+
+window.resetAdStreak = function() {
+    adStreak = 0;
+    localStorage.setItem('adStreak', '0');
+    updateAdStreakDisplay();
+    showNotification('Ad streak reset', false);
+};
 
 // ============================================================
 // TASK FUNCTIONS (TIMER & ONE-TIME REWARDS)
@@ -898,7 +895,7 @@ async function loadWheelStatus() {
 // ============================================================
 
 async function init() {
-    if (!initAdsgram()) console.warn('Adsgram not immediately available, will retry on ad watch');
+    initMonetag();
     
     currentUser = await registerUser();
     if (currentUser) {
