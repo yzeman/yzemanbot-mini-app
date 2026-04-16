@@ -415,159 +415,159 @@
     <script src="/app.js"></script>
     
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.ready(); tg.expand(); }
-        
-        const POINTS_PER_COIN = 1000000; // 1,000,000 points = 1 COIN
-        
-        // Achievement icons and their ACTUAL coin rewards
-        const ACHIEVEMENT_CONFIG = {
-            'Loyal User': { icon: '🔥', coins: 50 },
-            'Referral Master': { icon: '👑', coins: 100 },
-            'Points Millionaire': { icon: '💰', coins: 1000 },
-            'Social Butterfly': { icon: '🦋', coins: 25 },
-            'Tournament Winner': { icon: '🏆', coins: 50 },
-            'Team Player': { icon: '🤝', coins: 10 },
-            'Platinum Elite': { icon: '💎', coins: 200 },
-            'Wheel Champion': { icon: '🎡', coins: 25 },
-            'Daily Streak 7': { icon: '📅', coins: 5 },
-            'Super Referrer': { icon: '⭐', coins: 500 },
-            'Ad Master': { icon: '📺', coins: 50 }
-        };
-        
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
+    
+    const POINTS_PER_COIN = 1000000;
+    
+    const ACHIEVEMENT_CONFIG = {
+        'Loyal User': { icon: '🔥', coins: 50 },
+        'Referral Master': { icon: '👑', coins: 100 },
+        'Points Millionaire': { icon: '💰', coins: 1000 },
+        'Social Butterfly': { icon: '🦋', coins: 25 },
+        'Tournament Winner': { icon: '🏆', coins: 50 },
+        'Team Player': { icon: '🤝', coins: 10 },
+        'Platinum Elite': { icon: '💎', coins: 200 },
+        'Wheel Champion': { icon: '🎡', coins: 25 },
+        'Daily Streak 7': { icon: '📅', coins: 5 },
+        'Super Referrer': { icon: '⭐', coins: 500 },
+        'Ad Master': { icon: '📺', coins: 50 }
+    };
+    
+    function showNotification(msg, isError = false) {
+        const notif = document.getElementById('notification');
+        notif.textContent = msg;
+        notif.className = 'notification' + (isError ? ' error' : '');
+        notif.style.display = 'block';
+        setTimeout(() => notif.style.display = 'none', 3000);
+    }
+    
+    async function apiCall(endpoint) {
+        if (!tg?.initData) {
+            throw new Error('Not in Telegram WebApp. Please open from Telegram.');
         }
         
-        async function apiCall(endpoint) {
-            if (!tg?.initData) throw new Error('Not in Telegram');
-            
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ initData: tg.initData })
-            });
-            
-            if (!response.ok) throw new Error(`Status ${response.status}`);
-            return response.json();
-        }
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
         
-        function updateStats(data) {
-            const stats = data.userStats;
-            const achievements = data.achievements;
-            
-            // Update counts
-            document.getElementById('achievementsCount').textContent = stats.achievements_count || 0;
-            
-            // Calculate total COINS earned from achievements
-            let totalCoinsEarned = 0;
-            achievements.forEach(ach => {
-                if (ach.achieved) {
-                    const config = ACHIEVEMENT_CONFIG[ach.name] || { coins: 0 };
-                    totalCoinsEarned += config.coins;
-                }
-            });
-            document.getElementById('totalCoinsEarned').textContent = totalCoinsEarned.toFixed(0);
-            
-            // Overall progress
-            const totalAchievements = achievements.length;
-            const unlockedCount = achievements.filter(a => a.achieved).length;
-            const overallPercent = Math.round((unlockedCount / totalAchievements) * 100);
-            document.getElementById('overallProgressText').textContent = `${overallPercent}%`;
-            document.getElementById('overallProgressBar').style.width = `${overallPercent}%`;
-            
-            // Referral progress
-            const referrals = stats.referrals || 0;
-            const referralPercent = Math.min((referrals / 100) * 100, 100);
-            document.getElementById('referralProgressText').textContent = `${referrals}/100`;
-            document.getElementById('referralProgressBar').style.width = `${referralPercent}%`;
-            
-            // Streak progress
-            const streak = stats.max_streak || 0;
-            const streakPercent = Math.min((streak / 30) * 100, 100);
-            document.getElementById('streakProgressText').textContent = `${streak}/30`;
-            document.getElementById('streakProgressBar').style.width = `${streakPercent}%`;
-            
-            // Ad progress
-            const totalAds = parseInt(localStorage.getItem('totalAdsWatched') || '0');
-            const adPercent = Math.min((totalAds / 1000) * 100, 100);
-            document.getElementById('adProgressText').textContent = `${totalAds}/1000`;
-            document.getElementById('adProgressBar').style.width = `${adPercent}%`;
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`API error ${response.status}: ${text}`);
         }
+        return response.json();
+    }
+    
+    function updateStats(data) {
+        const stats = data.userStats;
+        const achievements = data.achievements;
         
-        function renderAchievements(achievements) {
-            const container = document.getElementById('achievementsGrid');
-            
-            if (!achievements || achievements.length === 0) {
-                container.innerHTML = '<div class="empty-state">No achievements found</div>';
-                return;
+        document.getElementById('achievementsCount').textContent = stats.achievements_count || 0;
+        
+        let totalCoinsEarned = 0;
+        achievements.forEach(ach => {
+            if (ach.achieved) {
+                const config = ACHIEVEMENT_CONFIG[ach.name] || { coins: 0 };
+                totalCoinsEarned += config.coins;
             }
-            
-            container.innerHTML = achievements.map(ach => {
-                const config = ACHIEVEMENT_CONFIG[ach.name] || { icon: '🏅', coins: 0 };
-                const achieved = ach.achieved;
-                
-                return `
-                    <div class="achievement-card ${achieved ? 'unlocked' : 'locked'}">
-                        <div class="achievement-badge">
-                            ${achieved ? 
-                                '<span class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</span>' : 
-                                '<span class="locked-badge"><i class="fas fa-lock"></i> Locked</span>'
-                            }
-                        </div>
-                        <div class="achievement-icon">${config.icon}</div>
-                        <div class="achievement-name">${ach.name}</div>
-                        <div class="achievement-desc">${ach.description || ''}</div>
-                        <div class="achievement-reward">+${config.coins} COINS</div>
-                    </div>
-                `;
-            }).join('');
+        });
+        document.getElementById('totalCoinsEarned').textContent = totalCoinsEarned.toFixed(0);
+        
+        const totalAchievements = achievements.length;
+        const unlockedCount = achievements.filter(a => a.achieved).length;
+        const overallPercent = Math.round((unlockedCount / totalAchievements) * 100);
+        document.getElementById('overallProgressText').textContent = `${overallPercent}%`;
+        document.getElementById('overallProgressBar').style.width = `${overallPercent}%`;
+        
+        const referrals = stats.referrals || 0;
+        const referralPercent = Math.min((referrals / 100) * 100, 100);
+        document.getElementById('referralProgressText').textContent = `${referrals}/100`;
+        document.getElementById('referralProgressBar').style.width = `${referralPercent}%`;
+        
+        const streak = stats.max_streak || 0;
+        const streakPercent = Math.min((streak / 30) * 100, 100);
+        document.getElementById('streakProgressText').textContent = `${streak}/30`;
+        document.getElementById('streakProgressBar').style.width = `${streakPercent}%`;
+        
+        const totalAds = parseInt(localStorage.getItem('totalAdsWatched') || '0');
+        const adPercent = Math.min((totalAds / 1000) * 100, 100);
+        document.getElementById('adProgressText').textContent = `${totalAds}/1000`;
+        document.getElementById('adProgressBar').style.width = `${adPercent}%`;
+    }
+    
+    function renderAchievements(achievements) {
+        const container = document.getElementById('achievementsGrid');
+        
+        if (!achievements || achievements.length === 0) {
+            container.innerHTML = '<div class="empty-state">No achievements found</div>';
+            return;
         }
         
-        async function loadAchievements() {
-            const container = document.getElementById('achievementsGrid');
-            container.innerHTML = '<div class="loading">Loading achievements...</div>';
+        container.innerHTML = achievements.map(ach => {
+            const config = ACHIEVEMENT_CONFIG[ach.name] || { icon: '🏅', coins: 0 };
+            const achieved = ach.achieved;
             
-            try {
-                const data = await apiCall('/api/achievements');
-                updateStats(data);
-                renderAchievements(data.achievements);
-                // Hide loading screen when data is ready
-                document.getElementById('loadingScreen').classList.add('fade-out');
-                setTimeout(() => document.getElementById('loadingScreen').remove(), 500);
-            } catch (err) {
-                console.error('Achievements error:', err);
-                container.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Failed to load achievements</p>
-                        <button class="retry-btn" onclick="loadAchievements()">Retry</button>
+            return `
+                <div class="achievement-card ${achieved ? 'unlocked' : 'locked'}">
+                    <div class="achievement-badge">
+                        ${achieved ? 
+                            '<span class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</span>' : 
+                            '<span class="locked-badge"><i class="fas fa-lock"></i> Locked</span>'
+                        }
                     </div>
-                `;
-                // Hide loading screen even on error
-                document.getElementById('loadingScreen').classList.add('fade-out');
-                setTimeout(() => document.getElementById('loadingScreen').remove(), 500);
-            }
-        }
+                    <div class="achievement-icon">${config.icon}</div>
+                    <div class="achievement-name">${ach.name}</div>
+                    <div class="achievement-desc">${ach.description || ''}</div>
+                    <div class="achievement-reward">+${config.coins} COINS</div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    async function loadAchievements() {
+        const container = document.getElementById('achievementsGrid');
+        container.innerHTML = '<div class="loading">Loading achievements...</div>';
         
-        // Fallback: hide loading screen after 5 seconds
-        setTimeout(() => {
+        try {
+            const data = await apiCall('/api/achievements');
+            updateStats(data);
+            renderAchievements(data.achievements);
+        } catch (err) {
+            console.error('Achievements error:', err);
+            container.innerHTML = `
+                <div class="empty-state" style="grid-column: 1/-1;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Failed to load achievements</p>
+                    <p style="font-size:12px;margin-top:8px;">${err.message}</p>
+                    <button class="retry-btn" onclick="loadAchievements()">Retry</button>
+                </div>
+            `;
+            showNotification(err.message, true);
+        } finally {
+            // Always hide loading screen
             const loader = document.getElementById('loadingScreen');
             if (loader) {
                 loader.classList.add('fade-out');
                 setTimeout(() => loader.remove(), 500);
             }
-        }, 5000);
-        
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🏆 Achievements page loading...');
-            loadAchievements();
-        });
-    </script>
+        }
+    }
+    
+    // Fallback: hide loading screen after 5 seconds no matter what
+    setTimeout(() => {
+        const loader = document.getElementById('loadingScreen');
+        if (loader) {
+            loader.classList.add('fade-out');
+            setTimeout(() => loader.remove(), 500);
+        }
+    }, 5000);
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🏆 Achievements page loading...');
+        loadAchievements();
+    });
+</script>
 </body>
 </html>
