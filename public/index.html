@@ -6,9 +6,9 @@
     <title>YzemanBot - Earn COINS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Telegram Web App SDK -->
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<!-- Monetag SDK -->
-<script src="//libtl.com/sdk.js" data-zone="9683863" data-sdk="show_9683863"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Monetag SDK -->
+    <script src="//libtl.com/sdk.js" data-zone="9683863" data-sdk="show_9683863"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -71,6 +71,7 @@
             border-radius: 20px;
             padding: 20px;
             margin-top: 10px;
+            position: relative;
         }
         .balance-row {
             display: flex;
@@ -422,27 +423,185 @@
             margin-top: 10px;
             cursor: pointer;
         }
-        .audio-toggle {
-    background: rgba(255,255,255,0.1);
-    border: none;
-    color: var(--light);
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 4px;
-    transition: background 0.2s;
-}
-.audio-toggle:hover {
-    background: rgba(255,255,255,0.2);
-}
+
+        /* Audio Settings Button */
+        .audio-settings-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--light);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 5;
+        }
+        .audio-settings-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Audio Settings Panel (Popup/Modal) */
+        .audio-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            width: 90%;
+            max-width: 350px;
+            z-index: 3000;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid var(--gold);
+            display: none;
+        }
+        .audio-panel.show {
+            display: block;
+        }
+        .audio-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 2999;
+            display: none;
+        }
+        .audio-panel-overlay.show {
+            display: block;
+        }
+        .audio-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .audio-panel-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--gold);
+        }
+        .audio-panel-close {
+            background: none;
+            border: none;
+            color: var(--gray);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+        .audio-control-item {
+            margin-bottom: 20px;
+        }
+        .audio-control-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .audio-control-header i {
+            width: 24px;
+            color: var(--gold);
+        }
+        .audio-control-header span {
+            flex: 1;
+            font-weight: 500;
+        }
+        .audio-toggle-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .audio-toggle-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        input[type=range] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            margin-top: -7px;
+            cursor: pointer;
+        }
+        input[type=range]::-moz-range-track {
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
+    <!-- Audio Panel Overlay -->
+    <div class="audio-panel-overlay" id="audioPanelOverlay" onclick="closeAudioPanel()"></div>
+    
+    <!-- Audio Settings Panel -->
+    <div class="audio-panel" id="audioSettingsPanel">
+        <div class="audio-panel-header">
+            <h3><i class="fas fa-sliders-h"></i> Audio Settings</h3>
+            <button class="audio-panel-close" onclick="closeAudioPanel()">&times;</button>
+        </div>
+        
+        <div class="audio-control-item">
+            <div class="audio-control-header">
+                <i class="fas fa-music"></i>
+                <span>Background Music</span>
+                <button class="audio-toggle-btn" id="bgmToggleBtn" onclick="AudioManager.toggleBgm()">
+                    <i class="fas fa-music"></i>
+                </button>
+            </div>
+            <input type="range" id="bgmVolumeSlider" min="0" max="1" step="0.05" value="0.3" 
+                   oninput="AudioManager.setBgmVolume(this.value)">
+        </div>
+        
+        <div class="audio-control-item">
+            <div class="audio-control-header">
+                <i class="fas fa-volume-up"></i>
+                <span>Sound Effects</span>
+                <button class="audio-toggle-btn" id="sfxToggleBtn" onclick="AudioManager.toggleSfx()">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+            </div>
+            <input type="range" id="sfxVolumeSlider" min="0" max="1" step="0.05" value="0.5"
+                   oninput="AudioManager.setSfxVolume(this.value)">
+        </div>
+    </div>
+
     <div class="header">
         <div class="user-section">
             <div class="avatar" id="userAvatar"><i class="fas fa-user"></i></div>
@@ -453,8 +612,11 @@
             <div class="tier-badge-header" id="tier">Fresher</div>
         </div>
         <div class="balance-card">
-            <button id="musicToggleBtn" class="audio-toggle" onclick="AudioManager.toggleMusic()"><i class="fas fa-music"></i></button>
-<button id="sfxToggleBtn" class="audio-toggle" onclick="AudioManager.toggleSFX()"><i class="fas fa-volume-up"></i></button>
+            <!-- Audio Settings Button -->
+            <button class="audio-settings-btn" onclick="openAudioPanel()">
+                <i class="fas fa-volume-up"></i>
+            </button>
+            
             <div class="balance-row">
                 <span class="balance-label">Your Balance</span>
                 <div>
@@ -657,8 +819,24 @@
     
     <div class="notification" id="notification"></div>
 
+    <!-- Audio Panel Functions -->
+    <script>
+        function openAudioPanel() {
+            document.getElementById('audioPanelOverlay').classList.add('show');
+            document.getElementById('audioSettingsPanel').classList.add('show');
+            // Update UI when opening
+            if (window.AudioManager) {
+                AudioManager.updateVolumeUI();
+            }
+        }
+        function closeAudioPanel() {
+            document.getElementById('audioPanelOverlay').classList.remove('show');
+            document.getElementById('audioSettingsPanel').classList.remove('show');
+        }
+    </script>
+
     <!-- Load main application logic -->
-<script src="/app.js"></script>
+    <script src="/app.js"></script>
     
     <!-- Task Logic (inline to guarantee clickability) -->
     <script>
@@ -959,6 +1137,6 @@
 
         console.log('Ready!');
     })();
-</script>
+    </script>
 </body>
 </html>
