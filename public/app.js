@@ -3,6 +3,7 @@
 // POINT ECONOMY: 1,000,000 points = 1 COIN
 // WITHDRAWAL: 100,000 COINS minimum
 // MONETAG ZONE ID: 9683863
+// SOUND EFFECTS ONLY (NO BACKGROUND MUSIC)
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -169,33 +170,17 @@ async function apiCall(endpoint, data = null) {
 }
 
 // ============================================================
-// AUDIO MANAGER (Background Music + Sound Effects) - SAFE INIT
+// AUDIO MANAGER (Sound Effects Only - No Background Music)
 // ============================================================
 
 const AudioManager = {
-    bgMusic: null,
     sounds: {},
     initialized: false,
-    userInteracted: false,
-    
-    bgmVolume: parseFloat(localStorage.getItem('bgmVolume')) ?? 0.3,
-    sfxVolume: parseFloat(localStorage.getItem('sfxVolume')) ?? 0.5,
-    bgmEnabled: localStorage.getItem('bgmEnabled') !== 'false',
     sfxEnabled: localStorage.getItem('sfxEnabled') !== 'false',
+    sfxVolume: parseFloat(localStorage.getItem('sfxVolume')) ?? 0.5,
     
     init() {
         if (this.initialized) return;
-        
-        try {
-            this.bgMusic = new Audio('/sounds/bground.mp3');
-            this.bgMusic.loop = true;
-            this.bgMusic.volume = this.bgmEnabled ? this.bgmVolume : 0;
-            
-            const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
-            if (savedTime > 0) this.bgMusic.currentTime = savedTime;
-        } catch (e) {
-            console.warn('Background music file not found or invalid:', e);
-        }
         
         const soundFiles = {
             click: '/sounds/click.mp3',
@@ -212,53 +197,12 @@ const AudioManager = {
                 audio.volume = this.sfxEnabled ? this.sfxVolume : 0;
                 this.sounds[name] = audio;
             } catch (e) {
-                console.warn(`Sound ${name} failed to load:`, e);
+                console.warn(`Sound ${name} failed:`, e);
             }
         }
-        
-        setInterval(() => {
-            if (this.bgmEnabled && this.bgMusic && !this.bgMusic.paused) {
-                localStorage.setItem('bgMusicTime', this.bgMusic.currentTime);
-            }
-        }, 1000);
         
         this.initialized = true;
-        console.log('AudioManager initialized');
-    },
-    
-    _attemptPlay() {
-        if (!this.bgMusic) return;
-        if (!this.bgmEnabled) return;
-        const savedTime = parseFloat(localStorage.getItem('bgMusicTime')) || 0;
-        this.bgMusic.currentTime = savedTime;
-        this.bgMusic.play().catch(e => {});
-    },
-    
-    unlockAudio() {
-        if (this.userInteracted) return;
-        this.userInteracted = true;
-        
-        if (this.bgmEnabled && this.bgMusic) {
-            this._attemptPlay();
-        }
-        
-        Object.values(this.sounds).forEach(sound => {
-            sound.volume = 0;
-            sound.play().then(() => {
-                sound.pause();
-                sound.currentTime = 0;
-                sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
-            }).catch(() => {});
-        });
-    },
-    
-    setBgmVolume(value) {
-        this.bgmVolume = Math.max(0, Math.min(1, value));
-        localStorage.setItem('bgmVolume', this.bgmVolume);
-        if (this.bgMusic) {
-            this.bgMusic.volume = this.bgmEnabled ? this.bgmVolume : 0;
-        }
-        this.updateVolumeUI();
+        console.log('🔊 Sound effects initialized (music disabled)');
     },
     
     setSfxVolume(value) {
@@ -267,20 +211,6 @@ const AudioManager = {
         Object.values(this.sounds).forEach(sound => {
             sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
         });
-        this.updateVolumeUI();
-    },
-    
-    toggleBgm() {
-        this.bgmEnabled = !this.bgmEnabled;
-        localStorage.setItem('bgmEnabled', this.bgmEnabled);
-        if (this.bgmEnabled) {
-            if (this.bgMusic) {
-                this.bgMusic.volume = this.bgmVolume;
-                this._attemptPlay();
-            }
-        } else {
-            if (this.bgMusic) this.bgMusic.pause();
-        }
         this.updateVolumeUI();
     },
     
@@ -303,43 +233,17 @@ const AudioManager = {
     },
     
     updateVolumeUI() {
-        const bgmSlider = document.getElementById('bgmVolumeSlider');
         const sfxSlider = document.getElementById('sfxVolumeSlider');
-        const bgmToggle = document.getElementById('bgmToggleBtn');
         const sfxToggle = document.getElementById('sfxToggleBtn');
-        
-        if (bgmSlider) bgmSlider.value = this.bgmVolume;
         if (sfxSlider) sfxSlider.value = this.sfxVolume;
-        if (bgmToggle) bgmToggle.innerHTML = this.bgmEnabled ? '<i class="fas fa-music"></i>' : '<i class="fas fa-music" style="opacity:0.4;"></i>';
         if (sfxToggle) sfxToggle.innerHTML = this.sfxEnabled ? '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
-    },
-    
-    ensureMusicPlaying() {
-        this.unlockAudio();
-        if (this.bgmEnabled && this.bgMusic && this.bgMusic.paused) {
-            this._attemptPlay();
-        }
     }
 };
 
-// Initialize AudioManager safely
-try {
-    AudioManager.init();
-} catch (e) {
-    console.error('AudioManager init error:', e);
-}
+// Initialize sound effects
+try { AudioManager.init(); } catch (e) {}
 
-// Unlock audio on first user interaction
-document.addEventListener('click', function unlockOnce() {
-    AudioManager.unlockAudio();
-    document.removeEventListener('click', unlockOnce);
-}, { once: true, capture: true });
-
-document.addEventListener('click', () => {
-    AudioManager.ensureMusicPlaying();
-}, { passive: true });
-
-// Override notification and celebration (preserve original functionality)
+// Override notification and celebration to play sounds
 const originalShowNotification = showNotification;
 showNotification = function(msg, isError = false) {
     originalShowNotification(msg, isError);
@@ -1132,7 +1036,7 @@ async function loadWheelStatus() {
 async function init() {
     initMonetag();
     
-    // Update audio settings UI if sliders exist
+    // Update sound effect UI if elements exist
     try { AudioManager.updateVolumeUI(); } catch (e) {}
     
     currentUser = await registerUser();
