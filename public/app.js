@@ -59,7 +59,7 @@ const POINT_ECONOMY = {
     SOCIAL_TASK_REWARDS: { 'youtube1': 5000000, 'youtube2': 2500000, 'youtube3': 2500000, 'facebook': 2500000, 'instagram': 2500000, 'telegram': 5000000 },
     YOUTUBE_TASK_REWARD: 10000000,
     WEBSITE_TASK_REWARD: 5000000,
-    ACHIEVEMENT_REWARDS: { 'Loyal User': 50000000, 'Referral Master': 100000000, 'Points Millionaire': 1000000000, 'Social Butterfly': 25000000, 'Tournament Winner': 50000000, 'Platinum Elite': 200000000, 'Wheel Champion': 25000000, 'Daily Streak 7': 5000000, 'Super Referrer': 500000000, 'Ad Master': 50000000 },
+    ACHIEVEMENT_REWARDS: { 'Loyal User': 50000000, 'Referral Master': 100000000, 'Points Millionaire': 1000000000, 'Social Butterfly': 25000000, 'Tournament Winner': 50000000, 'Platinum Elite': 200000000, 'Wheel Champion': 25000000, 'Daily Streak 7': 5000000, 'Super Referrer': 500000000, 'Ad Master': 5000000000 },
     TOURNAMENT_PRIZES: { 1: 500000000, 2: 250000000, 3: 100000000, 4: 50000000, 5: 25000000 }
 };
 
