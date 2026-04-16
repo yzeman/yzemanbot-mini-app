@@ -665,25 +665,25 @@
         // ============================================
         // NOTIFICATION HELPER
         // ============================================
-        function showNotification(msg, isError = false) {
+        function showNotification(msg, isError) {
             const n = document.getElementById('notification');
             if (n) {
                 n.textContent = msg;
                 n.style.background = isError ? '#ff5252' : '#00c853';
                 n.style.display = 'block';
-                setTimeout(() => n.style.display = 'none', 4000);
+                setTimeout(function() { n.style.display = 'none'; }, 4000);
             }
         }
         window.showNotification = showNotification;
 
         // ============================================
-        // OPEN URL USING TELEGRAM API
+        // OPEN URL
         // ============================================
         function openTaskUrl(task) {
-            const tgWebApp = window.Telegram?.WebApp;
+            var tgWebApp = window.Telegram && window.Telegram.WebApp;
             
             if (task.name === 'telegram') {
-                if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
+                if (tgWebApp && tgWebApp.openTelegramLink) {
                     tgWebApp.openTelegramLink(task.url);
                 } else {
                     window.open(task.url, '_blank');
@@ -691,13 +691,12 @@
                 return;
             }
             
-            // For website task, use window.open to ensure it opens in a new tab
             if (task.useFrame) {
                 window.open(task.url, '_blank');
                 return;
             }
             
-            if (tgWebApp && typeof tgWebApp.openLink === 'function') {
+            if (tgWebApp && tgWebApp.openLink) {
                 tgWebApp.openLink(task.url, { try_instant_view: false });
             } else {
                 window.open(task.url, '_blank');
@@ -707,13 +706,13 @@
         // ============================================
         // TIMER STATE
         // ============================================
-        let activeTask = null;
-        let taskStartTime = null;
-        let timerInterval = null;
-        let taskWindow = null;
-        let taskWindowCheckInterval = null;
-        let taskCompleted = false;
-        let visibilityHandler = null;
+        var activeTask = null;
+        var taskStartTime = null;
+        var timerInterval = null;
+        var taskWindow = null;
+        var taskWindowCheckInterval = null;
+        var taskCompleted = false;
+        var visibilityHandler = null;
 
         function cleanupTimer() {
             if (timerInterval) clearInterval(timerInterval);
@@ -730,43 +729,44 @@
             taskWindow = null;
         }
 
-        function cancelTask(manual = true) {
+        function cancelTask(manual) {
             cleanupTimer();
             if (taskWindow && !taskWindow.closed) {
                 taskWindow.close();
             }
-            if (manual) {
+            if (manual !== false) {
                 showNotification('Task cancelled. No reward.', true);
             }
         }
         window.cancelTask = cancelTask;
 
-        // Complete task on backend with retry logic
-        async function completeTaskOnServer(taskName, points, retryCount = 0) {
-            const maxRetries = 3;
+        // Complete task on server with retry
+        async function completeTaskOnServer(taskName, points, retryCount) {
+            retryCount = retryCount || 0;
+            var maxRetries = 3;
             try {
-                const initData = tg?.initData || '';
-                console.log(`📤 Completing task "${taskName}" with ${points} points (attempt ${retryCount + 1})`);
+                var initData = (tg && tg.initData) || '';
+                console.log('Completing task ' + taskName + ' with ' + points + ' points (attempt ' + (retryCount + 1) + ')');
                 
-                const res = await fetch('/api/complete-task', {
+                var res = await fetch('/api/complete-task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ taskName, points, initData })
+                    body: JSON.stringify({ taskName: taskName, points: points, initData: initData })
                 });
                 
-                const data = await res.json();
+                var data = await res.json();
                 
                 if (res.ok && data.success) {
                     showNotification(data.message, false);
                     if (window.refreshUser) await window.refreshUser();
                     return true;
                 } else {
-                    const errorMsg = data.error || `Server error ${res.status}`;
+                    var errorMsg = data.error || 'Server error ' + res.status;
                     console.error('Server rejected:', errorMsg);
                     
                     if (retryCount < maxRetries && (res.status >= 500 || res.status === 0)) {
-                        console.log(`⏳ Retrying in ${(retryCount + 1) * 1000}ms...`);
-                        await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+                        console.log('Retrying in ' + ((retryCount + 1) * 1000) + 'ms...');
+                        await new Promise(function(resolve) { setTimeout(resolve, (retryCount + 1) * 1000); });
                         return completeTaskOnServer(taskName, points, retryCount + 1);
                     }
                     
@@ -777,38 +777,37 @@
                 console.error('Network exception:', e);
                 
                 if (retryCount < maxRetries) {
-                    console.log(`⏳ Retrying after network error in ${(retryCount + 1) * 1000}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+                    console.log('Retrying after network error...');
+                    await new Promise(function(resolve) { setTimeout(resolve, (retryCount + 1) * 1000); });
                     return completeTaskOnServer(taskName, points, retryCount + 1);
                 }
                 
-                showNotification('Network error. Check connection and try again.', true);
+                showNotification('Network error. Try again.', true);
                 return false;
             }
         }
 
         async function checkTaskCompleted(taskName) {
             try {
-                const initData = tg?.initData || '';
-                const res = await fetch('/api/check-task', {
+                var initData = (tg && tg.initData) || '';
+                var res = await fetch('/api/check-task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ taskName, initData })
+                    body: JSON.stringify({ taskName: taskName, initData: initData })
                 });
-                const data = await res.json();
+                var data = await res.json();
                 return data.completed || false;
             } catch (e) {
-                console.error('Check task error:', e);
                 return false;
             }
         }
 
         function markTaskCompletedInUI(taskKey) {
-            const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
+            var btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
             if (btn) {
                 btn.classList.add('completed');
                 if (!btn.querySelector('.completed-badge')) {
-                    const badge = document.createElement('div');
+                    var badge = document.createElement('div');
                     badge.className = 'completed-badge';
                     badge.innerHTML = '✓ Done';
                     btn.appendChild(badge);
@@ -826,78 +825,67 @@
             taskStartTime = Date.now();
             taskCompleted = false;
             
-            // Open the link/window FIRST before starting timer
+            // Open link first
             if (task.useFrame) {
                 taskWindow = window.open(task.url, '_blank');
-                if (!taskWindow) {
-                    // Popup blocked - show message
-                    showNotification('Please allow popups for this site', true);
-                    activeTask = null;
-                    return;
-                }
             } else {
                 openTaskUrl(task);
             }
             
-            // Telegram instant reward
+            // Telegram instant
             if (task.instant) {
-                completeTaskOnServer(task.name, task.points).then(success => {
+                completeTaskOnServer(task.name, task.points).then(function(success) {
                     if (success) markTaskCompletedInUI(taskKey);
                 });
                 return;
             }
             
-            const popup = document.getElementById('timerPopup');
-            const timerEl = document.getElementById('timerTimeLeft');
+            var popup = document.getElementById('timerPopup');
+            var timerEl = document.getElementById('timerTimeLeft');
             
             if (task.showTimer) {
                 popup.classList.add('active');
-                // Update popup text for website task
-                const popupText = popup.querySelector('div');
-                if (popupText && taskKey === 'website') {
-                    popupText.innerHTML = 'Stay on the website for 2 minutes to earn your reward...';
-                }
             }
             
-            // For tasks with hidden timer, set up early-return detection
+            // Early return detection
             if (!task.showTimer) {
-                visibilityHandler = () => {
+                visibilityHandler = function() {
                     if (document.visibilityState === 'visible') {
-                        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                        var elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
                         if (elapsed < task.time && !taskCompleted) {
                             cleanupTimer();
-                            showNotification('Task incomplete – you didn't follow the rules. No reward.', true);
+                            showNotification('Task incomplete - you didn\'t follow the rules. No reward.', true);
                         }
                     }
                 };
                 document.addEventListener('visibilitychange', visibilityHandler);
             }
             
-            timerInterval = setInterval(async () => {
-                const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                const remaining = Math.max(0, task.time - elapsed);
+            timerInterval = setInterval(async function() {
+                var elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                var remaining = Math.max(0, task.time - elapsed);
                 
                 if (task.showTimer && timerEl) {
-                    const mins = Math.floor(remaining / 60);
-                    const secs = remaining % 60;
-                    timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+                    var mins = Math.floor(remaining / 60);
+                    var secs = remaining % 60;
+                    timerEl.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
                 }
                 
                 if (remaining <= 0 && !taskCompleted) {
                     taskCompleted = true;
                     cleanupTimer();
                     if (taskWindow && !taskWindow.closed) taskWindow.close();
-                    const success = await completeTaskOnServer(task.name, task.points);
+                    var success = await completeTaskOnServer(task.name, task.points);
                     if (success) markTaskCompletedInUI(taskKey);
                 }
             }, 1000);
             
-            // For website task: monitor if window is closed early
+            // Website window close detection
             if (task.showTimer && taskWindow) {
-                taskWindowCheckInterval = setInterval(() => {
+                taskWindowCheckInterval = setInterval(function() {
                     if (taskWindow && taskWindow.closed && !taskCompleted) {
                         cleanupTimer();
-                        showNotification('Task cancelled – you closed the website early. No reward.', true);
+                        showNotification('Task cancelled - you closed the website early. No reward.', true);
                     }
                 }, 500);
             }
@@ -909,10 +897,10 @@
                 return;
             }
             
-            const task = TASK_CONFIG[taskKey];
+            var task = TASK_CONFIG[taskKey];
             if (!task) return;
             
-            const alreadyCompleted = await checkTaskCompleted(task.name);
+            var alreadyCompleted = await checkTaskCompleted(task.name);
             if (alreadyCompleted) {
                 showNotification('You already completed this task.', true);
                 markTaskCompletedInUI(taskKey);
@@ -924,74 +912,69 @@
         window.handleTaskClick = handleTaskClick;
 
         // ============================================
-        // ATTACH CLICK HANDLERS
+        // ATTACH HANDLERS - SIMPLE AND RELIABLE
         // ============================================
         function attachTaskHandlers() {
-            console.log('🔧 Attaching task click handlers...');
-            const taskIds = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
-            taskIds.forEach(taskKey => {
-                const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
-                if (btn) {
-                    const newBtn = btn.cloneNode(true);
-                    btn.parentNode.replaceChild(newBtn, btn);
-                    newBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log(`🖱️ Task clicked: ${taskKey}`);
-                        handleTaskClick(taskKey);
-                    });
-                    console.log(`✅ Handler attached for: ${taskKey}`);
-                }
-            });
+            console.log('Attaching handlers...');
             
-            const cancelBtn = document.getElementById('cancelTaskBtn');
+            var tasks = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+            
+            for (var i = 0; i < tasks.length; i++) {
+                (function(taskKey) {
+                    var btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
+                    if (btn) {
+                        btn.onclick = function(e) {
+                            e.preventDefault();
+                            handleTaskClick(taskKey);
+                            return false;
+                        };
+                        console.log('Handler attached: ' + taskKey);
+                    }
+                })(tasks[i]);
+            }
+            
+            var cancelBtn = document.getElementById('cancelTaskBtn');
             if (cancelBtn) {
-                const newCancelBtn = cancelBtn.cloneNode(true);
-                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-                newCancelBtn.addEventListener('click', (e) => {
+                cancelBtn.onclick = function(e) {
                     e.preventDefault();
                     cancelTask();
-                });
+                    return false;
+                };
             }
         }
 
+        // Tab switching
         function setupTabs() {
-            document.querySelectorAll('.tab').forEach(t => {
-                t.addEventListener('click', () => {
-                    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                    t.classList.add('active');
-                    const tabId = t.dataset.tab;
-                    if (tabId) {
-                        document.getElementById(tabId + 'Tab').classList.add('active');
-                    }
-                });
-            });
+            var tabs = document.querySelectorAll('.tab');
+            for (var i = 0; i < tabs.length; i++) {
+                tabs[i].onclick = function() {
+                    var tabId = this.getAttribute('data-tab');
+                    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+                    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+                    this.classList.add('active');
+                    document.getElementById(tabId + 'Tab').classList.add('active');
+                };
+            }
         }
 
-        // ============================================
-        // INITIALIZE
-        // ============================================
+        // Start everything
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('📄 DOM ready – setting up tabs and task handlers');
             setupTabs();
             
-            if (document.getElementById('dailyAdGoal')) document.getElementById('dailyAdGoal').textContent = '20';
-            if (document.getElementById('dailyGoalReward')) document.getElementById('dailyGoalReward').textContent = '0.5';
-            if (document.getElementById('weeklyAdGoal')) document.getElementById('weeklyAdGoal').textContent = '100';
-            if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
-            if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
+            // Set static text
+            var dailyAdGoal = document.getElementById('dailyAdGoal');
+            if (dailyAdGoal) dailyAdGoal.textContent = '20';
+            var weeklyAdGoal = document.getElementById('weeklyAdGoal');
+            if (weeklyAdGoal) weeklyAdGoal.textContent = '100';
+            var nextTierReq = document.getElementById('nextTierReq');
+            if (nextTierReq) nextTierReq.textContent = '150';
             
+            // Attach handlers after short delay
             setTimeout(attachTaskHandlers, 300);
+            setTimeout(attachTaskHandlers, 1000);
         });
 
-        if (tg) {
-            tg.onEvent('viewportChanged', () => {
-                setTimeout(attachTaskHandlers, 100);
-            });
-        }
-
-        console.log('✅ Task system initialized with website fix');
+        console.log('Ready!');
     })();
 </script>
 </body>
