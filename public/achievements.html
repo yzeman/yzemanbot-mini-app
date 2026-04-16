@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Achievements - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Monetag SDK -->
+    <script src="//libtl.com/sdk.js" data-zone="9683863" data-sdk="show_9683863"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -55,6 +58,43 @@
             top: 20px; left: 20px;
             color: white; font-size: 22px;
             text-decoration: none; z-index: 10;
+        }
+        
+        /* Audio Unlock Overlay */
+        .audio-unlock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+        }
+        .audio-unlock-message {
+            background: var(--darker);
+            padding: 25px 30px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid var(--gold);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .audio-unlock-message i {
+            font-size: 48px;
+            color: var(--gold);
+            margin-bottom: 15px;
+        }
+        .audio-unlock-message h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        .audio-unlock-message p {
+            color: var(--gray);
+            font-size: 14px;
         }
         
         /* Stats Cards */
@@ -270,6 +310,15 @@
     </style>
 </head>
 <body>
+    <!-- Audio Unlock Overlay - Prompts user to tap to enable music -->
+    <div id="audioUnlockOverlay" class="audio-unlock-overlay" onclick="this.remove(); if(window.AudioManager) AudioManager.ensureMusicPlaying();">
+        <div class="audio-unlock-message">
+            <i class="fas fa-music"></i>
+            <h3>Tap to enable audio</h3>
+            <p>Background music will resume</p>
+        </div>
+    </div>
+
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
@@ -365,6 +414,9 @@
     </div>
     
     <div class="notification" id="notification"></div>
+    
+    <!-- Load main application logic (includes AudioManager) -->
+    <script src="/app.js"></script>
     
     <script>
         const tg = window.Telegram?.WebApp;
@@ -504,7 +556,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🏆 Achievements page loading...');
             loadAchievements();
+            
+            // If AudioManager is already initialized and music was playing, the overlay will handle unlocking.
+            // But we can also attempt to resume after a short delay in case user clicks elsewhere.
         });
     </script>
 </body>
-                    </html>
+</html>
