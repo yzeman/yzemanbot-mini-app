@@ -139,7 +139,7 @@ async function initDB() {
         description TEXT,
         badge_icon TEXT,
         required_value INTEGER,
-        points_reward INTEGER DEFAULT 0
+        points_reward BIGINT DEFAULT 0
       )`);
 
     await client.query(`
