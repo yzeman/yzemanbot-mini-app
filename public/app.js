@@ -339,143 +339,120 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// ADSGRAM INTEGRATION (Block ID: 27449)
+// ADSGRAM INTEGRATION (Block ID: 27449) - ENHANCED DEBUGGING
 // ============================================================
 
+let adsgramController = null;
+let adsgramReady = false;
+let adsgramErrorShown = false;
+
 function initAdsgram() {
-    // Check if SDK is loaded
+    // Step 1: Check SDK availability
     if (typeof window.Adsgram === 'undefined') {
-        console.error('❌ Adsgram SDK script not loaded');
+        const msg = 'Adsgram SDK not loaded. Check network or ad blocker.';
+        console.error('❌ ' + msg);
+        if (!adsgramErrorShown) {
+            showNotification(msg, true);
+            adsgramErrorShown = true;
+        }
         return false;
     }
     
+    // Step 2: Try to initialize
     try {
         adsgramController = window.Adsgram.init({
             blockId: '27449'  // Your Block ID
         });
         
+        // Quick validation - some SDK versions have a different API
+        if (!adsgramController || typeof adsgramController.show !== 'function') {
+            throw new Error('Adsgram controller invalid - show() method missing');
+        }
+        
         adsgramReady = true;
+        adsgramErrorShown = false;
         console.log('✅ Adsgram initialized with Block ID 27449');
         return true;
     } catch (error) {
-        console.error('❌ Adsgram init error:', error);
+        const msg = 'Adsgram init error: ' + (error.message || 'Unknown');
+        console.error('❌ ' + msg);
+        if (!adsgramErrorShown) {
+            showNotification(msg, true);
+            adsgramErrorShown = true;
+        }
         return false;
     }
 }
 
-// Try to initialize as soon as possible
+// Try to initialize immediately
 if (typeof window.Adsgram !== 'undefined') {
     initAdsgram();
 } else {
-    // Wait for script to load
-    window.addEventListener('load', function() {
-        setTimeout(function() {
-            if (!adsgramReady) {
-                initAdsgram();
+    // Wait for script to load with multiple attempts
+    let attempts = 0;
+    const maxAttempts = 10;
+    const checkInterval = setInterval(() => {
+        attempts++;
+        if (typeof window.Adsgram !== 'undefined') {
+            clearInterval(checkInterval);
+            initAdsgram();
+        } else if (attempts >= maxAttempts) {
+            clearInterval(checkInterval);
+            console.error('Adsgram SDK failed to load after ' + maxAttempts + ' attempts');
+            if (!adsgramErrorShown) {
+                showNotification('Adsgram SDK failed to load. Please refresh.', true);
+                adsgramErrorShown = true;
             }
-        }, 500);
-    });
-}
-
-function calculateAdReward() {
-    const baseReward = POINT_ECONOMY.AD_REWARDS[currentUser?.tier] || 5000;
-    const rand = Math.random();
-    let multiplier = 1, luckyType = 'normal';
-    if (rand < POINT_ECONOMY.MEGA_AD_CHANCE) { multiplier = 10; luckyType = 'mega'; }
-    else if (rand < POINT_ECONOMY.MEGA_AD_CHANCE + POINT_ECONOMY.GOLDEN_AD_CHANCE) { multiplier = 5; luckyType = 'golden'; }
-    else if (rand < POINT_ECONOMY.MEGA_AD_CHANCE + POINT_ECONOMY.GOLDEN_AD_CHANCE + POINT_ECONOMY.LUCKY_AD_CHANCE) { multiplier = 2; luckyType = 'lucky'; }
-    return { baseReward, multiplier, finalReward: Math.floor(baseReward * multiplier), luckyType };
-}
-
-function checkAndAwardStreakBonus() {
-    const bonuses = POINT_ECONOMY.AD_STREAK_BONUSES;
-    for (const [streakRequired, bonus] of Object.entries(bonuses)) {
-        if (adStreak === parseInt(streakRequired)) return bonus;
-    }
-    return 0;
-}
-
-function checkAndAwardMilestones() {
-    const milestones = POINT_ECONOMY.AD_MILESTONES;
-    const earnedMilestones = JSON.parse(localStorage.getItem('earnedMilestones') || '[]');
-    let milestoneBonus = 0;
-    for (const [required, bonus] of Object.entries(milestones)) {
-        if (totalAdsWatched >= parseInt(required) && !earnedMilestones.includes(required)) {
-            milestoneBonus += bonus;
-            earnedMilestones.push(required);
         }
-    }
-    localStorage.setItem('earnedMilestones', JSON.stringify(earnedMilestones));
-    return milestoneBonus;
-}
-
-function updateAdStats() {
-    adStreak++;
-    totalAdsWatched++;
-    adsWatchedToday++;
-    lastAdDate = today;
-    adsWatchedWeek++;
-    localStorage.setItem('adStreak', adStreak);
-    localStorage.setItem('totalAdsWatched', totalAdsWatched);
-    localStorage.setItem('adsWatchedToday', adsWatchedToday);
-    localStorage.setItem('adsWatchedWeek', adsWatchedWeek);
-    localStorage.setItem('lastAdDate', lastAdDate);
-    updateAdStreakDisplay();
+    }, 300);
 }
 
 window.watchAd = async function() {
-    // Check if we're in Telegram WebApp
+    // Check Telegram environment
     if (!window.Telegram?.WebApp) {
-        showNotification('Please open this app inside Telegram', true);
+        showNotification('Must open inside Telegram app', true);
         return;
     }
     
-    // Ensure Adsgram is initialized
+    // Ensure Adsgram is ready
     if (!adsgramReady || !adsgramController) {
-        showNotification('Ad system loading... please wait', false);
-        
-        // Try to initialize again
+        showNotification('Ad system not ready. Trying to initialize...', false);
         if (initAdsgram()) {
-            showNotification('Ad system ready! Try again.', false);
+            showNotification('Ad system ready now. Try again.', false);
         } else {
-            showNotification('Ad system not available. Check console for errors.', true);
-            console.error('Adsgram not available. window.Adsgram:', typeof window.Adsgram);
+            // Additional diagnostics
+            if (typeof window.Adsgram === 'undefined') {
+                showNotification('Adsgram SDK not loaded. Check your internet or disable ad blocker.', true);
+            } else {
+                showNotification('Ad block may not be active. Verify Block ID in Adsgram dashboard.', true);
+            }
         }
         return;
     }
     
     if (!currentUser) {
-        showNotification('Please log in first', true);
+        showNotification('Loading user data...', false);
         return;
     }
     
     if (isWatchingAd) {
-        showNotification('Ad already playing! Keep watching 🔥', true);
+        showNotification('Ad already in progress', true);
         return;
     }
     
     isWatchingAd = true;
     
     try {
-        console.log('📺 Showing Adsgram ad...');
-        
-        // Show the ad with a timeout
-        const adPromise = adsgramController.show();
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Ad request timeout')), 30000)
-        );
-        
-        const result = await Promise.race([adPromise, timeoutPromise]);
+        console.log('📺 Calling adsgramController.show()...');
+        const result = await adsgramController.show();
+        console.log('Ad result:', result);
         
         if (result && result.done) {
-            console.log('✅ Ad completed, awarding points');
-            
+            // ... (rest of reward logic remains same)
             const { finalReward, luckyType } = calculateAdReward();
             updateAdStats();
-            
             const streakBonus = checkAndAwardStreakBonus();
             const milestoneBonus = checkAndAwardMilestones();
-            
             let totalPoints = finalReward + streakBonus + milestoneBonus;
             
             let dailyGoalBonus = 0, weeklyGoalBonus = 0;
@@ -500,42 +477,37 @@ window.watchAd = async function() {
             await addPoints(totalPoints, 'adsgram');
             
             if (streakBonus > 0) {
-                showNotification(`🔥 ${adStreak} Ad Streak! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
+                showNotification(`🔥 Streak bonus! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
             }
-            if (dailyGoalBonus > 0) {
-                showNotification(`🎯 Daily Goal Complete! +${(dailyGoalBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1)} COINS!`);
-            }
-            if (weeklyGoalBonus > 0) {
-                showNotification(`🏆 Weekly Goal Complete! +${(weeklyGoalBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1)} COINS!`);
-            }
-            if (milestoneBonus > 0) {
-                showNotification(`🎖️ Ad Milestone Reached! +${(milestoneBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1)} COINS!`);
-            }
-            
+            if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
+            if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
+            if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
         } else {
-            console.log('⚠️ Ad skipped or not completed');
+            // Ad skipped or not completed
             adStreak = 0;
             localStorage.setItem('adStreak', '0');
             updateAdStreakDisplay();
             showNotification('Ad skipped - streak reset', true);
         }
     } catch (error) {
-        console.error('❌ Adsgram error:', error);
+        console.error('Adsgram show error:', error);
         adStreak = 0;
         localStorage.setItem('adStreak', '0');
         updateAdStreakDisplay();
         
-        let errorMsg = 'Ad failed - streak reset';
+        let errorMsg = 'Ad error: ';
         if (error.message) {
             if (error.message.includes('no ad') || error.message.includes('no fill')) {
-                errorMsg = 'No ads available right now. Try again later.';
+                errorMsg = 'No ads available. Try again later.';
             } else if (error.message.includes('timeout')) {
-                errorMsg = 'Ad request timed out. Check your connection.';
+                errorMsg = 'Request timed out. Check connection.';
             } else if (error.message.includes('not supported')) {
-                errorMsg = 'Ads not supported in this browser. Use Telegram mobile app.';
+                errorMsg = 'Ads not supported here. Use Telegram mobile.';
             } else {
-                errorMsg = 'Ad error: ' + error.message;
+                errorMsg += error.message;
             }
+        } else {
+            errorMsg += 'Unknown reason';
         }
         showNotification(errorMsg, true);
     } finally {
@@ -543,12 +515,7 @@ window.watchAd = async function() {
     }
 };
 
-window.resetAdStreak = function() {
-    adStreak = 0;
-    localStorage.setItem('adStreak', '0');
-    updateAdStreakDisplay();
-    showNotification('Ad streak reset', false);
-};
+// ... keep the rest of the file unchanged
 
 // ============================================================
 // TASK FUNCTIONS (TIMER & ONE-TIME REWARDS)
