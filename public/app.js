@@ -109,6 +109,7 @@ let weeklyGoalClaimed = localStorage.getItem('weeklyGoalClaimed') === 'true';
 
 // Adsgram controller
 let adsgramController = null;
+let adsgramReady = false;
 
 // Task timer globals (shared with index.html script)
 let activeTask = null;
@@ -342,17 +343,38 @@ function updateAdStreakDisplay() {
 // ============================================================
 
 function initAdsgram() {
+    // Check if SDK is loaded
     if (typeof window.Adsgram === 'undefined') {
-        console.error('❌ Adsgram SDK not loaded');
+        console.error('❌ Adsgram SDK script not loaded');
         return false;
     }
     
-    adsgramController = window.Adsgram.init({
-        blockId: '27449'  // Your Block ID
+    try {
+        adsgramController = window.Adsgram.init({
+            blockId: '27449'  // Your Block ID
+        });
+        
+        adsgramReady = true;
+        console.log('✅ Adsgram initialized with Block ID 27449');
+        return true;
+    } catch (error) {
+        console.error('❌ Adsgram init error:', error);
+        return false;
+    }
+}
+
+// Try to initialize as soon as possible
+if (typeof window.Adsgram !== 'undefined') {
+    initAdsgram();
+} else {
+    // Wait for script to load
+    window.addEventListener('load', function() {
+        setTimeout(function() {
+            if (!adsgramReady) {
+                initAdsgram();
+            }
+        }, 500);
     });
-    
-    console.log('✅ Adsgram initialized with Block ID 27449');
-    return true;
 }
 
 function calculateAdReward() {
@@ -402,11 +424,24 @@ function updateAdStats() {
 }
 
 window.watchAd = async function() {
-    if (!adsgramController) {
-        if (!initAdsgram()) {
-            showNotification('Ad system not ready. Refresh page.', true);
-            return;
+    // Check if we're in Telegram WebApp
+    if (!window.Telegram?.WebApp) {
+        showNotification('Please open this app inside Telegram', true);
+        return;
+    }
+    
+    // Ensure Adsgram is initialized
+    if (!adsgramReady || !adsgramController) {
+        showNotification('Ad system loading... please wait', false);
+        
+        // Try to initialize again
+        if (initAdsgram()) {
+            showNotification('Ad system ready! Try again.', false);
+        } else {
+            showNotification('Ad system not available. Check console for errors.', true);
+            console.error('Adsgram not available. window.Adsgram:', typeof window.Adsgram);
         }
+        return;
     }
     
     if (!currentUser) {
@@ -423,9 +458,16 @@ window.watchAd = async function() {
     
     try {
         console.log('📺 Showing Adsgram ad...');
-        const result = await adsgramController.show();
         
-        if (result.done) {
+        // Show the ad with a timeout
+        const adPromise = adsgramController.show();
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Ad request timeout')), 30000)
+        );
+        
+        const result = await Promise.race([adPromise, timeoutPromise]);
+        
+        if (result && result.done) {
             console.log('✅ Ad completed, awarding points');
             
             const { finalReward, luckyType } = calculateAdReward();
@@ -471,7 +513,7 @@ window.watchAd = async function() {
             }
             
         } else {
-            console.log('⚠️ Ad skipped by user');
+            console.log('⚠️ Ad skipped or not completed');
             adStreak = 0;
             localStorage.setItem('adStreak', '0');
             updateAdStreakDisplay();
@@ -483,11 +525,19 @@ window.watchAd = async function() {
         localStorage.setItem('adStreak', '0');
         updateAdStreakDisplay();
         
-        if (error.message && error.message.includes('no ad')) {
-            showNotification('No ads available right now. Try later.', true);
-        } else {
-            showNotification('Ad failed - streak reset', true);
+        let errorMsg = 'Ad failed - streak reset';
+        if (error.message) {
+            if (error.message.includes('no ad') || error.message.includes('no fill')) {
+                errorMsg = 'No ads available right now. Try again later.';
+            } else if (error.message.includes('timeout')) {
+                errorMsg = 'Ad request timed out. Check your connection.';
+            } else if (error.message.includes('not supported')) {
+                errorMsg = 'Ads not supported in this browser. Use Telegram mobile app.';
+            } else {
+                errorMsg = 'Ad error: ' + error.message;
+            }
         }
+        showNotification(errorMsg, true);
     } finally {
         isWatchingAd = false;
     }
@@ -974,7 +1024,11 @@ async function loadWheelStatus() {
 // ============================================================
 
 async function init() {
-    initAdsgram();
+    // Initialize Adsgram (will retry if needed)
+    if (!initAdsgram()) {
+        console.warn('Adsgram not immediately available, will retry on ad watch');
+    }
+    
     currentUser = await registerUser();
     if (currentUser) {
         updateUI();
