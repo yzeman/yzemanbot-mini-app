@@ -652,7 +652,7 @@
         // ============================================
         const TASK_CONFIG = {
             game: { name: 'game', points: 50000000, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false },
-            website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: true },
+            website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: true, useFrame: true },
             youtube: { name: 'youtube', points: 10000000, url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', time: 5, showTimer: false },
             twitter: { name: 'twitter', points: 10000000, url: 'https://x.com/yzemanbot?s=21', time: 5, showTimer: false },
             facebook: { name: 'facebook', points: 10000000, url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', time: 5, showTimer: false },
@@ -704,22 +704,34 @@
         let activeTask = null;
         let taskStartTime = null;
         let timerInterval = null;
-        let visibilityCheckInterval = null;
+        let taskWindow = null;
+        let taskWindowCheckInterval = null;
         let taskCompleted = false;
+        let visibilityHandler = null;
 
         function cleanupTimer() {
             if (timerInterval) clearInterval(timerInterval);
-            if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+            if (taskWindowCheckInterval) clearInterval(taskWindowCheckInterval);
+            if (visibilityHandler) {
+                document.removeEventListener('visibilitychange', visibilityHandler);
+                visibilityHandler = null;
+            }
             timerInterval = null;
-            visibilityCheckInterval = null;
+            taskWindowCheckInterval = null;
             document.getElementById('timerPopup').classList.remove('active');
             activeTask = null;
             taskCompleted = false;
+            taskWindow = null;
         }
 
-        function cancelTask() {
+        function cancelTask(manual = true) {
             cleanupTimer();
-            showNotification('Task cancelled. No reward.', true);
+            if (taskWindow && !taskWindow.closed) {
+                taskWindow.close();
+            }
+            if (manual) {
+                showNotification('Task cancelled. No reward.', true);
+            }
         }
         window.cancelTask = cancelTask;
 
@@ -734,7 +746,6 @@
                 const data = await res.json();
                 if (data.success) {
                     showNotification(data.message, false);
-                    // Refresh user balance
                     if (window.refreshUser) await window.refreshUser();
                     return true;
                 } else {
@@ -771,7 +782,6 @@
                     badge.innerHTML = '✓ Done';
                     btn.appendChild(badge);
                 }
-                // Disable further clicks (except Telegram which can be clicked but will check backend)
                 if (taskKey !== 'telegram') {
                     btn.style.pointerEvents = 'none';
                 }
@@ -785,17 +795,19 @@
             taskStartTime = Date.now();
             taskCompleted = false;
             
-            // Open the link
-            openTaskUrl(task);
+            // Open the link / window
+            if (task.useFrame) {
+                taskWindow = window.open(task.url, '_blank');
+            } else {
+                openTaskUrl(task);
+            }
             
             // Telegram instant reward
             if (task.instant) {
                 completeTaskOnServer(task.name, task.points).then(success => {
-                    if (success) {
-                        markTaskCompletedInUI(taskKey);
-                    }
+                    if (success) markTaskCompletedInUI(taskKey);
                 });
-                return; // No timer for Telegram
+                return;
             }
             
             const popup = document.getElementById('timerPopup');
@@ -803,6 +815,21 @@
             
             if (task.showTimer) {
                 popup.classList.add('active');
+            }
+            
+            // For tasks with hidden timer, set up early-return detection
+            if (!task.showTimer) {
+                visibilityHandler = () => {
+                    if (document.visibilityState === 'visible') {
+                        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                        if (elapsed < task.time && !taskCompleted) {
+                            // User returned too early – cancel the task
+                            cleanupTimer();
+                            showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
+                        }
+                    }
+                };
+                document.addEventListener('visibilitychange', visibilityHandler);
             }
             
             timerInterval = setInterval(async () => {
@@ -818,37 +845,20 @@
                 if (remaining <= 0 && !taskCompleted) {
                     taskCompleted = true;
                     cleanupTimer();
+                    if (taskWindow && !taskWindow.closed) taskWindow.close();
                     const success = await completeTaskOnServer(task.name, task.points);
-                    if (success) {
-                        markTaskCompletedInUI(taskKey);
-                    }
+                    if (success) markTaskCompletedInUI(taskKey);
                 }
             }, 1000);
             
-            // For hidden timer tasks, detect early return
-            if (!task.showTimer) {
-                const handleVisibilityChange = () => {
-                    if (!document.hidden) {
-                        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                        if (elapsed < task.time && !taskCompleted) {
-                            cleanupTimer();
-                            showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
-                        }
-                        document.removeEventListener('visibilitychange', handleVisibilityChange);
-                        if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+            // For website task: monitor if window is closed early
+            if (task.showTimer && taskWindow) {
+                taskWindowCheckInterval = setInterval(() => {
+                    if (taskWindow && taskWindow.closed && !taskCompleted) {
+                        cleanupTimer();
+                        showNotification('Task cancelled – you closed the website early. No reward.', true);
                     }
-                };
-                document.addEventListener('visibilitychange', handleVisibilityChange);
-                
-                visibilityCheckInterval = setInterval(() => {
-                    if (!document.hidden) {
-                        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                        if (elapsed < task.time && !taskCompleted) {
-                            cleanupTimer();
-                            showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
-                        }
-                    }
-                }, 1000);
+                }, 500);
             }
         }
 
@@ -942,6 +952,6 @@
 
         console.log('✅ Task system initialized');
     })();
-</script>
+    </script>
 </body>
 </html>
