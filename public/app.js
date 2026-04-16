@@ -1,5 +1,5 @@
 // ============================================================
-// YZEMANBOT - COMPLETE APP WITH MONETAG INTEGRATION
+// YZEMANBOT - COMPLETE APP WITH MONETAG REWARDED INTERSTITIAL
 // POINT ECONOMY: 1,000,000 points = 1 COIN
 // WITHDRAWAL: 100,000 COINS minimum
 // MONETAG ZONE ID: 9683863
@@ -106,6 +106,7 @@ let dailyGoalClaimed = localStorage.getItem('dailyGoalClaimed') === 'true';
 let weeklyGoalClaimed = localStorage.getItem('weeklyGoalClaimed') === 'true';
 
 let monetagReady = false;
+let adPreloaded = false;
 
 let activeTask = null;
 let taskWindow = null;
@@ -382,7 +383,7 @@ function updateAdStats() {
 }
 
 // ============================================================
-// MONETAG REWARDED POPUP INTEGRATION (Zone: 9683863)
+// MONETAG REWARDED INTERSTITIAL INTEGRATION (Zone: 9683863)
 // ============================================================
 
 function initMonetag() {
@@ -393,6 +394,28 @@ function initMonetag() {
     monetagReady = true;
     console.log('✅ Monetag ready');
     return true;
+}
+
+async function preloadMonetagAd() {
+    if (!monetagReady) {
+        if (!initMonetag()) return;
+    }
+    
+    // Get user identifier for tracking
+    const userId = currentUser?.telegram_id || currentUser?.id || 'guest';
+    
+    try {
+        console.log('🔄 Preloading Monetag ad...');
+        await window.show_9683863({ 
+            type: 'preload',
+            ymid: String(userId)
+        });
+        adPreloaded = true;
+        console.log('✅ Monetag ad preloaded successfully');
+    } catch (err) {
+        console.warn('⚠️ Preload failed, ad will load on demand:', err.message);
+        adPreloaded = false;
+    }
 }
 
 async function awardAdReward() {
@@ -427,6 +450,10 @@ async function awardAdReward() {
     if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
     if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
     if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
+    
+    // Preload next ad after successful watch
+    adPreloaded = false;
+    setTimeout(() => preloadMonetagAd(), 2000);
 }
 
 window.watchAd = async function() {
@@ -455,16 +482,37 @@ window.watchAd = async function() {
     isWatchingAd = true;
     
     try {
-        console.log('📺 Showing Monetag Rewarded Popup...');
-        await window.show_9683863('pop');
-        // If promise resolves, user completed the ad (or closed interstitial version)
+        console.log('📺 Showing Monetag Rewarded Interstitial...');
+        
+        // Get user identifier for tracking
+        const userId = currentUser.telegram_id || currentUser.id || 'guest';
+        
+        // Show the ad - promise resolves ONLY after user finishes watching
+        await window.show_9683863({ 
+            ymid: String(userId)
+        });
+        
+        // User watched the ad completely!
         await awardAdReward();
+        
     } catch (error) {
-        console.error('Monetag ad error or closed:', error);
+        // Ad failed to load, was skipped, or user closed it early
+        console.error('Monetag ad error or skipped:', error);
         adStreak = 0;
         localStorage.setItem('adStreak', '0');
         updateAdStreakDisplay();
-        showNotification('Ad not completed - streak reset', true);
+        
+        let errorMsg = 'Ad not completed - streak reset';
+        if (error.message) {
+            if (error.message.includes('no ad') || error.message.includes('no fill')) {
+                errorMsg = 'No ads available. Try again later.';
+            }
+        }
+        showNotification(errorMsg, true);
+        
+        // Try to preload another ad
+        adPreloaded = false;
+        setTimeout(() => preloadMonetagAd(), 3000);
     } finally {
         isWatchingAd = false;
     }
@@ -905,6 +953,9 @@ async function init() {
         loadBonusHistory();
         if (document.getElementById('streakCount')) loadDailyStats();
         if (document.getElementById('wheelCanvas')) loadWheelStatus();
+        
+        // Preload first ad after user data is loaded
+        setTimeout(preloadMonetagAd, 2000);
     }
     
     const watchAdBtn = document.getElementById('watchAdBtn');
