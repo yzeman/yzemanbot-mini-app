@@ -18,7 +18,6 @@ if (tg) {
 const POINT_ECONOMY = {
     POINTS_PER_COIN: 1000000,
     MIN_WITHDRAWAL_COINS: 100000,
-    
     AD_REWARDS: {
         'Fresher': 5000,
         'Brute': 7500,
@@ -26,7 +25,6 @@ const POINT_ECONOMY = {
         'Gold': 15000,
         'Platinum': 25000
     },
-    
     TIER_REQUIREMENTS: {
         'Fresher': 0,
         'Brute': 150,
@@ -34,7 +32,6 @@ const POINT_ECONOMY = {
         'Gold': 700,
         'Platinum': 1500
     },
-    
     REFERRAL_REWARDS: {
         'Fresher': 500000,
         'Brute': 750000,
@@ -42,9 +39,7 @@ const POINT_ECONOMY = {
         'Gold': 1500000,
         'Platinum': 2500000
     },
-    
     INVITEE_BONUS: 250000,
-    
     AD_STREAK_BONUSES: { 5: 10000, 10: 25000, 25: 100000, 50: 500000, 100: 2000000 },
     LUCKY_AD_CHANCE: 0.10,
     GOLDEN_AD_CHANCE: 0.02,
@@ -81,9 +76,7 @@ if (sessionStorage.getItem('referralProcessed') === 'true') {
 
 if (!referralCode) {
     referralCode = localStorage.getItem('pendingReferralCode');
-    if (referralCode) {
-        console.log('📝 Using referral code from localStorage:', referralCode);
-    }
+    if (referralCode) console.log('📝 Using referral code from localStorage:', referralCode);
 }
 
 if (referralCode) {
@@ -107,11 +100,10 @@ let lastAdDate = localStorage.getItem('lastAdDate') || '';
 let dailyGoalClaimed = localStorage.getItem('dailyGoalClaimed') === 'true';
 let weeklyGoalClaimed = localStorage.getItem('weeklyGoalClaimed') === 'true';
 
-// Adsgram controller
 let adsgramController = null;
 let adsgramReady = false;
+let adsgramErrorShown = false;
 
-// Task timer globals (shared with index.html script)
 let activeTask = null;
 let taskWindow = null;
 let timerInterval = null;
@@ -207,9 +199,7 @@ async function registerUser() {
     }
 
     let codeToSend = referralCode;
-    if (!codeToSend) {
-        codeToSend = localStorage.getItem('pendingReferralCode');
-    }
+    if (!codeToSend) codeToSend = localStorage.getItem('pendingReferralCode');
     
     console.log('📤 SENDING TO /api/user - Telegram ID:', user.id, 'Referral Code:', codeToSend || 'none');
 
@@ -258,7 +248,7 @@ async function addPoints(amount, reason = 'reward') {
 window.addPoints = addPoints;
 
 // ============================================================
-// UI UPDATE FUNCTION
+// UI UPDATE FUNCTIONS
 // ============================================================
 
 function updateUI() {
@@ -339,15 +329,60 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// ADSGRAM INTEGRATION (Block ID: 27449) - ENHANCED DEBUGGING
+// AD HELPER FUNCTIONS (REQUIRED FOR REWARD CALCULATION)
 // ============================================================
 
-let adsgramController = null;
-let adsgramReady = false;
-let adsgramErrorShown = false;
+function calculateAdReward() {
+    const baseReward = POINT_ECONOMY.AD_REWARDS[currentUser?.tier] || 5000;
+    const rand = Math.random();
+    let multiplier = 1, luckyType = 'normal';
+    if (rand < POINT_ECONOMY.MEGA_AD_CHANCE) { multiplier = 10; luckyType = 'mega'; }
+    else if (rand < POINT_ECONOMY.MEGA_AD_CHANCE + POINT_ECONOMY.GOLDEN_AD_CHANCE) { multiplier = 5; luckyType = 'golden'; }
+    else if (rand < POINT_ECONOMY.MEGA_AD_CHANCE + POINT_ECONOMY.GOLDEN_AD_CHANCE + POINT_ECONOMY.LUCKY_AD_CHANCE) { multiplier = 2; luckyType = 'lucky'; }
+    return { baseReward, multiplier, finalReward: Math.floor(baseReward * multiplier), luckyType };
+}
+
+function checkAndAwardStreakBonus() {
+    const bonuses = POINT_ECONOMY.AD_STREAK_BONUSES;
+    for (const [streakRequired, bonus] of Object.entries(bonuses)) {
+        if (adStreak === parseInt(streakRequired)) return bonus;
+    }
+    return 0;
+}
+
+function checkAndAwardMilestones() {
+    const milestones = POINT_ECONOMY.AD_MILESTONES;
+    const earnedMilestones = JSON.parse(localStorage.getItem('earnedMilestones') || '[]');
+    let milestoneBonus = 0;
+    for (const [required, bonus] of Object.entries(milestones)) {
+        if (totalAdsWatched >= parseInt(required) && !earnedMilestones.includes(required)) {
+            milestoneBonus += bonus;
+            earnedMilestones.push(required);
+        }
+    }
+    localStorage.setItem('earnedMilestones', JSON.stringify(earnedMilestones));
+    return milestoneBonus;
+}
+
+function updateAdStats() {
+    adStreak++;
+    totalAdsWatched++;
+    adsWatchedToday++;
+    lastAdDate = today;
+    adsWatchedWeek++;
+    localStorage.setItem('adStreak', adStreak);
+    localStorage.setItem('totalAdsWatched', totalAdsWatched);
+    localStorage.setItem('adsWatchedToday', adsWatchedToday);
+    localStorage.setItem('adsWatchedWeek', adsWatchedWeek);
+    localStorage.setItem('lastAdDate', lastAdDate);
+    updateAdStreakDisplay();
+}
+
+// ============================================================
+// ADSGRAM INTEGRATION (Block ID: 27449)
+// ============================================================
 
 function initAdsgram() {
-    // Step 1: Check SDK availability
     if (typeof window.Adsgram === 'undefined') {
         const msg = 'Adsgram SDK not loaded. Check network or ad blocker.';
         console.error('❌ ' + msg);
@@ -358,17 +393,11 @@ function initAdsgram() {
         return false;
     }
     
-    // Step 2: Try to initialize
     try {
-        adsgramController = window.Adsgram.init({
-            blockId: '27449'  // Your Block ID
-        });
-        
-        // Quick validation - some SDK versions have a different API
+        adsgramController = window.Adsgram.init({ blockId: '27449' });
         if (!adsgramController || typeof adsgramController.show !== 'function') {
             throw new Error('Adsgram controller invalid - show() method missing');
         }
-        
         adsgramReady = true;
         adsgramErrorShown = false;
         console.log('✅ Adsgram initialized with Block ID 27449');
@@ -384,11 +413,10 @@ function initAdsgram() {
     }
 }
 
-// Try to initialize immediately
+// Try to initialize as soon as possible
 if (typeof window.Adsgram !== 'undefined') {
     initAdsgram();
 } else {
-    // Wait for script to load with multiple attempts
     let attempts = 0;
     const maxAttempts = 10;
     const checkInterval = setInterval(() => {
@@ -408,19 +436,16 @@ if (typeof window.Adsgram !== 'undefined') {
 }
 
 window.watchAd = async function() {
-    // Check Telegram environment
     if (!window.Telegram?.WebApp) {
         showNotification('Must open inside Telegram app', true);
         return;
     }
     
-    // Ensure Adsgram is ready
     if (!adsgramReady || !adsgramController) {
         showNotification('Ad system not ready. Trying to initialize...', false);
         if (initAdsgram()) {
             showNotification('Ad system ready now. Try again.', false);
         } else {
-            // Additional diagnostics
             if (typeof window.Adsgram === 'undefined') {
                 showNotification('Adsgram SDK not loaded. Check your internet or disable ad blocker.', true);
             } else {
@@ -448,7 +473,6 @@ window.watchAd = async function() {
         console.log('Ad result:', result);
         
         if (result && result.done) {
-            // ... (rest of reward logic remains same)
             const { finalReward, luckyType } = calculateAdReward();
             updateAdStats();
             const streakBonus = checkAndAwardStreakBonus();
@@ -476,14 +500,11 @@ window.watchAd = async function() {
             showCelebration(celebrationMsg, totalPoints);
             await addPoints(totalPoints, 'adsgram');
             
-            if (streakBonus > 0) {
-                showNotification(`🔥 Streak bonus! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
-            }
+            if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
             if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
             if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
             if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
         } else {
-            // Ad skipped or not completed
             adStreak = 0;
             localStorage.setItem('adStreak', '0');
             updateAdStreakDisplay();
@@ -497,25 +518,23 @@ window.watchAd = async function() {
         
         let errorMsg = 'Ad error: ';
         if (error.message) {
-            if (error.message.includes('no ad') || error.message.includes('no fill')) {
-                errorMsg = 'No ads available. Try again later.';
-            } else if (error.message.includes('timeout')) {
-                errorMsg = 'Request timed out. Check connection.';
-            } else if (error.message.includes('not supported')) {
-                errorMsg = 'Ads not supported here. Use Telegram mobile.';
-            } else {
-                errorMsg += error.message;
-            }
-        } else {
-            errorMsg += 'Unknown reason';
-        }
+            if (error.message.includes('no ad') || error.message.includes('no fill')) errorMsg = 'No ads available. Try again later.';
+            else if (error.message.includes('timeout')) errorMsg = 'Request timed out. Check connection.';
+            else if (error.message.includes('not supported')) errorMsg = 'Ads not supported here. Use Telegram mobile.';
+            else errorMsg += error.message;
+        } else errorMsg += 'Unknown reason';
         showNotification(errorMsg, true);
     } finally {
         isWatchingAd = false;
     }
 };
 
-// ... keep the rest of the file unchanged
+window.resetAdStreak = function() {
+    adStreak = 0;
+    localStorage.setItem('adStreak', '0');
+    updateAdStreakDisplay();
+    showNotification('Ad streak reset', false);
+};
 
 // ============================================================
 // TASK FUNCTIONS (TIMER & ONE-TIME REWARDS)
@@ -525,10 +544,7 @@ async function checkTask(taskName) {
     try {
         const res = await apiCall('/api/check-task', { taskName });
         return res?.completed || false;
-    } catch (e) {
-        console.error('Check task error:', e);
-        return false;
-    }
+    } catch (e) { return false; }
 }
 
 async function completeTaskOnServer(taskName, points) {
@@ -550,11 +566,7 @@ async function completeTaskOnServer(taskName, points) {
             return true;
         }
         return false;
-    } catch (e) {
-        console.error('Complete task error:', e);
-        showNotification('Failed to claim reward', true);
-        return false;
-    }
+    } catch (e) { showNotification('Failed to claim reward', true); return false; }
 }
 
 function startTimer(taskKey, task) {
@@ -564,9 +576,8 @@ function startTimer(taskKey, task) {
     activeTask = taskKey;
     taskStartTime = Date.now();
     
-    if (task.useFrame) {
-        taskWindow = window.open(task.url, '_blank');
-    } else {
+    if (task.useFrame) taskWindow = window.open(task.url, '_blank');
+    else {
         const a = document.createElement('a');
         a.href = task.url;
         a.target = '_blank';
@@ -591,11 +602,7 @@ function startTimer(taskKey, task) {
             timerInterval = null;
             taskCheckInterval = null;
             if (popup) popup.classList.remove('active');
-            
-            if (taskWindow && !taskWindow.closed) {
-                taskWindow.close();
-            }
-            
+            if (taskWindow && !taskWindow.closed) taskWindow.close();
             showNotification(`Task completed! +${task.points/POINT_ECONOMY.POINTS_PER_COIN} COINS!`, false);
             completeTaskOnServer(task.name, task.points);
             activeTask = null;
@@ -624,11 +631,7 @@ function cancelTask() {
     if (taskCheckInterval) clearInterval(taskCheckInterval);
     timerInterval = null;
     taskCheckInterval = null;
-    
-    if (taskWindow && !taskWindow.closed) {
-        taskWindow.close();
-    }
-    
+    if (taskWindow && !taskWindow.closed) taskWindow.close();
     const popup = document.getElementById('timerPopup');
     if (popup) popup.classList.remove('active');
     showNotification('Task cancelled. No reward.', true);
@@ -638,18 +641,10 @@ function cancelTask() {
 
 async function handleTaskClick(taskKey) {
     const TASK_CONFIG = window.TASK_CONFIG;
-    if (!TASK_CONFIG) {
-        console.error('TASK_CONFIG not found');
-        return;
-    }
-    
-    if (activeTask) {
-        showNotification('Complete current task first!', true);
-        return;
-    }
+    if (!TASK_CONFIG) return;
+    if (activeTask) { showNotification('Complete current task first!', true); return; }
     const task = TASK_CONFIG[taskKey];
     if (!task) return;
-    
     const completed = await checkTask(task.name);
     if (completed) {
         showNotification('Task already completed!', true);
@@ -665,7 +660,6 @@ async function handleTaskClick(taskKey) {
         }
         return;
     }
-    
     startTimer(taskKey, task);
 }
 
@@ -683,7 +677,6 @@ window.completeTask = completeTaskOnServer;
 async function loadBonusHistory() {
     if (!currentUser) return;
     try {
-        console.log('📜 Loading bonus history...');
         const response = await fetch('/api/bonus-history', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -691,30 +684,18 @@ async function loadBonusHistory() {
         });
         if (response.ok) {
             const history = await response.json();
-            console.log('✅ Bonus history loaded:', history.length, 'items');
             displayBonusHistoryUI(history);
-        } else {
-            console.error('Failed to load history:', await response.text());
         }
-    } catch (err) { 
-        console.error('Failed to load bonus history:', err); 
-    }
+    } catch (err) { console.error('Failed to load bonus history:', err); }
 }
 
 function displayBonusHistoryUI(history) {
     const container = document.getElementById('bonusHistoryList');
-    if (!container) {
-        console.log('⚠️ bonusHistoryList container not found');
-        return;
-    }
-    
+    if (!container) return;
     if (!history || history.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
         return;
     }
-    
-    console.log('📊 Rendering bonus history, count:', history.length);
-    
     container.innerHTML = history.map(item => {
         const redeemedDate = new Date(item.redeemed_at);
         const formattedDate = redeemedDate.toLocaleDateString() + ' ' + redeemedDate.toLocaleTimeString();
@@ -724,9 +705,7 @@ function displayBonusHistoryUI(history) {
                     <div class="bonus-code-display" style="font-weight: bold; color: var(--gold); font-family: monospace; font-size: 14px;">${item.bonus_code}</div>
                     <div class="bonus-expiry" style="font-size: 10px; color: var(--gray);">Redeemed: ${formattedDate}</div>
                 </div>
-                <div>
-                    <span class="bonus-used-badge" style="background: var(--success); color: white; padding: 3px 8px; border-radius: 5px; font-size: 10px;">✅ Redeemed</span>
-                </div>
+                <div><span class="bonus-used-badge" style="background: var(--success); color: white; padding: 3px 8px; border-radius: 5px; font-size: 10px;">✅ Redeemed</span></div>
             </div>
         `;
     }).join('');
@@ -737,37 +716,21 @@ async function redeemBonus() {
     if (!codeInput) return;
     const code = codeInput.value.trim().toUpperCase();
     if (!code) { showNotification('Enter a bonus code', true); return; }
-    
-    console.log('🎁 Redeeming bonus code:', code);
-    
     try {
         const response = await fetch('/api/redeem-bonus', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                initData: tg.initData,
-                code: code
-            })
+            body: JSON.stringify({ initData: tg.initData, code: code })
         });
-        
         const result = await response.json();
-        
-        if (!response.ok) {
-            showNotification(result.error || 'Failed to redeem', true);
-            return;
-        }
-        
+        if (!response.ok) { showNotification(result.error || 'Failed to redeem', true); return; }
         if (result.success) {
             showNotification(result.message || 'Bonus code redeemed!');
             await refreshUser();
             codeInput.value = '';
             await loadBonusHistory();
-            console.log('✅ Bonus redeemed and history refreshed');
         }
-    } catch (err) {
-        console.error('Redeem error:', err);
-        showNotification('Failed to redeem code', true);
-    }
+    } catch (err) { showNotification('Failed to redeem code', true); }
 }
 
 // ============================================================
@@ -810,8 +773,8 @@ async function loadWithdrawalHistory() {
             const allWithdrawals = await response.json();
             const userWithdrawals = allWithdrawals.filter(w => w.user_id === currentUser?.id || w.telegram_id === currentUser?.telegram_id);
             displayWithdrawalHistory(userWithdrawals);
-        } else { displayWithdrawalHistory([]); }
-    } catch (err) { console.error('Failed to load withdrawals:', err); displayWithdrawalHistory([]); }
+        } else displayWithdrawalHistory([]);
+    } catch (err) { displayWithdrawalHistory([]); }
 }
 
 function displayWithdrawalHistory(history) {
@@ -991,10 +954,7 @@ async function loadWheelStatus() {
 // ============================================================
 
 async function init() {
-    // Initialize Adsgram (will retry if needed)
-    if (!initAdsgram()) {
-        console.warn('Adsgram not immediately available, will retry on ad watch');
-    }
+    if (!initAdsgram()) console.warn('Adsgram not immediately available, will retry on ad watch');
     
     currentUser = await registerUser();
     if (currentUser) {
@@ -1002,13 +962,10 @@ async function init() {
         updateAdStreakDisplay();
         loadWithdrawalHistory();
         loadBonusHistory();
-        // Load daily stats if on daily page
         if (document.getElementById('streakCount')) loadDailyStats();
-        // Load wheel status if on wheel page
         if (document.getElementById('wheelCanvas')) loadWheelStatus();
     }
     
-    // Set up event listeners
     const watchAdBtn = document.getElementById('watchAdBtn');
     if (watchAdBtn) watchAdBtn.addEventListener('click', watchAd);
     
@@ -1031,5 +988,4 @@ async function init() {
     if (spinBtn) spinBtn.addEventListener('click', spinWheel);
 }
 
-// Start the app
 document.addEventListener('DOMContentLoaded', init);
