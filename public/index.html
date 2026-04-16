@@ -639,26 +639,23 @@
     
     <script>
         // ============================================
-        // TASK CONFIGURATION (UPDATED PER REQUIREMENTS)
+        // TASK CONFIGURATION (attached to window for app.js)
         // ============================================
-        const TASK_CONFIG = {
-            // Quick Tasks
+        window.TASK_CONFIG = {
             game: { 
                 name: 'game', 
-                points: 50000000, // 50 COINS
+                points: 50000000, 
                 url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', 
                 time: 60,
                 useFrame: false 
             },
             website: { 
                 name: 'website', 
-                points: 5000000, // 5 COINS
+                points: 5000000, 
                 url: 'https://yzeupdates.lat/articles', 
-                time: 120, // 2 minutes exactly
-                useFrame: true // Will be opened in a window that we monitor for closure
+                time: 120,
+                useFrame: true 
             },
-            
-            // Social Tasks (open in external browser, no website name shown)
             youtube: { 
                 name: 'youtube', 
                 points: 10000000, 
@@ -697,21 +694,13 @@
             telegram: { 
                 name: 'telegram', 
                 points: 10000000, 
-                // Deep link to open Telegram app directly
                 url: 'tg://resolve?domain=YzemanEarnBotChannel', 
                 time: 10, 
                 useFrame: false 
             }
         };
-        
-        // Global task state
-        let activeTask = null;
-        let taskWindow = null;
-        let timerInterval = null;
-        let taskCheckInterval = null;
-        let taskStartTime = null;
-        
-        // Show notification
+
+        // Simple notification fallback (app.js will override this)
         function showNotification(msg, isError) {
             const n = document.getElementById('notification');
             if (n) {
@@ -721,189 +710,75 @@
                 setTimeout(() => n.style.display = 'none', 4000);
             }
         }
-        
-        // API call helper
-        async function callApi(endpoint, data) {
-            try {
-                const r = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...data, initData: window.Telegram?.WebApp?.initData })
-                });
-                return await r.json();
-            } catch(e) { return null; }
-        }
-        
-        // Check if task already completed
-        async function checkTask(taskName) {
-            const res = await callApi('/api/check-task', { taskName });
-            return res?.completed || false;
-        }
-        
-        // Complete task on backend
-        async function completeTask(taskName, points) {
-            const res = await callApi('/api/complete-task', { taskName, points });
-            if (res?.success) {
-                showNotification(res.message, false);
-                const btn = document.getElementById(`task${taskName.charAt(0).toUpperCase() + taskName.slice(1)}`);
-                if (btn) {
-                    btn.classList.add('completed');
-                    if (!btn.querySelector('.completed-badge')) {
-                        const b = document.createElement('div');
-                        b.className = 'completed-badge';
-                        b.innerHTML = '✓ Done';
-                        btn.appendChild(b);
-                    }
-                }
-                // Refresh user data (assuming app.js handles this)
-                if (window.refreshUser) window.refreshUser();
-                return true;
-            }
-            return false;
-        }
-        
-        // Start timer for a task
-        function startTimer(taskKey, task) {
-            // Clear any existing timers
-            if (timerInterval) clearInterval(timerInterval);
-            if (taskCheckInterval) clearInterval(taskCheckInterval);
+        window.showNotification = showNotification;
+
+        // Wait for app.js to fully load and attach handlers
+        function attachTaskHandlers() {
+            console.log('🔧 Attaching task click handlers...');
             
-            activeTask = taskKey;
-            taskStartTime = Date.now();
+            const taskIds = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
             
-            // Open URL based on configuration
-            if (task.useFrame) {
-                // For website task: open in a new window (which we'll monitor for closure)
-                taskWindow = window.open(task.url, '_blank');
-            } else {
-                // For social tasks: open in external browser (target="_blank" via anchor)
-                const a = document.createElement('a');
-                a.href = task.url;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
-                a.click();
-                // No window reference needed, but timer still runs
-            }
-            
-            const popup = document.getElementById('timerPopup');
-            const timerEl = document.getElementById('timerTimeLeft');
-            popup.classList.add('active');
-            
-            // Main reward timer
-            timerInterval = setInterval(() => {
-                const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                const remaining = Math.max(0, task.time - elapsed);
-                const mins = Math.floor(remaining / 60);
-                const secs = remaining % 60;
-                timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-                
-                if (remaining <= 0) {
-                    // Timer finished, award points
-                    clearInterval(timerInterval);
-                    clearInterval(taskCheckInterval);
-                    timerInterval = null;
-                    taskCheckInterval = null;
-                    popup.classList.remove('active');
-                    
-                    if (taskWindow && !taskWindow.closed) {
-                        taskWindow.close();
-                    }
-                    
-                    showNotification(`Task completed! +${task.points/1000000} COINS!`, false);
-                    completeTask(task.name, task.points);
-                    activeTask = null;
-                    taskWindow = null;
-                }
-            }, 1000);
-            
-            // Additional check for window closure (only for frame tasks)
-            if (task.useFrame) {
-                taskCheckInterval = setInterval(() => {
-                    if (taskWindow && taskWindow.closed) {
-                        // User closed the window early
-                        clearInterval(timerInterval);
-                        clearInterval(taskCheckInterval);
-                        timerInterval = null;
-                        taskCheckInterval = null;
-                        popup.classList.remove('active');
-                        showNotification('Task cancelled - window closed early. No reward.', true);
-                        activeTask = null;
-                        taskWindow = null;
-                    }
-                }, 500);
-            }
-        }
-        
-        // Cancel task (called by cancel button)
-        function cancelTask() {
-            if (timerInterval) clearInterval(timerInterval);
-            if (taskCheckInterval) clearInterval(taskCheckInterval);
-            timerInterval = null;
-            taskCheckInterval = null;
-            
-            if (taskWindow && !taskWindow.closed) {
-                taskWindow.close();
-            }
-            
-            document.getElementById('timerPopup').classList.remove('active');
-            showNotification('Task cancelled. No reward.', true);
-            activeTask = null;
-            taskWindow = null;
-        }
-        
-        // Handle task click
-        async function handleTaskClick(taskKey) {
-            if (activeTask) {
-                showNotification('Complete current task first!', true);
-                return;
-            }
-            const task = TASK_CONFIG[taskKey];
-            if (!task) return;
-            
-            const completed = await checkTask(task.name);
-            if (completed) {
-                showNotification('Task already completed!', true);
-                // Ensure UI shows completed state
+            taskIds.forEach(taskKey => {
                 const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
                 if (btn) {
-                    btn.classList.add('completed');
-                    if (!btn.querySelector('.completed-badge')) {
-                        const b = document.createElement('div');
-                        b.className = 'completed-badge';
-                        b.innerHTML = '✓ Done';
-                        btn.appendChild(b);
-                    }
+                    // Clone to remove any existing listeners
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    
+                    // Attach fresh click handler
+                    newBtn.onclick = (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log(`🖱️ Task clicked: ${taskKey}`);
+                        
+                        if (window.handleTaskClick) {
+                            window.handleTaskClick(taskKey);
+                        } else {
+                            console.error('❌ handleTaskClick not found in app.js');
+                            showNotification('Task system initializing, please try again', true);
+                        }
+                    };
+                    
+                    console.log(`✅ Handler attached for: ${taskKey}`);
+                } else {
+                    console.warn(`⚠️ Button not found: task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
                 }
-                return;
+            });
+            
+            // Cancel button handler
+            const cancelBtn = document.getElementById('cancelTaskBtn');
+            if (cancelBtn) {
+                const newCancelBtn = cancelBtn.cloneNode(true);
+                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                newCancelBtn.onclick = (e) => {
+                    e.preventDefault();
+                    if (window.cancelTask) {
+                        window.cancelTask();
+                    }
+                };
             }
-            
-            startTimer(taskKey, task);
         }
-        
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Attach task click handlers
-            document.getElementById('taskGame').onclick = () => handleTaskClick('game');
-            document.getElementById('taskWebsite').onclick = () => handleTaskClick('website');
-            document.getElementById('taskYoutube').onclick = () => handleTaskClick('youtube');
-            document.getElementById('taskTwitter').onclick = () => handleTaskClick('twitter');
-            document.getElementById('taskFacebook').onclick = () => handleTaskClick('facebook');
-            document.getElementById('taskInstagram').onclick = () => handleTaskClick('instagram');
-            document.getElementById('taskTiktok').onclick = () => handleTaskClick('tiktok');
-            document.getElementById('taskTelegram').onclick = () => handleTaskClick('telegram');
-            
-            // Cancel button
-            document.getElementById('cancelTaskBtn').onclick = cancelTask;
-            
-            // Tab switching
+
+        // Tab switching
+        function setupTabs() {
             document.querySelectorAll('.tab').forEach(t => {
                 t.onclick = () => {
                     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                     t.classList.add('active');
-                    document.getElementById(t.dataset.tab + 'Tab').classList.add('active');
+                    const tabId = t.dataset.tab;
+                    if (tabId) {
+                        document.getElementById(tabId + 'Tab').classList.add('active');
+                    }
                 };
             });
+        }
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM loaded, setting up...');
+            
+            setupTabs();
             
             // Set display values
             if (document.getElementById('dailyAdGoal')) document.getElementById('dailyAdGoal').textContent = '20';
@@ -912,13 +787,12 @@
             if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
             if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
             
-            console.log('✅ YzemanBot Mini App ready with updated tasks!');
+            // Attach handlers after short delays to ensure app.js is ready
+            setTimeout(attachTaskHandlers, 500);
+            setTimeout(attachTaskHandlers, 1500);
         });
-        
-        // Make functions available globally for other scripts
-        window.showNotification = showNotification;
-        window.handleTaskClick = handleTaskClick;
-        window.cancelTask = cancelTask;
+
+        console.log('✅ index.html script loaded');
     </script>
 </body>
 </html>
