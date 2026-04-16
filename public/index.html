@@ -639,7 +639,7 @@
     
     <script>
         // ============================================
-        // TASK CONFIGURATION (attached to window for app.js)
+        // TASK CONFIGURATION
         // ============================================
         window.TASK_CONFIG = {
             game: { 
@@ -694,13 +694,14 @@
             telegram: { 
                 name: 'telegram', 
                 points: 10000000, 
-                url: 'tg://resolve?domain=YzemanEarnBotChannel', 
+                url: 'https://t.me/YzemanEarnBotChannel',  // Use https link as fallback
+                telegramDeepLink: 'tg://resolve?domain=YzemanEarnBotChannel', // Specific deep link
                 time: 10, 
                 useFrame: false 
             }
         };
 
-        // Simple notification fallback (app.js will override this)
+        // Simple notification fallback
         function showNotification(msg, isError) {
             const n = document.getElementById('notification');
             if (n) {
@@ -712,7 +713,127 @@
         }
         window.showNotification = showNotification;
 
-        // Wait for app.js to fully load and attach handlers
+        // Helper to open links using Telegram WebApp if available
+        function openTaskUrl(task) {
+            const tgWebApp = window.Telegram?.WebApp;
+            
+            // Special handling for Telegram channel
+            if (task.name === 'telegram') {
+                if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
+                    tgWebApp.openTelegramLink(task.telegramDeepLink);
+                } else {
+                    window.open(task.url, '_blank');
+                }
+                return;
+            }
+            
+            // For all other external links
+            if (tgWebApp && typeof tgWebApp.openLink === 'function') {
+                // openLink with try_instant_view=false forces external browser
+                tgWebApp.openLink(task.url, { try_instant_view: false });
+            } else {
+                // Fallback for non-Telegram environments
+                window.open(task.url, '_blank');
+            }
+        }
+
+        // Modified startTimer that opens links properly
+        function startTimer(taskKey, task) {
+            // Clear any existing timers
+            if (window.timerInterval) clearInterval(window.timerInterval);
+            if (window.taskCheckInterval) clearInterval(window.taskCheckInterval);
+            
+            window.activeTask = taskKey;
+            window.taskStartTime = Date.now();
+            
+            // Open the URL using the appropriate method
+            openTaskUrl(task);
+            
+            const popup = document.getElementById('timerPopup');
+            const timerEl = document.getElementById('timerTimeLeft');
+            if (popup) popup.classList.add('active');
+            
+            // Main reward timer
+            window.timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - window.taskStartTime) / 1000);
+                const remaining = Math.max(0, task.time - elapsed);
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                if (timerEl) timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+                
+                if (remaining <= 0) {
+                    // Timer finished
+                    clearInterval(window.timerInterval);
+                    clearInterval(window.taskCheckInterval);
+                    window.timerInterval = null;
+                    window.taskCheckInterval = null;
+                    if (popup) popup.classList.remove('active');
+                    
+                    showNotification(`Task completed! +${task.points/1000000} COINS!`, false);
+                    if (window.completeTask) {
+                        window.completeTask(task.name, task.points);
+                    }
+                    window.activeTask = null;
+                }
+            }, 1000);
+            
+            // For website task, monitor window closure
+            if (task.useFrame && window.taskWindow) {
+                window.taskCheckInterval = setInterval(() => {
+                    if (window.taskWindow && window.taskWindow.closed) {
+                        clearInterval(window.timerInterval);
+                        clearInterval(window.taskCheckInterval);
+                        window.timerInterval = null;
+                        window.taskCheckInterval = null;
+                        if (popup) popup.classList.remove('active');
+                        showNotification('Task cancelled - window closed early. No reward.', true);
+                        window.activeTask = null;
+                        window.taskWindow = null;
+                    }
+                }, 500);
+            }
+        }
+
+        // Cancel task
+        function cancelTask() {
+            if (window.timerInterval) clearInterval(window.timerInterval);
+            if (window.taskCheckInterval) clearInterval(window.taskCheckInterval);
+            window.timerInterval = null;
+            window.taskCheckInterval = null;
+            
+            if (window.taskWindow && !window.taskWindow.closed) {
+                window.taskWindow.close();
+            }
+            
+            document.getElementById('timerPopup').classList.remove('active');
+            showNotification('Task cancelled. No reward.', true);
+            window.activeTask = null;
+            window.taskWindow = null;
+        }
+
+        // Handle task click (uses app.js's handleTaskClick if available, otherwise local)
+        async function handleTaskClick(taskKey) {
+            // If app.js has a better handler, use it
+            if (window.handleTaskClick && typeof window.handleTaskClick === 'function' && window.handleTaskClick !== handleTaskClick) {
+                return window.handleTaskClick(taskKey);
+            }
+            
+            const task = window.TASK_CONFIG[taskKey];
+            if (!task) return;
+            
+            // Check if already completed (simple check)
+            if (window.checkTask) {
+                const completed = await window.checkTask(task.name);
+                if (completed) {
+                    showNotification('Task already completed!', true);
+                    return;
+                }
+            }
+            
+            startTimer(taskKey, task);
+        }
+
+        // Attach click handlers to task buttons
         function attachTaskHandlers() {
             console.log('🔧 Attaching task click handlers...');
             
@@ -721,40 +842,28 @@
             taskIds.forEach(taskKey => {
                 const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
                 if (btn) {
-                    // Clone to remove any existing listeners
                     const newBtn = btn.cloneNode(true);
                     btn.parentNode.replaceChild(newBtn, btn);
                     
-                    // Attach fresh click handler
                     newBtn.onclick = (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         console.log(`🖱️ Task clicked: ${taskKey}`);
-                        
-                        if (window.handleTaskClick) {
-                            window.handleTaskClick(taskKey);
-                        } else {
-                            console.error('❌ handleTaskClick not found in app.js');
-                            showNotification('Task system initializing, please try again', true);
-                        }
+                        handleTaskClick(taskKey);
                     };
                     
                     console.log(`✅ Handler attached for: ${taskKey}`);
-                } else {
-                    console.warn(`⚠️ Button not found: task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
                 }
             });
             
-            // Cancel button handler
+            // Cancel button
             const cancelBtn = document.getElementById('cancelTaskBtn');
             if (cancelBtn) {
                 const newCancelBtn = cancelBtn.cloneNode(true);
                 cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
                 newCancelBtn.onclick = (e) => {
                     e.preventDefault();
-                    if (window.cancelTask) {
-                        window.cancelTask();
-                    }
+                    cancelTask();
                 };
             }
         }
@@ -787,10 +896,16 @@
             if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
             if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
             
-            // Attach handlers after short delays to ensure app.js is ready
+            // Attach handlers after delays to ensure everything is ready
             setTimeout(attachTaskHandlers, 500);
             setTimeout(attachTaskHandlers, 1500);
         });
+
+        // Expose functions globally
+        window.startTimer = startTimer;
+        window.cancelTask = cancelTask;
+        window.handleTaskClick = handleTaskClick;
+        window.openTaskUrl = openTaskUrl;
 
         console.log('✅ index.html script loaded');
     </script>
