@@ -422,6 +422,24 @@
             margin-top: 10px;
             cursor: pointer;
         }
+        .audio-toggle {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: var(--light);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 4px;
+    transition: background 0.2s;
+}
+.audio-toggle:hover {
+    background: rgba(255,255,255,0.2);
+}
     </style>
 </head>
 <body>
@@ -435,6 +453,8 @@
             <div class="tier-badge-header" id="tier">Fresher</div>
         </div>
         <div class="balance-card">
+            <button id="musicToggleBtn" class="audio-toggle" onclick="AudioManager.toggleMusic()"><i class="fas fa-music"></i></button>
+<button id="sfxToggleBtn" class="audio-toggle" onclick="AudioManager.toggleSFX()"><i class="fas fa-volume-up"></i></button>
             <div class="balance-row">
                 <span class="balance-label">Your Balance</span>
                 <div>
