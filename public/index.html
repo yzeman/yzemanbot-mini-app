@@ -1,2283 +1,1006 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
     <title>YzemanBot - Earn COINS</title>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-
     <!-- Telegram Web App SDK -->
-
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
     <!-- Monetag SDK -->
-
     <script src="//libtl.com/sdk.js" data-zone="9683863" data-sdk="show_9683863"></script>
-
     <style>
-
         :root {
-
             --primary: #4CAF50;
-
             --secondary: #2196F3;
-
             --warning: #FF9800;
-
             --danger: #f44336;
-
             --dark: #1a1a2e;
-
             --darker: #16213e;
-
             --light: #ffffff;
-
             --gray: #888888;
-
             --success: #00c853;
-
             --gold: #FFD700;
-
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: var(--dark);
-
-            color: var(--light);
-
-            min-height: 100vh;
-
-            padding-bottom: 80px;
-
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.4s ease;
+        }
+        .loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .loading-text {
+            margin-top: 20px;
+            color: var(--gray);
+            font-size: 16px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .header {
-
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-
             padding: 20px 15px 30px;
-
             border-radius: 0 0 30px 30px;
-
         }
-
         .user-section {
-
             display: flex;
-
             align-items: center;
-
             gap: 12px;
-
             margin-bottom: 20px;
-
         }
-
         .avatar {
-
             width: 50px;
-
             height: 50px;
-
             border-radius: 50%;
-
             background: var(--primary);
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             font-size: 24px;
-
             font-weight: bold;
-
             color: white;
-
             overflow: hidden;
-
         }
-
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
-
         .user-info { flex: 1; }
-
         .user-name { font-size: 18px; font-weight: 600; }
-
         .user-id { font-size: 12px; color: var(--gray); }
-
         .tier-badge-header {
-
             background: var(--gold);
-
             color: var(--dark);
-
             padding: 5px 12px;
-
             border-radius: 20px;
-
             font-size: 14px;
-
             font-weight: bold;
-
         }
-
         .balance-card {
-
             background: rgba(255,255,255,0.1);
-
             border-radius: 20px;
-
             padding: 20px;
-
             margin-top: 10px;
-
             position: relative;
-
         }
-
         .balance-row {
-
             display: flex;
-
             justify-content: space-between;
-
             align-items: center;
-
             margin-bottom: 15px;
-
         }
-
         .balance-label { font-size: 14px; color: var(--gray); }
-
         .balance-value { font-size: 32px; font-weight: bold; color: var(--gold); }
-
         .balance-coin { font-size: 14px; color: var(--gray); margin-left: 5px; }
-
         .progress-section { margin-top: 15px; }
-
         .progress-label {
-
             display: flex;
-
             justify-content: space-between;
-
             font-size: 12px;
-
             color: var(--gray);
-
             margin-bottom: 5px;
-
         }
-
         .progress-bar {
-
             height: 8px;
-
             background: rgba(255,255,255,0.1);
-
             border-radius: 4px;
-
             overflow: hidden;
-
         }
-
         .progress-fill {
-
             height: 100%;
-
             background: linear-gradient(90deg, var(--primary), var(--success));
-
             border-radius: 4px;
-
             width: 0%;
-
             transition: width 0.3s ease;
-
         }
-
         .stats-grid {
-
             display: grid;
-
             grid-template-columns: repeat(3, 1fr);
-
             gap: 10px;
-
             margin-top: 20px;
-
         }
-
         .stat-card {
-
             background: rgba(255,255,255,0.05);
-
             border-radius: 15px;
-
             padding: 12px;
-
             text-align: center;
-
         }
-
         .stat-value { font-size: 20px; font-weight: bold; color: var(--light); }
-
         .stat-label { font-size: 11px; color: var(--gray); margin-top: 5px; }
-
         .feature-grid {
-
             display: grid;
-
             grid-template-columns: repeat(4, 1fr);
-
             gap: 10px;
-
             padding: 20px 15px;
-
         }
-
         .feature-card {
-
             background: var(--darker);
-
             border-radius: 15px;
-
             padding: 15px 10px;
-
             text-align: center;
-
             cursor: pointer;
-
             transition: all 0.2s ease;
-
             text-decoration: none;
-
             color: var(--light);
-
         }
-
         .feature-card:hover { background: #1e2a4a; transform: translateY(-2px); }
-
         .feature-card i { font-size: 28px; margin-bottom: 8px; color: var(--gold); }
-
         .feature-card span { font-size: 12px; display: block; }
-
         .tabs {
-
             display: flex;
-
             background: var(--darker);
-
             padding: 5px;
-
             border-radius: 30px;
-
             margin: 0 15px 20px;
-
         }
-
         .tab {
-
             flex: 1;
-
             text-align: center;
-
             padding: 12px;
-
             border-radius: 25px;
-
             font-size: 14px;
-
             font-weight: 500;
-
             color: var(--gray);
-
             cursor: pointer;
-
             transition: all 0.3s ease;
-
         }
-
         .tab.active { background: var(--primary); color: white; }
-
         .tab-content { display: none; padding: 0 15px; }
-
         .tab-content.active { display: block; }
-
         .section-title {
-
             font-size: 18px;
-
             font-weight: 600;
-
             margin-bottom: 15px;
-
             display: flex;
-
             align-items: center;
-
             gap: 8px;
-
         }
-
         .ad-streak-section {
-
             background: linear-gradient(135deg, #ff6b6b20, #ffa50220);
-
             border-radius: 20px;
-
             padding: 15px;
-
             margin-bottom: 20px;
-
             border: 1px solid var(--gold);
-
         }
-
         .streak-header {
-
             display: flex;
-
             align-items: center;
-
             gap: 10px;
-
             margin-bottom: 10px;
-
         }
-
         .streak-fire { font-size: 32px; }
-
         .streak-info { flex: 1; }
-
         .streak-count { font-size: 28px; font-weight: bold; color: var(--gold); }
-
         .streak-label { font-size: 12px; color: var(--gray); }
-
         .daily-progress { margin-top: 10px; }
-
         .ad-card {
-
             background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
-
             border-radius: 20px;
-
             padding: 25px;
-
             text-align: center;
-
             margin-bottom: 20px;
-
             cursor: pointer;
-
             transition: transform 0.2s ease;
-
         }
-
         .ad-card:hover { transform: scale(1.02); }
-
         .ad-card i { font-size: 40px; margin-bottom: 10px; }
-
         .ad-card h3 { font-size: 22px; margin-bottom: 5px; }
-
         .ad-card p { font-size: 14px; opacity: 0.9; }
-
         .ad-reward { font-size: 28px; font-weight: bold; margin: 15px 0 5px; }
-
         .task-grid {
-
             display: grid;
-
             grid-template-columns: repeat(2, 1fr);
-
             gap: 12px;
-
             margin-bottom: 20px;
-
         }
-
         .task-card {
-
             background: var(--darker);
-
             border-radius: 15px;
-
             padding: 15px;
-
             text-align: center;
-
             cursor: pointer;
-
             transition: all 0.2s ease;
-
             position: relative;
-
         }
-
         .task-card:hover { background: #1e2a4a; transform: translateY(-2px); }
-
         .task-card.completed { opacity: 0.6; cursor: not-allowed; }
-
         .task-card i { font-size: 28px; margin-bottom: 8px; }
-
         .task-card .task-name { font-size: 14px; font-weight: 500; margin-bottom: 5px; }
-
         .task-card .task-reward { font-size: 12px; color: var(--gold); }
-
         .completed-badge {
-
             position: absolute;
-
             top: 5px;
-
             right: 5px;
-
             background: var(--success);
-
             color: white;
-
             padding: 2px 6px;
-
             border-radius: 10px;
-
             font-size: 8px;
-
         }
-
         .youtube i { color: #FF0000; }
-
         .twitter i { color: #1DA1F2; }
-
         .facebook i { color: #1877F2; }
-
         .instagram i { color: #E4405F; }
-
         .tiktok i { color: #000000; }
-
         .telegram i { color: #26A5E4; }
-
         .game i { color: #FF5722; }
-
         .website i { color: var(--primary); }
-
         .referral-section {
-
             background: var(--darker);
-
             border-radius: 20px;
-
             padding: 20px;
-
             margin-bottom: 20px;
-
         }
-
         .referral-link-box {
-
             background: rgba(0,0,0,0.3);
-
             border-radius: 10px;
-
             padding: 15px;
-
             display: flex;
-
             align-items: center;
-
             gap: 10px;
-
             margin: 15px 0;
-
         }
-
         .referral-link { flex: 1; font-size: 12px; word-break: break-all; color: var(--gray); }
-
         .copy-btn {
-
             background: var(--primary);
-
             color: white;
-
             border: none;
-
             padding: 8px 15px;
-
             border-radius: 8px;
-
             cursor: pointer;
-
             font-size: 12px;
-
         }
-
         .wallet-section {
-
             background: var(--darker);
-
             border-radius: 20px;
-
             padding: 20px;
-
             margin-bottom: 20px;
-
         }
-
         .wallet-input {
-
             width: 100%;
-
             padding: 15px;
-
             border-radius: 10px;
-
             border: 1px solid var(--gray);
-
             background: rgba(0,0,0,0.3);
-
             color: white;
-
             font-size: 14px;
-
             margin: 15px 0;
-
         }
-
         .wallet-input:focus { outline: none; border-color: var(--primary); }
-
         .btn {
-
             padding: 15px 25px;
-
             border-radius: 12px;
-
             border: none;
-
             font-size: 16px;
-
             font-weight: 600;
-
             cursor: pointer;
-
             width: 100%;
-
         }
-
         .btn-primary { background: var(--primary); color: white; }
-
         .btn-primary:disabled { background: var(--gray); cursor: not-allowed; }
-
         .btn-secondary { background: var(--secondary); color: white; }
-
         .bonus-section { margin-top: 20px; }
-
         .bonus-input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-
         .bonus-input {
-
             flex: 1;
-
             padding: 15px;
-
             border-radius: 10px;
-
             border: 1px solid var(--gray);
-
             background: rgba(0,0,0,0.3);
-
             color: white;
-
             font-size: 14px;
-
             text-transform: uppercase;
-
         }
-
         .bonus-history-list {
-
             max-height: 300px;
-
             overflow-y: auto;
-
             margin-top: 20px;
-
         }
-
         .bonus-history-item {
-
             display: flex;
-
             justify-content: space-between;
-
             align-items: center;
-
             padding: 15px;
-
             background: rgba(255,255,255,0.05);
-
             border-radius: 10px;
-
             margin-bottom: 8px;
-
         }
-
         .bonus-code-display { font-weight: bold; color: var(--gold); font-family: monospace; font-size: 16px; }
-
         .bonus-reward-display { color: var(--success); font-weight: bold; }
-
         .bonus-expiry { font-size: 11px; color: var(--gray); }
-
         .bonus-used-badge { background: var(--success); color: white; padding: 3px 8px; border-radius: 5px; font-size: 10px; }
-
         .history-list {
-
             max-height: 300px;
-
             overflow-y: auto;
-
         }
-
         .history-item {
-
             display: flex;
-
             justify-content: space-between;
-
             align-items: center;
-
             padding: 15px;
-
             background: rgba(255,255,255,0.05);
-
             border-radius: 10px;
-
             margin-bottom: 8px;
-
         }
-
         .history-amount { font-weight: bold; color: var(--gold); }
-
         .history-date { font-size: 12px; color: var(--gray); }
-
         .status-pending { color: var(--warning); font-size: 12px; }
-
         .status-completed { color: var(--success); font-size: 12px; }
-
         .tier-progress-section { margin-top: 20px; }
-
         .reset-streak-btn {
-
             background: transparent;
-
             border: 1px solid var(--warning);
-
             color: var(--warning);
-
             padding: 5px 10px;
-
             border-radius: 5px;
-
             font-size: 10px;
-
             cursor: pointer;
-
             margin-left: 10px;
-
         }
-
         .notification {
-
             position: fixed;
-
             bottom: 90px;
-
             left: 20px;
-
             right: 20px;
-
             background: var(--success);
-
             color: white;
-
             padding: 15px 20px;
-
             border-radius: 12px;
-
             text-align: center;
-
             font-weight: 500;
-
             display: none;
-
             z-index: 1000;
-
             animation: slideUp 0.3s ease;
-
         }
-
         @keyframes slideUp {
-
             from { transform: translateY(100px); opacity: 0; }
-
             to { transform: translateY(0); opacity: 1; }
-
         }
-
         .bottom-nav {
-
             position: fixed;
-
             bottom: 0;
-
             left: 0;
-
             right: 0;
-
             background: var(--darker);
-
             display: flex;
-
             padding: 10px 20px;
-
             border-top: 1px solid rgba(255,255,255,0.1);
-
             z-index: 100;
-
         }
-
         .nav-item {
-
             flex: 1;
-
             text-align: center;
-
             color: var(--gray);
-
             text-decoration: none;
-
             font-size: 12px;
-
             padding: 8px;
-
             border-radius: 10px;
-
             transition: all 0.2s ease;
-
         }
-
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
-
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
-
         .loading { text-align: center; padding: 40px; color: var(--gray); }
-
         .bonus-info-note {
-
             background: linear-gradient(135deg, #2196F320, #1976D220);
-
             border-radius: 10px;
-
             padding: 12px;
-
             margin-bottom: 15px;
-
             text-align: center;
-
             border-left: 4px solid var(--secondary);
-
         }
-
         .bonus-info-note i { color: var(--secondary); margin-right: 5px; }
-
         .timer-popup {
-
             position: fixed;
-
             bottom: 100px;
-
             left: 20px;
-
             right: 20px;
-
             background: var(--darker);
-
             border-radius: 15px;
-
             padding: 15px;
-
             text-align: center;
-
             z-index: 2000;
-
             border: 1px solid var(--gold);
-
             display: none;
-
         }
-
         .timer-popup.active { display: block; }
-
         .timer-popup .time-left { font-size: 36px; font-weight: bold; color: var(--gold); margin: 10px 0; }
-
         .timer-popup button {
-
             background: var(--danger);
-
             border: none;
-
             padding: 8px 20px;
-
             border-radius: 20px;
-
             color: white;
-
             margin-top: 10px;
-
             cursor: pointer;
-
         }
-
-
-
-        /* Audio Settings Button */
-
-        .audio-settings-btn {
-
-            position: absolute;
-
-            top: 2px;
-
-            right: 15px;
-
-            background: rgba(255,255,255,0.1);
-
-            border: none;
-
-            color: var(--light);
-
-            width: 30px;
-
-            height: 30px;
-
-            border-radius: 50%;
-
-            cursor: pointer;
-
-            font-size: 18px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            transition: background 0.2s;
-
-            z-index: 5;
-
-        }
-
-        .audio-settings-btn:hover {
-
-            background: rgba(255,255,255,0.2);
-
-        }
-
-
-
-        /* Audio Settings Panel (Popup/Modal) */
-
-        .audio-panel {
-
-            position: fixed;
-
-            top: 50%;
-
-            left: 50%;
-
-            transform: translate(-50%, -50%);
-
-            background: var(--darker);
-
-            border-radius: 20px;
-
-            padding: 20px;
-
-            width: 90%;
-
-            max-width: 350px;
-
-            z-index: 3000;
-
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-
-            border: 1px solid var(--gold);
-
-            display: none;
-
-        }
-
-        .audio-panel.show {
-
-            display: block;
-
-        }
-
-        .audio-panel-overlay {
-
-            position: fixed;
-
-            top: 0;
-
-            left: 0;
-
-            right: 0;
-
-            bottom: 0;
-
-            background: rgba(0,0,0,0.7);
-
-            z-index: 2999;
-
-            display: none;
-
-        }
-
-        .audio-panel-overlay.show {
-
-            display: block;
-
-        }
-
-        .audio-panel-header {
-
-            display: flex;
-
-            justify-content: space-between;
-
-            align-items: center;
-
-            margin-bottom: 20px;
-
-        }
-
-        .audio-panel-header h3 {
-
-            font-size: 18px;
-
-            font-weight: 600;
-
-            color: var(--gold);
-
-        }
-
-        .audio-panel-close {
-
-            background: none;
-
-            border: none;
-
-            color: var(--gray);
-
-            font-size: 24px;
-
-            cursor: pointer;
-
-            padding: 0 5px;
-
-        }
-
-        .audio-control-item {
-
-            margin-bottom: 20px;
-
-        }
-
-        .audio-control-header {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 10px;
-
-            margin-bottom: 10px;
-
-        }
-
-        .audio-control-header i {
-
-            width: 24px;
-
-            color: var(--gold);
-
-        }
-
-        .audio-control-header span {
-
-            flex: 1;
-
-            font-weight: 500;
-
-        }
-
-        .audio-toggle-btn {
-
-            background: rgba(255,255,255,0.1);
-
-            border: none;
-
-            color: white;
-
-            width: 36px;
-
-            height: 36px;
-
-            border-radius: 50%;
-
-            cursor: pointer;
-
-            font-size: 16px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            transition: background 0.2s;
-
-        }
-
-        .audio-toggle-btn:hover {
-
-            background: rgba(255,255,255,0.2);
-
-        }
-
-        input[type=range] {
-
-            width: 100%;
-
-            -webkit-appearance: none;
-
-            background: transparent;
-
-        }
-
-        input[type=range]::-webkit-slider-runnable-track {
-
-            height: 6px;
-
-            background: rgba(255,255,255,0.2);
-
-            border-radius: 3px;
-
-        }
-
-        input[type=range]::-webkit-slider-thumb {
-
-            -webkit-appearance: none;
-
-            height: 20px;
-
-            width: 20px;
-
-            border-radius: 50%;
-
-            background: var(--primary);
-
-            margin-top: -7px;
-
-            cursor: pointer;
-
-        }
-
-        input[type=range]::-moz-range-track {
-
-            height: 6px;
-
-            background: rgba(255,255,255,0.2);
-
-            border-radius: 3px;
-
-        }
-
-        input[type=range]::-moz-range-thumb {
-
-            height: 20px;
-
-            width: 20px;
-
-            border-radius: 50%;
-
-            background: var(--primary);
-
-            border: none;
-
-            cursor: pointer;
-
-        }
-
     </style>
-
 </head>
-
 <body>
-
-    <!-- Audio Panel Overlay -->
-
-    <div class="audio-panel-overlay" id="audioPanelOverlay" onclick="closeAudioPanel()"></div>
-
-    
-
-    <!-- Audio Settings Panel -->
-
-    <div class="audio-panel" id="audioSettingsPanel">
-
-        <div class="audio-panel-header">
-
-            <h3><i class="fas fa-sliders-h"></i> Audio Settings</h3>
-
-            <button class="audio-panel-close" onclick="closeAudioPanel()">&times;</button>
-
-        </div>
-
-        
-
-        <div class="audio-control-item">
-
-            <div class="audio-control-header">
-
-                <i class="fas fa-music"></i>
-
-                <span>Background Music</span>
-
-                <button class="audio-toggle-btn" id="bgmToggleBtn" onclick="AudioManager.toggleBgm()">
-
-                    <i class="fas fa-music"></i>
-
-                </button>
-
-            </div>
-
-            <input type="range" id="bgmVolumeSlider" min="0" max="1" step="0.05" value="0.3" 
-
-                   oninput="AudioManager.setBgmVolume(this.value)">
-
-        </div>
-
-        
-
-        <div class="audio-control-item">
-
-            <div class="audio-control-header">
-
-                <i class="fas fa-volume-up"></i>
-
-                <span>Sound Effects</span>
-
-                <button class="audio-toggle-btn" id="sfxToggleBtn" onclick="AudioManager.toggleSfx()">
-
-                    <i class="fas fa-volume-up"></i>
-
-                </button>
-
-            </div>
-
-            <input type="range" id="sfxVolumeSlider" min="0" max="1" step="0.05" value="0.5"
-
-                   oninput="AudioManager.setSfxVolume(this.value)">
-
-        </div>
-
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading YzemanBot...</div>
     </div>
-
-
 
     <div class="header">
-
         <div class="user-section">
-
             <div class="avatar" id="userAvatar"><i class="fas fa-user"></i></div>
-
             <div class="user-info">
-
                 <div class="user-name" id="userName">Loading...</div>
-
                 <div class="user-id" id="userId"></div>
-
             </div>
-
             <div class="tier-badge-header" id="tier">Fresher</div>
-
         </div>
-
         <div class="balance-card">
-
-            <!-- Audio Settings Button -->
-
-            <button class="audio-settings-btn" onclick="openAudioPanel()">
-
-                <i class="fas fa-volume-up"></i>
-
-            </button>
-
-            
-
             <div class="balance-row">
-
                 <span class="balance-label">Your Balance</span>
-
                 <div>
-
                     <span class="balance-value" id="coins">0.00</span>
-
                     <span class="balance-coin">COINS</span>
-
                 </div>
-
             </div>
-
             <div class="progress-section">
-
                 <div class="progress-label">
-
                     <span>Withdrawal Progress</span>
-
                     <span id="progressAmount">0 / 100,000 COINS</span>
-
                 </div>
-
                 <div class="progress-bar">
-
                     <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
-
                 </div>
-
             </div>
-
             <div class="stats-grid">
-
                 <div class="stat-card"><div class="stat-value" id="referralCount">0</div><div class="stat-label">Referrals</div></div>
-
                 <div class="stat-card"><div class="stat-value" id="totalAdsWatched">0</div><div class="stat-label">Ads Watched</div></div>
-
                 <div class="stat-card"><div class="stat-value" id="adStreak">0</div><div class="stat-label">Ad Streak 🔥</div></div>
-
             </div>
-
         </div>
-
     </div>
-
     
-
     <div class="feature-grid">
-
         <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
-
         <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
-
         <a href="/leaderboard.html" class="feature-card"><i class="fas fa-trophy"></i><span>Ranks</span></a>
-
         <a href="/team.html" class="feature-card"><i class="fas fa-users"></i><span>Team</span></a>
-
         <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achieve</span></a>
-
         <a href="/tournament.html" class="feature-card"><i class="fas fa-crown"></i><span>Tourney</span></a>
-
         <a href="/support.html" class="feature-card"><i class="fas fa-headset"></i><span>Support</span></a>
-
         <div class="feature-card" onclick="window.location.reload()"><i class="fas fa-sync"></i><span>Refresh</span></div>
-
     </div>
-
     
-
     <div class="tabs">
-
         <div class="tab active" data-tab="earn">💰 Earn</div>
-
         <div class="tab" data-tab="refer">👥 Refer</div>
-
         <div class="tab" data-tab="wallet">💳 Wallet</div>
-
         <div class="tab" data-tab="bonus">🎁 Bonus</div>
-
     </div>
-
     
-
     <!-- Earn Tab -->
-
     <div class="tab-content active" id="earnTab">
-
         <div class="ad-streak-section">
-
             <div class="streak-header">
-
                 <span class="streak-fire">🔥</span>
-
                 <div class="streak-info">
-
                     <div class="streak-count" id="adStreakDisplay">0</div>
-
                     <div class="streak-label">Current Ad Streak</div>
-
                 </div>
-
                 <button class="reset-streak-btn" onclick="window.resetAdStreak()">Reset</button>
-
             </div>
-
             <div class="daily-progress">
-
                 <div class="progress-label">
-
                     <span>📊 Daily Goal: <span id="adsWatchedToday">0</span>/20 ads</span>
-
                     <span>+0.5 COINS</span>
-
                 </div>
-
                 <div class="progress-bar"><div class="progress-fill" id="dailyAdProgress" style="width: 0%;"></div></div>
-
             </div>
-
             <div class="daily-progress" style="margin-top: 10px;">
-
                 <div class="progress-label">
-
                     <span>📈 Weekly Goal: <span id="adsWatchedWeekDisplay">0</span>/100 ads</span>
-
                     <span>+5 COINS</span>
-
                 </div>
-
                 <div class="progress-bar"><div class="progress-fill" id="weeklyAdProgress" style="width: 0%;"></div></div>
-
             </div>
-
         </div>
-
         
-
         <div class="ad-card" id="watchAdBtn">
-
             <i class="fas fa-play-circle"></i>
-
             <h3>Watch Ad</h3>
-
             <p>Watch a short video to earn COINS</p>
-
             <div class="ad-reward"><span id="adReward">0.005</span> COINS</div>
-
         </div>
-
         
-
         <div class="section-title"><i class="fas fa-tasks"></i><span>Quick Tasks</span></div>
-
         <div class="task-grid">
-
             <div class="task-card game" id="taskGame">
-
                 <i class="fas fa-gamepad"></i>
-
                 <div class="task-name">Play & Earn</div>
-
                 <div class="task-reward">+50 COINS</div>
-
             </div>
-
             <div class="task-card website" id="taskWebsite">
-
                 <i class="fas fa-globe"></i>
-
                 <div class="task-name">Visit Website</div>
-
                 <div class="task-reward">+5 COINS</div>
-
             </div>
-
         </div>
-
         
-
         <div class="section-title"><i class="fas fa-share-alt"></i><span>Follow & Earn</span></div>
-
         <div class="task-grid">
-
             <div class="task-card youtube" id="taskYoutube">
-
                 <i class="fab fa-youtube"></i>
-
                 <div class="task-name">Subscribe on YouTube</div>
-
                 <div class="task-reward">+10 COINS</div>
-
             </div>
-
             <div class="task-card twitter" id="taskTwitter">
-
                 <i class="fab fa-twitter"></i>
-
                 <div class="task-name">Follow on X</div>
-
                 <div class="task-reward">+10 COINS</div>
-
             </div>
-
             <div class="task-card facebook" id="taskFacebook">
-
                 <i class="fab fa-facebook"></i>
-
                 <div class="task-name">Like on Facebook</div>
-
                 <div class="task-reward">+10 COINS</div>
-
             </div>
-
             <div class="task-card instagram" id="taskInstagram">
-
                 <i class="fab fa-instagram"></i>
-
                 <div class="task-name">Follow on Instagram</div>
-
                 <div class="task-reward">+10 COINS</div>
-
             </div>
-
             <div class="task-card tiktok" id="taskTiktok">
-
                 <i class="fab fa-tiktok"></i>
-
                 <div class="task-name">Follow on TikTok</div>
-
                 <div class="task-reward">+10 COINS</div>
-
             </div>
-
             <div class="task-card telegram" id="taskTelegram">
-
                 <i class="fab fa-telegram"></i>
-
                 <div class="task-name">Join Telegram</div>
-
                 <div class="task-reward">+10 COINS</div>
-
             </div>
-
         </div>
-
     </div>
-
     
-
     <!-- Refer Tab -->
-
     <div class="tab-content" id="referTab">
-
         <div class="referral-section">
-
             <div class="section-title"><i class="fas fa-users"></i><span>Referral Program</span></div>
-
             <p style="margin-bottom: 15px; color: var(--gray);">Invite friends and earn <strong style="color: var(--gold);" id="referralReward">0.5</strong> COINS per referral!</p>
-
             <div class="referral-link-box">
-
                 <span class="referral-link" id="referralLink">https://t.me/YzemanBot?start=</span>
-
                 <button class="copy-btn" id="copyBtn"><i class="fas fa-copy"></i> Copy</button>
-
             </div>
-
             <div class="stats-grid">
-
                 <div class="stat-card"><div class="stat-value" id="referralCountTab">0</div><div class="stat-label">Total Referrals</div></div>
-
                 <div class="stat-card"><div class="stat-value" id="currentTier">Fresher</div><div class="stat-label">Current Tier</div></div>
-
             </div>
-
             <div class="tier-progress-section">
-
                 <div class="progress-label"><span>Tier Progress: <span id="currentRefs">0</span>/<span id="nextTierReq">150</span> referrals</span></div>
-
                 <div class="progress-bar"><div class="progress-fill" id="tierProgressBar" style="width: 0%;"></div></div>
-
             </div>
-
             <div style="margin-top: 20px;">
-
                 <p style="color: var(--gray); font-size: 13px; margin-bottom: 10px;">Tier Benefits:</p>
-
                 <div style="display: grid; gap: 8px;">
-
                     <div><span>🎯 Fresher (0 refs)</span> <span style="color:var(--gold);float:right;">0.005 COINS/ad</span></div>
-
                     <div><span>🔥 Brute (150 refs)</span> <span style="color:var(--gold);float:right;">0.0075 COINS/ad</span></div>
-
                     <div><span>🥈 Silver (350 refs)</span> <span style="color:var(--gold);float:right;">0.01 COINS/ad</span></div>
-
                     <div><span>🥇 Gold (700 refs)</span> <span style="color:var(--gold);float:right;">0.015 COINS/ad</span></div>
-
                     <div><span>💎 Platinum (1500 refs)</span> <span style="color:var(--gold);float:right;">0.025 COINS/ad</span></div>
-
                 </div>
-
             </div>
-
         </div>
-
     </div>
-
     
-
     <!-- Wallet Tab -->
-
     <div class="tab-content" id="walletTab">
-
         <div class="wallet-section">
-
             <div class="section-title"><i class="fas fa-wallet"></i><span>Withdrawal</span></div>
-
             <p style="margin-bottom:15px;color:var(--gray);">Minimum withdrawal: <strong style="color:var(--gold);">100,000 COINS</strong></p>
-
             <label style="color:var(--gray);font-size:14px;">USDT Wallet Address (TRC-20)</label>
-
             <input type="text" class="wallet-input" id="walletAddress" placeholder="T... (starts with T)" />
-
             <button class="btn btn-secondary" id="saveWalletBtn" style="margin-bottom:15px;"><i class="fas fa-save"></i> Save Wallet</button>
-
             <button class="btn btn-primary" id="withdrawBtn" disabled><i class="fas fa-paper-plane"></i> Request Withdrawal (100,000 COINS)</button>
-
             <div style="margin-top:20px;">
-
                 <div class="section-title"><i class="fas fa-history"></i><span>Withdrawal History</span></div>
-
                 <div class="history-list" id="withdrawalHistoryList"><div style="text-align:center;padding:20px;">No withdrawal requests yet</div></div>
-
             </div>
-
         </div>
-
     </div>
-
     
-
     <!-- Bonus Tab -->
-
     <div class="tab-content" id="bonusTab">
-
         <div class="bonus-section">
-
             <div class="section-title"><i class="fas fa-gift"></i><span>Redeem Bonus Code</span></div>
-
             <div class="bonus-info-note"><i class="fas fa-info-circle"></i><span>Enter a special bonus code to earn extra COINS!</span></div>
-
             <div class="bonus-input-group">
-
                 <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code" />
-
                 <button class="btn btn-primary" id="redeemBonusBtn" style="width:auto;padding:15px 25px;">Redeem</button>
-
             </div>
-
             <div class="section-title" style="margin-top:25px;"><i class="fas fa-history"></i><span>Your Bonus History</span></div>
-
             <div class="bonus-history-list" id="bonusHistoryList"><div style="text-align:center;padding:20px;color:var(--gray);">No bonuses redeemed yet</div></div>
-
         </div>
-
     </div>
-
     
-
     <div class="bottom-nav">
-
         <a href="/" class="nav-item active"><i class="fas fa-home"></i><span>Home</span></a>
-
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
-
         <a href="/wheel.html" class="nav-item"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
-
         <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
-
         <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
-
     </div>
-
     
-
     <div class="timer-popup" id="timerPopup">
-
         <i class="fas fa-hourglass-half"></i>
-
         <div>Complete the action in the new tab...</div>
-
         <div class="time-left" id="timerTimeLeft">00:00</div>
-
         <button id="cancelTaskBtn">Cancel (No Reward)</button>
-
     </div>
-
     
-
     <div class="notification" id="notification"></div>
 
-
-
-    <!-- Audio Panel Functions -->
-
-    <script>
-
-        function openAudioPanel() {
-
-            document.getElementById('audioPanelOverlay').classList.add('show');
-
-            document.getElementById('audioSettingsPanel').classList.add('show');
-
-            // Update UI when opening
-
-            if (window.AudioManager) {
-
-                AudioManager.updateVolumeUI();
-
-            }
-
-        }
-
-        function closeAudioPanel() {
-
-            document.getElementById('audioPanelOverlay').classList.remove('show');
-
-            document.getElementById('audioSettingsPanel').classList.remove('show');
-
-        }
-
-    </script>
-
-
-
     <!-- Load main application logic -->
-
     <script src="/app.js"></script>
-
     
-
     <!-- Task Logic (inline to guarantee clickability) -->
-
     <script>
-
     (function() {
-
         const tg = window.Telegram?.WebApp;
-
         if (tg) {
-
             tg.ready();
-
             tg.expand();
-
         }
 
-
-
         // ============================================
-
         // TASK CONFIGURATION
-
         // ============================================
-
         const TASK_CONFIG = {
-
             game: { name: 'game', points: 50000000, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false, onceOnly: true },
-
             website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: false, onceOnly: false },
-
             youtube: { name: 'youtube', points: 10000000, url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', time: 5, showTimer: false, onceOnly: true },
-
             twitter: { name: 'twitter', points: 10000000, url: 'https://x.com/yzemanbot?s=21', time: 5, showTimer: false, onceOnly: true },
-
             facebook: { name: 'facebook', points: 10000000, url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', time: 5, showTimer: false, onceOnly: true },
-
             instagram: { name: 'instagram', points: 10000000, url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', time: 5, showTimer: false, onceOnly: true },
-
             tiktok: { name: 'tiktok', points: 10000000, url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', time: 5, showTimer: false, onceOnly: true },
-
             telegram: { name: 'telegram', points: 10000000, url: 'https://t.me/YzemanEarnBotChannel', time: 0, showTimer: false, instant: true, onceOnly: true }
-
         };
-
         window.TASK_CONFIG = TASK_CONFIG;
 
-
-
         // ============================================
-
         // NOTIFICATION HELPER
-
         // ============================================
-
         function showNotification(msg, isError) {
-
             const n = document.getElementById('notification');
-
             if (n) {
-
                 n.textContent = msg;
-
                 n.style.background = isError ? '#ff5252' : '#00c853';
-
                 n.style.display = 'block';
-
                 setTimeout(function() { n.style.display = 'none'; }, 4000);
-
             }
-
         }
-
         window.showNotification = showNotification;
 
-
-
         // ============================================
-
         // OPEN URL
-
         // ============================================
-
         function openTaskUrl(task) {
-
             const tgWebApp = window.Telegram?.WebApp;
-
             
-
             if (task.name === 'telegram') {
-
                 if (tgWebApp && tgWebApp.openTelegramLink) {
-
                     tgWebApp.openTelegramLink(task.url);
-
                 } else {
-
                     window.open(task.url, '_blank');
-
                 }
-
                 return;
-
             }
-
             
-
             if (tgWebApp && tgWebApp.openLink) {
-
                 tgWebApp.openLink(task.url, { try_instant_view: false });
-
             } else {
-
                 window.open(task.url, '_blank');
-
             }
-
         }
 
-
-
         // ============================================
-
         // TIMER STATE
-
         // ============================================
-
         let activeTask = null;
-
         let taskStartTime = null;
-
         let timerInterval = null;
-
         let taskCompleted = false;
-
         let visibilityHandler = null;
 
-
-
         function cleanupTimer() {
-
             if (timerInterval) clearInterval(timerInterval);
-
             if (visibilityHandler) {
-
                 document.removeEventListener('visibilitychange', visibilityHandler);
-
                 visibilityHandler = null;
-
             }
-
             timerInterval = null;
-
             document.getElementById('timerPopup').classList.remove('active');
-
             activeTask = null;
-
             taskCompleted = false;
-
         }
-
-
 
         function cancelTask(manual) {
-
             cleanupTimer();
-
             if (manual !== false) {
-
                 showNotification('Task cancelled. No reward.', true);
-
             }
-
         }
-
         window.cancelTask = cancelTask;
 
-
-
         // Complete task on server with retry
-
         async function completeTaskOnServer(taskName, points, retryCount) {
-
             retryCount = retryCount || 0;
-
             const maxRetries = 3;
-
             try {
-
                 const initData = (tg && tg.initData) || '';
-
                 console.log('Completing task ' + taskName + ' with ' + points + ' points');
-
                 
-
                 const res = await fetch('/api/complete-task', {
-
                     method: 'POST',
-
                     headers: { 'Content-Type': 'application/json' },
-
                     body: JSON.stringify({ taskName: taskName, points: points, initData: initData })
-
                 });
-
                 
-
                 const data = await res.json();
-
                 
-
                 if (res.ok && data.success) {
-
                     showNotification(data.message, false);
-
                     if (window.refreshUser) await window.refreshUser();
-
                     return true;
-
                 } else {
-
                     const errorMsg = data.error || 'Server error';
-
                     
-
                     if (retryCount < maxRetries) {
-
                         await new Promise(resolve => setTimeout(resolve, 1000));
-
                         return completeTaskOnServer(taskName, points, retryCount + 1);
-
                     }
-
                     
-
                     showNotification(errorMsg, true);
-
                     return false;
-
                 }
-
             } catch (e) {
-
                 if (retryCount < maxRetries) {
-
                     await new Promise(resolve => setTimeout(resolve, 1000));
-
                     return completeTaskOnServer(taskName, points, retryCount + 1);
-
                 }
-
                 showNotification('Network error. Try again.', true);
-
                 return false;
-
             }
-
         }
-
-
 
         async function checkTaskCompleted(taskName, onceOnly) {
-
             if (!onceOnly) return false; // Website task can be repeated
-
             try {
-
                 const initData = (tg && tg.initData) || '';
-
                 const res = await fetch('/api/check-task', {
-
                     method: 'POST',
-
                     headers: { 'Content-Type': 'application/json' },
-
                     body: JSON.stringify({ taskName: taskName, initData: initData })
-
                 });
-
                 const data = await res.json();
-
                 return data.completed || false;
-
             } catch (e) {
-
                 return false;
-
             }
-
         }
-
-
 
         function markTaskCompletedInUI(taskKey, onceOnly) {
-
             if (!onceOnly) return; // Don't mark website as completed
-
             
-
             const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
-
             if (btn) {
-
                 btn.classList.add('completed');
-
                 if (!btn.querySelector('.completed-badge')) {
-
                     const badge = document.createElement('div');
-
                     badge.className = 'completed-badge';
-
                     badge.innerHTML = '✓ Done';
-
                     btn.appendChild(badge);
-
                 }
-
                 if (taskKey !== 'telegram') {
-
                     btn.style.pointerEvents = 'none';
-
                 }
-
             }
-
         }
-
-
 
         function startTimer(taskKey, task) {
-
             cleanupTimer();
-
             
-
             activeTask = taskKey;
-
             taskStartTime = Date.now();
-
             taskCompleted = false;
-
             
-
             // Open link
-
             openTaskUrl(task);
-
             
-
             // Telegram instant
-
             if (task.instant) {
-
                 completeTaskOnServer(task.name, task.points).then(function(success) {
-
                     if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
-
                 });
-
                 return;
-
             }
-
             
-
             // Early return detection for all non-instant tasks
-
             visibilityHandler = function() {
-
                 if (document.visibilityState === 'visible') {
-
                     const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-
                     if (elapsed < task.time && !taskCompleted) {
-
                         cleanupTimer();
-
                         if (taskKey === 'website') {
-
                             showNotification('Must stay on website for 2 min to earn reward.', true);
-
                         } else {
-
                             showNotification('Task incomplete - follow the rules.', true);
-
                         }
-
                     }
-
                 }
-
             };
-
             document.addEventListener('visibilitychange', visibilityHandler);
-
             
-
             timerInterval = setInterval(async function() {
-
                 const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-
                 const remaining = Math.max(0, task.time - elapsed);
-
                 
-
                 if (remaining <= 0 && !taskCompleted) {
-
                     taskCompleted = true;
-
                     cleanupTimer();
-
                     const success = await completeTaskOnServer(task.name, task.points);
-
                     if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
-
                 }
-
             }, 1000);
-
         }
-
-
 
         async function handleTaskClick(taskKey) {
-
             if (activeTask) {
-
                 showNotification('Complete current task first!', true);
-
                 return;
-
             }
-
             
-
             const task = TASK_CONFIG[taskKey];
-
             if (!task) return;
-
             
-
             const alreadyCompleted = await checkTaskCompleted(task.name, task.onceOnly);
-
             if (alreadyCompleted) {
-
                 showNotification('You already completed this task.', true);
-
                 markTaskCompletedInUI(taskKey, task.onceOnly);
-
                 return;
-
             }
-
             
-
             startTimer(taskKey, task);
-
         }
-
         window.handleTaskClick = handleTaskClick;
 
-
-
         // ============================================
-
         // ATTACH HANDLERS
-
         // ============================================
-
         function attachTaskHandlers() {
-
             console.log('Attaching handlers...');
-
             
-
             const tasks = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
-
             
-
             tasks.forEach(function(taskKey) {
-
                 const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
-
                 if (btn) {
-
                     btn.onclick = function(e) {
-
                         e.preventDefault();
-
                         handleTaskClick(taskKey);
-
                         return false;
-
                     };
-
                 }
-
             });
-
             
-
             const cancelBtn = document.getElementById('cancelTaskBtn');
-
             if (cancelBtn) {
-
                 cancelBtn.onclick = function(e) {
-
                     e.preventDefault();
-
                     cancelTask();
-
                     return false;
-
                 };
-
             }
-
             
-
             // Update website task text to show "Use 2min on website"
-
             const websiteTask = document.getElementById('taskWebsite');
-
             if (websiteTask) {
-
                 const taskNameEl = websiteTask.querySelector('.task-name');
-
                 if (taskNameEl) {
-
                     taskNameEl.innerHTML = 'Visit Website<br><small style="font-size:10px;color:#aaa;">Use 2min on site</small>';
-
                 }
-
             }
-
         }
-
-
 
         // Tab switching
-
         function setupTabs() {
-
             document.querySelectorAll('.tab').forEach(function(tab) {
-
                 tab.onclick = function() {
-
                     const tabId = this.getAttribute('data-tab');
-
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-
                     this.classList.add('active');
-
                     document.getElementById(tabId + 'Tab').classList.add('active');
-
                 };
-
             });
-
         }
 
-
+        // Hide loading screen when user data is ready
+        function hideLoadingScreen() {
+            const loader = document.getElementById('loadingScreen');
+            if (loader) {
+                loader.classList.add('fade-out');
+                setTimeout(() => loader.remove(), 500);
+            }
+        }
 
         // Start
-
         document.addEventListener('DOMContentLoaded', function() {
-
             setupTabs();
-
             
-
             const dailyAdGoal = document.getElementById('dailyAdGoal');
-
             if (dailyAdGoal) dailyAdGoal.textContent = '20';
-
             const weeklyAdGoal = document.getElementById('weeklyAdGoal');
-
             if (weeklyAdGoal) weeklyAdGoal.textContent = '100';
-
             const nextTierReq = document.getElementById('nextTierReq');
-
             if (nextTierReq) nextTierReq.textContent = '150';
-
             
-
             setTimeout(attachTaskHandlers, 300);
-
             setTimeout(attachTaskHandlers, 1000);
-
+            
+            // Hide loading screen after user data loads (via refreshUser in app.js)
+            const originalRefresh = window.refreshUser;
+            window.refreshUser = async function() {
+                await originalRefresh();
+                hideLoadingScreen();
+            };
+            // Fallback: hide after 5 seconds anyway
+            setTimeout(hideLoadingScreen, 5000);
         });
 
-
-
         console.log('Ready!');
-
     })();
-
     </script>
-
 </body>
-
-    </html>
+</html>
