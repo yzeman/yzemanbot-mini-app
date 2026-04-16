@@ -640,312 +640,308 @@
     
     <!-- Task Logic (inline to guarantee clickability) -->
     <script>
-        (function() {
-            // Wait for Telegram WebApp to be ready
-            const tg = window.Telegram?.WebApp;
-            if (tg) {
-                tg.ready();
-                tg.expand();
+    (function() {
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        // ============================================
+        // TASK CONFIGURATION
+        // ============================================
+        const TASK_CONFIG = {
+            game: { name: 'game', points: 50000000, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false },
+            website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: true },
+            youtube: { name: 'youtube', points: 10000000, url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', time: 5, showTimer: false },
+            twitter: { name: 'twitter', points: 10000000, url: 'https://x.com/yzemanbot?s=21', time: 5, showTimer: false },
+            facebook: { name: 'facebook', points: 10000000, url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', time: 5, showTimer: false },
+            instagram: { name: 'instagram', points: 10000000, url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', time: 5, showTimer: false },
+            tiktok: { name: 'tiktok', points: 10000000, url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', time: 5, showTimer: false },
+            telegram: { name: 'telegram', points: 10000000, url: 'https://t.me/YzemanEarnBotChannel', time: 0, showTimer: false, instant: true }
+        };
+        window.TASK_CONFIG = TASK_CONFIG;
+
+        // ============================================
+        // NOTIFICATION HELPER
+        // ============================================
+        function showNotification(msg, isError = false) {
+            const n = document.getElementById('notification');
+            if (n) {
+                n.textContent = msg;
+                n.style.background = isError ? '#ff5252' : '#00c853';
+                n.style.display = 'block';
+                setTimeout(() => n.style.display = 'none', 4000);
             }
+        }
+        window.showNotification = showNotification;
 
-            // ============================================
-            // TASK CONFIGURATION
-            // ============================================
-            const TASK_CONFIG = {
-                game: { name: 'game', points: 50000000, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false },
-                website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: true },
-                youtube: { name: 'youtube', points: 10000000, url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', time: 10, showTimer: false },
-                twitter: { name: 'twitter', points: 10000000, url: 'https://x.com/yzemanbot?s=21', time: 10, showTimer: false },
-                facebook: { name: 'facebook', points: 10000000, url: 'https://www.facebook.com/share/16zQ1s6iLj/?mibextid=wwXIfr', time: 10, showTimer: false },
-                instagram: { name: 'instagram', points: 10000000, url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', time: 10, showTimer: false },
-                tiktok: { name: 'tiktok', points: 10000000, url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', time: 10, showTimer: false },
-                telegram: { name: 'telegram', points: 10000000, url: 'https://t.me/YzemanEarnBotChannel', time: 10, showTimer: false }
-            };
-            window.TASK_CONFIG = TASK_CONFIG;
-
-            // ============================================
-            // NOTIFICATION HELPER
-            // ============================================
-            function showNotification(msg, isError = false) {
-                const n = document.getElementById('notification');
-                if (n) {
-                    n.textContent = msg;
-                    n.style.background = isError ? '#ff5252' : '#00c853';
-                    n.style.display = 'block';
-                    setTimeout(() => n.style.display = 'none', 4000);
-                }
-            }
-            window.showNotification = showNotification;
-
-            // ============================================
-            // OPEN URL USING TELEGRAM API
-            // ============================================
-            function openTaskUrl(task) {
-                const tgWebApp = window.Telegram?.WebApp;
-                
-                if (task.name === 'telegram') {
-                    if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
-                        tgWebApp.openTelegramLink(task.url);
-                    } else {
-                        window.open(task.url, '_blank');
-                    }
-                    return;
-                }
-                
-                if (tgWebApp && typeof tgWebApp.openLink === 'function') {
-                    tgWebApp.openLink(task.url, { try_instant_view: false });
+        // ============================================
+        // OPEN URL USING TELEGRAM API
+        // ============================================
+        function openTaskUrl(task) {
+            const tgWebApp = window.Telegram?.WebApp;
+            
+            if (task.name === 'telegram') {
+                if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
+                    tgWebApp.openTelegramLink(task.url);
                 } else {
                     window.open(task.url, '_blank');
                 }
+                return;
             }
-
-            // ============================================
-            // TIMER STATE
-            // ============================================
-            let activeTask = null;
-            let taskStartTime = null;
-            let timerInterval = null;
-            let visibilityCheckInterval = null;
-            let taskCompleted = false;
-
-            function cleanupTimer() {
-                if (timerInterval) clearInterval(timerInterval);
-                if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
-                timerInterval = null;
-                visibilityCheckInterval = null;
-                document.getElementById('timerPopup').classList.remove('active');
-                activeTask = null;
-                taskCompleted = false;
+            
+            if (tgWebApp && typeof tgWebApp.openLink === 'function') {
+                tgWebApp.openLink(task.url, { try_instant_view: false });
+            } else {
+                window.open(task.url, '_blank');
             }
+        }
 
-            // Cancel task (no reward)
-            function cancelTask() {
-                cleanupTimer();
-                showNotification('Task cancelled. No reward.', true);
-            }
-            window.cancelTask = cancelTask;
+        // ============================================
+        // TIMER STATE
+        // ============================================
+        let activeTask = null;
+        let taskStartTime = null;
+        let timerInterval = null;
+        let visibilityCheckInterval = null;
+        let taskCompleted = false;
 
-            // Complete task on backend (use app.js function if available)
-            async function completeTaskOnServer(taskName, points) {
-                if (window.completeTask && typeof window.completeTask === 'function') {
-                    return window.completeTask(taskName, points);
+        function cleanupTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+            timerInterval = null;
+            visibilityCheckInterval = null;
+            document.getElementById('timerPopup').classList.remove('active');
+            activeTask = null;
+            taskCompleted = false;
+        }
+
+        function cancelTask() {
+            cleanupTimer();
+            showNotification('Task cancelled. No reward.', true);
+        }
+        window.cancelTask = cancelTask;
+
+        // Complete task on backend and refresh balance
+        async function completeTaskOnServer(taskName, points) {
+            try {
+                const res = await fetch('/api/complete-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskName, points, initData: window.Telegram?.WebApp?.initData })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showNotification(data.message, false);
+                    // Refresh user balance
+                    if (window.refreshUser) await window.refreshUser();
+                    return true;
+                } else {
+                    showNotification(data.error || 'Failed to claim reward', true);
                 }
-                // Fallback: direct API call
-                try {
-                    const res = await fetch('/api/complete-task', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ taskName, points, initData: window.Telegram?.WebApp?.initData })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        showNotification(data.message, false);
-                        if (window.refreshUser) window.refreshUser();
-                        return true;
-                    }
-                } catch (e) {
-                    console.error('Complete task error:', e);
-                }
+            } catch (e) {
+                console.error('Complete task error:', e);
+                showNotification('Network error. Please try again.', true);
+            }
+            return false;
+        }
+
+        async function checkTaskCompleted(taskName) {
+            try {
+                const res = await fetch('/api/check-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskName, initData: window.Telegram?.WebApp?.initData })
+                });
+                const data = await res.json();
+                return data.completed || false;
+            } catch (e) {
                 return false;
             }
+        }
 
-            // Check if task already completed
-            async function checkTaskCompleted(taskName) {
-                if (window.checkTask && typeof window.checkTask === 'function') {
-                    return window.checkTask(taskName);
+        function markTaskCompletedInUI(taskKey) {
+            const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
+            if (btn) {
+                btn.classList.add('completed');
+                if (!btn.querySelector('.completed-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'completed-badge';
+                    badge.innerHTML = '✓ Done';
+                    btn.appendChild(badge);
                 }
-                try {
-                    const res = await fetch('/api/check-task', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ taskName, initData: window.Telegram?.WebApp?.initData })
-                    });
-                    const data = await res.json();
-                    return data.completed || false;
-                } catch (e) {
-                    return false;
+                // Disable further clicks (except Telegram which can be clicked but will check backend)
+                if (taskKey !== 'telegram') {
+                    btn.style.pointerEvents = 'none';
                 }
             }
+        }
 
-            // Start timer for a task
-            function startTimer(taskKey, task) {
-                cleanupTimer();
+        function startTimer(taskKey, task) {
+            cleanupTimer();
+            
+            activeTask = taskKey;
+            taskStartTime = Date.now();
+            taskCompleted = false;
+            
+            // Open the link
+            openTaskUrl(task);
+            
+            // Telegram instant reward
+            if (task.instant) {
+                completeTaskOnServer(task.name, task.points).then(success => {
+                    if (success) {
+                        markTaskCompletedInUI(taskKey);
+                    }
+                });
+                return; // No timer for Telegram
+            }
+            
+            const popup = document.getElementById('timerPopup');
+            const timerEl = document.getElementById('timerTimeLeft');
+            
+            if (task.showTimer) {
+                popup.classList.add('active');
+            }
+            
+            timerInterval = setInterval(async () => {
+                const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                const remaining = Math.max(0, task.time - elapsed);
                 
-                activeTask = taskKey;
-                taskStartTime = Date.now();
-                taskCompleted = false;
-                
-                // Open the link
-                openTaskUrl(task);
-                
-                const popup = document.getElementById('timerPopup');
-                const timerEl = document.getElementById('timerTimeLeft');
-                
-                if (task.showTimer) {
-                    popup.classList.add('active');
+                if (task.showTimer && timerEl) {
+                    const mins = Math.floor(remaining / 60);
+                    const secs = remaining % 60;
+                    timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
                 }
                 
-                // Main countdown
-                timerInterval = setInterval(async () => {
-                    const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                    const remaining = Math.max(0, task.time - elapsed);
-                    
-                    if (task.showTimer && timerEl) {
-                        const mins = Math.floor(remaining / 60);
-                        const secs = remaining % 60;
-                        timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+                if (remaining <= 0 && !taskCompleted) {
+                    taskCompleted = true;
+                    cleanupTimer();
+                    const success = await completeTaskOnServer(task.name, task.points);
+                    if (success) {
+                        markTaskCompletedInUI(taskKey);
                     }
-                    
-                    if (remaining <= 0 && !taskCompleted) {
-                        taskCompleted = true;
-                        cleanupTimer();
-                        showNotification(`Task completed! +${task.points/1000000} COINS!`, false);
-                        await completeTaskOnServer(task.name, task.points);
-                        // Mark UI as completed
-                        const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
-                        if (btn) {
-                            btn.classList.add('completed');
-                            if (!btn.querySelector('.completed-badge')) {
-                                const badge = document.createElement('div');
-                                badge.className = 'completed-badge';
-                                badge.innerHTML = '✓ Done';
-                                btn.appendChild(badge);
-                            }
+                }
+            }, 1000);
+            
+            // For hidden timer tasks, detect early return
+            if (!task.showTimer) {
+                const handleVisibilityChange = () => {
+                    if (!document.hidden) {
+                        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                        if (elapsed < task.time && !taskCompleted) {
+                            cleanupTimer();
+                            showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
+                        }
+                        document.removeEventListener('visibilitychange', handleVisibilityChange);
+                        if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+                    }
+                };
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                
+                visibilityCheckInterval = setInterval(() => {
+                    if (!document.hidden) {
+                        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                        if (elapsed < task.time && !taskCompleted) {
+                            cleanupTimer();
+                            showNotification('Task incomplete – you didn’t follow the rules. No reward.', true);
                         }
                     }
                 }, 1000);
-                
-                // For hidden timer tasks, detect when user returns too early
-                if (!task.showTimer) {
-                    const handleVisibilityChange = () => {
-                        if (!document.hidden) {
-                            const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                            if (elapsed < task.time && !taskCompleted) {
-                                cleanupTimer();
-                                showNotification('Task incomplete – you returned too early. No reward.', true);
-                            }
-                            document.removeEventListener('visibilitychange', handleVisibilityChange);
-                            if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
-                        }
-                    };
-                    document.addEventListener('visibilitychange', handleVisibilityChange);
-                    
-                    visibilityCheckInterval = setInterval(() => {
-                        if (!document.hidden) {
-                            const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-                            if (elapsed < task.time && !taskCompleted) {
-                                cleanupTimer();
-                                showNotification('Task incomplete – you returned too early. No reward.', true);
-                            }
-                        }
-                    }, 1000);
-                }
             }
+        }
 
-            // Handle task click
-            async function handleTaskClick(taskKey) {
-                if (activeTask) {
-                    showNotification('Complete current task first!', true);
-                    return;
-                }
-                
-                const task = TASK_CONFIG[taskKey];
-                if (!task) return;
-                
-                const alreadyCompleted = await checkTaskCompleted(task.name);
-                if (alreadyCompleted) {
-                    showNotification('Task already completed!', true);
-                    const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
-                    if (btn) {
-                        btn.classList.add('completed');
-                        if (!btn.querySelector('.completed-badge')) {
-                            const badge = document.createElement('div');
-                            badge.className = 'completed-badge';
-                            badge.innerHTML = '✓ Done';
-                            btn.appendChild(badge);
-                        }
-                    }
-                    return;
-                }
-                
-                startTimer(taskKey, task);
+        async function handleTaskClick(taskKey) {
+            if (activeTask) {
+                showNotification('Complete current task first!', true);
+                return;
             }
-            window.handleTaskClick = handleTaskClick;
+            
+            const task = TASK_CONFIG[taskKey];
+            if (!task) return;
+            
+            const alreadyCompleted = await checkTaskCompleted(task.name);
+            if (alreadyCompleted) {
+                showNotification('You already completed this task.', true);
+                markTaskCompletedInUI(taskKey);
+                return;
+            }
+            
+            startTimer(taskKey, task);
+        }
+        window.handleTaskClick = handleTaskClick;
 
-            // ============================================
-            // ATTACH CLICK HANDLERS
-            // ============================================
-            function attachTaskHandlers() {
-                console.log('🔧 Attaching task click handlers...');
-                const taskIds = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
-                taskIds.forEach(taskKey => {
-                    const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
-                    if (btn) {
-                        // Remove existing listeners by cloning
-                        const newBtn = btn.cloneNode(true);
-                        btn.parentNode.replaceChild(newBtn, btn);
-                        newBtn.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log(`🖱️ Task clicked: ${taskKey}`);
-                            handleTaskClick(taskKey);
-                        });
-                        console.log(`✅ Handler attached for: ${taskKey}`);
-                    }
-                });
-                
-                const cancelBtn = document.getElementById('cancelTaskBtn');
-                if (cancelBtn) {
-                    const newCancelBtn = cancelBtn.cloneNode(true);
-                    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-                    newCancelBtn.addEventListener('click', (e) => {
+        // ============================================
+        // ATTACH CLICK HANDLERS
+        // ============================================
+        function attachTaskHandlers() {
+            console.log('🔧 Attaching task click handlers...');
+            const taskIds = ['game', 'website', 'youtube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+            taskIds.forEach(taskKey => {
+                const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
+                if (btn) {
+                    const newBtn = btn.cloneNode(true);
+                    btn.parentNode.replaceChild(newBtn, btn);
+                    newBtn.addEventListener('click', (e) => {
                         e.preventDefault();
-                        cancelTask();
+                        e.stopPropagation();
+                        console.log(`🖱️ Task clicked: ${taskKey}`);
+                        handleTaskClick(taskKey);
                     });
+                    console.log(`✅ Handler attached for: ${taskKey}`);
                 }
-            }
-
-            // Tab switching
-            function setupTabs() {
-                document.querySelectorAll('.tab').forEach(t => {
-                    t.addEventListener('click', () => {
-                        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-                        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                        t.classList.add('active');
-                        const tabId = t.dataset.tab;
-                        if (tabId) {
-                            document.getElementById(tabId + 'Tab').classList.add('active');
-                        }
-                    });
-                });
-            }
-
-            // Initialize on DOM ready
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('📄 DOM ready – setting up tabs and task handlers');
-                setupTabs();
-                
-                // Set static text
-                if (document.getElementById('dailyAdGoal')) document.getElementById('dailyAdGoal').textContent = '20';
-                if (document.getElementById('dailyGoalReward')) document.getElementById('dailyGoalReward').textContent = '0.5';
-                if (document.getElementById('weeklyAdGoal')) document.getElementById('weeklyAdGoal').textContent = '100';
-                if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
-                if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
-                
-                // Attach handlers after a short delay to ensure everything is ready
-                setTimeout(attachTaskHandlers, 300);
             });
-
-            // Also attach after Telegram WebApp is fully ready (if needed)
-            if (tg) {
-                tg.onEvent('viewportChanged', () => {
-                    // Re-attach handlers just in case
-                    setTimeout(attachTaskHandlers, 100);
+            
+            const cancelBtn = document.getElementById('cancelTaskBtn');
+            if (cancelBtn) {
+                const newCancelBtn = cancelBtn.cloneNode(true);
+                cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                newCancelBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    cancelTask();
                 });
             }
+        }
 
-            console.log('✅ Task system initialized');
-        })();
-    </script>
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(t => {
+                t.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    t.classList.add('active');
+                    const tabId = t.dataset.tab;
+                    if (tabId) {
+                        document.getElementById(tabId + 'Tab').classList.add('active');
+                    }
+                });
+            });
+        }
+
+        // ============================================
+        // INITIALIZE
+        // ============================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM ready – setting up tabs and task handlers');
+            setupTabs();
+            
+            if (document.getElementById('dailyAdGoal')) document.getElementById('dailyAdGoal').textContent = '20';
+            if (document.getElementById('dailyGoalReward')) document.getElementById('dailyGoalReward').textContent = '0.5';
+            if (document.getElementById('weeklyAdGoal')) document.getElementById('weeklyAdGoal').textContent = '100';
+            if (document.getElementById('weeklyGoalReward')) document.getElementById('weeklyGoalReward').textContent = '5';
+            if (document.getElementById('nextTierReq')) document.getElementById('nextTierReq').textContent = '150';
+            
+            setTimeout(attachTaskHandlers, 300);
+        });
+
+        if (tg) {
+            tg.onEvent('viewportChanged', () => {
+                setTimeout(attachTaskHandlers, 100);
+            });
+        }
+
+        console.log('✅ Task system initialized');
+    })();
+</script>
 </body>
 </html>
