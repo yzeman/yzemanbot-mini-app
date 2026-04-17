@@ -221,6 +221,46 @@ async function initDB() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS bonus_codes (
+        id SERIAL PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        points BIGINT NOT NULL,
+        description TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_bonus_redemptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        bonus_code TEXT NOT NULL,
+        redeemed_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, bonus_code)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pending_referrals (
+        id SERIAL PRIMARY KEY,
+        telegram_id BIGINT NOT NULL,
+        referral_code TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS social_tasks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        task_name TEXT NOT NULL,
+        completed_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, task_name)
+      )
+    `);
+
+    await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, points_reward) VALUES
         ('Loyal User', '30 day login streak', '🔥', 30, 50000000),
         ('Referral Master', 'Get 100 referrals', '👑', 100, 100000000),
@@ -1742,15 +1782,11 @@ app.get('/health', async (req, res) => {
 });
 
 // ============================================
-// WEBHOOK HEALTH CHECK (Required for Render)
+// WEBHOOK HEALTH CHECK (GET only)
 // ============================================
 
 app.get('/webhook', (req, res) => {
     res.status(200).send('Webhook is active');
-});
-
-app.post('/webhook', (req, res) => {
-    res.status(200).send('OK');
 });
 
 // ============================================
@@ -2265,7 +2301,7 @@ app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM BOT - WEBHOOK VERSION (NO CONFLICTS)
+// TELEGRAM BOT - WEBHOOK VERSION (FIXED - NO CONFLICTS)
 // ============================================
 
 if (process.env.BOT_TOKEN) {
@@ -2281,6 +2317,11 @@ if (process.env.BOT_TOKEN) {
 
     // Webhook URL – must be HTTPS
     const WEBHOOK_URL = process.env.WEBHOOK_URL || `${MINI_APP_URL}/webhook`;
+
+    // Catch any bot errors
+    bot.catch((err, ctx) => {
+        console.error('❌ Bot error:', err);
+    });
 
     // Set webhook on startup (this replaces bot.launch())
     bot.telegram.setWebhook(WEBHOOK_URL)
