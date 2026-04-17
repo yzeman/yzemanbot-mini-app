@@ -2265,7 +2265,7 @@ app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TELEGRAM BOT - COMPLETE FIXED VERSION
+// TELEGRAM BOT - WEBHOOK VERSION (NO CONFLICTS)
 // ============================================
 
 if (process.env.BOT_TOKEN) {
@@ -2274,13 +2274,19 @@ if (process.env.BOT_TOKEN) {
     const CHANNEL_URL = 'https://t.me/YzemanEarnBotChannel';
     const SUPPORT_URL = 'https://t.me/yzemanreal';
     const COMMUNITY_URL = 'https://t.me/YzemanEarnBotCommunity';
-    
-    // Hardcoded bot username
     const BOT_USERNAME = 'YzemanBot';
     
     // Store referral codes in memory for 5 minutes
     const referralCache = new Map();
-    
+
+    // Webhook URL – must be HTTPS
+    const WEBHOOK_URL = process.env.WEBHOOK_URL || `${MINI_APP_URL}/webhook`;
+
+    // Set webhook on startup (this replaces bot.launch())
+    bot.telegram.setWebhook(WEBHOOK_URL)
+        .then(() => console.log(`✅ Webhook set to ${WEBHOOK_URL}`))
+        .catch(err => console.error('❌ Failed to set webhook:', err.message));
+
     // ============================================
     // PERSISTENT MENU KEYBOARD
     // ============================================
@@ -2414,7 +2420,7 @@ if (process.env.BOT_TOKEN) {
     });
     
     // ============================================
-    // OPEN YZEMANBOT BUTTON - Main button (renamed from LAUNCH APP)
+    // OPEN YZEMANBOT BUTTON - Main button
     // ============================================
     
     bot.hears('🚀 OPEN YZEMANBOT', async (ctx) => {
@@ -2641,21 +2647,15 @@ if (process.env.BOT_TOKEN) {
             );
         }
     });
-    
+
     // ============================================
-    // LAUNCH BOT
+    // WEBHOOK MIDDLEWARE (replaces bot.launch())
     // ============================================
     
-    bot.launch()
-        .then(() => {
-            console.log('🤖 Telegram Bot started successfully!');
-        })
-        .catch((err) => {
-            console.error('❌ Bot failed:', err.message);
-        });
+    // This tells Express to forward incoming webhook requests to the bot
+    app.use(bot.webhookCallback('/webhook'));
     
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
+    console.log('🤖 Telegram Bot configured with webhooks');
 }
 
 // ============================================
