@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        /* ... ALL YOUR EXISTING CSS (unchanged) ... */
         :root {
             --primary: #4CAF50;
             --secondary: #2196F3;
@@ -399,7 +400,7 @@
         <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
         <p>Manage users, withdrawals, teams & bonus codes</p>
     </div>
-    <!-- Stats Cards (removed Total COINS, added ads metrics) -->
+    <!-- Stats Cards -->
     <div class="stats-grid">
         <div class="stat-card" onclick="document.querySelector('.tab[data-tab=users]').click()">
             <div class="stat-value" id="totalUsers">0</div>
@@ -496,18 +497,18 @@
             </button>
         </div>
         <div class="section-title">
-            <i class="fas fa-list"></i><span>Active Bonus Codes (Database)</span>
+            <i class="fas fa-list"></i><span>Active Bonus Codes</span>
             <div style="margin-left:auto;display:flex;gap:5px;">
                 <button class="refresh-btn" onclick="loadBonusCodesDB()" style="background:var(--secondary);"><i class="fas fa-sync"></i> Refresh</button>
             </div>
         </div>
         <div class="bonus-list" id="bonusList">
-            <div class="loading">Loading bonus codes from database...</div>
+            <div class="loading">Loading bonus codes...</div>
         </div>
         <div style="margin-top:15px;padding:10px;background:rgba(255,215,0,0.1);border-radius:10px;">
             <p style="font-size:11px;color:var(--gray);">
                 <i class="fas fa-info-circle"></i> 
-                <strong>Note:</strong> Bonus codes are stored in the DATABASE. All users can redeem them immediately after creation.
+                <strong>Note:</strong> Bonus codes are stored in the database. Users can redeem them immediately.
             </p>
         </div>
     </div>
@@ -626,7 +627,6 @@
                 <div class="detail-row"><span class="detail-label">💳 Wallet</span><span class="detail-value">${user.wallet_address ? user.wallet_address.substring(0, 20) + '...' : 'Not set'}</span></div>
                 <div class="detail-row"><span class="detail-label">📅 Joined</span><span class="detail-value">${userSince}</span></div>
                 <div class="detail-row"><span class="detail-label">🕐 Last Active</span><span class="detail-value">${lastActive}</span></div>
-                <div class="detail-row"><span class="detail-label">📊 Total Points Earned</span><span class="detail-value">${(user.total_points_earned || 0).toLocaleString()}</span></div>
             `;
             document.getElementById('userDetailModal').style.display = 'flex';
         }
@@ -635,7 +635,6 @@
         async function loadUsers() {
             try {
                 users = await apiCall('/api/admin/users');
-                // Fetch ad stats for each user (if not included)
                 renderUserList(users);
                 updateStats();
             } catch (err) {
@@ -752,11 +751,61 @@
         }
         async function forceRemoveMember(teamId, memberTelegramId) { if (!confirm('Remove this member?')) return; try { await apiCall('/api/team/remove-member', 'POST', { teamId, memberTelegramId }); showNotification('Member removed'); loadTeams(); } catch { showNotification('Failed', true); } }
         async function deleteTeam(teamId) { if (!confirm('Delete this team?')) return; try { await apiCall('/api/admin/delete-team', 'POST', { teamId }); showNotification('Team deleted'); loadTeams(); loadUsers(); } catch { showNotification('Failed', true); } }
-        // ========== BONUS CODES ==========
-        async function loadBonusCodesDB() { try { const response = await fetch('/api/admin/bonus-codes', { headers: { 'Authorization': ADMIN_TOKEN } }); if (response.ok) { bonusCodes = await response.json(); renderBonusListDB(); } else document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load</div>'; } catch { document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
-        function renderBonusListDB() { const container = document.getElementById('bonusList'); if (!bonusCodes.length) { container.innerHTML = '<div class="empty-state">No bonus codes yet.</div>'; return; } container.innerHTML = bonusCodes.map(c => `<div class="bonus-item"><div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div><div style="display:flex;align-items:center;gap:10px;"><span class="bonus-reward">${(c.points / POINTS_PER_COIN).toFixed(2)} COINS</span><i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i></div></div>`).join(''); }
-        async function addBonusCodeDB() { /* unchanged */ }
-        async function deleteBonusCodeDB(code) { /* unchanged */ }
+        // ========== BONUS CODES (FIXED) ==========
+        async function loadBonusCodesDB() { 
+            try { 
+                const response = await fetch('/api/admin/bonus-codes', { headers: { 'Authorization': ADMIN_TOKEN } }); 
+                if (response.ok) { bonusCodes = await response.json(); renderBonusListDB(); } 
+                else document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load</div>'; 
+            } catch { document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load</div>'; } 
+        }
+        function renderBonusListDB() { 
+            const container = document.getElementById('bonusList'); 
+            if (!bonusCodes.length) { container.innerHTML = '<div class="empty-state">No bonus codes yet.</div>'; return; } 
+            container.innerHTML = bonusCodes.map(c => `<div class="bonus-item"><div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div><div style="display:flex;align-items:center;gap:10px;"><span class="bonus-reward">${(c.points / POINTS_PER_COIN).toFixed(2)} COINS</span><i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i></div></div>`).join(''); 
+        }
+        async function addBonusCodeDB() {
+            const code = document.getElementById('newBonusCode').value.trim().toUpperCase();
+            const coins = parseFloat(document.getElementById('newBonusCoins').value) || 0;
+            const points = parseInt(document.getElementById('newBonusPoints').value) || 0;
+            const desc = document.getElementById('newBonusDesc').value.trim();
+            if (!code) { showNotification('Enter a code', true); return; }
+            const totalPoints = Math.floor(coins * POINTS_PER_COIN) + points;
+            if (totalPoints <= 0) { showNotification('Enter a reward amount', true); return; }
+            try {
+                const response = await fetch('/api/admin/bonus-codes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN },
+                    body: JSON.stringify({ code, points: totalPoints, description: desc || `${coins} COINS` })
+                });
+                if (response.ok) {
+                    showNotification(`Bonus code ${code} added`);
+                    document.getElementById('newBonusCode').value = '';
+                    document.getElementById('newBonusCoins').value = '0';
+                    document.getElementById('newBonusPoints').value = '0';
+                    document.getElementById('newBonusDesc').value = '';
+                    loadBonusCodesDB();
+                } else {
+                    const err = await response.json();
+                    showNotification(err.error || 'Failed to add', true);
+                }
+            } catch (e) { showNotification('Network error', true); }
+        }
+        async function deleteBonusCodeDB(code) {
+            if (!confirm(`Delete bonus code ${code}?`)) return;
+            try {
+                const response = await fetch(`/api/admin/bonus-codes/${code}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': ADMIN_TOKEN }
+                });
+                if (response.ok) {
+                    showNotification(`Deleted ${code}`);
+                    loadBonusCodesDB();
+                } else {
+                    showNotification('Failed to delete', true);
+                }
+            } catch (e) { showNotification('Network error', true); }
+        }
         // ========== ANALYTICS & STATS ==========
         async function loadAnalytics() {
             try {
@@ -770,17 +819,14 @@
                 document.getElementById('activeToday').textContent = data.activeToday || 0;
                 document.getElementById('activeWeek').textContent = data.activeWeek || 0;
                 document.getElementById('totalReferrals').textContent = data.totalReferrals || 0;
-                // Tier distribution
                 const tierDiv = document.getElementById('tierDistribution');
                 if (data.tierDistribution && data.tierDistribution.length) {
                     tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
                 } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
-                // Daily active
                 const dailyDiv = document.getElementById('dailyActive');
                 if (data.dailyActive && data.dailyActive.length) {
                     dailyDiv.innerHTML = data.dailyActive.map(d => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${d.last_login_date}</span><span style="color:var(--gold);">${d.count}</span></div>`).join('');
                 } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
-                // Top Earners
                 try {
                     const topEarners = await apiCall('/api/leaderboard/top-earners');
                     const topDiv = document.getElementById('topEarnersList');
