@@ -2029,14 +2029,16 @@ app.post('/api/admin/delete-team', verifyAdmin, async (req, res) => {
 // ADMIN API ENDPOINTS
 // ============================================
 
-// Get all users (for admin panel)
+// Get all users (for admin panel) - NOW INCLUDES total_ads
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, telegram_id, first_name, last_name, username, photo_url, 
-             referral_code, points, tier, referrals, wallet_address, created_at, team_id
-      FROM users 
-      ORDER BY id DESC
+      SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url, 
+             u.referral_code, u.points, u.tier, u.referrals, u.wallet_address, u.created_at, u.team_id,
+             COALESCE(ads.total_ads, 0) as total_ads
+      FROM users u
+      LEFT JOIN ad_statistics ads ON u.id = ads.user_id
+      ORDER BY u.id DESC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -2439,7 +2441,6 @@ if (process.env.BOT_TOKEN) {
                 `• Inviting friends\n` +
                 `• Daily rewards\n` +
                 `• Spinning the wheel\n\n` ;
-                
         }
         
         // Send welcome message with inline button
