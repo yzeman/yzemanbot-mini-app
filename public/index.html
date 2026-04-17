@@ -721,40 +721,7 @@
         window.handleTaskClick = handleTaskClick;
         window.cancelTask = cancelTask;
 
-        // ============================================
-        // BONUS HISTORY (LocalStorage)
-        // ============================================
-        function loadBonusHistoryFromStorage() {
-            const history = JSON.parse(localStorage.getItem('bonusHistory') || '[]');
-            const container = document.getElementById('bonusHistoryList');
-            if (!container) return;
-            if (history.length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray);">No bonuses redeemed yet</div>';
-                return;
-            }
-            container.innerHTML = history.map(item => `
-                <div class="bonus-history-item">
-                    <div>
-                        <div class="bonus-code-display">${item.code}</div>
-                        <div class="bonus-expiry">Redeemed: ${item.date}</div>
-                    </div>
-                    <div><span class="bonus-used-badge">✅ +${item.coins} COINS</span></div>
-                </div>
-            `).join('');
-        }
-
-        function addBonusToHistory(code, coins) {
-            const history = JSON.parse(localStorage.getItem('bonusHistory') || '[]');
-            const now = new Date();
-            const dateStr = now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
-            history.unshift({ code: code.toUpperCase(), coins: coins, date: dateStr });
-            // Keep only last 20 entries
-            if (history.length > 20) history.pop();
-            localStorage.setItem('bonusHistory', JSON.stringify(history));
-            loadBonusHistoryFromStorage();
-        }
-
-        // Override redeem bonus button
+        // Override redeem bonus button (use backend only)
         document.addEventListener('DOMContentLoaded', function() {
             const redeemBtn = document.getElementById('redeemBonusBtn');
             if (redeemBtn) {
@@ -767,7 +734,6 @@
                         return;
                     }
                     
-                    // Call backend to validate and get points
                     try {
                         const initData = tg?.initData || '';
                         const res = await fetch('/api/redeem-bonus', {
@@ -783,8 +749,8 @@
                         if (data.success) {
                             const coins = (data.points / 1000000).toFixed(2);
                             showNotification(`🎉 Code redeemed! +${coins} COINS`);
-                            addBonusToHistory(code, coins);
                             input.value = '';
+                            // Refresh user data, which will also reload bonus history from backend
                             if (window.refreshUser) await window.refreshUser();
                         }
                     } catch (err) {
@@ -792,9 +758,6 @@
                     }
                 });
             }
-            
-            // Load history on page load
-            loadBonusHistoryFromStorage();
             
             // Tab switching (unchanged)
             document.querySelectorAll('.tab').forEach(tab => {
@@ -823,6 +786,6 @@
             if (nextTierReq) nextTierReq.textContent = '150';
         });
     })();
-    </script>
+</script>
 </body>
 </html>
