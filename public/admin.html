@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* ... ALL YOUR EXISTING CSS (unchanged) ... */
         :root {
             --primary: #4CAF50;
             --secondary: #2196F3;
@@ -138,10 +137,10 @@
             background: var(--gold); color: var(--dark);
             padding: 3px 8px; border-radius: 15px; font-size: 10px; font-weight: bold;
         }
-        /* User Stats */
+        /* User Stats - 4 columns */
         .user-stats {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 5px;
             margin: 8px 0;
         }
@@ -666,7 +665,6 @@
                             <div class="user-stat"><div class="user-stat-value">${user.referrals || 0}</div><div class="user-stat-label">Refs</div></div>
                             <div class="user-stat"><div class="user-stat-value">${adsWatched}</div><div class="user-stat-label">Ads</div></div>
                             <div class="user-stat"><div class="user-stat-value">${hasTeam}</div><div class="user-stat-label">Team</div></div>
-                            <div class="user-stat"><div class="user-stat-value">${user.points?.toLocaleString() || 0}</div><div class="user-stat-label">Points</div></div>
                         </div>
                         <div class="user-actions">
                             <button class="action-btn btn-success" onclick="event.stopPropagation();openAddPointsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
