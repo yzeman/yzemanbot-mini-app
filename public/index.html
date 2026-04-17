@@ -675,7 +675,7 @@
     <script src="/app.js"></script>
     
     <!-- Task Logic (inline) -->
-    <script>
+   <script>
     (function() {
         const tg = window.Telegram?.WebApp;
         if (tg) {
@@ -683,7 +683,9 @@
             tg.expand();
         }
 
-        // TASK_CONFIG (unchanged)
+        // ============================================
+        // TASK CONFIGURATION
+        // ============================================
         const TASK_CONFIG = {
             game: { name: 'game', points: 50000000, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false, onceOnly: true },
             website: { name: 'website', points: 5000000, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: false, onceOnly: false },
@@ -707,59 +709,162 @@
         }
         window.showNotification = showNotification;
 
-        function openTaskUrl(task) { /* unchanged */ }
+        function openTaskUrl(task) {
+            const tgWebApp = window.Telegram?.WebApp;
+            if (task.name === 'telegram') {
+                if (tgWebApp && tgWebApp.openTelegramLink) {
+                    tgWebApp.openTelegramLink(task.url);
+                } else {
+                    window.open(task.url, '_blank');
+                }
+                return;
+            }
+            if (tgWebApp && tgWebApp.openLink) {
+                tgWebApp.openLink(task.url, { try_instant_view: false });
+            } else {
+                window.open(task.url, '_blank');
+            }
+        }
 
-        // Timer logic (unchanged)
-        let activeTask, taskStartTime, timerInterval, taskCompleted, visibilityHandler;
-        function cleanupTimer() { /* unchanged */ }
-        function cancelTask(manual) { /* unchanged */ }
-        async function completeTaskOnServer(taskName, points, retryCount) { /* unchanged */ }
-        async function checkTaskCompleted(taskName, onceOnly) { /* unchanged */ }
-        function markTaskCompletedInUI(taskKey, onceOnly) { /* unchanged */ }
-        function startTimer(taskKey, task) { /* unchanged */ }
-        async function handleTaskClick(taskKey) { /* unchanged */ }
-        window.handleTaskClick = handleTaskClick;
+        // Timer state
+        let activeTask = null, taskStartTime = null, timerInterval = null, taskCompleted = false, visibilityHandler = null;
+
+        function cleanupTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            if (visibilityHandler) {
+                document.removeEventListener('visibilitychange', visibilityHandler);
+                visibilityHandler = null;
+            }
+            timerInterval = null;
+            document.getElementById('timerPopup').classList.remove('active');
+            activeTask = null;
+            taskCompleted = false;
+        }
+
+        function cancelTask(manual) {
+            cleanupTimer();
+            if (manual !== false) showNotification('Task cancelled. No reward.', true);
+        }
         window.cancelTask = cancelTask;
 
-        // Override redeem bonus button (use backend only)
-        document.addEventListener('DOMContentLoaded', function() {
-            const redeemBtn = document.getElementById('redeemBonusBtn');
-            if (redeemBtn) {
-                redeemBtn.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    const input = document.getElementById('bonusCodeInput');
-                    const code = input.value.trim().toUpperCase();
-                    if (!code) {
-                        showNotification('Enter a bonus code', true);
-                        return;
-                    }
-                    
-                    try {
-                        const initData = tg?.initData || '';
-                        const res = await fetch('/api/redeem-bonus', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ initData, code })
-                        });
-                        const data = await res.json();
-                        if (!res.ok) {
-                            showNotification(data.error || 'Failed to redeem', true);
-                            return;
-                        }
-                        if (data.success) {
-                            const coins = (data.points / 1000000).toFixed(2);
-                            showNotification(`🎉 Code redeemed! +${coins} COINS`);
-                            input.value = '';
-                            // Refresh user data, which will also reload bonus history from backend
-                            if (window.refreshUser) await window.refreshUser();
-                        }
-                    } catch (err) {
-                        showNotification('Network error', true);
-                    }
+        async function completeTaskOnServer(taskName, points, retryCount = 0) {
+            const maxRetries = 3;
+            try {
+                const initData = (tg && tg.initData) || '';
+                const res = await fetch('/api/complete-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskName, points, initData })
                 });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showNotification(data.message, false);
+                    if (window.refreshUser) await window.refreshUser();
+                    return true;
+                } else {
+                    if (retryCount < maxRetries) {
+                        await new Promise(r => setTimeout(r, 1000));
+                        return completeTaskOnServer(taskName, points, retryCount + 1);
+                    }
+                    showNotification(data.error || 'Server error', true);
+                    return false;
+                }
+            } catch (e) {
+                if (retryCount < maxRetries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    return completeTaskOnServer(taskName, points, retryCount + 1);
+                }
+                showNotification('Network error', true);
+                return false;
+            }
+        }
+
+        async function checkTaskCompleted(taskName, onceOnly) {
+            if (!onceOnly) return false;
+            try {
+                const initData = (tg && tg.initData) || '';
+                const res = await fetch('/api/check-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskName, initData })
+                });
+                const data = await res.json();
+                return data.completed || false;
+            } catch (e) { return false; }
+        }
+
+        function markTaskCompletedInUI(taskKey, onceOnly) {
+            if (!onceOnly) return;
+            const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
+            if (btn) {
+                btn.classList.add('completed');
+                if (!btn.querySelector('.completed-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'completed-badge';
+                    badge.innerHTML = '✓ Done';
+                    btn.appendChild(badge);
+                }
+                if (taskKey !== 'telegram') btn.style.pointerEvents = 'none';
+            }
+        }
+
+        function startTimer(taskKey, task) {
+            cleanupTimer();
+            activeTask = taskKey;
+            taskStartTime = Date.now();
+            taskCompleted = false;
+            openTaskUrl(task);
+            
+            if (task.instant) {
+                completeTaskOnServer(task.name, task.points).then(success => {
+                    if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
+                });
+                return;
             }
             
-            // Tab switching (unchanged)
+            visibilityHandler = function() {
+                if (document.visibilityState === 'visible') {
+                    const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                    if (elapsed < task.time && !taskCompleted) {
+                        cleanupTimer();
+                        showNotification(taskKey === 'website' ? 'Must stay on website for 2 min to earn reward.' : 'Task incomplete - follow the rules.', true);
+                    }
+                }
+            };
+            document.addEventListener('visibilitychange', visibilityHandler);
+            
+            timerInterval = setInterval(async () => {
+                const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                const remaining = Math.max(0, task.time - elapsed);
+                if (remaining <= 0 && !taskCompleted) {
+                    taskCompleted = true;
+                    cleanupTimer();
+                    const success = await completeTaskOnServer(task.name, task.points);
+                    if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
+                }
+            }, 1000);
+        }
+
+        async function handleTaskClick(taskKey) {
+            if (activeTask) {
+                showNotification('Complete current task first!', true);
+                return;
+            }
+            const task = TASK_CONFIG[taskKey];
+            if (!task) return;
+            const alreadyCompleted = await checkTaskCompleted(task.name, task.onceOnly);
+            if (alreadyCompleted) {
+                showNotification('You already completed this task.', true);
+                markTaskCompletedInUI(taskKey, task.onceOnly);
+                return;
+            }
+            startTimer(taskKey, task);
+        }
+        window.handleTaskClick = handleTaskClick;
+
+        // Attach handlers and initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.onclick = function() {
                     const tabId = this.getAttribute('data-tab');
@@ -770,7 +875,7 @@
                 };
             });
             
-            // Attach task handlers
+            // Attach task click handlers
             const tasks = ['game','website','youtube','twitter','facebook','instagram','tiktok','telegram'];
             tasks.forEach(taskKey => {
                 const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
@@ -778,12 +883,40 @@
             });
             document.getElementById('cancelTaskBtn')?.addEventListener('click', () => cancelTask());
             
+            // Set goal texts
             const dailyAdGoal = document.getElementById('dailyAdGoal');
             if (dailyAdGoal) dailyAdGoal.textContent = '20';
             const weeklyAdGoal = document.getElementById('weeklyAdGoal');
             if (weeklyAdGoal) weeklyAdGoal.textContent = '100';
             const nextTierReq = document.getElementById('nextTierReq');
             if (nextTierReq) nextTierReq.textContent = '150';
+
+            // Redeem bonus button (unchanged)
+            const redeemBtn = document.getElementById('redeemBonusBtn');
+            if (redeemBtn) {
+                redeemBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    const input = document.getElementById('bonusCodeInput');
+                    const code = input.value.trim().toUpperCase();
+                    if (!code) { showNotification('Enter a bonus code', true); return; }
+                    try {
+                        const initData = tg?.initData || '';
+                        const res = await fetch('/api/redeem-bonus', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ initData, code })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) { showNotification(data.error || 'Failed to redeem', true); return; }
+                        if (data.success) {
+                            const coins = (data.points / 1000000).toFixed(2);
+                            showNotification(`🎉 Code redeemed! +${coins} COINS`);
+                            input.value = '';
+                            if (window.refreshUser) await window.refreshUser();
+                        }
+                    } catch (err) { showNotification('Network error', true); }
+                });
+            }
         });
     })();
 </script>
