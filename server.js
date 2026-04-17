@@ -2438,9 +2438,8 @@ if (process.env.BOT_TOKEN) {
                 `• Watching ads\n` +
                 `• Inviting friends\n` +
                 `• Daily rewards\n` +
-                `• Spinning the wheel\n\n` +
-                `🚀 *Tap OPEN YZEMANBOT to start earning!*\n\n` +
-                `⚠️ *IMPORTANT: Always use OPEN YZEMANBOT to open the app to get your referral bonus!*`;
+                `• Spinning the wheel\n\n` ;
+                
         }
         
         // Send welcome message with inline button
