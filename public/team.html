@@ -532,7 +532,12 @@
                 // Show loading on main content
                 document.getElementById('myTeamContent').innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading your team...</div>';
                 
-                // Refresh all data
+                // CRITICAL: Refresh global user data so balance updates everywhere
+                if (window.refreshUser) {
+                    await window.refreshUser();
+                }
+                
+                // Refresh all team data
                 await loadAllData();
                 
                 showNotification(`🎉 Welcome to your new team!`, false);
@@ -588,7 +593,12 @@
                 // Show loading on main content
                 document.getElementById('myTeamContent').innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading your team...</div>';
                 
-                // Refresh all data
+                // CRITICAL: Refresh global user data so balance updates everywhere
+                if (window.refreshUser) {
+                    await window.refreshUser();
+                }
+                
+                // Refresh all team data
                 await loadAllData();
                 
                 showNotification(`🎉 Welcome to your new team!`, false);
@@ -615,6 +625,11 @@
                 
                 // Show loading on main content
                 document.getElementById('myTeamContent').innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
+                
+                // Refresh global user data
+                if (window.refreshUser) {
+                    await window.refreshUser();
+                }
                 
                 await loadAllData();
             } catch (err) {
