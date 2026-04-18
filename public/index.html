@@ -675,7 +675,7 @@
     <script src="/app.js"></script>
     
     <!-- Task Logic (inline) -->
-   <script>
+  <script>
     (function() {
         const tg = window.Telegram?.WebApp;
         if (tg) {
@@ -809,18 +809,24 @@
         }
 
         function startTimer(taskKey, task) {
+            // For instant tasks, we don't need a timer and shouldn't block other tasks
+            if (task.instant) {
+                // Open the link immediately
+                openTaskUrl(task);
+                // Attempt to complete on server (fire-and-forget, but we can still show result)
+                completeTaskOnServer(task.name, task.points).then(success => {
+                    if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
+                });
+                // No active task is set, so other buttons remain clickable
+                return;
+            }
+
+            // For non-instant tasks, use the timer logic
             cleanupTimer();
             activeTask = taskKey;
             taskStartTime = Date.now();
             taskCompleted = false;
             openTaskUrl(task);
-            
-            if (task.instant) {
-                completeTaskOnServer(task.name, task.points).then(success => {
-                    if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
-                });
-                return;
-            }
             
             visibilityHandler = function() {
                 if (document.visibilityState === 'visible') {
@@ -891,7 +897,7 @@
             const nextTierReq = document.getElementById('nextTierReq');
             if (nextTierReq) nextTierReq.textContent = '150';
 
-            // Redeem bonus button (unchanged)
+            // Redeem bonus button
             const redeemBtn = document.getElementById('redeemBonusBtn');
             if (redeemBtn) {
                 redeemBtn.addEventListener('click', async function(e) {
