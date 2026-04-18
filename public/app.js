@@ -267,7 +267,7 @@ document.addEventListener('click', function(e) {
 window.AudioManager = AudioManager;
 
 // ============================================================
-// USER REGISTRATION & MANAGEMENT
+// USER REGISTRATION & MANAGEMENT (WITH RETRY LOGIC)
 // ============================================================
 
 async function registerUser() {
@@ -282,9 +282,9 @@ async function registerUser() {
     const idEl = document.getElementById('userId');
     const avatarEl = document.getElementById('userAvatar');
     
+    // Set temporary display while loading
     if (nameEl) nameEl.textContent = `${user.first_name} ${user.last_name || ''}`;
     if (idEl) idEl.textContent = `ID: ${user.id}`;
-    
     if (avatarEl) {
         if (user.photo_url) {
             avatarEl.innerHTML = '';
@@ -305,38 +305,70 @@ async function registerUser() {
     
     console.log('📤 SENDING TO /api/user - Telegram ID:', user.id, 'Referral Code:', codeToSend || 'none');
 
-    try {
-        const result = await apiCall('/api/user', {
-            initData: tg.initData,
-            referralCode: codeToSend || null
-        });
-        
-        if (codeToSend) {
-            showNotification('🎉 Referral bonus applied!');
-            localStorage.removeItem('pendingReferralCode');
-            sessionStorage.setItem('referralProcessed', 'true');
-            referralCode = null;
-            console.log('✅ Referral code used and cleared');
+    // Retry up to 3 times with exponential backoff
+    const maxRetries = 3;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await apiCall('/api/user', {
+                initData: tg.initData,
+                referralCode: codeToSend || null
+            });
+            
+            if (codeToSend) {
+                showNotification('🎉 Referral bonus applied!');
+                localStorage.removeItem('pendingReferralCode');
+                sessionStorage.setItem('referralProcessed', 'true');
+                referralCode = null;
+                console.log('✅ Referral code used and cleared');
+            }
+            return result;
+        } catch (err) {
+            lastError = err;
+            console.error(`Registration attempt ${attempt} failed:`, err.message);
+            if (attempt < maxRetries) {
+                // Wait before retrying (1s, 2s, 4s)
+                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)));
+            }
         }
-        return result;
-    } catch (err) {
-        console.error('Registration error:', err);
-        if (nameEl) nameEl.textContent = 'Connection Error';
-        showNotification('Failed to connect to server', true);
-        return null;
     }
+    
+    // All retries failed – show error but keep name visible
+    console.error('Registration error after retries:', lastError);
+    if (nameEl) nameEl.textContent = 'Connection Error (Retry)';
+    showNotification('Failed to connect. Pull down to refresh.', true);
+    return null;
 }
 
 async function refreshUser() {
     if (!tg?.initDataUnsafe?.user) return;
-    try {
-        const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
-        currentUser = result;
-        updateUI();
-        loadWithdrawalHistory();
-        updateAdStreakDisplay();
-        loadBonusHistory();
-    } catch (err) { console.error('Refresh error:', err); }
+    
+    let success = false;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
+            currentUser = result;
+            updateUI();
+            loadWithdrawalHistory();
+            updateAdStreakDisplay();
+            loadBonusHistory();
+            success = true;
+            break;
+        } catch (err) {
+            console.error(`Refresh attempt ${attempt} failed:`, err.message);
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+        }
+    }
+    
+    if (!success) {
+        console.error('Refresh user failed completely');
+        // Keep showing old data if available, otherwise show error
+        if (!currentUser) {
+            const nameEl = document.getElementById('userName');
+            if (nameEl) nameEl.textContent = 'Connection lost';
+        }
+    }
 }
 window.refreshUser = refreshUser;
 
@@ -1049,6 +1081,9 @@ async function init() {
         if (document.getElementById('wheelCanvas')) loadWheelStatus();
         
         setTimeout(preloadMonetagAd, 2000);
+    } else {
+        // Registration failed, but we already displayed name from Telegram
+        console.warn('User registration failed, UI may be incomplete');
     }
     
     const watchAdBtn = document.getElementById('watchAdBtn');
