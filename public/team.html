@@ -455,8 +455,18 @@
             options.body = JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData });
             const response = await fetch(endpoint, options);
             const text = await response.text();
-            try { return JSON.parse(text); } 
-            catch (e) { throw new Error('Invalid response'); }
+            try { 
+                const json = JSON.parse(text);
+                if (!response.ok) {
+                    throw new Error(json.error || 'Request failed');
+                }
+                return json;
+            } catch (e) {
+                if (e instanceof SyntaxError) {
+                    throw new Error('Invalid server response');
+                }
+                throw e;
+            }
         }
         
         function getTeamRank(teamId) {
@@ -511,9 +521,6 @@
                 const checkResult = await apiCall('/api/team/check-name', { teamName: name });
                 if (checkResult.exists) {
                     showNotification('Team name already exists. Please choose another.', true);
-                    createBtn.disabled = false;
-                    createBtn.innerHTML = originalText;
-                    pendingCreate = false;
                     return;
                 }
                 
@@ -531,9 +538,7 @@
                 showNotification(`🎉 Welcome to your new team!`, false);
                 
             } catch (err) {
-                let msg = err.message;
-                try { msg = JSON.parse(msg).error; } catch(e) {}
-                showNotification(msg || 'Failed to create team', true);
+                showNotification(err.message || 'Failed to create team', true);
             } finally {
                 createBtn.disabled = false;
                 createBtn.innerHTML = originalText;
@@ -572,9 +577,6 @@
                 const checkResult = await apiCall('/api/team/check-code', { teamCode: code });
                 if (!checkResult.exists) {
                     showNotification('Invalid team code. Please check and try again.', true);
-                    joinBtn.disabled = false;
-                    joinBtn.innerHTML = originalText;
-                    pendingJoin = false;
                     return;
                 }
                 
@@ -592,9 +594,7 @@
                 showNotification(`🎉 Welcome to your new team!`, false);
                 
             } catch (err) {
-                let msg = err.message;
-                try { msg = JSON.parse(msg).error; } catch(e) {}
-                showNotification(msg || 'Failed to join team', true);
+                showNotification(err.message || 'Failed to join team', true);
             } finally {
                 joinBtn.disabled = false;
                 joinBtn.innerHTML = originalText;
@@ -618,8 +618,7 @@
                 
                 await loadAllData();
             } catch (err) {
-                showNotification('Failed to leave team', true);
-                closeLeaveModal();
+                showNotification(err.message || 'Failed to leave team', true);
             } finally {
                 leaveBtn.disabled = false;
                 leaveBtn.innerHTML = originalText;
