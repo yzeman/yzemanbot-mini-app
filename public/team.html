@@ -110,6 +110,7 @@
         }
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
+        .team-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .members-title {
             font-size: 13px; font-weight: 600; margin: 10px 0 6px;
             display: flex; align-items: center; gap: 5px;
@@ -356,11 +357,46 @@
         let teamLeaderboardCache = [];
         let isLoading = false;
         
-        // Pending team action state (to prevent duplicates and preserve across tabs)
-        let pendingTeamAction = null; // { type: 'create', teamName: '...', teamCode: '...' } or { type: 'join', teamCode: '...' }
-        let pendingPromise = null;
+        // Persistent pending team action (across page reloads)
+        let pendingTeamAction = null; // { type, teamName, teamCode, timestamp }
+        let backgroundSyncInterval = null;
+        let isSyncing = false;
         
         const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
+
+        // Load pending action from localStorage on page load
+        function loadPendingActionFromStorage() {
+            const stored = localStorage.getItem('teamPendingAction');
+            if (stored) {
+                try {
+                    const action = JSON.parse(stored);
+                    // Only keep if less than 2 minutes old (prevent stale)
+                    if (Date.now() - action.timestamp < 120000) {
+                        pendingTeamAction = action;
+                        console.log('📦 Restored pending team action:', pendingTeamAction);
+                    } else {
+                        localStorage.removeItem('teamPendingAction');
+                    }
+                } catch(e) {}
+            }
+        }
+        
+        function savePendingActionToStorage() {
+            if (pendingTeamAction) {
+                localStorage.setItem('teamPendingAction', JSON.stringify(pendingTeamAction));
+            } else {
+                localStorage.removeItem('teamPendingAction');
+            }
+        }
+        
+        function clearPendingAction() {
+            pendingTeamAction = null;
+            localStorage.removeItem('teamPendingAction');
+            if (backgroundSyncInterval) {
+                clearInterval(backgroundSyncInterval);
+                backgroundSyncInterval = null;
+            }
+        }
 
         function shouldShowPrizeInfo() {
             return localStorage.getItem('prizeInfoDismissedMonth') !== new Date().toISOString().slice(0, 7);
@@ -404,20 +440,38 @@
             const index = teamLeaderboardCache.findIndex(t => t.id == teamId);
             return index >= 0 ? `#${index + 1}` : '--';
         }
-        function openCreateModal() { document.getElementById('createTeamModal').style.display = 'flex'; }
+        function openCreateModal() { 
+            if (pendingTeamAction) {
+                showNotification('Please wait for current team operation to finish', true);
+                return;
+            }
+            document.getElementById('createTeamModal').style.display = 'flex'; 
+        }
         function closeCreateModal() { 
             document.getElementById('createTeamModal').style.display = 'none';
             document.getElementById('teamNameInput').value = '';
         }
-        function openJoinModal() { document.getElementById('joinTeamModal').style.display = 'flex'; }
+        function openJoinModal() { 
+            if (pendingTeamAction) {
+                showNotification('Please wait for current team operation to finish', true);
+                return;
+            }
+            document.getElementById('joinTeamModal').style.display = 'flex'; 
+        }
         function closeJoinModal() { 
             document.getElementById('joinTeamModal').style.display = 'none';
             document.getElementById('teamCodeInput').value = '';
         }
-        function openLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'flex'; }
+        function openLeaveModal() { 
+            if (pendingTeamAction) {
+                showNotification('Please wait for current team operation to finish', true);
+                return;
+            }
+            document.getElementById('leaveTeamModal').style.display = 'flex'; 
+        }
         function closeLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'none'; }
 
-        // ========== OPTIMISTIC UI WITH PENDING STATE ==========
+        // ========== OPTIMISTIC UI (shows immediately, persists across reloads) ==========
         function showOptimisticTeamPlaceholder(teamName, teamCode, actionType = 'create') {
             const container = document.getElementById('myTeamContent');
             container.innerHTML = `
@@ -445,7 +499,7 @@
             `;
         }
 
-        // Called when switching back to My Team tab while pending
+        // Called when page loads or tab switches while pending
         function renderPendingTeam() {
             if (pendingTeamAction) {
                 if (pendingTeamAction.type === 'create') {
@@ -458,7 +512,34 @@
             return false;
         }
 
-        // ========== CREATE TEAM (INSTANT WITH DUPLICATE PREVENTION) ==========
+        // Background sync: periodically check if team exists and update UI
+        async function startBackgroundSync() {
+            if (backgroundSyncInterval) clearInterval(backgroundSyncInterval);
+            backgroundSyncInterval = setInterval(async () => {
+                if (isSyncing) return;
+                isSyncing = true;
+                try {
+                    // Only sync if there's a pending action
+                    if (pendingTeamAction) {
+                        const data = await apiCall('/api/team/info');
+                        if (data && data.has_team) {
+                            // Team is now confirmed on server
+                            console.log('✅ Background sync: team confirmed');
+                            clearPendingAction();
+                            renderMyTeam(data);
+                            // Also refresh leaderboard
+                            loadTeamLeaderboard();
+                        }
+                    }
+                } catch (err) {
+                    // ignore errors during sync
+                } finally {
+                    isSyncing = false;
+                }
+            }, 3000); // check every 3 seconds
+        }
+
+        // ========== CREATE TEAM ==========
         async function createTeam() {
             const nameInput = document.getElementById('teamNameInput');
             const name = nameInput.value.trim();
@@ -469,42 +550,33 @@
                 return;
             }
             
-            // Disable create button immediately to prevent double-click
             const createBtn = document.getElementById('createTeamBtn');
             if (createBtn) createBtn.disabled = true;
             
-            // Set pending action
-            pendingTeamAction = { type: 'create', teamName: name, teamCode: null };
-            
-            // Show optimistic UI
+            // Set persistent pending action
+            pendingTeamAction = { type: 'create', teamName: name, teamCode: null, timestamp: Date.now() };
+            savePendingActionToStorage();
             showOptimisticTeamPlaceholder(name, '••••••', 'create');
             closeCreateModal();
+            startBackgroundSync();
             
-            // Start the actual API call (store promise to await later)
-            const actionPromise = (async () => {
-                try {
-                    const result = await apiCall('/api/team/create', { teamName: name });
-                    // Success: clear pending and refresh real data
-                    pendingTeamAction = null;
-                    await refreshUserTeamAndLeaderboard();
-                    showNotification(`✅ Team "${name}" created!`, false);
-                } catch (err) {
-                    console.error('Create team error:', err);
-                    pendingTeamAction = null;
-                    showNotification(err.message || 'Failed to create team', true);
-                    // Revert to actual team state (or no team)
-                    await loadMyTeamOnly();
-                } finally {
-                    if (createBtn) createBtn.disabled = false;
-                }
-            })();
-            
-            pendingPromise = actionPromise;
-            await actionPromise;
-            pendingPromise = null;
+            try {
+                const result = await apiCall('/api/team/create', { teamName: name });
+                // Success: clear pending and refresh
+                clearPendingAction();
+                await refreshUserTeamAndLeaderboard();
+                showNotification(`✅ Team "${name}" created!`, false);
+            } catch (err) {
+                console.error('Create team error:', err);
+                clearPendingAction();
+                showNotification(err.message || 'Failed to create team', true);
+                await loadMyTeamOnly(); // revert to actual state
+            } finally {
+                if (createBtn) createBtn.disabled = false;
+            }
         }
 
-        // ========== JOIN TEAM (INSTANT WITH DUPLICATE PREVENTION) ==========
+        // ========== JOIN TEAM ==========
         async function joinTeam() {
             const codeInput = document.getElementById('teamCodeInput');
             const code = codeInput.value.trim().toUpperCase();
@@ -518,32 +590,27 @@
             const joinBtn = document.getElementById('joinTeamBtn');
             if (joinBtn) joinBtn.disabled = true;
             
-            pendingTeamAction = { type: 'join', teamCode: code };
+            pendingTeamAction = { type: 'join', teamCode: code, timestamp: Date.now() };
+            savePendingActionToStorage();
             showOptimisticTeamPlaceholder('Joining...', code, 'join');
             closeJoinModal();
+            startBackgroundSync();
             
-            const actionPromise = (async () => {
-                try {
-                    const result = await apiCall('/api/team/join', { teamCode: code });
-                    pendingTeamAction = null;
-                    await refreshUserTeamAndLeaderboard();
-                    showNotification(`✅ Joined team!`, false);
-                } catch (err) {
-                    console.error('Join team error:', err);
-                    pendingTeamAction = null;
-                    showNotification(err.message || 'Failed to join team', true);
-                    await loadMyTeamOnly();
-                } finally {
-                    if (joinBtn) joinBtn.disabled = false;
-                }
-            })();
-            
-            pendingPromise = actionPromise;
-            await actionPromise;
-            pendingPromise = null;
+            try {
+                const result = await apiCall('/api/team/join', { teamCode: code });
+                clearPendingAction();
+                await refreshUserTeamAndLeaderboard();
+                showNotification(`✅ Joined team!`, false);
+            } catch (err) {
+                console.error('Join team error:', err);
+                clearPendingAction();
+                showNotification(err.message || 'Failed to join team', true);
+                await loadMyTeamOnly();
+            } finally {
+                if (joinBtn) joinBtn.disabled = false;
+            }
         }
 
-        // Refresh user's team data and leaderboard in background (does not block UI)
         async function refreshUserTeamAndLeaderboard() {
             try {
                 if (window.refreshUser) await window.refreshUser();
@@ -587,7 +654,7 @@
         }
 
         function renderMyTeam(data) {
-            // If there is a pending action, show the optimistic card instead of real data
+            // If pending action exists, show optimistic instead of real data
             if (pendingTeamAction) {
                 renderPendingTeam();
                 return;
@@ -675,7 +742,7 @@
                     </div>
                 `;
             }).join('') + '<button class="retry-btn" style="width:100%; margin-top:10px;" onclick="loadTeamLeaderboard()"><i class="fas fa-sync"></i> Refresh</button>';
-            // Also refresh my team rank if needed (but don't overwrite pending)
+            // Refresh my team rank if no pending action
             if (!pendingTeamAction) loadMyTeamOnly();
         }
 
@@ -703,7 +770,7 @@
         }
 
         async function loadMyTeamOnly() {
-            // If there's a pending action, don't overwrite optimistic UI with stale data
+            // If pending action exists, show optimistic UI and don't overwrite
             if (pendingTeamAction) {
                 renderPendingTeam();
                 return;
@@ -748,7 +815,7 @@
             }
         }
 
-        // Tab switching: preserve pending state when switching back to My Team
+        // Tab switching: preserve pending state
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -759,7 +826,6 @@
                 if (tabName === 'leaderboard') loadTeamLeaderboard();
                 if (tabName === 'monthly') { loadMonthlyCompetition(); updatePrizeInfoVisibility(); }
                 if (tabName === 'myteam') {
-                    // When switching back to My Team, show pending if exists, else load real data
                     if (pendingTeamAction) {
                         renderPendingTeam();
                     } else {
@@ -778,8 +844,15 @@
         };
         document.getElementById('teamCodeInput')?.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
         
+        // Initialization: load pending action from storage, then load data
         document.addEventListener('DOMContentLoaded', () => {
-            loadAllData();
+            loadPendingActionFromStorage();
+            if (pendingTeamAction) {
+                renderPendingTeam();
+                startBackgroundSync();
+            } else {
+                loadAllData();
+            }
             updatePrizeInfoVisibility();
         });
     </script>
