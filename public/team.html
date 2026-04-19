@@ -402,13 +402,13 @@
         function openLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'flex'; }
         function closeLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'none'; }
 
-        // Optimistic UI: Show placeholder immediately, then refresh
+        // ========== OPTIMISTIC UI: Show placeholder immediately ==========
         function showOptimisticTeamPlaceholder(teamName, teamCode) {
             const container = document.getElementById('myTeamContent');
             container.innerHTML = `
                 <div class="team-card">
                     <div class="team-header">
-                        <div class="team-avatar"><i class="fas fa-users"></i></div>
+                        <div class="team-avatar"><i class="fas fa-spinner fa-pulse"></i></div>
                         <div class="team-info">
                             <h3>${escapeHtml(teamName)}</h3>
                             <span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(teamCode)}</span>
@@ -416,9 +416,9 @@
                         <div class="team-rank">--</div>
                     </div>
                     <div class="team-stats">
-                        <div class="team-stat"><div class="team-stat-value">1</div><div class="team-stat-label">Members</div></div>
-                        <div class="team-stat"><div class="team-stat-value">0.0</div><div class="team-stat-label">COINS</div></div>
-                        <div class="team-stat"><div class="team-stat-value">0</div><div class="team-stat-label">Refs</div></div>
+                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Members</div></div>
+                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">COINS</div></div>
+                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Refs</div></div>
                         <div class="team-stat"><div class="team-stat-value">--</div><div class="team-stat-label">Rank</div></div>
                     </div>
                     <div class="team-actions">
@@ -426,24 +426,44 @@
                         <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                     </div>
                 </div>
-                <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (1)</span> <span class="loading-spinner"></span></div>
-                <div class="member-item">
-                    <div class="member-avatar"><i class="fas fa-user"></i></div>
-                    <div class="member-info">
-                        <div class="member-name">You <span class="leader-badge"><i class="fas fa-crown"></i> Leader</span></div>
-                        <div class="member-role">Loading...</div>
-                    </div>
-                    <div class="member-coins">...</div>
-                </div>
+                <div class="members-title"><i class="fas fa-spinner fa-pulse"></i> Creating team...</div>
             `;
         }
 
+        function showOptimisticJoinPlaceholder(teamCode) {
+            const container = document.getElementById('myTeamContent');
+            container.innerHTML = `
+                <div class="team-card">
+                    <div class="team-header">
+                        <div class="team-avatar"><i class="fas fa-spinner fa-pulse"></i></div>
+                        <div class="team-info">
+                            <h3>Joining team...</h3>
+                            <span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(teamCode)}</span>
+                        </div>
+                        <div class="team-rank">--</div>
+                    </div>
+                    <div class="team-stats">
+                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Members</div></div>
+                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">COINS</div></div>
+                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Refs</div></div>
+                        <div class="team-stat"><div class="team-stat-value">--</div><div class="team-stat-label">Rank</div></div>
+                    </div>
+                </div>
+                <div class="members-title"><i class="fas fa-spinner fa-pulse"></i> Joining team...</div>
+            `;
+        }
+
+        // ========== CREATE TEAM (INSTANT) ==========
         async function createTeam() {
             const nameInput = document.getElementById('teamNameInput');
             const name = nameInput.value.trim();
             if (!name) return showNotification('Enter team name', true);
             if (name.length < 3) return showNotification('Team name must be at least 3 characters', true);
             if (pendingCreate) return showNotification('Please wait...', false);
+            
+            // ✅ OPTIMISTIC UI: Show team card immediately
+            showOptimisticTeamPlaceholder(name, '••••••');
+            closeCreateModal();
             
             const createBtn = document.getElementById('createTeamBtn');
             const originalText = createBtn.innerHTML;
@@ -452,29 +472,16 @@
             pendingCreate = true;
             
             try {
-                const checkResult = await apiCall('/api/team/check-name', { teamName: name });
-                if (checkResult.exists) {
-                    showNotification('Team name already exists. Please choose another.', true);
-                    return;
-                }
+                // Single API call (no separate check-name)
                 const result = await apiCall('/api/team/create', { teamName: name });
+                
+                // Replace optimistic card with real data
+                await refreshUserTeamAndLeaderboard();
                 showNotification(`✅ Team "${name}" created!`, false);
-                closeCreateModal();
-                
-                // Optimistic UI
-                showOptimisticTeamPlaceholder(result.team.name, result.team.code);
-                
-                // Refresh global user and team data in background
-                if (window.refreshUser) await window.refreshUser();
-                // Load team info and leaderboard in parallel
-                await Promise.all([
-                    loadMyTeamOnly(),
-                    loadTeamLeaderboard(),
-                    loadMonthlyCompetition()
-                ]);
-                showNotification(`🎉 Welcome to your new team!`, false);
             } catch (err) {
                 showNotification(err.message || 'Failed to create team', true);
+                // Revert to no-team view
+                await loadMyTeamOnly();
             } finally {
                 createBtn.disabled = false;
                 createBtn.innerHTML = originalText;
@@ -482,12 +489,17 @@
             }
         }
 
+        // ========== JOIN TEAM (INSTANT) ==========
         async function joinTeam() {
             const codeInput = document.getElementById('teamCodeInput');
             const code = codeInput.value.trim().toUpperCase();
             if (!code) return showNotification('Enter team code', true);
             if (code.length !== 6) return showNotification('Team code should be 6 characters', true);
             if (pendingJoin) return showNotification('Please wait...', false);
+            
+            // ✅ OPTIMISTIC UI: Show joining card immediately
+            showOptimisticJoinPlaceholder(code);
+            closeJoinModal();
             
             const joinBtn = document.getElementById('joinTeamBtn');
             const originalText = joinBtn.innerHTML;
@@ -496,31 +508,35 @@
             pendingJoin = true;
             
             try {
-                const checkResult = await apiCall('/api/team/check-code', { teamCode: code });
-                if (!checkResult.exists) {
-                    showNotification('Invalid team code. Please check and try again.', true);
-                    return;
-                }
+                // Single API call (no separate check-code)
                 const result = await apiCall('/api/team/join', { teamCode: code });
-                showNotification(`✅ Joined ${checkResult.teamName || 'team'}!`, false);
-                closeJoinModal();
                 
-                // Optimistic UI
-                showOptimisticTeamPlaceholder(checkResult.teamName || result.team.name, code);
-                
+                // Replace optimistic card with real data
+                await refreshUserTeamAndLeaderboard();
+                showNotification(`✅ Joined team!`, false);
+            } catch (err) {
+                showNotification(err.message || 'Failed to join team', true);
+                await loadMyTeamOnly();
+            } finally {
+                joinBtn.disabled = false;
+                joinBtn.innerHTML = originalText;
+                pendingJoin = false;
+            }
+        }
+
+        // Refresh user's team data and leaderboard in background
+        async function refreshUserTeamAndLeaderboard() {
+            try {
+                // Refresh global user data (affects team_id in other pages)
                 if (window.refreshUser) await window.refreshUser();
+                // Reload team info and leaderboard in parallel
                 await Promise.all([
                     loadMyTeamOnly(),
                     loadTeamLeaderboard(),
                     loadMonthlyCompetition()
                 ]);
-                showNotification(`🎉 Welcome to your new team!`, false);
             } catch (err) {
-                showNotification(err.message || 'Failed to join team', true);
-            } finally {
-                joinBtn.disabled = false;
-                joinBtn.innerHTML = originalText;
-                pendingJoin = false;
+                console.error('Background refresh error:', err);
             }
         }
 
@@ -533,6 +549,7 @@
                 await apiCall('/api/team/leave');
                 showNotification('Left team', false);
                 closeLeaveModal();
+                // Clear UI and reload
                 document.getElementById('myTeamContent').innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
                 if (window.refreshUser) await window.refreshUser();
                 await loadAllData();
@@ -632,6 +649,7 @@
                     </div>
                 `;
             }).join('') + '<button class="retry-btn" style="width:100%; margin-top:10px;" onclick="loadTeamLeaderboard()"><i class="fas fa-sync"></i> Refresh</button>';
+            // Also refresh my team rank if needed
             loadMyTeamOnly();
         }
 
@@ -663,6 +681,7 @@
                 const data = await apiCall('/api/team/info');
                 renderMyTeam(data);
             } catch (err) {
+                console.error('Load my team error:', err);
                 renderMyTeam({ has_team: false });
             }
         }
@@ -695,6 +714,7 @@
             }
         }
 
+        // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
