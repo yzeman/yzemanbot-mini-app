@@ -16,8 +16,11 @@
             --light: #ffffff;
             --gray: #888888;
             --gold: #FFD700;
+            --skeleton-bg: rgba(255,255,255,0.08);
         }
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--dark);
@@ -25,6 +28,7 @@
             min-height: 100vh;
             padding-bottom: 75px;
         }
+        
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
             padding: 18px 15px 18px;
@@ -32,222 +36,268 @@
             text-align: center;
             position: relative;
         }
+        
         .header h1 { font-size: 22px; margin-bottom: 3px; display: flex; align-items: center; justify-content: center; gap: 6px; }
         .header h1 i { color: var(--gold); }
         .header p { color: var(--gray); font-size: 12px; }
+        
         .back-btn-header {
             position: absolute; top: 18px; left: 18px;
             color: white; font-size: 20px; text-decoration: none; z-index: 10;
         }
+        
         .tabs {
             display: flex; background: var(--darker); padding: 3px;
             border-radius: 30px; margin: 12px 12px;
         }
+        
         .tab {
             flex: 1; text-align: center; padding: 10px 5px; border-radius: 25px;
             font-size: 12px; font-weight: 600; color: var(--gray); cursor: pointer;
             transition: all 0.3s ease; display: flex; flex-direction: column; align-items: center; gap: 2px;
         }
+        
         .tab i { font-size: 14px; }
         .tab.active { background: var(--primary); color: white; }
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
+        
         .no-team-card {
             background: var(--darker); border-radius: 15px; padding: 20px 12px;
             text-align: center; margin-bottom: 12px;
         }
+        
         .no-team-icon { font-size: 40px; color: var(--gray); margin-bottom: 10px; }
         .no-team-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
         .no-team-text { color: var(--gray); font-size: 12px; margin-bottom: 18px; }
+        
         .action-buttons { display: flex; gap: 10px; justify-content: center; }
+        
         .action-btn {
             flex: 1; max-width: 130px; background: var(--primary); color: white;
             border: none; padding: 12px 8px; border-radius: 12px; font-size: 12px;
             font-weight: 600; cursor: pointer; display: flex; flex-direction: column;
             align-items: center; gap: 4px; transition: all 0.2s ease;
         }
+        
         .action-btn i { font-size: 20px; }
         .action-btn.secondary { background: var(--secondary); }
-        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .team-card {
             background: var(--darker); border-radius: 14px; padding: 12px; margin-bottom: 10px;
         }
+        
         .team-header {
             display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
         }
+        
         .team-avatar {
             width: 38px; height: 38px; border-radius: 50%;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex; align-items: center; justify-content: center;
             font-size: 18px; color: white;
         }
+        
         .team-info { flex: 1; }
         .team-info h3 { font-size: 14px; margin-bottom: 2px; }
+        
         .team-code {
             background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 12px;
             font-size: 10px; display: inline-block;
         }
+        
         .team-code i { margin-right: 3px; color: var(--gold); font-size: 9px; }
+        
         .team-rank {
             background: var(--gold); color: var(--dark); padding: 3px 8px;
             border-radius: 12px; font-size: 11px; font-weight: bold;
         }
+        
         .team-stats {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px;
         }
+        
         .team-stat {
             background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 2px; text-align: center;
         }
+        
         .team-stat-value { font-size: 13px; font-weight: bold; color: var(--gold); }
         .team-stat-label { font-size: 8px; color: var(--gray); }
+        
         .team-actions {
             display: flex; gap: 6px;
         }
+        
         .team-btn {
             flex: 1; background: transparent; border: 1px solid var(--gray); color: var(--gray);
             padding: 6px; border-radius: 8px; font-size: 10px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 3px;
         }
+        
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
-        .team-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .members-title {
             font-size: 13px; font-weight: 600; margin: 10px 0 6px;
             display: flex; align-items: center; gap: 5px;
         }
+        
         .member-item {
             display: flex; align-items: center; padding: 6px 10px;
             background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 5px;
         }
+        
         .member-avatar {
             width: 28px; height: 28px; border-radius: 50%; background: var(--primary);
             display: flex; align-items: center; justify-content: center; font-size: 12px;
             margin-right: 8px; color: white; font-weight: bold;
             overflow: hidden;
         }
+        
         .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .member-info { flex: 1; }
         .member-name { font-weight: 600; font-size: 12px; }
         .member-role { font-size: 9px; color: var(--gray); }
         .member-coins { font-weight: bold; color: var(--gold); font-size: 11px; }
+        
         .leader-badge {
             background: var(--gold); color: var(--dark); padding: 2px 6px;
             border-radius: 12px; font-size: 8px; margin-left: 4px;
         }
+        
         .leader-badge i { font-size: 9px; margin-right: 2px; }
+        
         .leaderboard-list { max-height: 350px; overflow-y: auto; }
+        
         .leaderboard-item {
             display: flex; align-items: center; padding: 8px 10px;
             background: var(--darker); border-radius: 10px; margin-bottom: 5px;
         }
+        
         .rank {
             width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
             font-weight: bold; font-size: 11px; margin-right: 8px; border-radius: 6px;
             background: rgba(255,255,255,0.05);
         }
+        
         .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA000); color: var(--dark); }
         .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: var(--dark); }
         .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: var(--dark); }
+        
         .team-avatar-small {
             width: 28px; height: 28px; border-radius: 50%; background: var(--primary);
             display: flex; align-items: center; justify-content: center; font-size: 12px;
             margin-right: 8px; color: white;
         }
+        
         .info { flex: 1; }
         .name { font-weight: 600; font-size: 12px; }
         .members { font-size: 9px; color: var(--gray); }
         .score { font-weight: bold; color: var(--gold); font-size: 12px; }
+        
         .prize-banner {
             background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
             color: var(--dark); padding: 12px; border-radius: 14px;
             text-align: center; margin-bottom: 12px;
         }
+        
         .prize-banner h3 { font-size: 14px; margin-bottom: 6px; }
         .prize-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
         .prize-card { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 3px; text-align: center; }
         .prize-medal { font-size: 18px; margin-bottom: 2px; }
         .prize-value { font-size: 12px; font-weight: bold; }
         .prize-label { font-size: 8px; opacity: 0.8; }
+        
         .prize-info-box {
             background: rgba(255,215,0,0.08); border: 1px solid var(--gold);
             border-radius: 10px; padding: 10px; margin-bottom: 12px;
         }
+        
         .prize-info-box.dismissed { display: none; }
+        
         .prize-info-header {
             display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
         }
+        
         .prize-info-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
         .prize-info-title i { color: var(--gold); }
+        
         .close-info-btn {
             background: transparent; border: none; color: var(--gray);
             font-size: 14px; cursor: pointer; padding: 2px;
         }
+        
         .prize-info-row {
             display: flex; align-items: center; padding: 3px 0;
             color: var(--gray); font-size: 10px;
         }
+        
         .prize-info-row i { width: 16px; color: var(--success); font-size: 9px; }
+        
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
         }
+        
         .modal-content {
             background: var(--darker); border-radius: 18px; padding: 18px;
             width: 90%; max-width: 300px;
         }
+        
         .modal-title {
             font-size: 16px; font-weight: bold; margin-bottom: 15px;
             display: flex; align-items: center; gap: 6px;
         }
+        
         .modal-input {
             width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--gray);
             background: rgba(0,0,0,0.3); color: white; font-size: 13px; margin-bottom: 15px;
         }
+        
         .modal-input:focus { outline: none; border-color: var(--primary); }
         .modal-actions { display: flex; gap: 6px; }
+        
         .modal-btn {
             flex: 1; padding: 10px; border-radius: 10px; border: none;
             font-size: 13px; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
         }
+        
         .modal-btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
         }
+        
         .modal-btn.primary { background: var(--primary); color: white; }
         .modal-btn.secondary { background: var(--gray); color: white; }
         .modal-btn.danger { background: var(--danger); color: white; }
+        
         .loading { text-align: center; padding: 25px; color: var(--gray); }
         .empty-state { text-align: center; padding: 25px; color: var(--gray); font-size: 12px; }
-        .retry-btn {
-            background: #FF9800;
-            color: var(--dark);
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-        }
+        
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--darker); display: flex; padding: 6px 12px;
             border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
         }
+        
         .nav-item {
             flex: 1; text-align: center; color: var(--gray); text-decoration: none;
             font-size: 10px; padding: 4px; border-radius: 6px;
             display: flex; flex-direction: column; align-items: center; gap: 1px;
         }
+        
         .nav-item i { font-size: 18px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
+        
         .notification {
             position: fixed; bottom: 70px; left: 12px; right: 12px;
             background: #00c853; color: white; padding: 10px 15px;
             border-radius: 8px; text-align: center; display: none; z-index: 1000; font-size: 12px;
         }
+        
         .notification.error { background: var(--danger); }
+        
         .loading-spinner {
             display: inline-block;
             width: 14px;
@@ -259,37 +309,93 @@
             margin-right: 6px;
             vertical-align: middle;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .pending-badge {
-            background: var(--gold);
-            color: var(--dark);
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-left: 8px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: var(--darker);
+        }
+        .skeleton-avatar {
+            background: var(--skeleton-bg);
+            border-radius: 50%;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: var(--skeleton-bg);
+            border-radius: 6px;
+            margin: 6px 0;
+            width: 100%;
+        }
+        .skeleton-line.short {
+            width: 60%;
+        }
+        .skeleton-animate {
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes skeleton-pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        .skeleton .team-avatar,
+        .skeleton .team-info .skeleton-line,
+        .skeleton .team-rank,
+        .skeleton .team-stat-value,
+        .skeleton .team-stat-label,
+        .skeleton .member-avatar,
+        .skeleton .member-name,
+        .skeleton .member-role,
+        .skeleton .member-coins {
+            background: var(--skeleton-bg);
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            color: transparent !important;
+            border: none;
+        }
+        .skeleton .team-code,
+        .skeleton .team-btn {
+            background: var(--skeleton-bg);
+            color: transparent;
+            border-color: var(--skeleton-bg);
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+        }
+        .skeleton .member-avatar {
+            background: var(--skeleton-bg);
+        }
+        .skeleton .member-item {
+            background: transparent;
         }
     </style>
 </head>
 <body>
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
+    
     <div class="header">
         <h1><i class="fas fa-users"></i> Team Battles</h1>
         <p>Join or create a team to compete!</p>
     </div>
+    
     <div class="tabs">
         <div class="tab active" data-tab="myteam"><i class="fas fa-user-group"></i> My Team</div>
         <div class="tab" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</div>
         <div class="tab" data-tab="monthly"><i class="fas fa-calendar"></i> Monthly</div>
     </div>
+    
     <div class="tab-content active" id="myteamTab">
-        <div id="myTeamContent"><div class="loading"><span class="loading-spinner"></span> Loading...</div></div>
+        <div id="myTeamContent">
+            <!-- Skeleton placeholder will be inserted by JS -->
+            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
+        </div>
     </div>
+    
     <div class="tab-content" id="leaderboardTab">
-        <div class="leaderboard-list" id="teamLeaderboardList"><div class="loading"><span class="loading-spinner"></span> Loading...</div></div>
+        <div class="leaderboard-list" id="teamLeaderboardList">
+            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
+        </div>
     </div>
+    
     <div class="tab-content" id="monthlyTab">
         <div class="prize-banner">
             <h3><i class="fas fa-crown"></i> Monthly Prizes</h3>
@@ -300,6 +406,7 @@
             </div>
             <p style="margin-top: 6px; opacity: 0.9; font-size: 10px;"><i class="fas fa-users"></i> Every member gets full amount!</p>
         </div>
+        
         <div class="prize-info-box" id="prizeInfoBox">
             <div class="prize-info-header">
                 <div class="prize-info-title"><i class="fas fa-info-circle"></i><span>How Prizes Work</span></div>
@@ -310,8 +417,12 @@
             <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥉 3rd</strong> — Every member gets 500 C</span></div>
             <div class="prize-info-row"><i class="fas fa-calendar-check"></i><span>Awarded 1st of every month</span></div>
         </div>
-        <div id="monthlyContent"><div class="loading"><span class="loading-spinner"></span> Loading...</div></div>
+        
+        <div id="monthlyContent">
+            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
+        </div>
     </div>
+    
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -319,6 +430,8 @@
         <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
         <a href="/team.html" class="nav-item active"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
+    
+    <!-- Modals (same as before) -->
     <div class="modal" id="createTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-plus-circle"></i> Create Team</div>
@@ -329,6 +442,7 @@
             </div>
         </div>
     </div>
+    
     <div class="modal" id="joinTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-in-alt"></i> Join Team</div>
@@ -339,6 +453,7 @@
             </div>
         </div>
     </div>
+    
     <div class="modal" id="leaveTeamModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-sign-out-alt"></i> Leave Team</div>
@@ -349,67 +464,74 @@
             </div>
         </div>
     </div>
+    
     <div class="notification" id="notification"></div>
+    
     <script>
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
+        
         const POINTS_PER_COIN = 1000000;
         let teamLeaderboardCache = [];
-        let isLoading = false;
+        let monthlyCache = null;
+        let leaderboardLastFetch = 0;
+        let monthlyLastFetch = 0;
+        const CACHE_TTL = 60000; // 1 minute
         
-        // Persistent pending team action (across page reloads)
-        let pendingTeamAction = null; // { type, teamName, teamCode, timestamp }
-        let backgroundSyncInterval = null;
-        let isSyncing = false;
+        let pendingCreate = false;
+        let pendingJoin = false;
         
         const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
-
-        // Load pending action from localStorage on page load
-        function loadPendingActionFromStorage() {
-            const stored = localStorage.getItem('teamPendingAction');
-            if (stored) {
-                try {
-                    const action = JSON.parse(stored);
-                    // Only keep if less than 2 minutes old (prevent stale)
-                    if (Date.now() - action.timestamp < 120000) {
-                        pendingTeamAction = action;
-                        console.log('📦 Restored pending team action:', pendingTeamAction);
-                    } else {
-                        localStorage.removeItem('teamPendingAction');
-                    }
-                } catch(e) {}
-            }
-        }
         
-        function savePendingActionToStorage() {
-            if (pendingTeamAction) {
-                localStorage.setItem('teamPendingAction', JSON.stringify(pendingTeamAction));
-            } else {
-                localStorage.removeItem('teamPendingAction');
-            }
-        }
-        
-        function clearPendingAction() {
-            pendingTeamAction = null;
-            localStorage.removeItem('teamPendingAction');
-            if (backgroundSyncInterval) {
-                clearInterval(backgroundSyncInterval);
-                backgroundSyncInterval = null;
-            }
+        // Helper: Show skeleton loading inside myTeamContent
+        function showTeamSkeleton() {
+            document.getElementById('myTeamContent').innerHTML = `
+                <div class="team-card skeleton">
+                    <div class="team-header">
+                        <div class="team-avatar"></div>
+                        <div class="team-info">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line short"></div>
+                        </div>
+                        <div class="team-rank skeleton-line" style="width:40px;"></div>
+                    </div>
+                    <div class="team-stats">
+                        ${Array(4).fill(0).map(() => `<div class="team-stat"><div class="team-stat-value skeleton-line"></div><div class="team-stat-label skeleton-line short"></div></div>`).join('')}
+                    </div>
+                    <div class="team-actions">
+                        <div class="team-btn copy skeleton-line"></div>
+                        <div class="team-btn leave skeleton-line"></div>
+                    </div>
+                </div>
+                <div class="members-title"><div class="skeleton-line short"></div></div>
+                ${Array(3).fill(0).map(() => `
+                    <div class="member-item">
+                        <div class="member-avatar"></div>
+                        <div class="member-info">
+                            <div class="member-name skeleton-line"></div>
+                            <div class="member-role skeleton-line short"></div>
+                        </div>
+                        <div class="member-coins skeleton-line"></div>
+                    </div>
+                `).join('')}
+            `;
         }
 
         function shouldShowPrizeInfo() {
             return localStorage.getItem('prizeInfoDismissedMonth') !== new Date().toISOString().slice(0, 7);
         }
+        
         function dismissPrizeInfo() {
             localStorage.setItem('prizeInfoDismissedMonth', new Date().toISOString().slice(0, 7));
             document.getElementById('prizeInfoBox').classList.add('dismissed');
             showNotification('Info hidden until next month');
         }
+        
         function updatePrizeInfoVisibility() {
             const box = document.getElementById('prizeInfoBox');
             if (box) box.classList.toggle('dismissed', !shouldShowPrizeInfo());
         }
+        
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
@@ -417,224 +539,177 @@
             notif.style.display = 'block';
             setTimeout(() => notif.style.display = 'none', 3000);
         }
+        
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m] || m);
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
         }
+        
         async function apiCall(endpoint, data = null) {
             if (!tg?.initData) throw new Error('Not in Telegram');
             const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
             options.body = JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData });
-            const response = await fetch(endpoint + '?_=' + Date.now(), options);
+            const response = await fetch(endpoint, options);
             const text = await response.text();
             try { 
                 const json = JSON.parse(text);
-                if (!response.ok) throw new Error(json.error || 'Request failed');
+                if (!response.ok) {
+                    throw new Error(json.error || 'Request failed');
+                }
                 return json;
             } catch (e) {
-                throw new Error(text || 'Invalid server response');
+                if (e instanceof SyntaxError) {
+                    throw new Error('Invalid server response');
+                }
+                throw e;
             }
         }
+        
         function getTeamRank(teamId) {
             if (!teamLeaderboardCache.length) return '--';
             const index = teamLeaderboardCache.findIndex(t => t.id == teamId);
             return index >= 0 ? `#${index + 1}` : '--';
         }
-        function openCreateModal() { 
-            if (pendingTeamAction) {
-                showNotification('Please wait for current team operation to finish', true);
-                return;
-            }
-            document.getElementById('createTeamModal').style.display = 'flex'; 
-        }
+        
+        function openCreateModal() { document.getElementById('createTeamModal').style.display = 'flex'; }
         function closeCreateModal() { 
+            if (pendingCreate) return;
             document.getElementById('createTeamModal').style.display = 'none';
             document.getElementById('teamNameInput').value = '';
         }
-        function openJoinModal() { 
-            if (pendingTeamAction) {
-                showNotification('Please wait for current team operation to finish', true);
-                return;
-            }
-            document.getElementById('joinTeamModal').style.display = 'flex'; 
-        }
+        
+        function openJoinModal() { document.getElementById('joinTeamModal').style.display = 'flex'; }
         function closeJoinModal() { 
+            if (pendingJoin) return;
             document.getElementById('joinTeamModal').style.display = 'none';
             document.getElementById('teamCodeInput').value = '';
         }
-        function openLeaveModal() { 
-            if (pendingTeamAction) {
-                showNotification('Please wait for current team operation to finish', true);
-                return;
-            }
-            document.getElementById('leaveTeamModal').style.display = 'flex'; 
-        }
+        
+        function openLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'flex'; }
         function closeLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'none'; }
-
-        // ========== OPTIMISTIC UI ==========
-        function showOptimisticTeamPlaceholder(teamName, teamCode, actionType = 'create') {
-            const container = document.getElementById('myTeamContent');
-            container.innerHTML = `
-                <div class="team-card">
-                    <div class="team-header">
-                        <div class="team-avatar"><i class="fas fa-spinner fa-pulse"></i></div>
-                        <div class="team-info">
-                            <h3>${escapeHtml(teamName)} <span class="pending-badge"><i class="fas fa-hourglass-half"></i> ${actionType === 'create' ? 'Creating...' : 'Joining...'}</span></h3>
-                            <span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(teamCode)}</span>
-                        </div>
-                        <div class="team-rank">--</div>
-                    </div>
-                    <div class="team-stats">
-                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Members</div></div>
-                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">COINS</div></div>
-                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Refs</div></div>
-                        <div class="team-stat"><div class="team-stat-value">--</div><div class="team-stat-label">Rank</div></div>
-                    </div>
-                    <div class="team-actions">
-                        <button class="team-btn copy" disabled><i class="fas fa-copy"></i> Copy Code</button>
-                        <button class="team-btn leave" disabled><i class="fas fa-sign-out-alt"></i> Leave Team</button>
-                    </div>
-                </div>
-                <div class="members-title"><i class="fas fa-spinner fa-pulse"></i> ${actionType === 'create' ? 'Creating team...' : 'Joining team...'}</div>
-            `;
-        }
-
-        function renderPendingTeam() {
-            if (pendingTeamAction) {
-                if (pendingTeamAction.type === 'create') {
-                    showOptimisticTeamPlaceholder(pendingTeamAction.teamName, pendingTeamAction.teamCode || '••••••', 'create');
-                } else if (pendingTeamAction.type === 'join') {
-                    showOptimisticTeamPlaceholder('Joining...', pendingTeamAction.teamCode, 'join');
-                }
-                return true;
-            }
-            return false;
-        }
-
-        // ========== CREATE TEAM (INSTANT, only loads team info after) ==========
+        
         async function createTeam() {
             const nameInput = document.getElementById('teamNameInput');
             const name = nameInput.value.trim();
-            if (!name) return showNotification('Enter team name', true);
-            if (name.length < 3) return showNotification('Team name must be at least 3 characters', true);
-            if (pendingTeamAction) {
-                showNotification(`Already ${pendingTeamAction.type === 'create' ? 'creating a team' : 'joining a team'}, please wait...`, true);
-                return;
-            }
+            
+            if (!name) { showNotification('Enter team name', true); return; }
+            if (name.length < 3) { showNotification('Team name must be at least 3 characters', true); return; }
+            if (pendingCreate) { showNotification('Please wait...', false); return; }
             
             const createBtn = document.getElementById('createTeamBtn');
-            if (createBtn) createBtn.disabled = true;
+            const cancelBtn = document.querySelector('#createTeamModal .modal-btn.secondary');
+            const originalText = createBtn.innerHTML;
             
-            // Set persistent pending action
-            pendingTeamAction = { type: 'create', teamName: name, teamCode: null, timestamp: Date.now() };
-            savePendingActionToStorage();
-            showOptimisticTeamPlaceholder(name, '••••••', 'create');
-            closeCreateModal();
+            createBtn.disabled = true;
+            cancelBtn.disabled = true;
+            createBtn.innerHTML = '<span class="loading-spinner"></span> Creating...';
+            pendingCreate = true;
             
             try {
-                const result = await apiCall('/api/team/create', { teamName: name });
-                // Success: clear pending and refresh ONLY team info (fast)
-                clearPendingAction();
-                // Load team info immediately, leaderboard/monthly later
-                await loadMyTeamOnly(); // this now only loads team info
-                // Refresh user data in background
-                if (window.refreshUser) window.refreshUser();
-                // Lazy load leaderboard and monthly (don't await)
-                setTimeout(() => {
-                    loadTeamLeaderboard();
-                    loadMonthlyCompetition();
-                }, 100);
+                const checkResult = await apiCall('/api/team/check-name', { teamName: name });
+                if (checkResult.exists) {
+                    showNotification('Team name already exists. Please choose another.', true);
+                    return;
+                }
+                
+                await apiCall('/api/team/create', { teamName: name });
                 showNotification(`✅ Team "${name}" created!`, false);
+                closeCreateModal();
+                
+                // Show skeleton then load only team info
+                showTeamSkeleton();
+                await loadMyTeamOnly();
+                
+                showNotification(`🎉 Welcome to your new team!`, false);
             } catch (err) {
-                console.error('Create team error:', err);
-                clearPendingAction();
                 showNotification(err.message || 'Failed to create team', true);
-                await loadMyTeamOnly(); // revert to actual state
             } finally {
-                if (createBtn) createBtn.disabled = false;
+                createBtn.disabled = false;
+                cancelBtn.disabled = false;
+                createBtn.innerHTML = originalText;
+                pendingCreate = false;
             }
         }
-
-        // ========== JOIN TEAM (INSTANT) ==========
+        
         async function joinTeam() {
             const codeInput = document.getElementById('teamCodeInput');
             const code = codeInput.value.trim().toUpperCase();
-            if (!code) return showNotification('Enter team code', true);
-            if (code.length !== 6) return showNotification('Team code should be 6 characters', true);
-            if (pendingTeamAction) {
-                showNotification(`Already ${pendingTeamAction.type === 'create' ? 'creating a team' : 'joining a team'}, please wait...`, true);
-                return;
-            }
+            
+            if (!code) { showNotification('Enter team code', true); return; }
+            if (code.length !== 6) { showNotification('Team code should be 6 characters', true); return; }
+            if (pendingJoin) { showNotification('Please wait...', false); return; }
             
             const joinBtn = document.getElementById('joinTeamBtn');
-            if (joinBtn) joinBtn.disabled = true;
+            const cancelBtn = document.querySelector('#joinTeamModal .modal-btn.secondary');
+            const originalText = joinBtn.innerHTML;
             
-            pendingTeamAction = { type: 'join', teamCode: code, timestamp: Date.now() };
-            savePendingActionToStorage();
-            showOptimisticTeamPlaceholder('Joining...', code, 'join');
-            closeJoinModal();
+            joinBtn.disabled = true;
+            cancelBtn.disabled = true;
+            joinBtn.innerHTML = '<span class="loading-spinner"></span> Joining...';
+            pendingJoin = true;
             
             try {
-                const result = await apiCall('/api/team/join', { teamCode: code });
-                clearPendingAction();
+                const checkResult = await apiCall('/api/team/check-code', { teamCode: code });
+                if (!checkResult.exists) {
+                    showNotification('Invalid team code. Please check and try again.', true);
+                    return;
+                }
+                
+                await apiCall('/api/team/join', { teamCode: code });
+                showNotification(`✅ Joined ${checkResult.teamName || 'team'}!`, false);
+                closeJoinModal();
+                
+                showTeamSkeleton();
                 await loadMyTeamOnly();
-                if (window.refreshUser) window.refreshUser();
-                setTimeout(() => {
-                    loadTeamLeaderboard();
-                    loadMonthlyCompetition();
-                }, 100);
-                showNotification(`✅ Joined team!`, false);
+                
+                showNotification(`🎉 Welcome to your new team!`, false);
             } catch (err) {
-                console.error('Join team error:', err);
-                clearPendingAction();
                 showNotification(err.message || 'Failed to join team', true);
-                await loadMyTeamOnly();
             } finally {
-                if (joinBtn) joinBtn.disabled = false;
+                joinBtn.disabled = false;
+                cancelBtn.disabled = false;
+                joinBtn.innerHTML = originalText;
+                pendingJoin = false;
             }
         }
-
+        
         async function confirmLeaveTeam() {
-            if (pendingTeamAction) {
-                showNotification('Please wait for current team operation to finish', true);
-                return;
-            }
             const leaveBtn = document.getElementById('leaveTeamBtn');
+            const cancelBtn = document.querySelector('#leaveTeamModal .modal-btn.secondary');
             const originalText = leaveBtn.innerHTML;
+            
             leaveBtn.disabled = true;
+            cancelBtn.disabled = true;
             leaveBtn.innerHTML = '<span class="loading-spinner"></span> Leaving...';
+            
             try {
                 await apiCall('/api/team/leave');
                 showNotification('Left team', false);
                 closeLeaveModal();
-                document.getElementById('myTeamContent').innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
-                if (window.refreshUser) await window.refreshUser();
+                showTeamSkeleton();
                 await loadMyTeamOnly();
-                // Refresh leaderboard and monthly in background
-                setTimeout(() => {
-                    loadTeamLeaderboard();
-                    loadMonthlyCompetition();
-                }, 100);
             } catch (err) {
                 showNotification(err.message || 'Failed to leave team', true);
             } finally {
                 leaveBtn.disabled = false;
+                cancelBtn.disabled = false;
                 leaveBtn.innerHTML = originalText;
             }
         }
-
+        
         function copyTeamCode(code) {
             navigator.clipboard.writeText(code);
             showNotification('Team code copied!');
         }
-
+        
         function renderMyTeam(data) {
-            if (pendingTeamAction) {
-                renderPendingTeam();
-                return;
-            }
-            
             const container = document.getElementById('myTeamContent');
+            
             if (!data || !data.has_team) {
                 container.innerHTML = `
                     <div class="no-team-card">
@@ -645,15 +720,16 @@
                             <button class="action-btn secondary" onclick="openJoinModal()"><i class="fas fa-sign-in-alt"></i><span>Join</span></button>
                             <button class="action-btn" onclick="openCreateModal()"><i class="fas fa-plus"></i><span>Create</span></button>
                         </div>
-                        <button class="retry-btn" onclick="loadMyTeamOnly()"><i class="fas fa-sync"></i> Refresh</button>
                     </div>
                 `;
                 return;
             }
+            
             const team = data.team;
             const members = data.members || [];
             const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(1);
             const rank = getTeamRank(team.id);
+            
             container.innerHTML = `
                 <div class="team-card">
                     <div class="team-header">
@@ -664,25 +740,30 @@
                         </div>
                         <div class="team-rank">${rank}</div>
                     </div>
+                    
                     <div class="team-stats">
                         <div class="team-stat"><div class="team-stat-value">${team.member_count || 0}</div><div class="team-stat-label">Members</div></div>
                         <div class="team-stat"><div class="team-stat-value">${totalCoins}</div><div class="team-stat-label">COINS</div></div>
                         <div class="team-stat"><div class="team-stat-value">${team.total_referrals || 0}</div><div class="team-stat-label">Refs</div></div>
                         <div class="team-stat"><div class="team-stat-value">${rank}</div><div class="team-stat-label">Rank</div></div>
                     </div>
+                    
                     <div class="team-actions">
                         <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
                         <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                     </div>
                 </div>
-                <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span> <button class="retry-btn" style="margin-left:auto; padding:4px 10px;" onclick="loadMyTeamOnly()"><i class="fas fa-sync"></i></button></div>
+                
+                <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span></div>
                 ${members.map(m => {
                     const coins = ((m.points || 0) / POINTS_PER_COIN).toFixed(1);
                     const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
                     const photoUrl = m.photo_url || '';
                     return `
                         <div class="member-item">
-                            <div class="member-avatar">${photoUrl ? `<img src="${photoUrl}" alt="${escapeHtml(m.first_name || 'User')}">` : escapeHtml(initial)}</div>
+                            <div class="member-avatar">
+                                ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHtml(m.first_name || 'User')}">` : escapeHtml(initial)}
+                            </div>
                             <div class="member-info">
                                 <div class="member-name">
                                     ${escapeHtml(m.first_name || m.username || 'User')}
@@ -696,14 +777,16 @@
                 }).join('')}
             `;
         }
-
+        
         function renderTeamLeaderboard(data) {
             const container = document.getElementById('teamLeaderboardList');
             teamLeaderboardCache = data || [];
+            
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Create the first team!</p><button class="retry-btn" onclick="loadTeamLeaderboard()">Refresh</button></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Create the first team!</p></div>';
                 return;
             }
+            
             container.innerHTML = data.map((team, idx) => {
                 const rank = idx + 1;
                 const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
@@ -715,16 +798,21 @@
                         <div class="score">${((team.total_points || 0) / POINTS_PER_COIN).toFixed(1)} C</div>
                     </div>
                 `;
-            }).join('') + '<button class="retry-btn" style="width:100%; margin-top:10px;" onclick="loadTeamLeaderboard()"><i class="fas fa-sync"></i> Refresh</button>';
-            if (!pendingTeamAction) loadMyTeamOnly();
+            }).join('');
+            
+            // Update team rank in my team view if visible
+            if (document.getElementById('myteamTab').classList.contains('active')) {
+                loadMyTeamOnly();
+            }
         }
-
+        
         function renderMonthlyCompetition(data) {
             const container = document.getElementById('monthlyContent');
             if (!data || !data.standings || data.standings.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing this month</p><button class="retry-btn" onclick="loadMonthlyCompetition()">Refresh</button></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing this month</p></div>';
                 return;
             }
+            
             container.innerHTML = `<div class="members-title" style="margin-top:6px;"><i class="fas fa-chart-line"></i><span>${data.month} Standings</span></div>` +
                 data.standings.map((team, idx) => {
                     const rank = idx + 1;
@@ -739,54 +827,73 @@
                             <div class="score">${((team.team_points || 0) / POINTS_PER_COIN).toFixed(1)} C</div>
                         </div>
                     `;
-                }).join('') + '<button class="retry-btn" style="width:100%; margin-top:10px;" onclick="loadMonthlyCompetition()"><i class="fas fa-sync"></i> Refresh</button>';
+                }).join('');
         }
-
+        
+        // Independent loading functions with caching
         async function loadMyTeamOnly() {
-            if (pendingTeamAction) {
-                renderPendingTeam();
-                return;
-            }
             try {
                 const data = await apiCall('/api/team/info');
                 renderMyTeam(data);
             } catch (err) {
-                console.error('Load my team error:', err);
                 renderMyTeam({ has_team: false });
             }
         }
         
-        async function loadTeamLeaderboard() {
+        async function loadTeamLeaderboard(force = false) {
+            const container = document.getElementById('teamLeaderboardList');
+            const now = Date.now();
+            
+            // Use cache if valid and not forced
+            if (!force && teamLeaderboardCache.length > 0 && (now - leaderboardLastFetch) < CACHE_TTL) {
+                renderTeamLeaderboard(teamLeaderboardCache);
+                return;
+            }
+            
             try {
-                const response = await fetch('/api/team/leaderboard?_=' + Date.now());
+                const response = await fetch('/api/team/leaderboard');
                 const data = await response.json();
+                teamLeaderboardCache = data;
+                leaderboardLastFetch = now;
                 renderTeamLeaderboard(data);
             } catch (err) {
-                document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state">Failed to load<button class="retry-btn" onclick="loadTeamLeaderboard()">Retry</button></div>';
+                if (teamLeaderboardCache.length === 0) {
+                    container.innerHTML = '<div class="empty-state">Failed to load leaderboard</div>';
+                } else {
+                    renderTeamLeaderboard(teamLeaderboardCache);
+                }
             }
         }
         
-        async function loadMonthlyCompetition() {
+        async function loadMonthlyCompetition(force = false) {
+            const container = document.getElementById('monthlyContent');
+            const now = Date.now();
+            
+            if (!force && monthlyCache && (now - monthlyLastFetch) < CACHE_TTL) {
+                renderMonthlyCompetition(monthlyCache);
+                return;
+            }
+            
             try {
                 const data = await apiCall('/api/team/monthly-competition');
+                monthlyCache = data;
+                monthlyLastFetch = now;
                 renderMonthlyCompetition(data);
             } catch (err) {
-                document.getElementById('monthlyContent').innerHTML = '<div class="empty-state">Failed to load<button class="retry-btn" onclick="loadMonthlyCompetition()">Retry</button></div>';
+                if (monthlyCache) {
+                    renderMonthlyCompetition(monthlyCache);
+                } else {
+                    container.innerHTML = '<div class="empty-state">No teams</div>';
+                }
             }
         }
         
-        async function loadAllData() {
-            if (isLoading) return;
-            isLoading = true;
-            try {
-                await Promise.all([loadMyTeamOnly(), loadTeamLeaderboard(), loadMonthlyCompetition()]);
-            } catch (err) {
-                console.error('Load error:', err);
-            } finally {
-                isLoading = false;
-            }
+        // Preload leaderboard and monthly in background (non-blocking)
+        function preloadOtherTabs() {
+            loadTeamLeaderboard().catch(e => {});
+            loadMonthlyCompetition().catch(e => {});
         }
-
+        
         // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -795,35 +902,43 @@
                 tab.classList.add('active');
                 const tabName = tab.dataset.tab;
                 document.getElementById(tabName + 'Tab').classList.add('active');
-                if (tabName === 'leaderboard') loadTeamLeaderboard();
-                if (tabName === 'monthly') { loadMonthlyCompetition(); updatePrizeInfoVisibility(); }
-                if (tabName === 'myteam') {
-                    if (pendingTeamAction) {
-                        renderPendingTeam();
-                    } else {
-                        loadMyTeamOnly();
-                    }
+                
+                if (tabName === 'leaderboard') {
+                    loadTeamLeaderboard();
+                }
+                if (tabName === 'monthly') {
+                    loadMonthlyCompetition();
+                    updatePrizeInfoVisibility();
                 }
             });
         });
         
+        // Close modals when clicking outside (but not if pending)
         window.onclick = (e) => { 
             if (e.target.classList.contains('modal')) {
-                e.target.style.display = 'none';
-                if (e.target.id === 'createTeamModal') document.getElementById('teamNameInput').value = '';
-                if (e.target.id === 'joinTeamModal') document.getElementById('teamCodeInput').value = '';
+                const modal = e.target;
+                if (modal.id === 'createTeamModal' && pendingCreate) return;
+                if (modal.id === 'joinTeamModal' && pendingJoin) return;
+                modal.style.display = 'none';
+                if (modal.id === 'createTeamModal') document.getElementById('teamNameInput').value = '';
+                if (modal.id === 'joinTeamModal') document.getElementById('teamCodeInput').value = '';
             }
         };
-        document.getElementById('teamCodeInput')?.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
         
-        // Initialization
+        // Auto uppercase for team code input
+        const codeInput = document.getElementById('teamCodeInput');
+        if (codeInput) {
+            codeInput.addEventListener('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        }
+        
+        // Initial load: show skeleton then load team info, then preload others
         document.addEventListener('DOMContentLoaded', () => {
-            loadPendingActionFromStorage();
-            if (pendingTeamAction) {
-                renderPendingTeam();
-            } else {
-                loadAllData();
-            }
+            showTeamSkeleton();
+            loadMyTeamOnly().then(() => {
+                preloadOtherTabs();
+            });
             updatePrizeInfoVisibility();
         });
     </script>
