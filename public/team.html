@@ -68,6 +68,7 @@
         }
         .action-btn i { font-size: 20px; }
         .action-btn.secondary { background: var(--secondary); }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .team-card {
             background: var(--darker); border-radius: 14px; padding: 12px; margin-bottom: 10px;
         }
@@ -218,7 +219,7 @@
         .loading { text-align: center; padding: 25px; color: var(--gray); }
         .empty-state { text-align: center; padding: 25px; color: var(--gray); font-size: 12px; }
         .retry-btn {
-            background: var(--warning);
+            background: #FF9800;
             color: var(--dark);
             border: none;
             padding: 8px 16px;
@@ -258,6 +259,17 @@
             vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .pending-badge {
+            background: var(--gold);
+            color: var(--dark);
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
     </style>
 </head>
 <body>
@@ -343,8 +355,11 @@
         const POINTS_PER_COIN = 1000000;
         let teamLeaderboardCache = [];
         let isLoading = false;
-        let pendingCreate = false;
-        let pendingJoin = false;
+        
+        // Pending team action state (to prevent duplicates and preserve across tabs)
+        let pendingTeamAction = null; // { type: 'create', teamName: '...', teamCode: '...' } or { type: 'join', teamCode: '...' }
+        let pendingPromise = null;
+        
         const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
 
         function shouldShowPrizeInfo() {
@@ -402,15 +417,15 @@
         function openLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'flex'; }
         function closeLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'none'; }
 
-        // ========== OPTIMISTIC UI: Show placeholder immediately ==========
-        function showOptimisticTeamPlaceholder(teamName, teamCode) {
+        // ========== OPTIMISTIC UI WITH PENDING STATE ==========
+        function showOptimisticTeamPlaceholder(teamName, teamCode, actionType = 'create') {
             const container = document.getElementById('myTeamContent');
             container.innerHTML = `
                 <div class="team-card">
                     <div class="team-header">
                         <div class="team-avatar"><i class="fas fa-spinner fa-pulse"></i></div>
                         <div class="team-info">
-                            <h3>${escapeHtml(teamName)}</h3>
+                            <h3>${escapeHtml(teamName)} <span class="pending-badge"><i class="fas fa-hourglass-half"></i> ${actionType === 'create' ? 'Creating...' : 'Joining...'}</span></h3>
                             <span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(teamCode)}</span>
                         </div>
                         <div class="team-rank">--</div>
@@ -422,114 +437,116 @@
                         <div class="team-stat"><div class="team-stat-value">--</div><div class="team-stat-label">Rank</div></div>
                     </div>
                     <div class="team-actions">
-                        <button class="team-btn copy" onclick="copyTeamCode('${escapeHtml(teamCode)}')"><i class="fas fa-copy"></i> Copy Code</button>
-                        <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
+                        <button class="team-btn copy" disabled><i class="fas fa-copy"></i> Copy Code</button>
+                        <button class="team-btn leave" disabled><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                     </div>
                 </div>
-                <div class="members-title"><i class="fas fa-spinner fa-pulse"></i> Creating team...</div>
+                <div class="members-title"><i class="fas fa-spinner fa-pulse"></i> ${actionType === 'create' ? 'Creating team...' : 'Joining team...'}</div>
             `;
         }
 
-        function showOptimisticJoinPlaceholder(teamCode) {
-            const container = document.getElementById('myTeamContent');
-            container.innerHTML = `
-                <div class="team-card">
-                    <div class="team-header">
-                        <div class="team-avatar"><i class="fas fa-spinner fa-pulse"></i></div>
-                        <div class="team-info">
-                            <h3>Joining team...</h3>
-                            <span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(teamCode)}</span>
-                        </div>
-                        <div class="team-rank">--</div>
-                    </div>
-                    <div class="team-stats">
-                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Members</div></div>
-                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">COINS</div></div>
-                        <div class="team-stat"><div class="team-stat-value"><span class="loading-spinner"></span></div><div class="team-stat-label">Refs</div></div>
-                        <div class="team-stat"><div class="team-stat-value">--</div><div class="team-stat-label">Rank</div></div>
-                    </div>
-                </div>
-                <div class="members-title"><i class="fas fa-spinner fa-pulse"></i> Joining team...</div>
-            `;
+        // Called when switching back to My Team tab while pending
+        function renderPendingTeam() {
+            if (pendingTeamAction) {
+                if (pendingTeamAction.type === 'create') {
+                    showOptimisticTeamPlaceholder(pendingTeamAction.teamName, pendingTeamAction.teamCode || '••••••', 'create');
+                } else if (pendingTeamAction.type === 'join') {
+                    showOptimisticTeamPlaceholder('Joining...', pendingTeamAction.teamCode, 'join');
+                }
+                return true;
+            }
+            return false;
         }
 
-        // ========== CREATE TEAM (INSTANT) ==========
+        // ========== CREATE TEAM (INSTANT WITH DUPLICATE PREVENTION) ==========
         async function createTeam() {
             const nameInput = document.getElementById('teamNameInput');
             const name = nameInput.value.trim();
             if (!name) return showNotification('Enter team name', true);
             if (name.length < 3) return showNotification('Team name must be at least 3 characters', true);
-            if (pendingCreate) return showNotification('Please wait...', false);
+            if (pendingTeamAction) {
+                showNotification(`Already ${pendingTeamAction.type === 'create' ? 'creating a team' : 'joining a team'}, please wait...`, true);
+                return;
+            }
             
-            // ✅ OPTIMISTIC UI: Show team card immediately
-            showOptimisticTeamPlaceholder(name, '••••••');
+            // Disable create button immediately to prevent double-click
+            const createBtn = document.getElementById('createTeamBtn');
+            if (createBtn) createBtn.disabled = true;
+            
+            // Set pending action
+            pendingTeamAction = { type: 'create', teamName: name, teamCode: null };
+            
+            // Show optimistic UI
+            showOptimisticTeamPlaceholder(name, '••••••', 'create');
             closeCreateModal();
             
-            const createBtn = document.getElementById('createTeamBtn');
-            const originalText = createBtn.innerHTML;
-            createBtn.disabled = true;
-            createBtn.innerHTML = '<span class="loading-spinner"></span> Creating...';
-            pendingCreate = true;
+            // Start the actual API call (store promise to await later)
+            const actionPromise = (async () => {
+                try {
+                    const result = await apiCall('/api/team/create', { teamName: name });
+                    // Success: clear pending and refresh real data
+                    pendingTeamAction = null;
+                    await refreshUserTeamAndLeaderboard();
+                    showNotification(`✅ Team "${name}" created!`, false);
+                } catch (err) {
+                    console.error('Create team error:', err);
+                    pendingTeamAction = null;
+                    showNotification(err.message || 'Failed to create team', true);
+                    // Revert to actual team state (or no team)
+                    await loadMyTeamOnly();
+                } finally {
+                    if (createBtn) createBtn.disabled = false;
+                }
+            })();
             
-            try {
-                // Single API call (no separate check-name)
-                const result = await apiCall('/api/team/create', { teamName: name });
-                
-                // Replace optimistic card with real data
-                await refreshUserTeamAndLeaderboard();
-                showNotification(`✅ Team "${name}" created!`, false);
-            } catch (err) {
-                showNotification(err.message || 'Failed to create team', true);
-                // Revert to no-team view
-                await loadMyTeamOnly();
-            } finally {
-                createBtn.disabled = false;
-                createBtn.innerHTML = originalText;
-                pendingCreate = false;
-            }
+            pendingPromise = actionPromise;
+            await actionPromise;
+            pendingPromise = null;
         }
 
-        // ========== JOIN TEAM (INSTANT) ==========
+        // ========== JOIN TEAM (INSTANT WITH DUPLICATE PREVENTION) ==========
         async function joinTeam() {
             const codeInput = document.getElementById('teamCodeInput');
             const code = codeInput.value.trim().toUpperCase();
             if (!code) return showNotification('Enter team code', true);
             if (code.length !== 6) return showNotification('Team code should be 6 characters', true);
-            if (pendingJoin) return showNotification('Please wait...', false);
-            
-            // ✅ OPTIMISTIC UI: Show joining card immediately
-            showOptimisticJoinPlaceholder(code);
-            closeJoinModal();
+            if (pendingTeamAction) {
+                showNotification(`Already ${pendingTeamAction.type === 'create' ? 'creating a team' : 'joining a team'}, please wait...`, true);
+                return;
+            }
             
             const joinBtn = document.getElementById('joinTeamBtn');
-            const originalText = joinBtn.innerHTML;
-            joinBtn.disabled = true;
-            joinBtn.innerHTML = '<span class="loading-spinner"></span> Joining...';
-            pendingJoin = true;
+            if (joinBtn) joinBtn.disabled = true;
             
-            try {
-                // Single API call (no separate check-code)
-                const result = await apiCall('/api/team/join', { teamCode: code });
-                
-                // Replace optimistic card with real data
-                await refreshUserTeamAndLeaderboard();
-                showNotification(`✅ Joined team!`, false);
-            } catch (err) {
-                showNotification(err.message || 'Failed to join team', true);
-                await loadMyTeamOnly();
-            } finally {
-                joinBtn.disabled = false;
-                joinBtn.innerHTML = originalText;
-                pendingJoin = false;
-            }
+            pendingTeamAction = { type: 'join', teamCode: code };
+            showOptimisticTeamPlaceholder('Joining...', code, 'join');
+            closeJoinModal();
+            
+            const actionPromise = (async () => {
+                try {
+                    const result = await apiCall('/api/team/join', { teamCode: code });
+                    pendingTeamAction = null;
+                    await refreshUserTeamAndLeaderboard();
+                    showNotification(`✅ Joined team!`, false);
+                } catch (err) {
+                    console.error('Join team error:', err);
+                    pendingTeamAction = null;
+                    showNotification(err.message || 'Failed to join team', true);
+                    await loadMyTeamOnly();
+                } finally {
+                    if (joinBtn) joinBtn.disabled = false;
+                }
+            })();
+            
+            pendingPromise = actionPromise;
+            await actionPromise;
+            pendingPromise = null;
         }
 
-        // Refresh user's team data and leaderboard in background
+        // Refresh user's team data and leaderboard in background (does not block UI)
         async function refreshUserTeamAndLeaderboard() {
             try {
-                // Refresh global user data (affects team_id in other pages)
                 if (window.refreshUser) await window.refreshUser();
-                // Reload team info and leaderboard in parallel
                 await Promise.all([
                     loadMyTeamOnly(),
                     loadTeamLeaderboard(),
@@ -541,6 +558,10 @@
         }
 
         async function confirmLeaveTeam() {
+            if (pendingTeamAction) {
+                showNotification('Please wait for current team operation to finish', true);
+                return;
+            }
             const leaveBtn = document.getElementById('leaveTeamBtn');
             const originalText = leaveBtn.innerHTML;
             leaveBtn.disabled = true;
@@ -549,7 +570,6 @@
                 await apiCall('/api/team/leave');
                 showNotification('Left team', false);
                 closeLeaveModal();
-                // Clear UI and reload
                 document.getElementById('myTeamContent').innerHTML = '<div class="loading"><span class="loading-spinner"></span> Loading...</div>';
                 if (window.refreshUser) await window.refreshUser();
                 await loadAllData();
@@ -567,6 +587,12 @@
         }
 
         function renderMyTeam(data) {
+            // If there is a pending action, show the optimistic card instead of real data
+            if (pendingTeamAction) {
+                renderPendingTeam();
+                return;
+            }
+            
             const container = document.getElementById('myTeamContent');
             if (!data || !data.has_team) {
                 container.innerHTML = `
@@ -649,8 +675,8 @@
                     </div>
                 `;
             }).join('') + '<button class="retry-btn" style="width:100%; margin-top:10px;" onclick="loadTeamLeaderboard()"><i class="fas fa-sync"></i> Refresh</button>';
-            // Also refresh my team rank if needed
-            loadMyTeamOnly();
+            // Also refresh my team rank if needed (but don't overwrite pending)
+            if (!pendingTeamAction) loadMyTeamOnly();
         }
 
         function renderMonthlyCompetition(data) {
@@ -677,6 +703,11 @@
         }
 
         async function loadMyTeamOnly() {
+            // If there's a pending action, don't overwrite optimistic UI with stale data
+            if (pendingTeamAction) {
+                renderPendingTeam();
+                return;
+            }
             try {
                 const data = await apiCall('/api/team/info');
                 renderMyTeam(data);
@@ -685,6 +716,7 @@
                 renderMyTeam({ has_team: false });
             }
         }
+        
         async function loadTeamLeaderboard() {
             try {
                 const response = await fetch('/api/team/leaderboard?_=' + Date.now());
@@ -694,6 +726,7 @@
                 document.getElementById('teamLeaderboardList').innerHTML = '<div class="empty-state">Failed to load<button class="retry-btn" onclick="loadTeamLeaderboard()">Retry</button></div>';
             }
         }
+        
         async function loadMonthlyCompetition() {
             try {
                 const data = await apiCall('/api/team/monthly-competition');
@@ -702,6 +735,7 @@
                 document.getElementById('monthlyContent').innerHTML = '<div class="empty-state">Failed to load<button class="retry-btn" onclick="loadMonthlyCompetition()">Retry</button></div>';
             }
         }
+        
         async function loadAllData() {
             if (isLoading) return;
             isLoading = true;
@@ -714,7 +748,7 @@
             }
         }
 
-        // Tab switching
+        // Tab switching: preserve pending state when switching back to My Team
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -724,8 +758,17 @@
                 document.getElementById(tabName + 'Tab').classList.add('active');
                 if (tabName === 'leaderboard') loadTeamLeaderboard();
                 if (tabName === 'monthly') { loadMonthlyCompetition(); updatePrizeInfoVisibility(); }
+                if (tabName === 'myteam') {
+                    // When switching back to My Team, show pending if exists, else load real data
+                    if (pendingTeamAction) {
+                        renderPendingTeam();
+                    } else {
+                        loadMyTeamOnly();
+                    }
+                }
             });
         });
+        
         window.onclick = (e) => { 
             if (e.target.classList.contains('modal')) {
                 e.target.style.display = 'none';
@@ -734,6 +777,7 @@
             }
         };
         document.getElementById('teamCodeInput')?.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
+        
         document.addEventListener('DOMContentLoaded', () => {
             loadAllData();
             updatePrizeInfoVisibility();
