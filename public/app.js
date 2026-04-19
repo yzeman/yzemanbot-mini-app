@@ -4,7 +4,6 @@
 // WITHDRAWAL: 100,000 COINS minimum
 // MONETAG ZONE ID: 9683863
 // SOUND EFFECTS ONLY (NO BACKGROUND MUSIC)
-// WITH ROBUST RETRY AND OFFLINE CACHE
 // ============================================================
 
 const tg = window.Telegram?.WebApp;
@@ -268,18 +267,8 @@ document.addEventListener('click', function(e) {
 window.AudioManager = AudioManager;
 
 // ============================================================
-// USER REGISTRATION & MANAGEMENT (WITH RETRY AND CACHE)
+// USER REGISTRATION & MANAGEMENT
 // ============================================================
-
-// Try to load cached user data immediately
-const cachedUser = localStorage.getItem('cachedUser');
-if (cachedUser) {
-    try {
-        currentUser = JSON.parse(cachedUser);
-        updateUI(); // Show last known balance instantly
-        console.log('📦 Loaded cached user data');
-    } catch(e) {}
-}
 
 async function registerUser() {
     if (!tg?.initDataUnsafe?.user) {
@@ -293,9 +282,9 @@ async function registerUser() {
     const idEl = document.getElementById('userId');
     const avatarEl = document.getElementById('userAvatar');
     
-    // Set display immediately from Telegram data
     if (nameEl) nameEl.textContent = `${user.first_name} ${user.last_name || ''}`;
     if (idEl) idEl.textContent = `ID: ${user.id}`;
+    
     if (avatarEl) {
         if (user.photo_url) {
             avatarEl.innerHTML = '';
@@ -316,122 +305,38 @@ async function registerUser() {
     
     console.log('📤 SENDING TO /api/user - Telegram ID:', user.id, 'Referral Code:', codeToSend || 'none');
 
-    // Retry up to 5 times
-    const maxRetries = 5;
-    let lastError = null;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            const result = await apiCall('/api/user', {
-                initData: tg.initData,
-                referralCode: codeToSend || null
-            });
-            
-            if (codeToSend) {
-                showNotification('🎉 Referral bonus applied!');
-                localStorage.removeItem('pendingReferralCode');
-                sessionStorage.setItem('referralProcessed', 'true');
-                referralCode = null;
-                console.log('✅ Referral code used and cleared');
-            }
-            
-            // Cache user data for offline/quick display
-            localStorage.setItem('cachedUser', JSON.stringify(result));
-            return result;
-        } catch (err) {
-            lastError = err;
-            console.error(`Registration attempt ${attempt} failed:`, err.message);
-            if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // 1s, 2s, 3s, 4s, 5s
-            }
+    try {
+        const result = await apiCall('/api/user', {
+            initData: tg.initData,
+            referralCode: codeToSend || null
+        });
+        
+        if (codeToSend) {
+            showNotification('🎉 Referral bonus applied!');
+            localStorage.removeItem('pendingReferralCode');
+            sessionStorage.setItem('referralProcessed', 'true');
+            referralCode = null;
+            console.log('✅ Referral code used and cleared');
         }
-    }
-    
-    // All retries failed
-    console.error('Registration error after retries:', lastError);
-    if (nameEl) nameEl.textContent = 'Connection Error';
-    showRetryButton();
-    return null;
-}
-
-function showRetryButton() {
-    const header = document.querySelector('.header');
-    if (!header) return;
-    
-    // Remove existing retry button if any
-    const existing = document.getElementById('retryRegistrationBtn');
-    if (existing) existing.remove();
-    
-    const retryBtn = document.createElement('button');
-    retryBtn.id = 'retryRegistrationBtn';
-    retryBtn.innerHTML = '<i class="fas fa-sync"></i> Tap to Retry';
-    retryBtn.style.cssText = `
-        display: block;
-        margin: 15px auto 0;
-        padding: 12px 20px;
-        background: var(--warning);
-        color: var(--dark);
-        border: none;
-        border-radius: 25px;
-        font-weight: bold;
-        cursor: pointer;
-        width: fit-content;
-    `;
-    retryBtn.onclick = async () => {
-        retryBtn.disabled = true;
-        retryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
-        const user = await registerUser();
-        if (user) {
-            currentUser = user;
-            updateUI();
-            updateAdStreakDisplay();
-            loadWithdrawalHistory();
-            loadBonusHistory();
-            retryBtn.remove();
-        } else {
-            retryBtn.disabled = false;
-            retryBtn.innerHTML = '<i class="fas fa-sync"></i> Tap to Retry';
-        }
-    };
-    
-    const balanceCard = document.querySelector('.balance-card');
-    if (balanceCard) {
-        balanceCard.appendChild(retryBtn);
-    } else {
-        header.appendChild(retryBtn);
+        return result;
+    } catch (err) {
+        console.error('Registration error:', err);
+        if (nameEl) nameEl.textContent = 'Connection Error';
+        showNotification('Failed to connect to server', true);
+        return null;
     }
 }
 
 async function refreshUser() {
     if (!tg?.initDataUnsafe?.user) return;
-    
-    let success = false;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-            const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
-            currentUser = result;
-            localStorage.setItem('cachedUser', JSON.stringify(result));
-            updateUI();
-            loadWithdrawalHistory();
-            updateAdStreakDisplay();
-            loadBonusHistory();
-            success = true;
-            break;
-        } catch (err) {
-            console.error(`Refresh attempt ${attempt} failed:`, err.message);
-            if (attempt < 3) await new Promise(r => setTimeout(r, 1000));
-        }
-    }
-    
-    if (!success) {
-        console.error('Refresh user failed completely');
-        // Keep showing cached data if available
-        if (currentUser) {
-            updateUI(); // Refresh UI with cached data
-        } else {
-            showRetryButton();
-        }
-    }
+    try {
+        const result = await apiCall('/api/user', { initData: tg.initData, referralCode: null });
+        currentUser = result;
+        updateUI();
+        loadWithdrawalHistory();
+        updateAdStreakDisplay();
+        loadBonusHistory();
+    } catch (err) { console.error('Refresh error:', err); }
 }
 window.refreshUser = refreshUser;
 
@@ -449,17 +354,7 @@ window.addPoints = addPoints;
 // ============================================================
 
 function updateUI() {
-    if (!currentUser) {
-        // Try to load from cache again
-        const cached = localStorage.getItem('cachedUser');
-        if (cached) {
-            try {
-                currentUser = JSON.parse(cached);
-            } catch(e) {}
-        }
-        if (!currentUser) return;
-    }
-    
+    if (!currentUser) return;
     const points = currentUser.points || 0;
     const coins = points / POINT_ECONOMY.POINTS_PER_COIN;
     const progress = Math.min((coins / POINT_ECONOMY.MIN_WITHDRAWAL_COINS) * 100, 100);
@@ -1154,14 +1049,6 @@ async function init() {
         if (document.getElementById('wheelCanvas')) loadWheelStatus();
         
         setTimeout(preloadMonetagAd, 2000);
-    } else {
-        // Registration failed, but we already displayed name from Telegram
-        console.warn('User registration failed, UI may be incomplete');
-        // Update UI with cached data if available
-        if (currentUser) {
-            updateUI();
-            updateAdStreakDisplay();
-        }
     }
     
     const watchAdBtn = document.getElementById('watchAdBtn');
@@ -1186,4 +1073,4 @@ async function init() {
     if (spinBtn) spinBtn.addEventListener('click', spinWheel);
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', init); 
