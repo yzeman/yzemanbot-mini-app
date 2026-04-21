@@ -856,19 +856,26 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// LEADERBOARD API (UPDATED FOR COINS)
+// LEADERBOARD: Monthly Top Earners (Resets 1st of Month)
 // ============================================
-
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
+    // Get first day of current month
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    
     const result = await pool.query(`
-      SELECT id, username, first_name, photo_url, 
-             COALESCE(coins, 0) as coins, 
-             tier, total_coins_earned, telegram_id, referrals
-      FROM users
-      ORDER BY COALESCE(coins, 0) DESC, id ASC
+      SELECT u.id, u.username, u.first_name, u.photo_url,
+             COALESCE(SUM(ar.reward_amount), 0) as monthly_coins,
+             u.tier, u.referrals, u.telegram_id
+      FROM users u
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+        AND ar.created_at >= $1
+      GROUP BY u.id
+      ORDER BY monthly_coins DESC
       LIMIT 50
-    `);
+    `, [firstOfMonth]);
+    
     res.json(result.rows);
   } catch (err) {
     console.error('Top earners error:', err);
@@ -876,6 +883,9 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
   }
 });
 
+// ============================================
+// LEADERBOARD: Weekly Top Referrals (Resets Sunday)
+// ============================================
 app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -1396,27 +1406,41 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
 // ADMIN: Award Monthly/Weekly Prizes (AUTOMATIC)
 // ============================================
 
+// ============================================
+// ADMIN: Award Monthly Prizes (Based on THIS Month's Earnings)
+// ============================================
 app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    const topEarners = await client.query(`
-      SELECT id, first_name, coins FROM users
-      ORDER BY coins DESC
-      LIMIT 3
-    `);
+    // Get first day of current month
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     
-    const prizes = [1000, 500, 200]; // 1st, 2nd, 3rd place COINS
+    // Get top 3 earners for THIS MONTH ONLY
+    const topEarners = await client.query(`
+      SELECT u.id, u.first_name, COALESCE(SUM(ar.reward_amount), 0) as monthly_coins
+      FROM users u
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+        AND ar.created_at >= $1
+      GROUP BY u.id
+      ORDER BY monthly_coins DESC
+      LIMIT 3
+    `, [firstOfMonth]);
+    
+    const prizes = [1000, 500, 200];
     
     for (let i = 0; i < topEarners.rows.length; i++) {
       const user = topEarners.rows[i];
       const prize = prizes[i];
-      await client.query(
-        'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
-        [prize, user.id]
-      );
-      console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name}`);
+      if (user.monthly_coins > 0) { // Only award if they actually earned something
+        await client.query(
+          'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+          [prize, user.id]
+        );
+        console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name} (earned ${user.monthly_coins} this month)`);
+      }
     }
     
     await client.query('COMMIT');
@@ -1430,6 +1454,9 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
   }
 });
 
+// ============================================
+// ADMIN: Award Weekly Prizes (Top Referrers)
+// ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1445,16 +1472,18 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       LIMIT 3
     `);
     
-    const prizes = [100, 50, 25]; // 1st, 2nd, 3rd place COINS
+    const prizes = [100, 50, 25];
     
     for (let i = 0; i < topReferrers.rows.length; i++) {
       const user = topReferrers.rows[i];
       const prize = prizes[i];
-      await client.query(
-        'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
-        [prize, user.id]
-      );
-      console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name}`);
+      if (user.referral_count > 0) {
+        await client.query(
+          'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+          [prize, user.id]
+        );
+        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals)`);
+      }
     }
     
     await client.query('COMMIT');
