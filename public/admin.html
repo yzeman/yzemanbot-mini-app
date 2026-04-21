@@ -42,7 +42,6 @@
             position: absolute; top: 18px; left: 18px;
             color: white; font-size: 20px; text-decoration: none; z-index: 10;
         }
-        /* Stats Cards */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -60,7 +59,6 @@
         .stat-card:hover { transform: scale(1.02); }
         .stat-value { font-size: 22px; font-weight: bold; color: var(--gold); }
         .stat-label { font-size: 9px; color: var(--gray); margin-top: 3px; }
-        /* Tabs */
         .tabs {
             display: flex;
             background: var(--darker);
@@ -89,7 +87,6 @@
         .tab.active { background: var(--danger); color: white; }
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
-        /* Search Bar */
         .search-bar { padding: 0 0 15px; }
         .search-input {
             width: 100%; padding: 12px 15px; border-radius: 25px;
@@ -97,13 +94,11 @@
             color: white; font-size: 13px;
         }
         .search-input:focus { outline: none; border-color: var(--danger); }
-        /* Section Title */
         .section-title {
             font-size: 14px; font-weight: 600; margin: 15px 0 10px;
             display: flex; align-items: center; gap: 6px;
         }
         .section-title i { color: var(--gold); }
-        /* Lists */
         .user-list, .withdrawal-list, .team-list, .bonus-list {
             max-height: 400px;
             overflow-y: auto;
@@ -116,7 +111,6 @@
             transition: all 0.2s;
         }
         .user-item:hover, .withdrawal-item:hover, .team-item:hover { background: rgba(255,255,255,0.08); }
-        /* User Header */
         .user-header {
             display: flex;
             align-items: center;
@@ -137,7 +131,6 @@
             background: var(--gold); color: var(--dark);
             padding: 3px 8px; border-radius: 15px; font-size: 10px; font-weight: bold;
         }
-        /* User Stats - 4 columns */
         .user-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -152,7 +145,6 @@
         }
         .user-stat-value { font-size: 12px; font-weight: bold; color: var(--gold); }
         .user-stat-label { font-size: 7px; color: var(--gray); }
-        /* User Actions */
         .user-actions {
             display: flex;
             gap: 6px;
@@ -176,7 +168,6 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-secondary { background: var(--secondary); color: white; }
         .btn-info { background: #17a2b8; color: white; }
-        /* User Detail Modal */
         .user-detail-modal {
             display: none;
             position: fixed;
@@ -235,7 +226,6 @@
             border-radius: 12px;
             cursor: pointer;
         }
-        /* Withdrawal Item */
         .withdrawal-header {
             display: flex;
             justify-content: space-between;
@@ -258,7 +248,6 @@
             font-family: monospace; word-break: break-all;
             margin-bottom: 8px;
         }
-        /* Team Item */
         .team-header {
             display: flex;
             align-items: center;
@@ -288,7 +277,6 @@
             font-size: 11px;
         }
         .remove-member-icon { color: var(--danger); cursor: pointer; padding: 3px 6px; }
-        /* Bonus Code Section */
         .bonus-form {
             background: var(--darker);
             border-radius: 14px;
@@ -313,9 +301,8 @@
             gap: 8px;
         }
         .bonus-code { font-weight: bold; color: var(--gold); font-family: monospace; font-size: 14px; }
-        .bonus-reward { color: var(--success); font-size: 12px; }
+        .bonus-coins { color: var(--success); font-size: 12px; }
         .delete-bonus-btn { color: var(--danger); cursor: pointer; padding: 5px; }
-        /* Analytics */
         .analytics-row {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -330,7 +317,6 @@
         }
         .analytics-value { font-size: 20px; font-weight: bold; color: var(--gold); }
         .analytics-label { font-size: 9px; color: var(--gray); }
-        /* Modals */
         .modal {
             display: none;
             position: fixed;
@@ -399,7 +385,6 @@
         <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
         <p>Manage users, withdrawals, teams & bonus codes</p>
     </div>
-    <!-- Stats Cards -->
     <div class="stats-grid">
         <div class="stat-card" onclick="document.querySelector('.tab[data-tab=users]').click()">
             <div class="stat-value" id="totalUsers">0</div>
@@ -434,7 +419,6 @@
             <div class="stat-label">Active Week</div>
         </div>
     </div>
-    <!-- Tabs -->
     <div class="tabs">
         <div class="tab active" data-tab="users"><i class="fas fa-users"></i> Users</div>
         <div class="tab" data-tab="withdrawals"><i class="fas fa-wallet"></i> Withdrawals</div>
@@ -442,7 +426,6 @@
         <div class="tab" data-tab="bonus"><i class="fas fa-gift"></i> Bonus</div>
         <div class="tab" data-tab="analytics"><i class="fas fa-chart-bar"></i> Analytics</div>
     </div>
-    <!-- Users Tab -->
     <div class="tab-content active" id="usersTab">
         <div class="search-bar">
             <input type="text" class="search-input" id="userSearch" placeholder="🔍 Search by name, username or ID...">
@@ -451,7 +434,6 @@
             <div class="loading">Loading users...</div>
         </div>
     </div>
-    <!-- Withdrawals Tab -->
     <div class="tab-content" id="withdrawalsTab">
         <div class="search-bar">
             <input type="text" class="search-input" id="withdrawalSearch" placeholder="🔍 Search withdrawals...">
@@ -460,7 +442,6 @@
             <div class="loading">Loading withdrawals...</div>
         </div>
     </div>
-    <!-- Teams Tab -->
     <div class="tab-content" id="teamsTab">
         <div class="search-bar">
             <input type="text" class="search-input" id="teamSearch" placeholder="🔍 Search teams...">
@@ -469,7 +450,6 @@
             <div class="loading">Loading teams...</div>
         </div>
     </div>
-    <!-- Bonus Tab -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-form">
             <div class="section-title"><i class="fas fa-plus-circle"></i><span>Add New Bonus Code</span></div>
@@ -477,15 +457,9 @@
                 <label class="form-label">Bonus Code (UPPERCASE)</label>
                 <input type="text" class="form-input" id="newBonusCode" placeholder="e.g., WELCOME2024" maxlength="20" style="text-transform:uppercase;">
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">COINS Reward</label>
-                    <input type="number" class="form-input" id="newBonusCoins" placeholder="e.g., 100" min="0" step="0.01" value="0">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">OR Points</label>
-                    <input type="number" class="form-input" id="newBonusPoints" placeholder="e.g., 5000000" min="0" step="100000" value="0">
-                </div>
+            <div class="form-group">
+                <label class="form-label">COINS Reward</label>
+                <input type="number" class="form-input" id="newBonusCoins" placeholder="e.g., 100" min="0" step="0.001" value="0">
             </div>
             <div class="form-group">
                 <label class="form-label">Description (Optional)</label>
@@ -507,11 +481,10 @@
         <div style="margin-top:15px;padding:10px;background:rgba(255,215,0,0.1);border-radius:10px;">
             <p style="font-size:11px;color:var(--gray);">
                 <i class="fas fa-info-circle"></i> 
-                <strong>Note:</strong> Bonus codes are stored in the database. Users can redeem them immediately.
+                <strong>Note:</strong> Bonus codes are stored in the database. Users can redeem them once.
             </p>
         </div>
     </div>
-    <!-- Analytics Tab -->
     <div class="tab-content" id="analyticsTab">
         <div class="analytics-row">
             <div class="analytics-card"><div class="analytics-value" id="analyticsTotalUsers">0</div><div class="analytics-label">Total Users</div></div>
@@ -532,31 +505,29 @@
             <div class="loading">Loading...</div>
         </div>
     </div>
-    <!-- User Detail Modal -->
     <div class="user-detail-modal" id="userDetailModal">
         <div class="user-detail-content">
             <div id="userDetailContent"></div>
             <button class="close-detail-btn" onclick="closeUserDetail()"><i class="fas fa-times"></i> Close</button>
         </div>
     </div>
-    <!-- Modals -->
-    <div class="modal" id="addPointsModal">
+    <div class="modal" id="addCoinsModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-plus-circle"></i> Add COINS</div>
-            <input type="number" class="modal-input" id="addPointsAmount" placeholder="COINS amount" min="0.001" step="0.001">
+            <input type="number" class="modal-input" id="addCoinsAmount" placeholder="COINS amount" min="0.001" step="0.001">
             <div class="modal-actions">
-                <button class="modal-btn btn-secondary" onclick="closeAddPointsModal()">Cancel</button>
-                <button class="modal-btn btn-success" onclick="confirmAddPoints()">Add</button>
+                <button class="modal-btn btn-secondary" onclick="closeAddCoinsModal()">Cancel</button>
+                <button class="modal-btn btn-success" onclick="confirmAddCoins()">Add</button>
             </div>
         </div>
     </div>
-    <div class="modal" id="deductPointsModal">
+    <div class="modal" id="deductCoinsModal">
         <div class="modal-content">
             <div class="modal-title"><i class="fas fa-minus-circle"></i> Deduct COINS</div>
-            <input type="number" class="modal-input" id="deductPointsAmount" placeholder="COINS amount" min="0.001" step="0.001">
+            <input type="number" class="modal-input" id="deductCoinsAmount" placeholder="COINS amount" min="0.001" step="0.001">
             <div class="modal-actions">
-                <button class="modal-btn btn-secondary" onclick="closeDeductPointsModal()">Cancel</button>
-                <button class="modal-btn btn-danger" onclick="confirmDeductPoints()">Deduct</button>
+                <button class="modal-btn btn-secondary" onclick="closeDeductCoinsModal()">Cancel</button>
+                <button class="modal-btn btn-danger" onclick="confirmDeductCoins()">Deduct</button>
             </div>
         </div>
     </div>
@@ -573,9 +544,9 @@
     <div class="notification" id="notification"></div>
     <script>
         const ADMIN_TOKEN = 'Bearer admin123';
-        const POINTS_PER_COIN = 1000000;
         let currentUserId = null;
         let users = [], withdrawals = [], teams = [], bonusCodes = [];
+        
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
@@ -583,6 +554,14 @@
             notif.style.display = 'block';
             setTimeout(() => notif.style.display = 'none', 3000);
         }
+        
+        function formatCoins(amount) {
+            const num = parseFloat(amount) || 0;
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+            return num.toFixed(3);
+        }
+        
         async function apiCall(endpoint, method = 'GET', body = null) {
             const options = { method, headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN } };
             if (body) options.body = JSON.stringify(body);
@@ -590,7 +569,7 @@
             if (!response.ok) { const error = await response.text(); throw new Error(error); }
             return response.json();
         }
-        // Tab switching
+        
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -604,9 +583,9 @@
                 if (tab.dataset.tab === 'analytics') loadAnalytics();
             });
         });
-        // ========== USER DETAIL ==========
+        
         function openUserDetail(user) {
-            const coins = (user.points || 0) / POINTS_PER_COIN;
+            const coins = parseFloat(user.coins) || 0;
             const userSince = new Date(user.created_at).toLocaleDateString();
             const lastActive = user.last_login_date || 'Never';
             document.getElementById('userDetailContent').innerHTML = `
@@ -617,7 +596,7 @@
                         <p>@${user.username || 'no username'} • ID: ${user.telegram_id}</p>
                     </div>
                 </div>
-                <div class="detail-row"><span class="detail-label">💰 Balance</span><span class="detail-value">${coins.toFixed(2)} COINS</span></div>
+                <div class="detail-row"><span class="detail-label">💰 Balance</span><span class="detail-value">${formatCoins(coins)} COINS</span></div>
                 <div class="detail-row"><span class="detail-label">👑 Tier</span><span class="detail-value">${user.tier || 'Fresher'}</span></div>
                 <div class="detail-row"><span class="detail-label">👥 Referrals</span><span class="detail-value">${user.referrals || 0}</span></div>
                 <div class="detail-row"><span class="detail-label">📺 Ads Watched</span><span class="detail-value">${user.total_ads || 0}</span></div>
@@ -630,7 +609,7 @@
             document.getElementById('userDetailModal').style.display = 'flex';
         }
         function closeUserDetail() { document.getElementById('userDetailModal').style.display = 'none'; }
-        // ========== USERS ==========
+        
         async function loadUsers() {
             try {
                 users = await apiCall('/api/admin/users');
@@ -640,11 +619,12 @@
                 document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>';
             }
         }
+        
         function renderUserList(userArray) {
             const container = document.getElementById('userList');
             if (!userArray.length) { container.innerHTML = '<div class="empty-state">No users found</div>'; return; }
             container.innerHTML = userArray.map(user => {
-                const coins = (user.points || 0) / POINTS_PER_COIN;
+                const coins = parseFloat(user.coins) || 0;
                 const hasTeam = user.team_id ? 'Yes' : 'No';
                 const tierColor = user.tier === 'Platinum' ? '💎' : user.tier === 'Gold' ? '🥇' : user.tier === 'Silver' ? '🥈' : '🟢';
                 const adsWatched = user.total_ads || 0;
@@ -661,14 +641,14 @@
                             </div>
                         </div>
                         <div class="user-stats">
-                            <div class="user-stat"><div class="user-stat-value">${coins.toFixed(2)}</div><div class="user-stat-label">COINS</div></div>
+                            <div class="user-stat"><div class="user-stat-value">${formatCoins(coins)}</div><div class="user-stat-label">COINS</div></div>
                             <div class="user-stat"><div class="user-stat-value">${user.referrals || 0}</div><div class="user-stat-label">Refs</div></div>
                             <div class="user-stat"><div class="user-stat-value">${adsWatched}</div><div class="user-stat-label">Ads</div></div>
                             <div class="user-stat"><div class="user-stat-value">${hasTeam}</div><div class="user-stat-label">Team</div></div>
                         </div>
                         <div class="user-actions">
-                            <button class="action-btn btn-success" onclick="event.stopPropagation();openAddPointsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
-                            <button class="action-btn btn-warning" onclick="event.stopPropagation();openDeductPointsModal(${user.id})"><i class="fas fa-minus"></i> Deduct</button>
+                            <button class="action-btn btn-success" onclick="event.stopPropagation();openAddCoinsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
+                            <button class="action-btn btn-warning" onclick="event.stopPropagation();openDeductCoinsModal(${user.id})"><i class="fas fa-minus"></i> Deduct</button>
                             <button class="action-btn btn-info" onclick="event.stopPropagation();viewUserReferrals(${user.id})"><i class="fas fa-users"></i> Refs</button>
                             <button class="action-btn btn-danger" onclick="event.stopPropagation();openDeleteUserModal(${user.id}, '${user.first_name || 'User'}')"><i class="fas fa-trash"></i> Delete</button>
                         </div>
@@ -676,27 +656,31 @@
                 `;
             }).join('');
         }
+        
         async function viewUserReferrals(userId) { const user = users.find(u => u.id === userId); if (user) showNotification(`${user.first_name || 'User'} has ${user.referrals || 0} referrals`); }
-        function openAddPointsModal(userId) { currentUserId = userId; document.getElementById('addPointsModal').style.display = 'flex'; }
-        function closeAddPointsModal() { document.getElementById('addPointsModal').style.display = 'none'; }
-        async function confirmAddPoints() {
-            const coins = parseFloat(document.getElementById('addPointsAmount').value);
+        
+        function openAddCoinsModal(userId) { currentUserId = userId; document.getElementById('addCoinsModal').style.display = 'flex'; }
+        function closeAddCoinsModal() { document.getElementById('addCoinsModal').style.display = 'none'; document.getElementById('addCoinsAmount').value = ''; }
+        async function confirmAddCoins() {
+            const coins = parseFloat(document.getElementById('addCoinsAmount').value);
             if (!coins || coins <= 0) { showNotification('Enter valid amount', true); return; }
             try {
-                await apiCall('/api/admin/add-points', 'POST', { userId: currentUserId, points: Math.floor(coins * POINTS_PER_COIN) });
-                showNotification(`Added ${coins} COINS`); closeAddPointsModal(); document.getElementById('addPointsAmount').value = ''; loadUsers();
+                await apiCall('/api/admin/add-coins', 'POST', { userId: currentUserId, coins });
+                showNotification(`Added ${coins} COINS`); closeAddCoinsModal(); loadUsers();
             } catch { showNotification('Failed', true); }
         }
-        function openDeductPointsModal(userId) { currentUserId = userId; document.getElementById('deductPointsModal').style.display = 'flex'; }
-        function closeDeductPointsModal() { document.getElementById('deductPointsModal').style.display = 'none'; }
-        async function confirmDeductPoints() {
-            const coins = parseFloat(document.getElementById('deductPointsAmount').value);
+        
+        function openDeductCoinsModal(userId) { currentUserId = userId; document.getElementById('deductCoinsModal').style.display = 'flex'; }
+        function closeDeductCoinsModal() { document.getElementById('deductCoinsModal').style.display = 'none'; document.getElementById('deductCoinsAmount').value = ''; }
+        async function confirmDeductCoins() {
+            const coins = parseFloat(document.getElementById('deductCoinsAmount').value);
             if (!coins || coins <= 0) { showNotification('Enter valid amount', true); return; }
             try {
-                await apiCall('/api/admin/deduct-points', 'POST', { userId: currentUserId, points: Math.floor(coins * POINTS_PER_COIN) });
-                showNotification(`Deducted ${coins} COINS`); closeDeductPointsModal(); document.getElementById('deductPointsAmount').value = ''; loadUsers();
+                await apiCall('/api/admin/deduct-coins', 'POST', { userId: currentUserId, coins });
+                showNotification(`Deducted ${coins} COINS`); closeDeductCoinsModal(); loadUsers();
             } catch { showNotification('Failed', true); }
         }
+        
         let deleteUserId = null;
         function openDeleteUserModal(userId, userName) {
             deleteUserId = userId;
@@ -709,7 +693,7 @@
             try { await apiCall('/api/admin/delete-user', 'POST', { userId: deleteUserId }); showNotification('User deleted'); closeDeleteUserModal(); loadUsers(); loadTeams(); updateStats(); } 
             catch { showNotification('Failed', true); }
         }
-        // ========== WITHDRAWALS ==========
+        
         async function loadWithdrawals() {
             try { withdrawals = await apiCall('/api/admin/withdrawals'); renderWithdrawalList(withdrawals); updateStats(); } 
             catch { document.getElementById('withdrawalList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
@@ -724,14 +708,14 @@
         }
         async function approveWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'approved' }); showNotification('Approved'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
         async function rejectWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'rejected' }); showNotification('Rejected'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
-        // ========== TEAMS ==========
+        
         async function loadTeams() { try { teams = await apiCall('/api/team/leaderboard'); renderTeamList(teams); updateStats(); } catch { document.getElementById('teamList').innerHTML = '<div class="empty-state">Failed to load teams</div>'; } }
         function renderTeamList(teamArray) {
             const container = document.getElementById('teamList');
             if (!teamArray.length) { container.innerHTML = '<div class="empty-state">No teams found</div>'; return; }
             container.innerHTML = teamArray.map(team => {
-                const totalCoins = (team.total_points || 0) / POINTS_PER_COIN;
-                return `<div class="team-item"><div class="team-header"><div class="team-avatar"><i class="fas fa-users"></i></div><div class="team-info"><div class="team-name">${team.name}</div><div class="team-meta">👑 ${team.leader_name || 'Unknown'} • ${team.member_count} members • ${totalCoins.toFixed(2)} COINS</div></div><button class="action-btn btn-danger" style="width:auto;padding:5px 10px;" onclick="deleteTeam(${team.id})"><i class="fas fa-trash"></i></button></div><button class="action-btn btn-secondary" style="width:100%;margin-top:5px;" onclick="toggleTeamMembers(${team.id})"><i class="fas fa-chevron-down"></i> View Members</button><div class="team-members-list" id="teamMembers-${team.id}" style="display:none;"></div></div>`;
+                const totalCoins = parseFloat(team.total_coins) || 0;
+                return `<div class="team-item"><div class="team-header"><div class="team-avatar"><i class="fas fa-users"></i></div><div class="team-info"><div class="team-name">${team.name}</div><div class="team-meta">👑 ${team.leader_name || 'Unknown'} • ${team.member_count} members • ${formatCoins(totalCoins)} COINS</div></div><button class="action-btn btn-danger" style="width:auto;padding:5px 10px;" onclick="deleteTeam(${team.id})"><i class="fas fa-trash"></i></button></div><button class="action-btn btn-secondary" style="width:100%;margin-top:5px;" onclick="toggleTeamMembers(${team.id})"><i class="fas fa-chevron-down"></i> View Members</button><div class="team-members-list" id="teamMembers-${team.id}" style="display:none;"></div></div>`;
             }).join('');
         }
         async function toggleTeamMembers(teamId) {
@@ -742,14 +726,17 @@
                     const response = await fetch(`/api/team/info`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ teamId }) });
                     const data = await response.json();
                     if (data.members && data.members.length) {
-                        container.innerHTML = data.members.map(m => `<div class="team-member-item"><span>${m.first_name || m.username || 'User'} ${m.is_leader ? '👑' : ''}</span><span>${((m.points || 0) / POINTS_PER_COIN).toFixed(2)} COINS</span>${!m.is_leader ? `<i class="fas fa-times remove-member-icon" onclick="forceRemoveMember(${teamId}, ${m.telegram_id})"></i>` : ''}</div>`).join('');
+                        container.innerHTML = data.members.map(m => {
+                            const memberCoins = parseFloat(m.coins) || 0;
+                            return `<div class="team-member-item"><span>${m.first_name || m.username || 'User'} ${m.is_leader ? '👑' : ''}</span><span>${formatCoins(memberCoins)} COINS</span>${!m.is_leader ? `<i class="fas fa-times remove-member-icon" onclick="forceRemoveMember(${teamId}, ${m.telegram_id})"></i>` : ''}</div>`;
+                        }).join('');
                     } else container.innerHTML = '<div class="empty-state">No members found</div>';
                 } catch { container.innerHTML = '<div class="empty-state">Failed to load members</div>'; }
             } else container.style.display = 'none';
         }
         async function forceRemoveMember(teamId, memberTelegramId) { if (!confirm('Remove this member?')) return; try { await apiCall('/api/team/remove-member', 'POST', { teamId, memberTelegramId }); showNotification('Member removed'); loadTeams(); } catch { showNotification('Failed', true); } }
         async function deleteTeam(teamId) { if (!confirm('Delete this team?')) return; try { await apiCall('/api/admin/delete-team', 'POST', { teamId }); showNotification('Team deleted'); loadTeams(); loadUsers(); } catch { showNotification('Failed', true); } }
-        // ========== BONUS CODES (FIXED) ==========
+        
         async function loadBonusCodesDB() { 
             try { 
                 const response = await fetch('/api/admin/bonus-codes', { headers: { 'Authorization': ADMIN_TOKEN } }); 
@@ -760,27 +747,27 @@
         function renderBonusListDB() { 
             const container = document.getElementById('bonusList'); 
             if (!bonusCodes.length) { container.innerHTML = '<div class="empty-state">No bonus codes yet.</div>'; return; } 
-            container.innerHTML = bonusCodes.map(c => `<div class="bonus-item"><div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div><div style="display:flex;align-items:center;gap:10px;"><span class="bonus-reward">${(c.points / POINTS_PER_COIN).toFixed(2)} COINS</span><i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i></div></div>`).join(''); 
+            container.innerHTML = bonusCodes.map(c => {
+                const coins = parseFloat(c.coins) || 0;
+                return `<div class="bonus-item"><div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div><div style="display:flex;align-items:center;gap:10px;"><span class="bonus-coins">${formatCoins(coins)} COINS</span><i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i></div></div>`;
+            }).join(''); 
         }
         async function addBonusCodeDB() {
             const code = document.getElementById('newBonusCode').value.trim().toUpperCase();
             const coins = parseFloat(document.getElementById('newBonusCoins').value) || 0;
-            const points = parseInt(document.getElementById('newBonusPoints').value) || 0;
             const desc = document.getElementById('newBonusDesc').value.trim();
             if (!code) { showNotification('Enter a code', true); return; }
-            const totalPoints = Math.floor(coins * POINTS_PER_COIN) + points;
-            if (totalPoints <= 0) { showNotification('Enter a reward amount', true); return; }
+            if (coins <= 0) { showNotification('Enter a reward amount', true); return; }
             try {
                 const response = await fetch('/api/admin/bonus-codes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN },
-                    body: JSON.stringify({ code, points: totalPoints, description: desc || `${coins} COINS` })
+                    body: JSON.stringify({ code, coins, description: desc || `${coins} COINS` })
                 });
                 if (response.ok) {
                     showNotification(`Bonus code ${code} added`);
                     document.getElementById('newBonusCode').value = '';
                     document.getElementById('newBonusCoins').value = '0';
-                    document.getElementById('newBonusPoints').value = '0';
                     document.getElementById('newBonusDesc').value = '';
                     loadBonusCodesDB();
                 } else {
@@ -804,7 +791,7 @@
                 }
             } catch (e) { showNotification('Network error', true); }
         }
-        // ========== ANALYTICS & STATS ==========
+        
         async function loadAnalytics() {
             try {
                 const data = await apiCall('/api/admin/analytics');
@@ -817,23 +804,30 @@
                 document.getElementById('activeToday').textContent = data.activeToday || 0;
                 document.getElementById('activeWeek').textContent = data.activeWeek || 0;
                 document.getElementById('totalReferrals').textContent = data.totalReferrals || 0;
+                
                 const tierDiv = document.getElementById('tierDistribution');
                 if (data.tierDistribution && data.tierDistribution.length) {
                     tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
                 } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
+                
                 const dailyDiv = document.getElementById('dailyActive');
                 if (data.dailyActive && data.dailyActive.length) {
                     dailyDiv.innerHTML = data.dailyActive.map(d => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${d.last_login_date}</span><span style="color:var(--gold);">${d.count}</span></div>`).join('');
                 } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
+                
                 try {
                     const topEarners = await apiCall('/api/leaderboard/top-earners');
                     const topDiv = document.getElementById('topEarnersList');
                     if (topEarners && topEarners.length) {
-                        topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${((user.points || 0) / POINTS_PER_COIN).toFixed(2)} COINS</span></div>`).join('');
+                        topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => {
+                            const coins = parseFloat(user.coins) || parseFloat(user.monthly_coins) || 0;
+                            return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${formatCoins(coins)} COINS</span></div>`;
+                        }).join('');
                     } else topDiv.innerHTML = '<div class="empty-state">No data</div>';
                 } catch(e) { console.error('Top earners error:', e); }
             } catch (err) { console.error('Analytics error:', err); }
         }
+        
         function updateStats() {
             document.getElementById('totalUsers').textContent = users.length;
             document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
@@ -842,10 +836,11 @@
             document.getElementById('totalReferrals').textContent = totalRefs;
             document.getElementById('activeToday').textContent = users.filter(u => u.last_login_date === new Date().toISOString().split('T')[0]).length;
         }
-        // Search
+        
         document.getElementById('userSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderUserList(users.filter(u => (u.first_name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) || String(u.telegram_id).includes(q))); });
         document.getElementById('withdrawalSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderWithdrawalList(withdrawals.filter(w => (w.first_name||'').toLowerCase().includes(q) || (w.username||'').toLowerCase().includes(q) || (w.wallet_address||'').toLowerCase().includes(q))); });
         document.getElementById('teamSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderTeamList(teams.filter(t => t.name.toLowerCase().includes(q) || (t.leader_name||'').toLowerCase().includes(q))); });
+        
         window.onclick = e => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; if (e.target.classList.contains('user-detail-modal')) e.target.style.display = 'none'; };
         document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodesDB(); });
     </script>
