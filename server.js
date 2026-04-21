@@ -1443,6 +1443,15 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
   }
 });
 
+app.get('/api/tournament/test-db', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT 1 as test');
+        res.json({ db: 'connected', result: result.rows });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ============================================
 // ADMIN ENDPOINTS (UPDATED FOR COINS)
 // ============================================
