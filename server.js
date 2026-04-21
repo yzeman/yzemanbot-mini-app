@@ -1181,25 +1181,63 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   try {
     const { teamCode } = req.body;
     const telegramId = req.telegramUser.id;
-    if (!teamCode || teamCode.trim().length < 4) return res.status(400).json({ error: 'Invalid team code' });
-    const userResult = await client.query('SELECT id, team_id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    
+    if (!teamCode || teamCode.trim().length < 4) {
+      return res.status(400).json({ error: 'Invalid team code' });
+    }
+    
+    const userResult = await client.query(
+      'SELECT id, team_id, coins FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
     const userId = userResult.rows[0].id;
-    if (userResult.rows[0].team_id) return res.status(400).json({ error: 'You are already in a team' });
-    const teamResult = await client.query('SELECT * FROM teams WHERE code = $1', [teamCode.trim().toUpperCase()]);
-    if (teamResult.rows.length === 0) return res.status(404).json({ error: 'Team not found' });
+    const userCoins = parseFloat(userResult.rows[0].coins) || 0;
+    
+    if (userResult.rows[0].team_id) {
+      return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
+    }
+    
+    const teamResult = await client.query(
+      'SELECT * FROM teams WHERE code = $1',
+      [teamCode.trim().toUpperCase()]
+    );
+    
+    if (teamResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
+    }
+    
     const team = teamResult.rows[0];
+    
     await client.query('BEGIN');
-    await client.query('INSERT INTO team_members (team_id, user_id) VALUES ($1, $2)', [team.id, userId]);
-    await client.query('UPDATE users SET team_id = $1 WHERE id = $2', [team.id, userId]);
+    
+    // Store the user's current coins as "coins_at_join"
+    await client.query(
+      'INSERT INTO team_members (team_id, user_id, coins_at_join) VALUES ($1, $2, $3)',
+      [team.id, userId, userCoins]
+    );
+    
+    await client.query(
+      'UPDATE users SET team_id = $1 WHERE id = $2',
+      [team.id, userId]
+    );
+    
     await awardAchievement(userId, 'Team Player', client);
+    
     await client.query('COMMIT');
+    
     res.json({ success: true, team });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Join team error:', err);
     res.status(500).json({ error: 'Failed to join team' });
-  } finally { client.release(); }
+  } finally {
+    client.release();
+  }
 });
 
 app.post('/api/team/info', verifyTelegramData, async (req, res) => {
@@ -1264,8 +1302,25 @@ app.post('/api/team/monthly-competition', async (req, res) => {
   try {
     const now = new Date();
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const result = await pool.query(`SELECT t.id, t.name, COALESCE(SUM(u.coins), 0) as team_coins, COUNT(tm.user_id) as member_count, COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name FROM teams t JOIN team_members tm ON t.id = tm.team_id JOIN users u ON tm.user_id = u.id GROUP BY t.id ORDER BY team_coins DESC LIMIT 10`);
-    res.json({ month: currentMonth, standings: result.rows });
+    
+    const result = await pool.query(`
+      SELECT 
+        t.id, t.name,
+        COALESCE(SUM(u.coins - tm.coins_at_join), 0) as team_coins,
+        COUNT(tm.user_id) as member_count,
+        COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name
+      FROM teams t
+      JOIN team_members tm ON t.id = tm.team_id
+      JOIN users u ON tm.user_id = u.id
+      GROUP BY t.id
+      ORDER BY team_coins DESC
+      LIMIT 10
+    `);
+    
+    res.json({
+      month: currentMonth,
+      standings: result.rows
+    });
   } catch (err) {
     console.error('Monthly competition error:', err);
     res.status(500).json({ error: 'Failed to fetch monthly standings' });
@@ -1674,6 +1729,115 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
     await client.query('ROLLBACK');
     console.error('Award tournament error:', err);
     res.status(500).json({ error: 'Failed to award tournament prizes' });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
+// ADMIN: Award Team Monthly Prizes (1st of Month @ Midnight)
+// ============================================
+app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    const now = new Date();
+    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    
+    console.log(`🏆 Awarding team prizes for month starting ${currentMonth}...`);
+    
+    // Get top 3 teams for the CURRENT month (based on coins earned this month)
+    const topTeams = await client.query(`
+      SELECT 
+        t.id, t.name,
+        COALESCE(SUM(u.coins - COALESCE(tm.coins_at_join, 0)), 0) as monthly_coins
+      FROM teams t
+      JOIN team_members tm ON t.id = tm.team_id
+      JOIN users u ON tm.user_id = u.id
+      GROUP BY t.id
+      ORDER BY monthly_coins DESC
+      LIMIT 3
+    `);
+    
+    if (topTeams.rows.length === 0) {
+      await client.query('ROLLBACK');
+      console.log('ℹ️ No teams found for monthly prize');
+      return res.json({ success: true, message: 'No teams to award', awarded: 0 });
+    }
+    
+    const prizes = [2500, 1000, 500]; // 1st, 2nd, 3rd place COINS per member
+    
+    let totalAwarded = 0;
+    
+    for (let i = 0; i < topTeams.rows.length; i++) {
+      const team = topTeams.rows[i];
+      const prizePerMember = prizes[i];
+      
+      if (team.monthly_coins <= 0) {
+        console.log(`⚠️ Team ${team.name} has 0 monthly coins, skipping prize`);
+        continue;
+      }
+      
+      // Get all CURRENT members of this team
+      const members = await client.query(
+        `SELECT u.id, u.first_name, u.telegram_id 
+         FROM team_members tm 
+         JOIN users u ON tm.user_id = u.id 
+         WHERE tm.team_id = $1`,
+        [team.id]
+      );
+      
+      console.log(`🏆 Team "${team.name}" placed #${i + 1} with ${team.monthly_coins} monthly coins`);
+      console.log(`   Awarding ${prizePerMember} COINS to ${members.rows.length} members...`);
+      
+      // Award prize to each member
+      for (const member of members.rows) {
+        await client.query(
+          'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+          [prizePerMember, member.id]
+        );
+        
+        totalAwarded++;
+        
+        // Send Telegram notification (optional)
+        const BOT_TOKEN = process.env.BOT_TOKEN;
+        if (BOT_TOKEN && member.telegram_id) {
+          const message = `🎉 *CONGRATULATIONS!* 🎉\n\n` +
+            `Your team *${team.name}* placed *#${i + 1}* in this month's team competition!\n\n` +
+            `🏆 You've been awarded *+${prizePerMember} COINS*!\n\n` +
+            `Keep earning with your team to win again next month! 🚀`;
+          
+          try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: member.telegram_id,
+                text: message,
+                parse_mode: 'Markdown'
+              })
+            });
+          } catch (e) {
+            console.error(`Failed to notify member ${member.telegram_id}:`, e.message);
+          }
+        }
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    console.log(`✅ Team prizes awarded successfully! Total members awarded: ${totalAwarded}`);
+    res.json({ 
+      success: true, 
+      awarded: totalAwarded,
+      teams: topTeams.rows.map((t, i) => ({ name: t.name, place: i + 1, prize: prizes[i] }))
+    });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('❌ Award team prizes error:', err);
+    res.status(500).json({ error: 'Failed to award team prizes: ' + err.message });
   } finally {
     client.release();
   }
