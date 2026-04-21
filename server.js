@@ -1600,10 +1600,14 @@ app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
   const { code, coins, description } = req.body;
   if (!code || coins === undefined) return res.status(400).json({ error: 'Code and coins required' });
   try {
-    const r = await pool.query('INSERT INTO bonus_codes (code, coins, description, is_active) VALUES ($1, $2, $3, true) RETURNING *', [code.toUpperCase(), coins, description]);
+    const r = await pool.query(
+      'INSERT INTO bonus_codes (code, coins, description, is_active) VALUES ($1, $2, $3, true) RETURNING *',
+      [code.toUpperCase(), coins, description || null]
+    );
     res.json(r.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Bonus code already exists' });
+    console.error('Add bonus code error:', err);
     res.status(500).json({ error: 'Failed to add bonus code' });
   }
 });
