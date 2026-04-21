@@ -527,197 +527,198 @@
     
     <div class="notification" id="notification"></div>
     
-    <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.ready(); tg.expand(); }
-        
-        let hasJoined = false;
-        
-        // Info box dismissal - resets every Monday
-        function shouldShowInfoBox() {
-            const dismissedWeek = localStorage.getItem('tournamentInfoDismissedWeek');
-            const currentWeek = getWeekNumber(new Date());
-            return dismissedWeek !== currentWeek.toString();
-        }
-        
-        function getWeekNumber(date) {
-            const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-            const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-            return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-        }
-        
-        function dismissInfoBox() {
-            const currentWeek = getWeekNumber(new Date());
-            localStorage.setItem('tournamentInfoDismissedWeek', currentWeek);
-            document.getElementById('infoBox').classList.add('dismissed');
-            showNotification('Info hidden until next Monday');
-        }
-        
-        function updateInfoBoxVisibility() {
-            const infoBox = document.getElementById('infoBox');
-            if (!shouldShowInfoBox()) {
-                infoBox.classList.add('dismissed');
-            } else {
-                infoBox.classList.remove('dismissed');
-            }
-        }
-        
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
-        }
-        
-        async function apiCall(endpoint, data = null) {
-            if (!tg?.initData) throw new Error('Not in Telegram');
-            
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData })
-            };
-            
-            const response = await fetch(endpoint, options);
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
-            }
-            return response.json();
-        }
-        
-        function updateTimer() {
-            const now = new Date();
-            const endOfWeek = new Date();
-            endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-            endOfWeek.setHours(23, 59, 59, 999);
-            
-            const diff = endOfWeek - now;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            
-            document.getElementById('tournamentTimer').textContent = `${days}d ${hours}h ${minutes}m`;
-        }
-        
-        function renderStandings(standings) {
-            const container = document.getElementById('standingsList');
-            
-            if (!standings || standings.length === 0) {
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No participants yet. Be the first to join!</p></div>';
-                return;
-            }
-            
-            container.innerHTML = standings.map((user, idx) => {
-                const rank = idx + 1;
-                const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-                const coins = (user.weekly_coins || 0).toFixed(2);
-                const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
-                
-                return `
-                    <div class="standings-item">
-                        <div class="rank ${rankClass}">#${rank}</div>
-                        <div class="avatar">
-                            ${user.photo_url ? `<img src="${user.photo_url}" alt="${user.first_name}">` : initial}
-                        </div>
-                        <div class="info">
-                            <div class="name">
-                                ${user.first_name || user.username || 'User'}
-                                <span class="tier-badge">${user.tier || 'Fresher'}</span>
-                            </div>
-                            <div class="username">${user.username ? '@' + user.username : ''}</div>
-                        </div>
-                        <div class="coins">${coins} <small>COINS</small></div>
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        function updateMyRank(data) {
-            const myRankCard = document.getElementById('myRankCard');
-            const joinBtn = document.getElementById('joinBtn');
-            const joinedBadge = document.getElementById('joinedBadge');
-            
-            hasJoined = data.has_joined;
-            
-            if (hasJoined) {
-                joinBtn.style.display = 'none';
-                joinedBadge.style.display = 'inline-flex';
-                
-                if (data.my_rank) {
-                    myRankCard.style.display = 'block';
-                    document.getElementById('myRank').textContent = `#${data.my_rank}`;
-                    
-                    const myCoins = (data.my_coins || 0).toFixed(2);
-                    document.getElementById('myCoins').textContent = myCoins;
-                    
-                    const myData = data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id);
-                    document.getElementById('myReferrals').textContent = myData?.referral_count || 0;
-                }
-            } else {
-                joinBtn.style.display = 'flex';
-                joinedBadge.style.display = 'none';
-                myRankCard.style.display = 'none';
-            }
-        }
-        
-        async function loadTournament() {
-    const container = document.getElementById('standingsList');
-    container.innerHTML = '<div class="loading">Loading tournament...</div>';
+<script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
     
-    try {
-        const data = await apiCall('/api/tournament/standings');
-        renderStandings(data.standings);
-        updateMyRank(data);
-    } catch (err) {
-        console.error('Tournament error:', err);
-        // Try to parse error message
-        let errorMsg = err.message;
-        try {
-            const parsed = JSON.parse(err.message);
-            errorMsg = parsed.error || parsed.message || err.message;
-        } catch (e) {}
-        
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-circle"></i>
-                <p>Failed to load tournament</p>
-                <p style="font-size:11px; margin-top:5px; color: #ff5252;">${errorMsg}</p>
-                <button class="retry-btn" onclick="loadTournament()">Retry</button>
-            </div>
-        `;
+    let hasJoined = false;
+    
+    // Info box dismissal - resets every Monday
+    function shouldShowInfoBox() {
+        const dismissedWeek = localStorage.getItem('tournamentInfoDismissedWeek');
+        const currentWeek = getWeekNumber(new Date());
+        return dismissedWeek !== currentWeek.toString();
     }
-}
+    
+    function getWeekNumber(date) {
+        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+        return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    }
+    
+    function dismissInfoBox() {
+        const currentWeek = getWeekNumber(new Date());
+        localStorage.setItem('tournamentInfoDismissedWeek', currentWeek);
+        document.getElementById('infoBox').classList.add('dismissed');
+        showNotification('Info hidden until next Monday');
+    }
+    
+    function updateInfoBoxVisibility() {
+        const infoBox = document.getElementById('infoBox');
+        if (!shouldShowInfoBox()) {
+            infoBox.classList.add('dismissed');
+        } else {
+            infoBox.classList.remove('dismissed');
+        }
+    }
+    
+    function showNotification(msg, isError = false) {
+        const notif = document.getElementById('notification');
+        notif.textContent = msg;
+        notif.className = 'notification' + (isError ? ' error' : '');
+        notif.style.display = 'block';
+        setTimeout(() => notif.style.display = 'none', 3000);
+    }
+    
+    async function apiCall(endpoint, data = null) {
+        if (!tg?.initData) throw new Error('Not in Telegram');
         
-        async function joinTournament() {
-            const joinBtn = document.getElementById('joinBtn');
-            joinBtn.disabled = true;
-            joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
-            
-            try {
-                await apiCall('/api/tournament/join');
-                showNotification('You joined the tournament! 🏆');
-                await loadTournament();
-            } catch (err) {
-                let msg = err.message;
-                try { msg = JSON.parse(msg).error; } catch(e) {}
-                showNotification(msg || 'Failed to join', true);
-                joinBtn.disabled = false;
-                joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
-            }
+        const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData })
+        };
+        
+        const response = await fetch(endpoint, options);
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(error);
+        }
+        return response.json();
+    }
+    
+    function updateTimer() {
+        const now = new Date();
+        const endOfWeek = new Date();
+        endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
+        endOfWeek.setHours(23, 59, 59, 999);
+        
+        const diff = endOfWeek - now;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        document.getElementById('tournamentTimer').textContent = `${days}d ${hours}h ${minutes}m`;
+    }
+    
+    function renderStandings(standings) {
+        const container = document.getElementById('standingsList');
+        
+        if (!standings || standings.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No participants yet. Be the first to join!</p></div>';
+            return;
         }
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🏆 Tournament page loading...');
-            updateTimer();
-            setInterval(updateTimer, 60000);
-            loadTournament();
-            updateInfoBoxVisibility();
+        container.innerHTML = standings.map((user, idx) => {
+            const rank = idx + 1;
+            const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+            // Convert to number safely
+            const coinsValue = parseFloat(user.weekly_coins) || 0;
+            const coins = coinsValue.toFixed(2);
+            const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
             
-            document.getElementById('joinBtn').addEventListener('click', joinTournament);
-        });
-    </script>
+            return `
+                <div class="standings-item">
+                    <div class="rank ${rankClass}">#${rank}</div>
+                    <div class="avatar">
+                        ${user.photo_url ? `<img src="${user.photo_url}" alt="${user.first_name}">` : initial}
+                    </div>
+                    <div class="info">
+                        <div class="name">
+                            ${user.first_name || user.username || 'User'}
+                            <span class="tier-badge">${user.tier || 'Fresher'}</span>
+                        </div>
+                        <div class="username">${user.username ? '@' + user.username : ''}</div>
+                    </div>
+                    <div class="coins">${coins} <small>COINS</small></div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function updateMyRank(data) {
+        const myRankCard = document.getElementById('myRankCard');
+        const joinBtn = document.getElementById('joinBtn');
+        const joinedBadge = document.getElementById('joinedBadge');
+        
+        hasJoined = data.has_joined;
+        
+        if (hasJoined) {
+            joinBtn.style.display = 'none';
+            joinedBadge.style.display = 'inline-flex';
+            
+            if (data.my_rank) {
+                myRankCard.style.display = 'block';
+                document.getElementById('myRank').textContent = `#${data.my_rank}`;
+                
+                const myCoinsValue = parseFloat(data.my_coins) || 0;
+                document.getElementById('myCoins').textContent = myCoinsValue.toFixed(2);
+                
+                const myData = data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id);
+                document.getElementById('myReferrals').textContent = myData?.referral_count || 0;
+            }
+        } else {
+            joinBtn.style.display = 'flex';
+            joinedBadge.style.display = 'none';
+            myRankCard.style.display = 'none';
+        }
+    }
+    
+    async function loadTournament() {
+        const container = document.getElementById('standingsList');
+        container.innerHTML = '<div class="loading">Loading tournament...</div>';
+        
+        try {
+            const data = await apiCall('/api/tournament/standings');
+            renderStandings(data.standings);
+            updateMyRank(data);
+        } catch (err) {
+            console.error('Tournament error:', err);
+            let errorMsg = err.message;
+            try {
+                const parsed = JSON.parse(err.message);
+                errorMsg = parsed.error || parsed.message || err.message;
+            } catch (e) {}
+            
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Failed to load tournament</p>
+                    <p style="font-size:11px; margin-top:5px; color: #ff5252;">${errorMsg}</p>
+                    <button class="retry-btn" onclick="loadTournament()">Retry</button>
+                </div>
+            `;
+        }
+    }
+    
+    async function joinTournament() {
+        const joinBtn = document.getElementById('joinBtn');
+        joinBtn.disabled = true;
+        joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
+        
+        try {
+            await apiCall('/api/tournament/join');
+            showNotification('You joined the tournament! 🏆');
+            await loadTournament();
+        } catch (err) {
+            let msg = err.message;
+            try { msg = JSON.parse(msg).error; } catch(e) {}
+            showNotification(msg || 'Failed to join', true);
+            joinBtn.disabled = false;
+            joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
+        }
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('🏆 Tournament page loading...');
+        updateTimer();
+        setInterval(updateTimer, 60000);
+        loadTournament();
+        updateInfoBoxVisibility();
+        
+        document.getElementById('joinBtn').addEventListener('click', joinTournament);
+    });
+</script>
 </body>
 </html>
