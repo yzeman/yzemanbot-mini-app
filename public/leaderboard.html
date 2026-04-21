@@ -16,9 +16,7 @@
             --gray: #888888;
             --gold: #FFD700;
         }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--dark);
@@ -26,7 +24,6 @@
             min-height: 100vh;
             padding-bottom: 80px;
         }
-        
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
             padding: 20px 15px 25px;
@@ -34,309 +31,93 @@
             text-align: center;
             position: relative;
         }
-        
-        .header h1 {
-            font-size: 26px;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
+        .header h1 { font-size: 26px; margin-bottom: 5px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .header h1 i { color: var(--gold); }
         .header p { color: var(--gray); font-size: 14px; }
-        
-        .back-btn-header {
-            position: absolute;
-            top: 20px; left: 20px;
-            color: white; font-size: 24px;
-            text-decoration: none; z-index: 10;
-        }
-        
-        /* Prize Label */
+        .back-btn-header { position: absolute; top: 20px; left: 20px; color: white; font-size: 24px; text-decoration: none; z-index: 10; }
         .prize-label {
             background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
-            color: var(--dark);
-            padding: 10px 20px;
-            border-radius: 30px;
-            font-size: 14px;
-            font-weight: bold;
-            display: inline-block;
-            margin-top: 12px;
+            color: var(--dark); padding: 10px 20px; border-radius: 30px;
+            font-size: 14px; font-weight: bold; display: inline-block; margin-top: 12px;
         }
-        
-        /* Reward Info Box */
         .reward-info {
-            background: rgba(255,215,0,0.1);
-            border: 1px solid var(--gold);
-            border-radius: 15px;
-            padding: 12px 15px;
-            margin: 15px 15px 0;
-            font-size: 13px;
-            color: var(--gray);
+            background: rgba(255,215,0,0.1); border: 1px solid var(--gold);
+            border-radius: 15px; padding: 12px 15px; margin: 15px 15px 0;
+            font-size: 13px; color: var(--gray);
         }
-        
         .reward-info i { color: var(--gold); margin-right: 8px; }
         .reward-info strong { color: var(--light); }
-        
-        /* Three Buttons */
-        .button-row {
-            display: flex;
-            gap: 10px;
-            padding: 20px 15px;
-        }
-        
+        .button-row { display: flex; gap: 10px; padding: 20px 15px; }
         .action-btn {
-            flex: 1;
-            background: var(--darker);
-            color: var(--gray);
-            border: none;
-            padding: 14px 10px;
-            border-radius: 15px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
+            flex: 1; background: var(--darker); color: var(--gray); border: none;
+            padding: 14px 10px; border-radius: 15px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s ease; display: flex;
+            align-items: center; justify-content: center; gap: 6px;
         }
-        
         .action-btn i { font-size: 16px; }
-        
-        .action-btn.active {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-        }
-        
-        /* Tier Dropdown */
-        .tier-selector {
-            padding: 0 15px 15px;
-            display: none;
-        }
-        
+        .action-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3); }
+        .tier-selector { padding: 0 15px 15px; display: none; }
         .tier-selector.show { display: block; }
-        
         .tier-select-btn {
-            background: var(--darker);
-            color: white;
-            border: 1px solid var(--gray);
-            padding: 12px 20px;
-            border-radius: 15px;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
+            background: var(--darker); color: white; border: 1px solid var(--gray);
+            padding: 12px 20px; border-radius: 15px; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between; width: 100%;
         }
-        
-        .tier-dropdown-menu {
-            background: var(--darker);
-            border: 1px solid var(--gray);
-            border-radius: 15px;
-            margin-top: 5px;
-            display: none;
-        }
-        
+        .tier-dropdown-menu { background: var(--darker); border: 1px solid var(--gray); border-radius: 15px; margin-top: 5px; display: none; }
         .tier-dropdown-menu.show { display: block; }
-        
-        .tier-option {
-            padding: 14px 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
+        .tier-option { padding: 14px 20px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
         .tier-option:hover { background: rgba(255,255,255,0.1); }
         .tier-option.active { background: var(--primary); color: white; }
-        
         .tier-icon { width: 10px; height: 10px; border-radius: 50%; }
-        
-        /* Leaderboard */
-        .leaderboard-container {
-            padding: 0 15px 20px;
-        }
-        
-        .section-title {
-            font-size: 15px;
-            font-weight: 600;
-            margin: 15px 0 10px;
-            color: var(--gray);
-        }
-        
+        .leaderboard-container { padding: 0 15px 20px; }
+        .section-title { font-size: 15px; font-weight: 600; margin: 15px 0 10px; color: var(--gray); }
         .section-title i { color: var(--gold); margin-right: 8px; }
-        
-        .leaderboard-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        
-        /* List Items */
+        .leaderboard-list { max-height: 400px; overflow-y: auto; }
         .leaderboard-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 15px;
-            background: var(--darker);
-            border-radius: 15px;
-            margin-bottom: 8px;
+            display: flex; align-items: center; padding: 12px 15px;
+            background: var(--darker); border-radius: 15px; margin-bottom: 8px;
         }
-        
-        .rank-badge {
-            width: 40px;
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            margin-right: 10px;
-        }
-        
-        .medal-badge {
-            font-size: 24px;
-            width: 40px;
-            text-align: center;
-            margin-right: 10px;
-        }
-        
+        .rank-badge { width: 40px; font-size: 18px; font-weight: bold; text-align: center; margin-right: 10px; }
+        .medal-badge { font-size: 24px; width: 40px; text-align: center; margin-right: 10px; }
         .avatar {
-            width: 42px; height: 42px;
-            border-radius: 50%;
-            background: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            margin-right: 12px;
-            color: white;
-            overflow: hidden;
-            font-weight: bold;
+            width: 42px; height: 42px; border-radius: 50%; background: var(--primary);
+            display: flex; align-items: center; justify-content: center; font-size: 18px;
+            margin-right: 12px; color: white; overflow: hidden; font-weight: bold;
         }
-        
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        
         .info { flex: 1; }
-        
-        .name-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-        
+        .name-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
         .name { font-weight: 600; font-size: 14px; }
-        
-        .tier-badge {
-            padding: 3px 10px;
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: bold;
-            color: var(--dark);
-        }
-        
+        .tier-badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; color: var(--dark); }
         .tier-Fresher .tier-badge { background: #888; }
         .tier-Brute .tier-badge { background: #FF9800; }
         .tier-Silver .tier-badge { background: #C0C0C0; }
         .tier-Gold .tier-badge { background: #FFD700; }
         .tier-Platinum .tier-badge { background: #E5E4E2; }
-        
-        .stats-row {
-            display: flex;
-            gap: 15px;
-            font-size: 11px;
-            color: var(--gray);
-        }
-        
+        .stats-row { display: flex; gap: 15px; font-size: 11px; color: var(--gray); }
         .stats-row i { margin-right: 3px; }
-        
-        .score {
-            font-weight: bold;
-            color: var(--gold);
-            font-size: 15px;
-            text-align: right;
-            min-width: 70px;
-        }
-        
-        .score small {
-            font-size: 10px;
-            color: var(--gray);
-            font-weight: normal;
-        }
-        
-        /* My Rank */
+        .score { font-weight: bold; color: var(--gold); font-size: 15px; text-align: right; min-width: 70px; }
+        .score small { font-size: 10px; color: var(--gray); font-weight: normal; }
         .my-rank-card {
             background: linear-gradient(135deg, var(--secondary) 0%, #1976D2 100%);
-            border-radius: 20px;
-            padding: 18px 20px;
-            margin: 20px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            border-radius: 20px; padding: 18px 20px; margin: 20px 15px;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        
         .my-rank-left { display: flex; align-items: center; gap: 15px; }
-        .my-rank-icon {
-            width: 50px; height: 50px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-        
+        .my-rank-icon { width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 24px; }
         .my-rank-info h4 { font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 5px; }
         .my-rank-value { font-size: 28px; font-weight: bold; }
         .my-rank-right { text-align: right; }
         .my-rank-coins { font-size: 22px; font-weight: bold; }
         .my-rank-label { font-size: 12px; color: rgba(255,255,255,0.7); }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--gray);
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: var(--gray);
-        }
-        
-        .retry-btn {
-            background: var(--secondary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-        
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: var(--darker); display: flex; padding: 10px 20px;
-            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
-        }
-        
-        .nav-item {
-            flex: 1; text-align: center; color: var(--gray);
-            text-decoration: none; font-size: 12px; padding: 8px;
-            border-radius: 10px;
-        }
-        
+        .loading { text-align: center; padding: 40px; color: var(--gray); }
+        .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        .retry-btn { background: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 14px; cursor: pointer; margin-top: 15px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--darker); display: flex; padding: 10px 20px; border-top: 1px solid rgba(255,255,255,0.1); z-index: 100; }
+        .nav-item { flex: 1; text-align: center; color: var(--gray); text-decoration: none; font-size: 12px; padding: 8px; border-radius: 10px; }
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
-        
-        .notification {
-            position: fixed; bottom: 90px; left: 20px; right: 20px;
-            background: #00c853; color: white; padding: 15px 20px;
-            border-radius: 12px; text-align: center; display: none; z-index: 1000;
-        }
-        
+        .notification { position: fixed; bottom: 90px; left: 20px; right: 20px; background: #00c853; color: white; padding: 15px 20px; border-radius: 12px; text-align: center; display: none; z-index: 1000; }
         .leaderboard-item.tier-Fresher { border-left: 4px solid #888; }
         .leaderboard-item.tier-Brute { border-left: 4px solid #FF9800; }
         .leaderboard-item.tier-Silver { border-left: 4px solid #C0C0C0; }
@@ -351,7 +132,7 @@
         <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
         <p>Compete with others and climb the ranks!</p>
         <div class="prize-label" id="prizeLabel">
-            <span><i class="fas fa-gift"></i> Monthly Prizes: 🥇500 • 🥈250 • 🥉100 COINS</span>
+            <span><i class="fas fa-gift"></i> Monthly Prizes: 🥇1000 • 🥈500 • 🥉200 COINS</span>
         </div>
     </div>
     
@@ -425,8 +206,7 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        const POINTS_PER_COIN = 1000000;
-        
+        // Coins only – no points conversion needed
         let currentView = 'earnings';
         let currentTier = 'all';
         let topEarnersData = [];
@@ -441,13 +221,11 @@
         
         async function apiCall(endpoint) {
             if (!tg?.initData) throw new Error('Not in Telegram');
-            
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ initData: tg.initData })
             });
-            
             if (!response.ok) throw new Error(`Status ${response.status}`);
             return response.json();
         }
@@ -462,6 +240,14 @@
             if (rank === 2) return '🥈';
             if (rank === 3) return '🥉';
             return `#${rank}`;
+        }
+        
+        // Format coins with appropriate decimals
+        function formatCoins(coins) {
+            const num = parseFloat(coins) || 0;
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+            return num.toFixed(2);
         }
         
         function renderLeaderboard(data, type) {
@@ -491,7 +277,9 @@
                     score = user.referral_count || 0;
                     scoreLabel = 'refs';
                 } else {
-                    score = ((user.points || 0) / POINTS_PER_COIN).toFixed(2);
+                    // API now returns coins directly (or may still return points in old data)
+                    const coins = user.coins !== undefined ? parseFloat(user.coins) : (user.points ? parseFloat(user.points) / 1000000 : 0);
+                    score = formatCoins(coins);
                     scoreLabel = 'COINS';
                 }
                 
@@ -508,7 +296,7 @@
                             </div>
                             <div class="stats-row">
                                 <span><i class="fas fa-user-plus"></i> ${user.referrals || 0}</span>
-                                <span><i class="fas fa-coins"></i> ${((user.points || 0) / POINTS_PER_COIN).toFixed(1)}</span>
+                                <span><i class="fas fa-coins"></i> ${formatCoins(user.coins || (user.points ? user.points/1000000 : 0))}</span>
                             </div>
                         </div>
                         <div class="score">${score} <small>${scoreLabel}</small></div>
@@ -530,7 +318,8 @@
                 document.getElementById('myRank').textContent = rankDisplay;
                 
                 if (type === 'earnings') {
-                    document.getElementById('myCoins').textContent = ((myData.points || 0) / POINTS_PER_COIN).toFixed(2);
+                    const coins = myData.coins !== undefined ? parseFloat(myData.coins) : (myData.points ? parseFloat(myData.points) / 1000000 : 0);
+                    document.getElementById('myCoins').textContent = formatCoins(coins);
                     document.getElementById('myCoinsLabel').textContent = 'COINS';
                 } else {
                     document.getElementById('myCoins').textContent = myData.referral_count || 0;
@@ -548,7 +337,7 @@
             const rewardInfo = document.getElementById('rewardInfoText');
             
             if (currentView === 'earnings') {
-                document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-gift"></i> Monthly Prizes: 🥇500 • 🥈250 • 🥉100 COINS</span>';
+                document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-gift"></i> Monthly Prizes: 🥇1000 • 🥈500 • 🥉200 COINS</span>';
                 rewardInfo.innerHTML = '<strong>Monthly Rewards:</strong> Distributed on the 1st of every month to top 3 earners.';
                 listTitle.innerHTML = '<i class="fas fa-list-ol"></i> All Time Rankings';
                 tierSelector.classList.remove('show');
@@ -670,4 +459,4 @@
         });
     </script>
 </body>
-    </html>
+</html>
