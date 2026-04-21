@@ -1401,7 +1401,6 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get top 3 earners of all time
     const topEarners = await client.query(`
       SELECT id, first_name, coins FROM users
       ORDER BY coins DESC
@@ -1436,7 +1435,6 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get top 3 referrers of the last 7 days
     const topReferrers = await client.query(`
       SELECT u.id, u.first_name, COUNT(r.id) as referral_count
       FROM users u
