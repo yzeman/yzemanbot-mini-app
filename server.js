@@ -76,7 +76,6 @@ async function initDB() {
     `);
 
     // ===== STEP 3: MIGRATE DATA FROM 'points' TO 'coins' =====
-    // Only run if 'points' column exists and has data
     const pointsColumnExists = await client.query(`
       SELECT EXISTS (
         SELECT 1 FROM information_schema.columns 
@@ -247,6 +246,29 @@ async function initDB() {
         user_id INTEGER NOT NULL REFERENCES users(id),
         joined_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(team_id, user_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS weekly_tournaments (
+        id SERIAL PRIMARY KEY,
+        week_start DATE NOT NULL,
+        week_end DATE NOT NULL,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tournament_participants (
+        id SERIAL PRIMARY KEY,
+        tournament_id INTEGER NOT NULL REFERENCES weekly_tournaments(id),
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        coins_earned DECIMAL(10,3) DEFAULT 0,
+        referral_count INTEGER DEFAULT 0,
+        rank INTEGER,
+        prize_awarded BOOLEAN DEFAULT FALSE,
+        UNIQUE(tournament_id, user_id)
       )
     `);
 
@@ -1308,6 +1330,112 @@ app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
   } catch (err) {
     console.error('Check team code error:', err);
     res.json({ exists: false });
+  }
+});
+
+// ============================================
+// TOURNAMENT API (FIXED FOR COINS)
+// ============================================
+
+app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    
+    const userId = userResult.rows[0].id;
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+    
+    let tournament = await client.query('SELECT * FROM weekly_tournaments WHERE week_start = $1', [weekStartStr]);
+    
+    if (tournament.rows.length === 0) {
+      const result = await client.query(
+        `INSERT INTO weekly_tournaments (week_start, week_end, is_active) VALUES ($1, $2, true) RETURNING *`,
+        [weekStartStr, weekEndStr]
+      );
+      tournament = result;
+    }
+    
+    const tournamentId = tournament.rows[0].id;
+    
+    const existing = await client.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+    
+    if (existing.rows.length > 0) return res.status(400).json({ error: 'Already joined this tournament' });
+    
+    await client.query(`INSERT INTO tournament_participants (tournament_id, user_id) VALUES ($1, $2)`, [tournamentId, userId]);
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Joined tournament!' });
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Tournament join error:', err);
+    res.status(500).json({ error: 'Failed to join tournament' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
+  try {
+    const telegramId = req.telegramUser.id;
+    
+    const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    
+    const userId = userResult.rows[0].id;
+    const today = new Date();
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - today.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    
+    const tournament = await pool.query('SELECT id FROM weekly_tournaments WHERE week_start = $1', [weekStartStr]);
+    if (tournament.rows.length === 0) {
+      return res.json({ standings: [], my_rank: null, my_coins: 0, has_joined: false });
+    }
+    
+    const tournamentId = tournament.rows[0].id;
+    const userJoined = await pool.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+    const hasJoined = userJoined.rows.length > 0;
+    
+    const standings = await pool.query(`
+      SELECT 
+        u.id, u.username, u.first_name, u.photo_url,
+        COALESCE(SUM(ar.reward_amount), 0) as weekly_coins, u.tier,
+        ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
+      FROM tournament_participants tp
+      JOIN users u ON tp.user_id = u.id
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at > NOW() - INTERVAL '7 days'
+      WHERE tp.tournament_id = $1
+      GROUP BY u.id
+      ORDER BY weekly_coins DESC
+    `, [tournamentId]);
+    
+    let myRank = null, myCoins = 0;
+    for (const row of standings.rows) {
+      if (row.id === userId) { myRank = row.rank; myCoins = parseFloat(row.weekly_coins); break; }
+    }
+    
+    res.json({ standings: standings.rows, my_rank: myRank, my_coins: myCoins, has_joined: hasJoined });
+    
+  } catch (err) {
+    console.error('Tournament standings error:', err);
+    res.status(500).json({ error: 'Failed to fetch standings' });
   }
 });
 
