@@ -1393,6 +1393,84 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// ADMIN: Award Monthly/Weekly Prizes (AUTOMATIC)
+// ============================================
+
+app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Get top 3 earners of all time
+    const topEarners = await client.query(`
+      SELECT id, first_name, coins FROM users
+      ORDER BY coins DESC
+      LIMIT 3
+    `);
+    
+    const prizes = [1000, 500, 200]; // 1st, 2nd, 3rd place COINS
+    
+    for (let i = 0; i < topEarners.rows.length; i++) {
+      const user = topEarners.rows[i];
+      const prize = prizes[i];
+      await client.query(
+        'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+        [prize, user.id]
+      );
+      console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name}`);
+    }
+    
+    await client.query('COMMIT');
+    res.json({ success: true, awarded: topEarners.rows.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Award monthly error:', err);
+    res.status(500).json({ error: 'Failed to award monthly prizes' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Get top 3 referrers of the last 7 days
+    const topReferrers = await client.query(`
+      SELECT u.id, u.first_name, COUNT(r.id) as referral_count
+      FROM users u
+      LEFT JOIN referrals r ON u.id = r.referrer_id 
+        AND r.created_at > NOW() - INTERVAL '7 days'
+      GROUP BY u.id
+      ORDER BY referral_count DESC
+      LIMIT 3
+    `);
+    
+    const prizes = [100, 50, 25]; // 1st, 2nd, 3rd place COINS
+    
+    for (let i = 0; i < topReferrers.rows.length; i++) {
+      const user = topReferrers.rows[i];
+      const prize = prizes[i];
+      await client.query(
+        'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+        [prize, user.id]
+      );
+      console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name}`);
+    }
+    
+    await client.query('COMMIT');
+    res.json({ success: true, awarded: topReferrers.rows.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Award weekly error:', err);
+    res.status(500).json({ error: 'Failed to award weekly prizes' });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
 // HEALTH CHECK
 // ============================================
 
