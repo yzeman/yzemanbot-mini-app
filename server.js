@@ -862,12 +862,17 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, username, first_name, photo_url, coins, tier, total_coins_earned, telegram_id, referrals
+      SELECT id, username, first_name, photo_url, 
+             COALESCE(coins, 0) as coins, 
+             tier, total_coins_earned, telegram_id, referrals
       FROM users
-      ORDER BY coins DESC
+      WHERE coins > 0 OR coins IS NULL
+      ORDER BY COALESCE(coins, 0) DESC
       LIMIT 50
     `);
-    res.json(result.rows);
+    // Filter out any remaining zero-coin users if needed (optional)
+    const filtered = result.rows.filter(u => parseFloat(u.coins) > 0);
+    res.json(filtered.length ? filtered : []);
   } catch (err) {
     console.error('Top earners error:', err);
     res.status(500).json({ error: 'Failed to fetch top earners' });
