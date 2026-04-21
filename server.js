@@ -884,21 +884,32 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
 });
 
 // ============================================
-// LEADERBOARD: Weekly Top Referrals (Resets Sunday)
+// LEADERBOARD: Weekly Top Referrals (RESETS EVERY SUNDAY)
 // ============================================
 app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
   try {
+    // Get the most recent Sunday at midnight
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+    const daysSinceSunday = dayOfWeek; // If today is Sunday, daysSinceSunday = 0
+    
+    const lastSunday = new Date(now);
+    lastSunday.setDate(now.getDate() - daysSinceSunday);
+    lastSunday.setHours(0, 0, 0, 0);
+    const lastSundayStr = lastSunday.toISOString();
+    
     const result = await pool.query(`
       SELECT 
         u.id, u.username, u.first_name, u.photo_url,
         COUNT(r.id) as referral_count, u.tier, u.coins, u.referrals
       FROM users u
       LEFT JOIN referrals r ON u.id = r.referrer_id 
-        AND r.created_at > NOW() - INTERVAL '7 days'
+        AND r.created_at >= $1
       GROUP BY u.id
       ORDER BY referral_count DESC
       LIMIT 50
-    `);
+    `, [lastSundayStr]);
+    
     res.json(result.rows);
   } catch (err) {
     console.error('Weekly referrers error:', err);
@@ -1403,10 +1414,6 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Monthly/Weekly Prizes (AUTOMATIC)
-// ============================================
-
-// ============================================
 // ADMIN: Award Monthly Prizes (Based on THIS Month's Earnings)
 // ============================================
 app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
@@ -1455,22 +1462,32 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Weekly Prizes (Top Referrers)
+// ADMIN: Award Weekly Prizes (Based on Sunday-to-Sunday Referrals)
 // ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
+    // Get the most recent Sunday at midnight (start of the week we're awarding for)
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysSinceSunday = dayOfWeek;
+    
+    const lastSunday = new Date(now);
+    lastSunday.setDate(now.getDate() - daysSinceSunday);
+    lastSunday.setHours(0, 0, 0, 0);
+    const lastSundayStr = lastSunday.toISOString();
+    
     const topReferrers = await client.query(`
       SELECT u.id, u.first_name, COUNT(r.id) as referral_count
       FROM users u
       LEFT JOIN referrals r ON u.id = r.referrer_id 
-        AND r.created_at > NOW() - INTERVAL '7 days'
+        AND r.created_at >= $1
       GROUP BY u.id
       ORDER BY referral_count DESC
       LIMIT 3
-    `);
+    `, [lastSundayStr]);
     
     const prizes = [100, 50, 25];
     
@@ -1482,7 +1499,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
-        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals)`);
+        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals this week)`);
       }
     }
     
