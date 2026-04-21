@@ -1,5 +1,5 @@
 // ============================================================
-// YZEMANBOT - BACKEND SERVER (COMPLETE)
+// YZEMANBOT - BACKEND SERVER (COMPLETE - FIXED)
 // COIN ECONOMY: 1 COIN = 1 UNIT (NO POINTS)
 // WITHDRAWAL: 100,000 COINS minimum
 // WITH 2% LIFETIME COMMISSION
@@ -203,6 +203,7 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
         user_id INTEGER NOT NULL REFERENCES users(id),
+        coins_at_join DECIMAL(20,3) DEFAULT 0,
         joined_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(team_id, user_id)
       )
@@ -285,6 +286,17 @@ async function initDB() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS user_monthly_earnings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        month_year DATE NOT NULL,
+        coins_earned DECIMAL(20,3) DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, month_year)
+      )
+    `);
+
+    await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, coins_reward) VALUES
         ('Loyal User', '30 day login streak', '🔥', 30, 100),
         ('Referral Master', 'Get 100 referrals', '👑', 100, 200),
@@ -331,7 +343,6 @@ async function trackMonthlyEarnings(client, userId, coinsEarned) {
 // ============================================
 // HELPER: Award 2% Commission to Referrer
 // ============================================
-
 async function awardReferralCommission(client, referredUserId, coinsEarned) {
     try {
         const referral = await client.query(
@@ -363,7 +374,6 @@ async function awardReferralCommission(client, referredUserId, coinsEarned) {
 // ============================================
 // HELPER: Award Achievement (UPDATED FOR COINS)
 // ============================================
-
 async function awardAchievement(userId, achievementName, clientParam = null) {
     const client = clientParam || await pool.connect();
     try {
@@ -419,7 +429,6 @@ async function awardAchievement(userId, achievementName, clientParam = null) {
 // ============================================
 // TELEGRAM VERIFICATION
 // ============================================
-
 async function verifyTelegramData(req, res, next) {
   if (!req.body?.initData) {
     return res.status(400).json({ error: 'Missing Telegram data' });
@@ -471,7 +480,6 @@ function verifyAdmin(req, res, next) {
 // ============================================
 // USER API ENDPOINT (UPDATED FOR COINS)
 // ============================================
-
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -564,6 +572,9 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               [refereeBonus, user.id]
             );
             
+            // Track monthly earnings for the bonus
+            await trackMonthlyEarnings(client, user.id, refereeBonus);
+            
             const newReferralCount = await client.query(
               'SELECT COUNT(*) FROM referrals WHERE referrer_id = $1',
               [referrerId]
@@ -622,7 +633,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
 // ============================================
 // AD REWARD ENDPOINT (WITH COMMISSION)
 // ============================================
-
 app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -668,7 +678,6 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 // ============================================
 // DAILY REWARD ENDPOINT (WITH COMMISSION)
 // ============================================
-
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -711,7 +720,7 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
       'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1, last_login_date = $2 WHERE id = $3',
       [finalReward, today, userId]
     );
-    await trackMonthlyEarnings(client, userId, rewardAmount);
+    await trackMonthlyEarnings(client, userId, finalReward);
     await awardReferralCommission(client, userId, finalReward);
     if (streak >= 7) await awardAchievement(userId, 'Daily Streak 7', client);
     if (streak >= 30) await awardAchievement(userId, 'Loyal User', client);
@@ -738,9 +747,7 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
     const claimedToday = await pool.query('SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2', [userId, today]);
     const last7Days = await pool.query(`SELECT reward_date, streak_count, reward_coins FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 7`, [userId]);
     const maxStreak = await pool.query(`SELECT COALESCE(MAX(streak_count), 0) as max_streak FROM daily_rewards WHERE user_id = $1`, [userId]);
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
-      
+    
     let currentStreak = 0;
     if (last7Days.rows.length > 0) {
       const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
@@ -763,7 +770,6 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
 // ============================================
 // WHEEL SPIN ENDPOINT (WITH COMMISSION)
 // ============================================
-
 app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -786,12 +792,12 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
     const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
     const multipliers = { Fresher: 1.0, Brute: 1.5, Silver: 2.0, Gold: 2.5, Platinum: 3.0 };
     const finalReward = rewardCoins * (multipliers[userTier.rows[0]?.tier] || 1.0);
-      
-    await trackMonthlyEarnings(client, userId, rewardAmount);
+    
     await client.query('BEGIN');
     await client.query('INSERT INTO wheel_spins (user_id, spin_date, reward_coins) VALUES ($1, $2, $3)', [userId, today, finalReward]);
     await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [finalReward, userId]);
     await awardReferralCommission(client, userId, finalReward);
+    await trackMonthlyEarnings(client, userId, finalReward);
     if (rewardCoins >= 20) await awardAchievement(userId, 'Wheel Champion', client);
     await client.query('COMMIT');
     
@@ -811,8 +817,6 @@ app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
     const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.json({ can_spin: true, days_left: 0, last_reward: 0 });
     const userId = userResult.rows[0].id;
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
     
     const lastSpin = await pool.query("SELECT spin_date, reward_coins FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1", [userId]);
     let canSpin = true, daysLeft = 0, lastReward = 0;
@@ -830,7 +834,6 @@ app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
 // ============================================
 // TASK COMPLETION ENDPOINT (WITH COMMISSION)
 // ============================================
-
 app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
   const { taskName, coins } = req.body;
   const telegramId = req.telegramUser.id;
@@ -843,11 +846,11 @@ app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
     
     const existing = await client.query('SELECT * FROM social_tasks WHERE user_id = $1 AND task_name = $2', [userId, taskName]);
     if (existing.rows.length > 0) throw new Error('Task already completed');
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
+    
     await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [coins, userId]);
     await client.query('INSERT INTO social_tasks (user_id, task_name) VALUES ($1, $2)', [userId, taskName]);
     await awardReferralCommission(client, userId, coins);
+    await trackMonthlyEarnings(client, userId, coins);
     
     const socialTasks = ['youtube1', 'youtube2', 'youtube3', 'facebook', 'instagram', 'telegram'];
     const completed = await client.query('SELECT task_name FROM social_tasks WHERE user_id = $1 AND task_name = ANY($2::text[])', [userId, socialTasks]);
@@ -883,10 +886,8 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
 // ============================================
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
-    // Get first day of current month
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    await trackMonthlyEarnings(client, userId, rewardAmount);
     
     const result = await pool.query(`
       SELECT u.id, u.username, u.first_name, u.photo_url,
@@ -912,13 +913,10 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
 // ============================================
 app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
   try {
-    // Get the most recent Sunday at midnight
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
-    const daysSinceSunday = dayOfWeek; // If today is Sunday, daysSinceSunday = 0
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
-      
+    const dayOfWeek = now.getDay();
+    const daysSinceSunday = dayOfWeek;
+    
     const lastSunday = new Date(now);
     lastSunday.setDate(now.getDate() - daysSinceSunday);
     lastSunday.setHours(0, 0, 0, 0);
@@ -966,7 +964,6 @@ app.post('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res
 // ============================================
 // ACHIEVEMENTS API
 // ============================================
-
 app.post('/api/achievements', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
@@ -974,9 +971,7 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const userId = userResult.rows[0].id;
     const user = userResult.rows[0];
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
-      
+    
     const achievements = await pool.query(`
       SELECT a.*, CASE WHEN ua.id IS NOT NULL THEN true ELSE false END as achieved, ua.achieved_at
       FROM achievements a
@@ -1016,14 +1011,11 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
     
     const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
-      
+    
     const userId = userResult.rows[0].id;
     const now = new Date();
     const dayOfWeek = now.getDay();
     
-    // Find the most recent Monday
     let daysSinceMonday = dayOfWeek - 1;
     if (daysSinceMonday < 0) daysSinceMonday += 7;
     
@@ -1037,28 +1029,24 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
     weekEnd.setHours(23, 59, 59, 999);
     const weekEndStr = weekEnd.toISOString().split('T')[0];
     
-    // Get or create the ACTIVE tournament for THIS week
     let tournament = await client.query(
       'SELECT * FROM weekly_tournaments WHERE week_start = $1 AND is_active = true',
       [weekStartStr]
     );
     
     if (tournament.rows.length === 0) {
-      // Check if there's already an inactive tournament for this week
       const existingInactive = await client.query(
         'SELECT * FROM weekly_tournaments WHERE week_start = $1',
         [weekStartStr]
       );
       
       if (existingInactive.rows.length > 0) {
-        // Reactivate it
         await client.query(
           'UPDATE weekly_tournaments SET is_active = true WHERE id = $1',
           [existingInactive.rows[0].id]
         );
         tournament = { rows: [existingInactive.rows[0]] };
       } else {
-        // Create new tournament
         const result = await client.query(
           `INSERT INTO weekly_tournaments (week_start, week_end, is_active) VALUES ($1, $2, true) RETURNING *`,
           [weekStartStr, weekEndStr]
@@ -1069,7 +1057,6 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
     
     const tournamentId = tournament.rows[0].id;
     
-    // Check if user already joined THIS WEEK'S tournament
     const existing = await client.query(
       'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
       [tournamentId, userId]
@@ -1079,7 +1066,6 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'You already joined this week\'s tournament' });
     }
     
-    // Join the tournament
     await client.query(
       `INSERT INTO tournament_participants (tournament_id, user_id) VALUES ($1, $2)`,
       [tournamentId, userId]
@@ -1111,7 +1097,6 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     const now = new Date();
     const dayOfWeek = now.getDay();
     
-    // Find the most recent Monday
     let daysSinceMonday = dayOfWeek - 1;
     if (daysSinceMonday < 0) daysSinceMonday += 7;
     
@@ -1120,7 +1105,6 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     weekStart.setHours(0, 0, 0, 0);
     const weekStartStr = weekStart.toISOString().split('T')[0];
     
-    // Get active tournament for this week
     const tournament = await pool.query(
       'SELECT id FROM weekly_tournaments WHERE week_start = $1 AND is_active = true',
       [weekStartStr]
@@ -1171,7 +1155,6 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
 // ============================================
 // TEAM API ENDPOINTS
 // ============================================
-
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1184,9 +1167,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     if (userResult.rows[0].team_id) return res.status(400).json({ error: 'You are already in a team' });
     const existingTeam = await client.query('SELECT id FROM teams WHERE name = $1', [teamName.trim()]);
     if (existingTeam.rows.length > 0) return res.status(400).json({ error: 'Team name already exists' });
-
-    await trackMonthlyEarnings(client, userId, rewardAmount);
-      
+    
     await client.query('BEGIN');
     let teamCode, codeExists = true;
     while (codeExists) {
@@ -1244,12 +1225,9 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     }
     
     const team = teamResult.rows[0];
-      
-    await trackMonthlyEarnings(client, userId, rewardAmount);
     
     await client.query('BEGIN');
     
-    // Store the user's current coins as "coins_at_join"
     await client.query(
       'INSERT INTO team_members (team_id, user_id, coins_at_join) VALUES ($1, $2, $3)',
       [team.id, userId, userCoins]
@@ -1316,7 +1294,6 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
     
     const team = teamResult.rows[0];
     
-    // Get members with their monthly earnings for this month
     const membersResult = await pool.query(`
       SELECT 
         u.id, u.telegram_id, u.first_name, u.username, u.photo_url, 
@@ -1372,7 +1349,7 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [remainingMembers.rows[0].user_id, teamId]);
     }
     await client.query('COMMIT');
-    res.json({ success: true });
+    res.json({ success: true, message: 'Left team. Your coins are no longer contributing to the team.' });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Leave team error:', err);
@@ -1441,7 +1418,6 @@ app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
 // ============================================
 // BONUS CODES
 // ============================================
-
 app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
   const { code } = req.body;
   const telegramId = req.telegramUser.id;
@@ -1456,10 +1432,10 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     const bonus = await client.query('SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true', [code.toUpperCase()]);
     if (bonus.rows.length === 0) throw new Error('Invalid or expired code');
     const coins = bonus.rows[0].coins;
-    await trackMonthlyEarnings(client, userId, rewardAmount);
     await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [coins, userId]);
     await client.query('INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)', [userId, code.toUpperCase()]);
     await awardReferralCommission(client, userId, coins);
+    await trackMonthlyEarnings(client, userId, coins);
     await client.query('COMMIT');
     res.json({ success: true, coins, message: `🎉 You redeemed ${coins} COINS!` });
   } catch (err) {
@@ -1481,7 +1457,6 @@ app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
 // ============================================
 // WITHDRAWAL
 // ============================================
-
 app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1507,7 +1482,6 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
 // ============================================
 // ADMIN ENDPOINTS
 // ============================================
-
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
     const result = await pool.query(`SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url, u.referral_code, u.coins, u.tier, u.referrals, u.wallet_address, u.created_at, u.team_id, COALESCE(ads.total_ads, 0) as total_ads FROM users u LEFT JOIN ad_statistics ads ON u.id = ads.user_id ORDER BY u.id DESC`);
@@ -1581,6 +1555,7 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('DELETE FROM user_bonus_redemptions WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM social_tasks WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM referral_commissions WHERE referrer_id = $1 OR referred_id = $1', [userId]);
+    await client.query('DELETE FROM user_monthly_earnings WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     await client.query('COMMIT');
     res.json({ success: true });
@@ -1646,11 +1621,9 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get first day of current month
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     
-    // Get top 3 earners for THIS MONTH ONLY
     const topEarners = await client.query(`
       SELECT u.id, u.first_name, COALESCE(SUM(ar.reward_amount), 0) as monthly_coins
       FROM users u
@@ -1666,7 +1639,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
     for (let i = 0; i < topEarners.rows.length; i++) {
       const user = topEarners.rows[i];
       const prize = prizes[i];
-      if (user.monthly_coins > 0) { // Only award if they actually earned something
+      if (user.monthly_coins > 0) {
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
@@ -1694,7 +1667,6 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Get the most recent Sunday at midnight (start of the week we're awarding for)
     const now = new Date();
     const dayOfWeek = now.getDay();
     const daysSinceSunday = dayOfWeek;
@@ -1742,26 +1714,22 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
 // ============================================
 // TOURNAMENT: Auto-Award Weekly Prizes (Every Monday Midnight)
 // ============================================
-
 app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    // Get the most recent Monday at midnight (start of the week we're awarding for)
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+    const dayOfWeek = now.getDay();
     
-    // Find the most recent Monday
     let daysSinceMonday = dayOfWeek - 1;
-    if (daysSinceMonday < 0) daysSinceMonday += 7; // If today is Sunday, go back 6 days
+    if (daysSinceMonday < 0) daysSinceMonday += 7;
     
     const lastMonday = new Date(now);
     lastMonday.setDate(now.getDate() - daysSinceMonday);
     lastMonday.setHours(0, 0, 0, 0);
     const lastMondayStr = lastMonday.toISOString().split('T')[0];
     
-    // Find the tournament for that week
     const tournament = await client.query(
       'SELECT id FROM weekly_tournaments WHERE week_start = $1',
       [lastMondayStr]
@@ -1774,7 +1742,6 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
     
     const tournamentId = tournament.rows[0].id;
     
-    // Get top 3 participants based on weekly coins earned
     const topParticipants = await client.query(`
       SELECT 
         u.id, u.first_name,
@@ -1790,7 +1757,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
       LIMIT 3
     `, [tournamentId, lastMondayStr, now.toISOString()]);
     
-    const prizes = [1000, 500, 200]; // 1st, 2nd, 3rd place COINS
+    const prizes = [1000, 500, 200];
     
     for (let i = 0; i < topParticipants.rows.length; i++) {
       const user = topParticipants.rows[i];
@@ -1801,7 +1768,6 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
           [prize, user.id]
         );
         
-        // Mark as awarded
         await client.query(
           'UPDATE tournament_participants SET prize_awarded = true, rank = $1 WHERE tournament_id = $2 AND user_id = $3',
           [i + 1, tournamentId, user.id]
@@ -1811,7 +1777,6 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
       }
     }
     
-    // Mark tournament as inactive
     await client.query(
       'UPDATE weekly_tournaments SET is_active = false WHERE id = $1',
       [tournamentId]
@@ -1841,18 +1806,18 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     
     console.log(`🏆 Awarding team prizes for month starting ${currentMonth}...`);
     
-    // Get top 3 teams for the CURRENT month (based on coins earned this month)
     const topTeams = await client.query(`
       SELECT 
         t.id, t.name,
-        COALESCE(SUM(u.coins - COALESCE(tm.coins_at_join, 0)), 0) as monthly_coins
+        COALESCE(SUM(ume.coins_earned), 0) as monthly_coins
       FROM teams t
       JOIN team_members tm ON t.id = tm.team_id
       JOIN users u ON tm.user_id = u.id
+      LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = $1
       GROUP BY t.id
       ORDER BY monthly_coins DESC
       LIMIT 3
-    `);
+    `, [currentMonth]);
     
     if (topTeams.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -1860,7 +1825,7 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
       return res.json({ success: true, message: 'No teams to award', awarded: 0 });
     }
     
-    const prizes = [2500, 1000, 500]; // 1st, 2nd, 3rd place COINS per member
+    const prizes = [2500, 1000, 500];
     
     let totalAwarded = 0;
     
@@ -1873,7 +1838,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
         continue;
       }
       
-      // Get all CURRENT members of this team
       const members = await client.query(
         `SELECT u.id, u.first_name, u.telegram_id 
          FROM team_members tm 
@@ -1885,7 +1849,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
       console.log(`🏆 Team "${team.name}" placed #${i + 1} with ${team.monthly_coins} monthly coins`);
       console.log(`   Awarding ${prizePerMember} COINS to ${members.rows.length} members...`);
       
-      // Award prize to each member
       for (const member of members.rows) {
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
@@ -1894,7 +1857,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
         
         totalAwarded++;
         
-        // Send Telegram notification (optional)
         const BOT_TOKEN = process.env.BOT_TOKEN;
         if (BOT_TOKEN && member.telegram_id) {
           const message = `🎉 *CONGRATULATIONS!* 🎉\n\n` +
@@ -1940,7 +1902,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
 // ============================================
 // HEALTH CHECK
 // ============================================
-
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
