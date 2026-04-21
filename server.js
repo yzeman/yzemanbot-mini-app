@@ -1428,7 +1428,11 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     
     let myRank = null, myCoins = 0;
     for (const row of standings.rows) {
-      if (row.id === userId) { myRank = row.rank; myCoins = parseFloat(row.weekly_coins); break; }
+      if (row.id === userId) { 
+        myRank = row.rank; 
+        myCoins = parseFloat(row.weekly_coins); 
+        break; 
+      }
     }
     
     res.json({ standings: standings.rows, my_rank: myRank, my_coins: myCoins, has_joined: hasJoined });
