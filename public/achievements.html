@@ -6,14 +6,12 @@
     <title>Achievements - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="//libtl.com/sdk.js" data-zone="9683863" data-sdk="show_9683863"></script>
     <style>
-        /* Keep all your existing CSS exactly as before */
         :root {
             --primary: #4CAF50;
             --secondary: #2196F3;
             --warning: #FF9800;
-            --danger: #f44336;
+            --danger: #44336;
             --dark: #1a1a2e;
             --darker: #16213e;
             --light: #ffffff;
@@ -113,26 +111,24 @@
     
     <div class="notification" id="notification"></div>
     
-    <script src="/app.js"></script>
     <script>
         (function() {
             const tg = window.Telegram?.WebApp;
             if (tg) { tg.ready(); tg.expand(); }
             
-            const POINTS_PER_COIN = 1000000;
-            
+            // Achievement configuration with correct coin rewards (matching server)
             const ACHIEVEMENT_CONFIG = {
-                'Loyal User': { icon: '🔥', coins: 50 },
-                'Referral Master': { icon: '👑', coins: 100 },
-                'Points Millionaire': { icon: '💰', coins: 1000 },
-                'Social Butterfly': { icon: '🦋', coins: 25 },
-                'Tournament Winner': { icon: '🏆', coins: 50 },
-                'Team Player': { icon: '🤝', coins: 10 },
-                'Platinum Elite': { icon: '💎', coins: 200 },
-                'Wheel Champion': { icon: '🎡', coins: 25 },
-                'Daily Streak 7': { icon: '📅', coins: 5 },
-                'Super Referrer': { icon: '⭐', coins: 500 },
-                'Ad Master': { icon: '📺', coins: 5000 }
+                'Loyal User': { icon: '🔥', coins: 100 },
+                'Referral Master': { icon: '👑', coins: 200 },
+                'Points Millionaire': { icon: '💰', coins: 2000 },
+                'Social Butterfly': { icon: '🦋', coins: 50 },
+                'Tournament Winner': { icon: '🏆', coins: 100 },
+                'Team Player': { icon: '🤝', coins: 20 },
+                'Platinum Elite': { icon: '💎', coins: 500 },
+                'Wheel Champion': { icon: '🎡', coins: 50 },
+                'Daily Streak 7': { icon: '📅', coins: 10 },
+                'Super Referrer': { icon: '⭐', coins: 1000 },
+                'Ad Master': { icon: '📺', coins: 10000 }
             };
             
             function showNotification(msg, isError = false) {
@@ -159,12 +155,21 @@
                 return response.json();
             }
             
+            // Format coins with appropriate decimals
+            function formatCoins(amount) {
+                const num = parseFloat(amount) || 0;
+                if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+                if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+                return num.toFixed(0);
+            }
+            
             function updateStats(data) {
                 const stats = data.userStats;
                 const achievements = data.achievements;
                 
                 document.getElementById('achievementsCount').textContent = stats.achievements_count || 0;
                 
+                // Calculate total coins earned from achievements
                 let totalCoinsEarned = 0;
                 achievements.forEach(ach => {
                     if (ach.achieved) {
@@ -172,7 +177,7 @@
                         totalCoinsEarned += config.coins;
                     }
                 });
-                document.getElementById('totalCoinsEarned').textContent = totalCoinsEarned.toFixed(0);
+                document.getElementById('totalCoinsEarned').textContent = formatCoins(totalCoinsEarned);
                 
                 const totalAchievements = achievements.length;
                 const unlockedCount = achievements.filter(a => a.achieved).length;
@@ -213,7 +218,7 @@
                             <div class="achievement-icon">${config.icon}</div>
                             <div class="achievement-name">${ach.name}</div>
                             <div class="achievement-desc">${ach.description || ''}</div>
-                            <div class="achievement-reward">+${config.coins} COINS</div>
+                            <div class="achievement-reward">+${formatCoins(config.coins)} COINS</div>
                         </div>
                     `;
                 }).join('');
