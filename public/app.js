@@ -1,6 +1,6 @@
 // ============================================================
 // YZEMANBOT - COMPLETE APP WITH MONETAG REWARDED INTERSTITIAL
-// POINT ECONOMY: 1,000,000 points = 1 COIN
+// COIN ECONOMY: 1 COIN = 1 UNIT (NO POINTS)
 // WITHDRAWAL: 100,000 COINS minimum
 // MONETAG ZONE ID: 9683863
 // SOUND EFFECTS ONLY (NO BACKGROUND MUSIC)
@@ -14,21 +14,22 @@ if (tg) {
 }
 
 // ============================================================
-// POINT ECONOMY CONFIGURATION
+// COIN ECONOMY CONFIGURATION (UPDATED - COINS ONLY)
 // ============================================================
 
-const POINT_ECONOMY = {
-    POINTS_PER_COIN: 1000000,
-    MIN_WITHDRAWAL_COINS: 100000,
+const COIN_ECONOMY = {
+    MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
     
+    // Ad rewards per tier (in COINS)
     AD_REWARDS: {
-        'Fresher': 5000,
-        'Brute': 7500,
-        'Silver': 10000,
-        'Gold': 15000,
-        'Platinum': 25000
+        'Fresher': 0.008,
+        'Brute': 0.012,
+        'Silver': 0.016,
+        'Gold': 0.024,
+        'Platinum': 0.040
     },
     
+    // Tier requirements (referral count)
     TIER_REQUIREMENTS: {
         'Fresher': 0,
         'Brute': 150,
@@ -37,34 +38,81 @@ const POINT_ECONOMY = {
         'Platinum': 1500
     },
     
-    REFERRAL_REWARDS: {
-        'Fresher': 500000,
-        'Brute': 750000,
-        'Silver': 1000000,
-        'Gold': 1500000,
-        'Platinum': 2500000
+    // Referral rewards (tier-based, in COINS per invite)
+    REFERRAL_REWARDS_COINS: {
+        'Fresher': 5,
+        'Brute': 10,
+        'Silver': 15,
+        'Gold': 20,
+        'Platinum': 25
     },
     
-    INVITEE_BONUS: 250000,
+    // Invitee bonus (2,000 COINS)
+    INVITEE_BONUS_COINS: 2000,
     
-    AD_STREAK_BONUSES: { 5: 10000, 10: 25000, 25: 100000, 50: 500000, 100: 2000000 },
+    // Lifetime commission rate (2%)
+    COMMISSION_RATE: 0.02,
+    
+    // Ad streak bonuses (in COINS)
+    AD_STREAK_BONUSES: { 5: 0.02, 10: 0.05, 25: 0.2, 50: 1, 100: 5 },
     LUCKY_AD_CHANCE: 0.10,
     GOLDEN_AD_CHANCE: 0.02,
     MEGA_AD_CHANCE: 0.005,
     DAILY_AD_GOAL: 20,
-    DAILY_AD_GOAL_REWARD: 500000,
+    DAILY_AD_GOAL_REWARD: 1,           // 1 COIN
     WEEKLY_AD_GOAL: 100,
-    WEEKLY_AD_GOAL_REWARD: 5000000,
-    AD_MILESTONES: { 100: 1000000, 500: 10000000, 1000: 50000000, 5000: 250000000, 10000: 1000000000 },
-    DAILY_BASE_REWARD: 100000,
-    DAILY_STREAK_BONUS: 50000,
-    WHEEL_PRIZES: [50000, 100000, 250000, 500000, 1000000, 2500000, 5000000, 10000000],
-    SOCIAL_TASK_REWARDS: { 'youtube1': 5000000, 'youtube2': 2500000, 'youtube3': 2500000, 'facebook': 2500000, 'instagram': 2500000, 'telegram': 5000000 },
-    YOUTUBE_TASK_REWARD: 10000000,
-    WEBSITE_TASK_REWARD: 5000000,
-    ACHIEVEMENT_REWARDS: { 'Loyal User': 50000000, 'Referral Master': 100000000, 'Points Millionaire': 1000000000, 'Social Butterfly': 25000000, 'Tournament Winner': 50000000, 'Platinum Elite': 200000000, 'Wheel Champion': 25000000, 'Daily Streak 7': 5000000, 'Super Referrer': 500000000, 'Ad Master': 5000000000 },
-    TOURNAMENT_PRIZES: { 1: 500000000, 2: 250000000, 3: 100000000, 4: 50000000, 5: 25000000 }
+    WEEKLY_AD_GOAL_REWARD: 10,         // 10 COINS
+    AD_MILESTONES: { 100: 2, 500: 20, 1000: 100, 5000: 500, 10000: 2000 },
+    
+    // Daily base reward
+    DAILY_BASE_REWARD: 0.2,            // 0.2 COINS
+    DAILY_STREAK_BONUS: 0.1,           // 0.1 COINS per streak day
+    
+    // Wheel prizes (in COINS)
+    WHEEL_PRIZES: [0.1, 0.2, 0.5, 1, 2, 5, 10, 20],
+    
+    // Social task rewards (one-time, in COINS)
+    SOCIAL_TASK_REWARDS: {
+        'youtube1': 100,
+        'youtube2': 100,
+        'youtube3': 100,
+        'facebook': 100,
+        'instagram': 100,
+        'telegram': 100
+    },
+    
+    // Play and earn
+    PLAY_EARN_REWARD: 200,
+    
+    // Website task reward
+    WEBSITE_TASK_REWARD: 5,
+    
+    // Achievement rewards (in COINS)
+    ACHIEVEMENT_REWARDS: {
+        'Loyal User': 100,
+        'Referral Master': 200,
+        'Points Millionaire': 2000,
+        'Social Butterfly': 50,
+        'Tournament Winner': 100,
+        'Platinum Elite': 500,
+        'Wheel Champion': 50,
+        'Daily Streak 7': 10,
+        'Super Referrer': 1000,
+        'Ad Master': 10000
+    },
+    
+    // Tournament prizes
+    TOURNAMENT_PRIZES: {
+        1: 1000,
+        2: 500,
+        3: 200,
+        4: 100,
+        5: 50
+    }
 };
+
+// For backward compatibility with old variable name
+const POINT_ECONOMY = COIN_ECONOMY;
 
 // ============================================================
 // REFERRAL CODE DETECTION
@@ -152,11 +200,10 @@ function showNotification(msg, isError = false) {
 }
 window.showNotification = showNotification;
 
-function showCelebration(msg, points) {
+function showCelebration(msg, coins) {
     const celebration = document.createElement('div');
     celebration.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto; animation: fadeIn 0.3s ease;`;
-    const coins = (points / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3);
-    celebration.innerHTML = `<div style="font-size: 80px; margin-bottom: 20px; animation: bounce 0.5s;">🎉</div><div style="font-size: 24px; margin-bottom: 10px;">${msg}</div><div style="font-size: 48px; font-weight: bold; color: #FFD700; margin-bottom: 20px;">+${coins} COINS!</div><div style="font-size: 14px; color: #aaa;">(${points.toLocaleString()} points)</div><button id="closeCelebration" style="margin-top: 30px; background: #4CAF50; color: white; border: none; padding: 12px 40px; border-radius: 30px; font-size: 16px; cursor: pointer;">AWESOME!</button>`;
+    celebration.innerHTML = `<div style="font-size: 80px; margin-bottom: 20px; animation: bounce 0.5s;">🎉</div><div style="font-size: 24px; margin-bottom: 10px;">${msg}</div><div style="font-size: 48px; font-weight: bold; color: #FFD700; margin-bottom: 20px;">+${coins.toFixed(3)} COINS!</div><button id="closeCelebration" style="margin-top: 30px; background: #4CAF50; color: white; border: none; padding: 12px 40px; border-radius: 30px; font-size: 16px; cursor: pointer;">AWESOME!</button>`;
     document.body.appendChild(celebration);
     document.getElementById('closeCelebration').onclick = () => celebration.remove();
     setTimeout(() => celebration.remove(), 5000);
@@ -171,7 +218,7 @@ async function apiCall(endpoint, data = null) {
 }
 
 // ============================================================
-// AUDIO MANAGER (Sound Effects Only - No Background Music)
+// AUDIO MANAGER (Sound Effects Only)
 // ============================================================
 
 const AudioManager = {
@@ -203,7 +250,7 @@ const AudioManager = {
         }
         
         this.initialized = true;
-        console.log('🔊 Sound effects initialized (music disabled)');
+        console.log('🔊 Sound effects initialized');
     },
     
     setSfxVolume(value) {
@@ -241,10 +288,8 @@ const AudioManager = {
     }
 };
 
-// Initialize sound effects
 try { AudioManager.init(); } catch (e) {}
 
-// Override notification and celebration to play sounds
 const originalShowNotification = showNotification;
 showNotification = function(msg, isError = false) {
     originalShowNotification(msg, isError);
@@ -252,12 +297,11 @@ showNotification = function(msg, isError = false) {
 };
 
 const originalShowCelebration = showCelebration;
-showCelebration = function(msg, points) {
-    originalShowCelebration(msg, points);
+showCelebration = function(msg, coins) {
+    originalShowCelebration(msg, coins);
     try { AudioManager.playSound('reward'); } catch (e) {}
 };
 
-// Play click sound on interactive elements
 document.addEventListener('click', function(e) {
     const target = e.target.closest('button, .feature-card, .tab, .task-card, .ad-card, .nav-item, .copy-btn, [onclick]');
     if (target) {
@@ -268,15 +312,14 @@ document.addEventListener('click', function(e) {
 window.AudioManager = AudioManager;
 
 // ============================================================
-// USER REGISTRATION & MANAGEMENT (WITH RETRY AND CACHE)
+// USER REGISTRATION & MANAGEMENT
 // ============================================================
 
-// Try to load cached user data immediately
 const cachedUser = localStorage.getItem('cachedUser');
 if (cachedUser) {
     try {
         currentUser = JSON.parse(cachedUser);
-        updateUI(); // Show last known balance instantly
+        updateUI();
         console.log('📦 Loaded cached user data');
     } catch(e) {}
 }
@@ -293,7 +336,6 @@ async function registerUser() {
     const idEl = document.getElementById('userId');
     const avatarEl = document.getElementById('userAvatar');
     
-    // Set display immediately from Telegram data
     if (nameEl) nameEl.textContent = `${user.first_name} ${user.last_name || ''}`;
     if (idEl) idEl.textContent = `ID: ${user.id}`;
     if (avatarEl) {
@@ -316,7 +358,6 @@ async function registerUser() {
     
     console.log('📤 SENDING TO /api/user - Telegram ID:', user.id, 'Referral Code:', codeToSend || 'none');
 
-    // Retry up to 5 times
     const maxRetries = 5;
     let lastError = null;
     
@@ -335,19 +376,17 @@ async function registerUser() {
                 console.log('✅ Referral code used and cleared');
             }
             
-            // Cache user data for offline/quick display
             localStorage.setItem('cachedUser', JSON.stringify(result));
             return result;
         } catch (err) {
             lastError = err;
             console.error(`Registration attempt ${attempt} failed:`, err.message);
             if (attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // 1s, 2s, 3s, 4s, 5s
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             }
         }
     }
     
-    // All retries failed
     console.error('Registration error after retries:', lastError);
     if (nameEl) nameEl.textContent = 'Connection Error';
     showRetryButton();
@@ -358,7 +397,6 @@ function showRetryButton() {
     const header = document.querySelector('.header');
     if (!header) return;
     
-    // Remove existing retry button if any
     const existing = document.getElementById('retryRegistrationBtn');
     if (existing) existing.remove();
     
@@ -425,9 +463,8 @@ async function refreshUser() {
     
     if (!success) {
         console.error('Refresh user failed completely');
-        // Keep showing cached data if available
         if (currentUser) {
-            updateUI(); // Refresh UI with cached data
+            updateUI();
         } else {
             showRetryButton();
         }
@@ -435,14 +472,14 @@ async function refreshUser() {
 }
 window.refreshUser = refreshUser;
 
-async function addPoints(amount, reason = 'reward') {
+async function addCoins(amount, reason = 'reward') {
     try {
         await apiCall('/api/ad-reward', { initData: tg.initData, rewardAmount: amount, adType: reason });
         await refreshUser();
         return true;
     } catch (err) { showNotification('Failed: ' + err.message, true); return false; }
 }
-window.addPoints = addPoints;
+window.addCoins = addCoins;
 
 // ============================================================
 // UI UPDATE FUNCTIONS
@@ -450,23 +487,18 @@ window.addPoints = addPoints;
 
 function updateUI() {
     if (!currentUser) {
-        // Try to load from cache again
         const cached = localStorage.getItem('cachedUser');
         if (cached) {
-            try {
-                currentUser = JSON.parse(cached);
-            } catch(e) {}
+            try { currentUser = JSON.parse(cached); } catch(e) {}
         }
         if (!currentUser) return;
     }
     
-    const points = currentUser.points || 0;
-    const coins = points / POINT_ECONOMY.POINTS_PER_COIN;
-    const progress = Math.min((coins / POINT_ECONOMY.MIN_WITHDRAWAL_COINS) * 100, 100);
+    const coins = parseFloat(currentUser.coins) || 0;
+    const progress = Math.min((coins / COIN_ECONOMY.MIN_WITHDRAWAL_COINS) * 100, 100);
     
-    const pointsEl = document.getElementById('points');
-    const usdEl = document.getElementById('usd');
     const coinsEl = document.getElementById('coins');
+    const usdEl = document.getElementById('usd');
     const tierEl = document.getElementById('tier');
     const progressAmount = document.getElementById('progressAmount');
     const progressBar = document.getElementById('progressBar');
@@ -475,28 +507,27 @@ function updateUI() {
     const adReward = document.getElementById('adReward');
     const referralLink = document.getElementById('referralLink');
     
-    if (pointsEl) pointsEl.textContent = points.toLocaleString();
-    if (usdEl) usdEl.textContent = `${coins.toFixed(2)} COINS`;
     if (coinsEl) coinsEl.textContent = coins.toFixed(2);
+    if (usdEl) usdEl.textContent = `${coins.toFixed(2)} COINS`;
     if (tierEl) tierEl.textContent = currentUser.tier || 'Fresher';
-    if (progressAmount) progressAmount.textContent = `${coins.toFixed(2)} / ${POINT_ECONOMY.MIN_WITHDRAWAL_COINS} COINS`;
+    if (progressAmount) progressAmount.textContent = `${coins.toFixed(2)} / ${COIN_ECONOMY.MIN_WITHDRAWAL_COINS} COINS`;
     if (progressBar) progressBar.style.width = progress + '%';
     if (referralCount) referralCount.textContent = currentUser.referrals || 0;
     
     if (referralReward) {
-        const reward = POINT_ECONOMY.REFERRAL_REWARDS[currentUser.tier] || 500000;
-        referralReward.textContent = `${(reward / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS`;
+        const reward = COIN_ECONOMY.REFERRAL_REWARDS_COINS[currentUser.tier] || 5;
+        referralReward.textContent = `${reward.toFixed(2)} COINS`;
     }
     if (adReward) {
-        const reward = POINT_ECONOMY.AD_REWARDS[currentUser.tier] || 5000;
-        adReward.textContent = `${(reward / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS`;
+        const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.008;
+        adReward.textContent = `${reward.toFixed(3)} COINS`;
     }
     if (referralLink && currentUser.referral_code) {
         referralLink.textContent = `https://t.me/YzemanBot?start=${currentUser.referral_code}`;
     }
     
     const withdrawBtn = document.getElementById('withdrawBtn');
-    if (withdrawBtn) withdrawBtn.disabled = coins < POINT_ECONOMY.MIN_WITHDRAWAL_COINS;
+    if (withdrawBtn) withdrawBtn.disabled = coins < COIN_ECONOMY.MIN_WITHDRAWAL_COINS;
     
     const walletInput = document.getElementById('walletAddress');
     if (walletInput && currentUser.wallet_address) walletInput.value = currentUser.wallet_address;
@@ -507,7 +538,7 @@ function updateUI() {
     if (currentRefs && currentUser.referrals !== undefined) {
         currentRefs.textContent = currentUser.referrals || 0;
         const tiers = ['Fresher', 'Brute', 'Silver', 'Gold', 'Platinum'];
-        const tierRefs = Object.values(POINT_ECONOMY.TIER_REQUIREMENTS);
+        const tierRefs = Object.values(COIN_ECONOMY.TIER_REQUIREMENTS);
         const idx = tiers.indexOf(currentUser.tier);
         const nextRefs = tierRefs[idx + 1] || tierRefs[tierRefs.length - 1];
         if (nextTierReq) nextTierReq.textContent = nextRefs;
@@ -531,8 +562,8 @@ function updateAdStreakDisplay() {
     if (todayAdsEl) todayAdsEl.textContent = adsWatchedToday;
     if (streakDisplayEl) streakDisplayEl.textContent = adStreak;
     if (weekDisplayEl) weekDisplayEl.textContent = adsWatchedWeek;
-    if (dailyProgressEl) dailyProgressEl.style.width = Math.min((adsWatchedToday / POINT_ECONOMY.DAILY_AD_GOAL) * 100, 100) + '%';
-    if (weeklyProgressEl) weeklyProgressEl.style.width = Math.min((adsWatchedWeek / POINT_ECONOMY.WEEKLY_AD_GOAL) * 100, 100) + '%';
+    if (dailyProgressEl) dailyProgressEl.style.width = Math.min((adsWatchedToday / COIN_ECONOMY.DAILY_AD_GOAL) * 100, 100) + '%';
+    if (weeklyProgressEl) weeklyProgressEl.style.width = Math.min((adsWatchedWeek / COIN_ECONOMY.WEEKLY_AD_GOAL) * 100, 100) + '%';
 }
 
 // ============================================================
@@ -540,17 +571,17 @@ function updateAdStreakDisplay() {
 // ============================================================
 
 function calculateAdReward() {
-    const baseReward = POINT_ECONOMY.AD_REWARDS[currentUser?.tier] || 5000;
+    const baseReward = COIN_ECONOMY.AD_REWARDS[currentUser?.tier] || 0.008;
     const rand = Math.random();
     let multiplier = 1, luckyType = 'normal';
-    if (rand < POINT_ECONOMY.MEGA_AD_CHANCE) { multiplier = 10; luckyType = 'mega'; }
-    else if (rand < POINT_ECONOMY.MEGA_AD_CHANCE + POINT_ECONOMY.GOLDEN_AD_CHANCE) { multiplier = 5; luckyType = 'golden'; }
-    else if (rand < POINT_ECONOMY.MEGA_AD_CHANCE + POINT_ECONOMY.GOLDEN_AD_CHANCE + POINT_ECONOMY.LUCKY_AD_CHANCE) { multiplier = 2; luckyType = 'lucky'; }
-    return { baseReward, multiplier, finalReward: Math.floor(baseReward * multiplier), luckyType };
+    if (rand < COIN_ECONOMY.MEGA_AD_CHANCE) { multiplier = 10; luckyType = 'mega'; }
+    else if (rand < COIN_ECONOMY.MEGA_AD_CHANCE + COIN_ECONOMY.GOLDEN_AD_CHANCE) { multiplier = 5; luckyType = 'golden'; }
+    else if (rand < COIN_ECONOMY.MEGA_AD_CHANCE + COIN_ECONOMY.GOLDEN_AD_CHANCE + COIN_ECONOMY.LUCKY_AD_CHANCE) { multiplier = 2; luckyType = 'lucky'; }
+    return { baseReward, multiplier, finalReward: baseReward * multiplier, luckyType };
 }
 
 function checkAndAwardStreakBonus() {
-    const bonuses = POINT_ECONOMY.AD_STREAK_BONUSES;
+    const bonuses = COIN_ECONOMY.AD_STREAK_BONUSES;
     for (const [streakRequired, bonus] of Object.entries(bonuses)) {
         if (adStreak === parseInt(streakRequired)) return bonus;
     }
@@ -558,7 +589,7 @@ function checkAndAwardStreakBonus() {
 }
 
 function checkAndAwardMilestones() {
-    const milestones = POINT_ECONOMY.AD_MILESTONES;
+    const milestones = COIN_ECONOMY.AD_MILESTONES;
     const earnedMilestones = JSON.parse(localStorage.getItem('earnedMilestones') || '[]');
     let milestoneBonus = 0;
     for (const [required, bonus] of Object.entries(milestones)) {
@@ -625,30 +656,30 @@ async function awardAdReward() {
     updateAdStats();
     const streakBonus = checkAndAwardStreakBonus();
     const milestoneBonus = checkAndAwardMilestones();
-    let totalPoints = finalReward + streakBonus + milestoneBonus;
+    let totalCoins = finalReward + streakBonus + milestoneBonus;
     
     let dailyGoalBonus = 0, weeklyGoalBonus = 0;
-    if (adsWatchedToday >= POINT_ECONOMY.DAILY_AD_GOAL && !dailyGoalClaimed) {
-        dailyGoalBonus = POINT_ECONOMY.DAILY_AD_GOAL_REWARD;
+    if (adsWatchedToday >= COIN_ECONOMY.DAILY_AD_GOAL && !dailyGoalClaimed) {
+        dailyGoalBonus = COIN_ECONOMY.DAILY_AD_GOAL_REWARD;
         dailyGoalClaimed = true;
         localStorage.setItem('dailyGoalClaimed', 'true');
     }
-    if (adsWatchedWeek >= POINT_ECONOMY.WEEKLY_AD_GOAL && !weeklyGoalClaimed) {
-        weeklyGoalBonus = POINT_ECONOMY.WEEKLY_AD_GOAL_REWARD;
+    if (adsWatchedWeek >= COIN_ECONOMY.WEEKLY_AD_GOAL && !weeklyGoalClaimed) {
+        weeklyGoalBonus = COIN_ECONOMY.WEEKLY_AD_GOAL_REWARD;
         weeklyGoalClaimed = true;
         localStorage.setItem('weeklyGoalClaimed', 'true');
     }
-    totalPoints += dailyGoalBonus + weeklyGoalBonus;
+    totalCoins += dailyGoalBonus + weeklyGoalBonus;
     
     let celebrationMsg = 'Ad Completed!';
     if (luckyType === 'mega') celebrationMsg = '🌟 MEGA AD! 10x REWARD! 🌟';
     else if (luckyType === 'golden') celebrationMsg = '⭐ GOLDEN AD! 5x REWARD! ⭐';
     else if (luckyType === 'lucky') celebrationMsg = '✨ LUCKY AD! 2x REWARD! ✨';
     
-    showCelebration(celebrationMsg, totalPoints);
-    await addPoints(totalPoints, 'monetag');
+    showCelebration(celebrationMsg, totalCoins);
+    await addCoins(totalCoins, 'monetag');
     
-    if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${(streakBonus / POINT_ECONOMY.POINTS_PER_COIN).toFixed(3)} COINS!`);
+    if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${streakBonus.toFixed(3)} COINS!`);
     if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
     if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
     if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
@@ -732,9 +763,9 @@ async function checkTask(taskName) {
     } catch (e) { return false; }
 }
 
-async function completeTaskOnServer(taskName, points) {
+async function completeTaskOnServer(taskName, coins) {
     try {
-        const res = await apiCall('/api/complete-task', { taskName, points });
+        const res = await apiCall('/api/complete-task', { taskName, coins });
         if (res?.success) {
             showNotification(res.message, false);
             const btn = document.getElementById(`task${taskName.charAt(0).toUpperCase() + taskName.slice(1)}`);
@@ -788,8 +819,8 @@ function startTimer(taskKey, task) {
             taskCheckInterval = null;
             if (popup) popup.classList.remove('active');
             if (taskWindow && !taskWindow.closed) taskWindow.close();
-            showNotification(`Task completed! +${task.points/POINT_ECONOMY.POINTS_PER_COIN} COINS!`, false);
-            completeTaskOnServer(task.name, task.points);
+            showNotification(`Task completed! +${task.coins} COINS!`, false);
+            completeTaskOnServer(task.name, task.coins);
             activeTask = null;
             taskWindow = null;
         }
@@ -940,13 +971,13 @@ function copyReferralLink() {
 
 async function requestWithdrawal() {
     if (!currentUser) return;
-    const coins = (currentUser.points || 0) / POINT_ECONOMY.POINTS_PER_COIN;
-    if (coins < POINT_ECONOMY.MIN_WITHDRAWAL_COINS) { showNotification(`Need ${POINT_ECONOMY.MIN_WITHDRAWAL_COINS} COINS to withdraw. You have ${coins.toFixed(2)} COINS`, true); return; }
+    const coins = parseFloat(currentUser.coins) || 0;
+    if (coins < COIN_ECONOMY.MIN_WITHDRAWAL_COINS) { showNotification(`Need ${COIN_ECONOMY.MIN_WITHDRAWAL_COINS} COINS to withdraw. You have ${coins.toFixed(2)} COINS`, true); return; }
     const wallet = document.getElementById('walletAddress')?.value.trim();
     if (!wallet) { showNotification('Please save your wallet address first', true); return; }
     try {
-        const response = await fetch('/api/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg.initData, amount: POINT_ECONOMY.MIN_WITHDRAWAL_COINS, walletAddress: wallet }) });
-        if (response.ok) { showNotification(`Withdrawal request submitted for ${POINT_ECONOMY.MIN_WITHDRAWAL_COINS} COINS!`); await refreshUser(); loadWithdrawalHistory(); } 
+        const response = await fetch('/api/withdraw', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg.initData, amount: COIN_ECONOMY.MIN_WITHDRAWAL_COINS, walletAddress: wallet }) });
+        if (response.ok) { showNotification(`Withdrawal request submitted for ${COIN_ECONOMY.MIN_WITHDRAWAL_COINS} COINS!`); await refreshUser(); loadWithdrawalHistory(); } 
         else { const error = await response.text(); showNotification('Withdrawal failed: ' + error, true); }
     } catch (err) { showNotification('Error: ' + err.message, true); }
 }
@@ -984,9 +1015,9 @@ async function claimDailyReward() {
     try {
         const result = await apiCall('/api/daily-reward', { initData: tg.initData });
         const streak = result.streak || 1;
-        const totalReward = POINT_ECONOMY.DAILY_BASE_REWARD + (streak * POINT_ECONOMY.DAILY_STREAK_BONUS);
-        await addPoints(totalReward, 'daily');
-        showNotification(`🎁 Daily reward: +${(totalReward / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS! Streak: ${streak} days 🔥`);
+        const totalReward = COIN_ECONOMY.DAILY_BASE_REWARD + (streak * COIN_ECONOMY.DAILY_STREAK_BONUS);
+        await addCoins(totalReward, 'daily');
+        showNotification(`🎁 Daily reward: +${totalReward.toFixed(2)} COINS! Streak: ${streak} days 🔥`);
         await refreshUser();
         if (document.getElementById('streakCount')) loadDailyStats();
     } catch (err) { showNotification(err.message, true); }
@@ -1004,8 +1035,8 @@ async function loadDailyStats() {
         if (totalDays) totalDays.textContent = data.last_7_days?.length || 0;
         if (maxStreak) maxStreak.textContent = data.max_streak || 0;
         const streak = data.current_streak || 0;
-        const totalReward = POINT_ECONOMY.DAILY_BASE_REWARD + (streak * POINT_ECONOMY.DAILY_STREAK_BONUS);
-        if (todayReward) todayReward.textContent = `${(totalReward / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS`;
+        const totalReward = COIN_ECONOMY.DAILY_BASE_REWARD + (streak * COIN_ECONOMY.DAILY_STREAK_BONUS);
+        if (todayReward) todayReward.textContent = `${totalReward.toFixed(2)} COINS`;
         if (claimBtn) {
             if (data.claimed_today) { claimBtn.disabled = true; claimBtn.textContent = '✅ Already Claimed Today'; }
             else { claimBtn.disabled = false; claimBtn.textContent = '🎁 Claim Daily Reward'; }
@@ -1058,7 +1089,7 @@ function drawWheel(segments, currentAngle) {
         ctx.font = "bold 14px 'Segoe UI'";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText((segments[i].value / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2), radius * 0.65, 0);
+        ctx.fillText(segments[i].value.toFixed(2), radius * 0.65, 0);
         ctx.restore();
     }
     ctx.beginPath();
@@ -1074,8 +1105,8 @@ function drawWheel(segments, currentAngle) {
 
 async function spinWheel() {
     if (wheelSpinning) return;
-    const prizes = POINT_ECONOMY.WHEEL_PRIZES;
-    const segments = prizes.map((prize, i) => ({ label: (prize / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i] }));
+    const prizes = COIN_ECONOMY.WHEEL_PRIZES;
+    const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i] }));
     const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
     const startTime = performance.now();
     const duration = 3000;
@@ -1104,8 +1135,8 @@ async function spinWheel() {
 async function submitSpin(prize) {
     try {
         await apiCall('/api/wheel-spin', { initData: tg.initData });
-        await addPoints(prize, 'wheel');
-        showNotification(`🎡 You won ${(prize / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS!`);
+        await addCoins(prize, 'wheel');
+        showNotification(`🎡 You won ${prize.toFixed(2)} COINS!`);
         await loadWheelStatus();
         await refreshUser();
     } catch (err) { showNotification(err.message, true); document.getElementById('spinBtn').disabled = false; }
@@ -1122,13 +1153,13 @@ async function loadWheelStatus() {
         if (statusDiv) statusDiv.innerHTML = data.can_spin ? '<span style="color: var(--success);">✅ Ready to spin!</span>' : '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
         if (timerDiv && !data.can_spin) timerDiv.innerHTML = `${data.days_left} day${data.days_left !== 1 ? 's' : ''}`;
         else if (timerDiv) timerDiv.innerHTML = '';
-        if (lastRewardDiv && data.last_reward > 0) lastRewardDiv.innerHTML = `Last spin: ${(data.last_reward / POINT_ECONOMY.POINTS_PER_COIN).toFixed(2)} COINS!`;
+        if (lastRewardDiv && data.last_reward > 0) lastRewardDiv.innerHTML = `Last spin: ${data.last_reward.toFixed(2)} COINS!`;
         else if (lastRewardDiv) lastRewardDiv.innerHTML = 'No spins yet!';
         if (spinBtn) spinBtn.disabled = !data.can_spin;
         const canvas = document.getElementById('wheelCanvas');
         if (canvas) {
-            const prizes = POINT_ECONOMY.WHEEL_PRIZES;
-            const segments = prizes.map((prize, i) => ({ label: (prize / POINT_ECONOMY.POINTS_PER_COIN).toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i] }));
+            const prizes = COIN_ECONOMY.WHEEL_PRIZES;
+            const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i] }));
             drawWheel(segments, wheelCurrentAngle);
         }
     } catch (err) { console.error('Wheel status error:', err); }
@@ -1141,7 +1172,6 @@ async function loadWheelStatus() {
 async function init() {
     initMonetag();
     
-    // Update sound effect UI if elements exist
     try { AudioManager.updateVolumeUI(); } catch (e) {}
     
     currentUser = await registerUser();
@@ -1155,9 +1185,6 @@ async function init() {
         
         setTimeout(preloadMonetagAd, 2000);
     } else {
-        // Registration failed, but we already displayed name from Telegram
-        console.warn('User registration failed, UI may be incomplete');
-        // Update UI with cached data if available
         if (currentUser) {
             updateUI();
             updateAdStreakDisplay();
