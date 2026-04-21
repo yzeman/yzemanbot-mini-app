@@ -162,7 +162,7 @@
         }
         
         .joined-badge {
-            background: var(--success);
+            background: var(--primary);
             color: white;
             padding: 10px 18px;
             border-radius: 35px;
@@ -303,13 +303,13 @@
             margin-left: 5px;
         }
         
-        .points {
+        .coins {
             font-weight: bold;
             color: var(--gold);
             font-size: 13px;
         }
         
-        .points small {
+        .coins small {
             font-size: 8px;
             color: var(--gray);
             font-weight: normal;
@@ -441,23 +441,23 @@
         <div class="timer" id="tournamentTimer">--d --h --m</div>
     </div>
     
-    <!-- Prize Banner - Only Top 3 -->
+    <!-- Prize Banner - Updated with new coin prizes -->
     <div class="prize-banner">
         <h3><i class="fas fa-crown"></i> Prize Pool</h3>
         <div class="prize-grid">
             <div class="prize-card">
                 <div class="prize-position">🥇</div>
-                <div class="prize-amount">500</div>
+                <div class="prize-amount">1000</div>
                 <div class="prize-label">COINS</div>
             </div>
             <div class="prize-card">
                 <div class="prize-position">🥈</div>
-                <div class="prize-amount">250</div>
+                <div class="prize-amount">500</div>
                 <div class="prize-label">COINS</div>
             </div>
             <div class="prize-card">
                 <div class="prize-position">🥉</div>
-                <div class="prize-amount">100</div>
+                <div class="prize-amount">200</div>
                 <div class="prize-label">COINS</div>
             </div>
         </div>
@@ -483,7 +483,7 @@
             <div class="my-rank-value" id="myRank">--</div>
         </div>
         <div class="my-rank-stats">
-            <span><i class="fas fa-coins"></i> <span id="myPoints">0</span> COINS</span>
+            <span><i class="fas fa-coins"></i> <span id="myCoins">0.00</span> COINS</span>
             <span><i class="fas fa-users"></i> <span id="myReferrals">0</span> refs</span>
         </div>
     </div>
@@ -504,14 +504,14 @@
         <div class="info-header">
             <div class="info-title">
                 <i class="fas fa-info-circle"></i>
-                <span>How to Earn Points</span>
+                <span>How to Earn Coins</span>
             </div>
             <button class="close-info-btn" onclick="dismissInfoBox()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <p><i class="fas fa-ad"></i> Watch ads — each ad gives points</p>
-        <p><i class="fas fa-user-plus"></i> Refer friends — bonus tournament points</p>
+        <p><i class="fas fa-ad"></i> Watch ads — earn COINS</p>
+        <p><i class="fas fa-user-plus"></i> Refer friends — bonus COINS</p>
         <p><i class="fas fa-calendar-check"></i> Daily rewards count toward tournament</p>
         <p><i class="fas fa-clock"></i> Tournament resets every Monday</p>
     </div>
@@ -531,7 +531,6 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        const POINTS_PER_COIN = 1000000;
         let hasJoined = false;
         
         // Info box dismissal - resets every Monday
@@ -613,7 +612,7 @@
             container.innerHTML = standings.map((user, idx) => {
                 const rank = idx + 1;
                 const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-                const coins = ((user.weekly_points || 0) / POINTS_PER_COIN).toFixed(2);
+                const coins = (user.weekly_coins || 0).toFixed(2);
                 const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
                 
                 return `
@@ -629,7 +628,7 @@
                             </div>
                             <div class="username">${user.username ? '@' + user.username : ''}</div>
                         </div>
-                        <div class="points">${coins} <small>COINS</small></div>
+                        <div class="coins">${coins} <small>COINS</small></div>
                     </div>
                 `;
             }).join('');
@@ -650,8 +649,8 @@
                     myRankCard.style.display = 'block';
                     document.getElementById('myRank').textContent = `#${data.my_rank}`;
                     
-                    const myCoins = ((data.my_points || 0) / POINTS_PER_COIN).toFixed(2);
-                    document.getElementById('myPoints').textContent = myCoins;
+                    const myCoins = (data.my_coins || 0).toFixed(2);
+                    document.getElementById('myCoins').textContent = myCoins;
                     
                     const myData = data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id);
                     document.getElementById('myReferrals').textContent = myData?.referral_count || 0;
