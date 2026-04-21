@@ -19,9 +19,7 @@
             --success: #00c853;
             --gold: #FFD700;
         }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--dark);
@@ -29,185 +27,117 @@
             min-height: 100vh;
             padding-bottom: 80px;
         }
-        
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
             padding: 20px 15px 30px;
             border-radius: 0 0 30px 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
             position: relative;
         }
-        
         .header h1 { font-size: 24px; margin-bottom: 10px; }
         .header i { color: var(--gold); margin-right: 8px; }
         .header p { color: var(--gray); font-size: 14px; }
-        
         .back-btn-header {
-            position: absolute;
-            top: 20px; left: 20px;
-            color: white; font-size: 24px;
-            text-decoration: none; z-index: 10;
+            position: absolute; top: 20px; left: 20px;
+            color: white; font-size: 24px; text-decoration: none; z-index: 10;
         }
-        
-        .wheel-container {
-            display: flex;
-            justify-content: center;
-            margin: 20px 15px;
-            position: relative;
-        }
-        
+        .wheel-container { display: flex; justify-content: center; margin: 20px 15px; }
         .wheel-wrapper { position: relative; width: 100%; max-width: 350px; }
         #wheelCanvas { width: 100%; height: auto; display: block; }
-        
         .wheel-pointer {
             position: absolute; top: -15px; left: 50%;
             transform: translateX(-50%); font-size: 40px;
             color: var(--gold); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
             z-index: 10;
         }
-        
         .spin-btn-container { text-align: center; margin: 20px 15px; }
-        
         .spin-btn {
             background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
             color: white; border: none; padding: 18px 50px;
             border-radius: 50px; font-size: 20px; font-weight: bold;
-            cursor: pointer; transition: transform 0.2s ease;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            cursor: pointer; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
             width: 100%; max-width: 300px;
         }
-        
-        .spin-btn:disabled {
-            background: var(--gray); box-shadow: none;
-            cursor: not-allowed; transform: none; opacity: 0.7;
-        }
-        
+        .spin-btn:disabled { background: var(--gray); box-shadow: none; cursor: not-allowed; opacity: 0.7; }
         .status-card {
             background: var(--darker); border-radius: 20px;
             padding: 20px; margin: 20px 15px; text-align: center;
         }
-        
         .status-text { font-size: 18px; margin-bottom: 10px; }
         .timer-text { font-size: 32px; font-weight: bold; color: var(--gold); margin: 10px 0; }
         .last-reward { color: var(--gray); font-size: 14px; }
-        
         .prizes-section {
             background: var(--darker); border-radius: 20px;
             padding: 20px; margin: 20px 15px;
         }
-        
-        .prizes-title {
-            font-size: 18px; font-weight: 600; margin-bottom: 15px;
-            display: flex; align-items: center; gap: 8px;
-        }
-        
+        .prizes-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
         .prizes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        
         .prize-item {
             background: rgba(255,255,255,0.05); border-radius: 10px;
             padding: 10px; text-align: center;
         }
-        
-        .prize-color {
-            width: 20px; height: 20px; border-radius: 5px;
-            margin: 0 auto 8px;
-        }
-        
+        .prize-color { width: 20px; height: 20px; border-radius: 5px; margin: 0 auto 8px; }
         .prize-value { font-size: 14px; font-weight: bold; color: var(--gold); }
         .prize-label { font-size: 10px; color: var(--gray); }
-        
         .info-box {
             background: linear-gradient(135deg, #2196F320, #1976D220);
             border-radius: 15px; padding: 15px; margin: 20px 15px;
             border-left: 4px solid var(--secondary);
         }
-        
-        .info-box p { color: var(--gray); font-size: 14px; margin-bottom: 5px; }
-        .info-box i { color: var(--secondary); margin-right: 8px; }
-        
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--darker); display: flex; padding: 10px 20px;
             border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
         }
-        
         .nav-item {
             flex: 1; text-align: center; color: var(--gray);
             text-decoration: none; font-size: 12px; padding: 8px;
-            border-radius: 10px; transition: all 0.2s ease;
+            border-radius: 10px;
         }
-        
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
-        
         .notification {
             position: fixed; bottom: 90px; left: 20px; right: 20px;
             background: var(--success); color: white; padding: 15px 20px;
-            border-radius: 12px; text-align: center; font-weight: 500;
-            display: none; z-index: 1000; animation: slideUp 0.3s ease;
+            border-radius: 12px; text-align: center; display: none; z-index: 1000;
         }
-        
         .notification.error { background: var(--danger); }
-        
-        @keyframes slideUp {
-            from { transform: translateY(100px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
         .retry-btn {
-            background: var(--secondary);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 10px;
+            background: var(--secondary); color: white; border: none;
+            padding: 10px 20px; border-radius: 20px; font-size: 14px;
+            cursor: pointer; margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
-    
     <div class="header">
         <h1><i class="fas fa-dharmachakra"></i> Wheel of Fortune</h1>
         <p>Spin every 3 days to win COINS!</p>
     </div>
-    
     <div class="wheel-container">
         <div class="wheel-wrapper">
             <div class="wheel-pointer">▼</div>
             <canvas id="wheelCanvas" width="400" height="400"></canvas>
         </div>
     </div>
-    
     <div class="spin-btn-container">
         <button class="spin-btn" id="spinBtn" disabled>🎡 SPIN NOW</button>
     </div>
-    
     <div class="status-card">
         <div class="status-text" id="statusText">Loading...</div>
         <div class="timer-text" id="timerText"></div>
         <div class="last-reward" id="lastRewardText">No spins yet!</div>
         <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
     </div>
-    
     <div class="prizes-section">
-        <div class="prizes-title">
-            <i class="fas fa-gift" style="color: var(--gold);"></i>
-            <span>Available Prizes</span>
-        </div>
+        <div class="prizes-title"><i class="fas fa-gift" style="color:var(--gold);"></i> Available Prizes</div>
         <div class="prizes-grid" id="prizesGrid"></div>
     </div>
-    
     <div class="info-box">
         <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
-        <p>• Spin the wheel every 3 days for free!</p>
-        <p>• Your tier multiplier applies to all wins!</p>
-        <p>• Win up to 20 COINS in a single spin!</p>
+        <p>• Spin every 3 days for free! • Tier multiplier applies • Win up to 20 COINS!</p>
     </div>
-    
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -215,25 +145,12 @@
         <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
         <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
-    
     <div class="notification" id="notification"></div>
-    
     <script>
-        let tg = null;
-        
-        function initTelegram() {
-            if (window.Telegram?.WebApp) {
-                tg = window.Telegram.WebApp;
-                tg.ready();
-                tg.expand();
-                console.log('✅ Telegram WebApp ready');
-                return true;
-            }
-            console.error('❌ Telegram WebApp not available');
-            return false;
-        }
-        
-        // Updated prizes in COINS (matching server)
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+
+        // Prize values in COINS (new economy)
         const PRIZES = [
             { value: 0.1, label: '0.10', color: '#FF6B6B' },
             { value: 0.2, label: '0.20', color: '#4ECDC4' },
@@ -244,251 +161,166 @@
             { value: 10.0, label: '10.00', color: '#98D8C8' },
             { value: 20.0, label: '20.00', color: '#F7B05E' }
         ];
-        
-        let wheelSpinning = false;
-        let wheelAnimationFrame = null;
-        let wheelCurrentAngle = 0;
-        let canSpin = false;
-        
+
+        let wheelSpinning = false, wheelAnimationFrame = null, wheelCurrentAngle = 0, canSpin = false;
+
         function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 4000);
+            const n = document.getElementById('notification');
+            n.textContent = msg;
+            n.className = 'notification' + (isError ? ' error' : '');
+            n.style.display = 'block';
+            setTimeout(() => n.style.display = 'none', 4000);
         }
-        
+
         function renderPrizesGrid() {
-            const grid = document.getElementById('prizesGrid');
-            grid.innerHTML = PRIZES.map(prize => `
-                <div class="prize-item">
-                    <div class="prize-color" style="background: ${prize.color};"></div>
-                    <div class="prize-value">${prize.label}</div>
-                    <div class="prize-label">COINS</div>
-                </div>
+            document.getElementById('prizesGrid').innerHTML = PRIZES.map(p => `
+                <div class="prize-item"><div class="prize-color" style="background:${p.color};"></div><div class="prize-value">${p.label}</div><div class="prize-label">COINS</div></div>
             `).join('');
         }
-        
-        function drawWheel(currentAngle) {
+
+        function drawWheel(angle) {
             const canvas = document.getElementById('wheelCanvas');
             if (!canvas) return;
-            
             const ctx = canvas.getContext('2d');
-            const size = canvas.width;
-            const center = size / 2;
-            const radius = size / 2 - 10;
-            const anglePerSegment = (Math.PI * 2) / PRIZES.length;
-            
-            ctx.clearRect(0, 0, size, size);
-            
-            for (let i = 0; i < PRIZES.length; i++) {
-                const startAngle = currentAngle + i * anglePerSegment;
-                const endAngle = startAngle + anglePerSegment;
-                
+            const size = canvas.width, center = size/2, radius = size/2 - 10;
+            const segAngle = (Math.PI*2)/PRIZES.length;
+            ctx.clearRect(0,0,size,size);
+            for(let i=0; i<PRIZES.length; i++){
+                const start = angle + i*segAngle, end = start + segAngle;
                 ctx.beginPath();
                 ctx.fillStyle = PRIZES[i].color;
-                ctx.moveTo(center, center);
-                ctx.arc(center, center, radius, startAngle, endAngle);
+                ctx.moveTo(center,center);
+                ctx.arc(center,center,radius,start,end);
                 ctx.fill();
-                ctx.strokeStyle = '#1a1a2e';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                
+                ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2; ctx.stroke();
                 ctx.save();
-                ctx.translate(center, center);
-                ctx.rotate(startAngle + anglePerSegment / 2);
-                ctx.fillStyle = "#1a1a2e";
-                ctx.font = "bold 14px 'Segoe UI'";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText(PRIZES[i].label, radius * 0.65, 0);
+                ctx.translate(center,center);
+                ctx.rotate(start + segAngle/2);
+                ctx.fillStyle='#1a1a2e';
+                ctx.font="bold 14px 'Segoe UI'";
+                ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.fillText(PRIZES[i].label, radius*0.65, 0);
                 ctx.restore();
             }
-            
-            ctx.beginPath();
-            ctx.fillStyle = "#FFD700";
-            ctx.arc(center, center, 15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#1a1a2e";
-            ctx.font = "bold 20px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🎡", center, center);
+            ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,15,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a2e'; ctx.font='bold 20px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText('🎡', center, center);
         }
-        
+
+        // Helper to safely parse reward (handles both points and coins)
+        function parseRewardToCoins(value) {
+            if (value === undefined || value === null) return 0;
+            const num = Number(value);
+            // If value is > 1000, it's likely old points; convert to coins
+            return num > 10000 ? num / 1000000 : num;
+        }
+
         async function loadWheelStatus() {
-            if (!tg || !tg.initData) {
-                if (!initTelegram()) {
-                    document.getElementById('statusText').textContent = '❌ Not in Telegram';
-                    document.getElementById('retryBtn').style.display = 'block';
-                    return;
-                }
+            if (!tg?.initData) {
+                document.getElementById('statusText').textContent = '❌ Not in Telegram';
+                document.getElementById('retryBtn').style.display = 'block';
+                return;
             }
-            
             const statusDiv = document.getElementById('statusText');
             const spinBtn = document.getElementById('spinBtn');
             const retryBtn = document.getElementById('retryBtn');
-            
-            statusDiv.textContent = 'Loading status...';
+            statusDiv.textContent = 'Loading...';
             spinBtn.disabled = true;
             retryBtn.style.display = 'none';
-            
+
             try {
-                const response = await fetch('/api/wheel-status', {
+                const res = await fetch('/api/wheel-status', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: tg.initData })
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({initData: tg.initData})
                 });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ Status error:', response.status, errorText);
-                    throw new Error(`Status ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log('✅ Wheel status loaded:', data);
-                
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                console.log('Wheel status:', data);
+
                 canSpin = data.can_spin;
-                
-                if (statusDiv) {
-                    if (data.can_spin) {
-                        statusDiv.innerHTML = '<span style="color: var(--success);">✅ Ready to spin!</span>';
-                    } else {
-                        statusDiv.innerHTML = '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
-                    }
-                }
+                statusDiv.innerHTML = data.can_spin 
+                    ? '<span style="color:var(--success);">✅ Ready to spin!</span>'
+                    : '<span style="color:var(--warning);">⏳ Next spin available in:</span>';
                 
                 const timerDiv = document.getElementById('timerText');
-                if (timerDiv) {
-                    if (!data.can_spin && data.days_left !== undefined) {
-                        const daysLeft = data.days_left;
-                        timerDiv.innerHTML = `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`;
-                    } else {
-                        timerDiv.innerHTML = '';
-                    }
-                }
+                timerDiv.innerHTML = data.can_spin ? '' : `${data.days_left || 0} day${data.days_left !== 1 ? 's' : ''}`;
                 
-                const lastRewardDiv = document.getElementById('lastRewardText');
-                if (lastRewardDiv) {
-                    if (data.last_reward && data.last_reward > 0) {
-                        // last_reward is now in COINS directly
-                        lastRewardDiv.innerHTML = `Last spin: ${data.last_reward.toFixed(2)} COINS!`;
-                    } else {
-                        lastRewardDiv.innerHTML = 'No spins yet!';
-                    }
-                }
+                const lastReward = parseRewardToCoins(data.last_reward);
+                document.getElementById('lastRewardText').innerHTML = lastReward > 0 
+                    ? `Last spin: ${lastReward.toFixed(3)} COINS!` 
+                    : 'No spins yet!';
                 
-                if (spinBtn) spinBtn.disabled = !data.can_spin;
-                
+                spinBtn.disabled = !data.can_spin;
                 drawWheel(wheelCurrentAngle);
-                
-            } catch (err) {
-                console.error('❌ Wheel status error:', err);
-                statusDiv.textContent = '❌ Failed to load status';
+            } catch(err) {
+                console.error('Status error:', err);
+                statusDiv.textContent = '❌ Failed to load';
                 retryBtn.style.display = 'block';
-                showNotification('Failed to load wheel status. Tap Retry.', true);
+                showNotification('Could not load wheel status', true);
             }
         }
-        
+
         async function spinWheel() {
-            if (wheelSpinning) return;
-            if (!canSpin) { 
-                showNotification('Next spin not available yet!', true); 
-                return; 
-            }
-            if (!tg?.initData) { 
-                showNotification('Please open from Telegram', true); 
-                return; 
-            }
-            
+            if (wheelSpinning || !canSpin || !tg?.initData) return;
             wheelSpinning = true;
             const spinBtn = document.getElementById('spinBtn');
             spinBtn.disabled = true;
             spinBtn.textContent = '🎡 SPINNING...';
-            
-            const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
+
+            const spinAngle = Math.random() * (Math.PI*2*5) + (Math.PI*2*3);
             const startTime = performance.now();
             const duration = 3000;
-            
-            function animateSpin(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(1, elapsed / duration);
+
+            function animateSpin(now) {
+                const progress = Math.min(1, (now - startTime) / duration);
                 const easeOut = 1 - Math.pow(1 - progress, 3);
-                const angle = spinAngle * easeOut;
-                wheelCurrentAngle = (wheelCurrentAngle + angle) % (Math.PI * 2);
+                wheelCurrentAngle = (wheelCurrentAngle + spinAngle * easeOut) % (Math.PI*2);
                 drawWheel(wheelCurrentAngle);
-                
                 if (progress < 1) {
                     wheelAnimationFrame = requestAnimationFrame(animateSpin);
                 } else {
                     wheelAnimationFrame = null;
-                    const finalAngle = wheelCurrentAngle % (Math.PI * 2);
-                    const segmentIndex = Math.floor(((Math.PI * 2) - finalAngle) / ((Math.PI * 2) / PRIZES.length)) % PRIZES.length;
-                    const prize = PRIZES[segmentIndex].value;
+                    const finalAngle = wheelCurrentAngle % (Math.PI*2);
+                    const segIdx = Math.floor(((Math.PI*2) - finalAngle) / ((Math.PI*2)/PRIZES.length)) % PRIZES.length;
+                    const prize = PRIZES[segIdx].value;
                     wheelSpinning = false;
                     submitSpin(prize);
                 }
             }
-            
             if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
             wheelAnimationFrame = requestAnimationFrame(animateSpin);
         }
-        
+
         async function submitSpin(prize) {
             try {
-                const response = await fetch('/api/wheel-spin', {
+                const res = await fetch('/api/wheel-spin', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: tg.initData })
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({initData: tg.initData})
                 });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // reward is now in COINS directly
-                    showNotification(`🎡 You won ${data.reward.toFixed(2)} COINS!`);
+                const data = await res.json();
+                if (res.ok) {
+                    const reward = parseRewardToCoins(data.reward);
+                    showNotification(`🎡 You won ${reward.toFixed(3)} COINS!`);
                     await loadWheelStatus();
                 } else {
-                    showNotification(data.error || 'Failed to spin', true);
+                    showNotification(data.error || 'Spin failed', true);
                     await loadWheelStatus();
                 }
-                
-            } catch (err) {
+            } catch(err) {
                 showNotification('Network error', true);
                 await loadWheelStatus();
             }
         }
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎡 Wheel page DOM loaded');
-            
-            initTelegram();
-            renderPrizesGrid();
-            drawWheel(0);
-            
-            setTimeout(() => loadWheelStatus(), 300);
-            
-            const spinBtn = document.getElementById('spinBtn');
-            const newSpinBtn = spinBtn.cloneNode(true);
-            spinBtn.parentNode.replaceChild(newSpinBtn, spinBtn);
-            newSpinBtn.addEventListener('click', spinWheel);
-            
-            const retryBtn = document.getElementById('retryBtn');
-            retryBtn.addEventListener('click', () => {
-                initTelegram();
-                loadWheelStatus();
-            });
-        });
-        
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !canSpin) {
-                setTimeout(() => {
-                    initTelegram();
-                    loadWheelStatus();
-                }, 200);
-            }
-        });
+
+        // Initialize
+        renderPrizesGrid();
+        drawWheel(0);
+        setTimeout(loadWheelStatus, 300);
+
+        document.getElementById('spinBtn').addEventListener('click', spinWheel);
+        document.getElementById('retryBtn').addEventListener('click', loadWheelStatus);
     </script>
 </body>
 </html>
