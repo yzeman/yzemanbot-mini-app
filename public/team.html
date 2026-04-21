@@ -395,9 +395,9 @@
                 <div class="prize-info-title"><i class="fas fa-info-circle"></i><span>How Prizes Work</span></div>
                 <button class="close-info-btn" onclick="dismissPrizeInfo()"><i class="fas fa-times"></i></button>
             </div>
-            <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥇 1st</strong> — Every member gets 2,500 C</span></div>
-            <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥈 2nd</strong> — Every member gets 1,000 C</span></div>
-            <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥉 3rd</strong> — Every member gets 500 C</span></div>
+            <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥇 1st</strong> — Every member gets 2,500 COINS</span></div>
+            <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥈 2nd</strong> — Every member gets 1,000 COINS</span></div>
+            <div class="prize-info-row"><i class="fas fa-check-circle"></i><span><strong>🥉 3rd</strong> — Every member gets 500 COINS</span></div>
             <div class="prize-info-row"><i class="fas fa-calendar-check"></i><span>Awarded 1st of every month</span></div>
         </div>
         
@@ -454,7 +454,7 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        const POINTS_PER_COIN = 1000000;
+        // Coin economy - no points conversion needed
         let teamLeaderboardCache = [];
         let monthlyCache = null;
         let leaderboardLastFetch = 0;
@@ -463,7 +463,7 @@
         
         let pendingCreate = false;
         let pendingJoin = false;
-        let optimisticTeamData = null; // holds temp data during sync
+        let optimisticTeamData = null;
         
         const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
         
@@ -508,16 +508,19 @@
             const text = await response.text();
             try { 
                 const json = JSON.parse(text);
-                if (!response.ok) {
-                    throw new Error(json.error || 'Request failed');
-                }
+                if (!response.ok) throw new Error(json.error || 'Request failed');
                 return json;
             } catch (e) {
-                if (e instanceof SyntaxError) {
-                    throw new Error('Invalid server response');
-                }
+                if (e instanceof SyntaxError) throw new Error('Invalid server response');
                 throw e;
             }
+        }
+        
+        function formatCoins(amount) {
+            const num = parseFloat(amount) || 0;
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+            return num.toFixed(2);
         }
         
         function getTeamRank(teamId) {
@@ -526,36 +529,16 @@
             return index >= 0 ? `#${index + 1}` : '--';
         }
         
-        function openCreateModal() { 
-            document.getElementById('createTeamModal').style.display = 'flex'; 
-        }
-        function closeCreateModal() { 
-            if (pendingCreate) return;
-            document.getElementById('createTeamModal').style.display = 'none';
-            document.getElementById('teamNameInput').value = '';
-        }
+        function openCreateModal() { document.getElementById('createTeamModal').style.display = 'flex'; }
+        function closeCreateModal() { if (pendingCreate) return; document.getElementById('createTeamModal').style.display = 'none'; document.getElementById('teamNameInput').value = ''; }
+        function openJoinModal() { document.getElementById('joinTeamModal').style.display = 'flex'; }
+        function closeJoinModal() { if (pendingJoin) return; document.getElementById('joinTeamModal').style.display = 'none'; document.getElementById('teamCodeInput').value = ''; }
+        function openLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'flex'; }
+        function closeLeaveModal() { document.getElementById('leaveTeamModal').style.display = 'none'; }
         
-        function openJoinModal() { 
-            document.getElementById('joinTeamModal').style.display = 'flex'; 
-        }
-        function closeJoinModal() { 
-            if (pendingJoin) return;
-            document.getElementById('joinTeamModal').style.display = 'none';
-            document.getElementById('teamCodeInput').value = '';
-        }
-        
-        function openLeaveModal() { 
-            document.getElementById('leaveTeamModal').style.display = 'flex'; 
-        }
-        function closeLeaveModal() { 
-            document.getElementById('leaveTeamModal').style.display = 'none'; 
-        }
-        
-        // Render optimistic team card using minimal data
         function renderOptimisticTeam(teamName, teamCode) {
             const container = document.getElementById('myTeamContent');
             const initial = teamName[0].toUpperCase();
-            
             container.innerHTML = `
                 <div class="team-card pending">
                     <div class="team-header">
@@ -592,10 +575,8 @@
             `;
         }
         
-        // Replace optimistic card with real data
         function renderMyTeam(data) {
             const container = document.getElementById('myTeamContent');
-            
             if (!data || !data.has_team) {
                 container.innerHTML = `
                     <div class="no-team-card">
@@ -613,7 +594,7 @@
             
             const team = data.team;
             const members = data.members || [];
-            const totalCoins = ((team.total_points || 0) / POINTS_PER_COIN).toFixed(1);
+            const totalCoins = parseFloat(team.total_coins) || 0;
             const rank = getTeamRank(team.id);
             
             container.innerHTML = `
@@ -626,23 +607,20 @@
                         </div>
                         <div class="team-rank">${rank}</div>
                     </div>
-                    
                     <div class="team-stats">
                         <div class="team-stat"><div class="team-stat-value">${team.member_count || 0}</div><div class="team-stat-label">Members</div></div>
-                        <div class="team-stat"><div class="team-stat-value">${totalCoins}</div><div class="team-stat-label">COINS</div></div>
+                        <div class="team-stat"><div class="team-stat-value">${formatCoins(totalCoins)}</div><div class="team-stat-label">COINS</div></div>
                         <div class="team-stat"><div class="team-stat-value">${team.total_referrals || 0}</div><div class="team-stat-label">Refs</div></div>
                         <div class="team-stat"><div class="team-stat-value">${rank}</div><div class="team-stat-label">Rank</div></div>
                     </div>
-                    
                     <div class="team-actions">
                         <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
                         <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                     </div>
                 </div>
-                
                 <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span></div>
                 ${members.map(m => {
-                    const coins = ((m.points || 0) / POINTS_PER_COIN).toFixed(1);
+                    const coins = parseFloat(m.coins) || 0;
                     const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
                     const photoUrl = m.photo_url || '';
                     return `
@@ -657,7 +635,7 @@
                                 </div>
                                 <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} refs</div>
                             </div>
-                            <div class="member-coins">${coins} C</div>
+                            <div class="member-coins">${formatCoins(coins)}</div>
                         </div>
                     `;
                 }).join('')}
@@ -667,29 +645,24 @@
         function renderTeamLeaderboard(data) {
             const container = document.getElementById('teamLeaderboardList');
             teamLeaderboardCache = data || [];
-            
             if (!data || data.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No teams yet. Create the first team!</p></div>';
                 return;
             }
-            
             container.innerHTML = data.map((team, idx) => {
                 const rank = idx + 1;
                 const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+                const totalCoins = parseFloat(team.total_coins) || 0;
                 return `
                     <div class="leaderboard-item">
                         <div class="rank ${rankClass}">#${rank}</div>
                         <div class="team-avatar-small">${escapeHtml((team.name || 'T')[0].toUpperCase())}</div>
                         <div class="info"><div class="name">${escapeHtml(team.name)}</div><div class="members">👑 ${escapeHtml(team.leader_name || '?')} • ${team.member_count || 0} members</div></div>
-                        <div class="score">${((team.total_points || 0) / POINTS_PER_COIN).toFixed(1)} C</div>
+                        <div class="score">${formatCoins(totalCoins)}</div>
                     </div>
                 `;
             }).join('');
-            
-            // Update team rank in my team view if visible
-            if (document.getElementById('myteamTab').classList.contains('active')) {
-                loadMyTeamOnly();
-            }
+            if (document.getElementById('myteamTab').classList.contains('active')) loadMyTeamOnly();
         }
         
         function renderMonthlyCompetition(data) {
@@ -698,19 +671,19 @@
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-calendar"></i><p>No teams competing this month</p></div>';
                 return;
             }
-            
             container.innerHTML = `<div class="members-title" style="margin-top:6px;"><i class="fas fa-chart-line"></i><span>${data.month} Standings</span></div>` +
                 data.standings.map((team, idx) => {
                     const rank = idx + 1;
                     const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
                     const prize = MONTHLY_PRIZES[rank];
-                    const prizeInfo = prize ? `<div style="font-size:9px;color:var(--gold);margin-top:1px;">${prize.medal} ${prize.coins} C each</div>` : '';
+                    const prizeInfo = prize ? `<div style="font-size:9px;color:var(--gold);margin-top:1px;">${prize.medal} ${prize.coins} COINS each</div>` : '';
+                    const teamCoins = parseFloat(team.team_coins) || 0;
                     return `
                         <div class="leaderboard-item">
                             <div class="rank ${rankClass}">#${rank}</div>
                             <div class="team-avatar-small">${escapeHtml((team.name || 'T')[0].toUpperCase())}</div>
                             <div class="info"><div class="name">${escapeHtml(team.name)}</div><div class="members">👑 ${escapeHtml(team.leader_name || '?')} • ${team.member_count || 0} members</div>${prizeInfo}</div>
-                            <div class="score">${((team.team_points || 0) / POINTS_PER_COIN).toFixed(1)} C</div>
+                            <div class="score">${formatCoins(teamCoins)}</div>
                         </div>
                     `;
                 }).join('');
@@ -722,7 +695,6 @@
                 renderMyTeam(data);
                 optimisticTeamData = null;
             } catch (err) {
-                // If we have optimistic data, show error but keep the card
                 if (optimisticTeamData) {
                     const container = document.getElementById('myTeamContent');
                     const existingCard = container.querySelector('.team-card');
@@ -740,10 +712,8 @@
         
         window.retrySyncTeam = async function() {
             if (optimisticTeamData) {
-                // Remove error message
                 const errorDiv = document.querySelector('.sync-error');
                 if (errorDiv) errorDiv.remove();
-                // Show syncing
                 const container = document.getElementById('myTeamContent');
                 const spinner = document.createElement('div');
                 spinner.style.textAlign = 'center';
@@ -757,12 +727,10 @@
         async function loadTeamLeaderboard(force = false) {
             const container = document.getElementById('teamLeaderboardList');
             const now = Date.now();
-            
             if (!force && teamLeaderboardCache.length > 0 && (now - leaderboardLastFetch) < CACHE_TTL) {
                 renderTeamLeaderboard(teamLeaderboardCache);
                 return;
             }
-            
             try {
                 const response = await fetch('/api/team/leaderboard');
                 const data = await response.json();
@@ -781,12 +749,10 @@
         async function loadMonthlyCompetition(force = false) {
             const container = document.getElementById('monthlyContent');
             const now = Date.now();
-            
             if (!force && monthlyCache && (now - monthlyLastFetch) < CACHE_TTL) {
                 renderMonthlyCompetition(monthlyCache);
                 return;
             }
-            
             try {
                 const data = await apiCall('/api/team/monthly-competition');
                 monthlyCache = data;
@@ -809,7 +775,6 @@
         async function createTeam() {
             const nameInput = document.getElementById('teamNameInput');
             const name = nameInput.value.trim();
-            
             if (!name) { showNotification('Enter team name', true); return; }
             if (name.length < 3) { showNotification('Team name must be at least 3 characters', true); return; }
             if (pendingCreate) { showNotification('Please wait...', false); return; }
@@ -817,7 +782,6 @@
             const createBtn = document.getElementById('createTeamBtn');
             const cancelBtn = document.querySelector('#createTeamModal .modal-btn.secondary');
             const originalText = createBtn.innerHTML;
-            
             createBtn.disabled = true;
             cancelBtn.disabled = true;
             createBtn.innerHTML = '<span class="loading-spinner"></span> Creating...';
@@ -829,21 +793,13 @@
                     showNotification('Team name already exists. Please choose another.', true);
                     return;
                 }
-                
                 const createResult = await apiCall('/api/team/create', { teamName: name });
-                
-                // Optimistic UI: immediately show temporary team card
-                optimisticTeamData = { name, code: createResult.teamCode || '------' };
+                optimisticTeamData = { name, code: createResult.teamCode || createResult.team?.code || '------' };
                 renderOptimisticTeam(name, optimisticTeamData.code);
-                
                 closeCreateModal();
                 showNotification(`✅ Team "${name}" created!`, false);
-                
-                // Background sync with real data
                 await loadMyTeamOnly();
                 showNotification(`🎉 Welcome to your new team!`, false);
-                
-                // Refresh leaderboard cache in background
                 loadTeamLeaderboard(true).catch(e => {});
             } catch (err) {
                 showNotification(err.message || 'Failed to create team', true);
@@ -858,7 +814,6 @@
         async function joinTeam() {
             const codeInput = document.getElementById('teamCodeInput');
             const code = codeInput.value.trim().toUpperCase();
-            
             if (!code) { showNotification('Enter team code', true); return; }
             if (code.length !== 6) { showNotification('Team code should be 6 characters', true); return; }
             if (pendingJoin) { showNotification('Please wait...', false); return; }
@@ -866,7 +821,6 @@
             const joinBtn = document.getElementById('joinTeamBtn');
             const cancelBtn = document.querySelector('#joinTeamModal .modal-btn.secondary');
             const originalText = joinBtn.innerHTML;
-            
             joinBtn.disabled = true;
             cancelBtn.disabled = true;
             joinBtn.innerHTML = '<span class="loading-spinner"></span> Joining...';
@@ -878,19 +832,13 @@
                     showNotification('Invalid team code. Please check and try again.', true);
                     return;
                 }
-                
                 await apiCall('/api/team/join', { teamCode: code });
-                
-                // Optimistic UI: show temporary team card
                 optimisticTeamData = { name: checkResult.teamName || 'Team', code };
                 renderOptimisticTeam(checkResult.teamName || 'Team', code);
-                
                 closeJoinModal();
                 showNotification(`✅ Joined ${checkResult.teamName || 'team'}!`, false);
-                
                 await loadMyTeamOnly();
                 showNotification(`🎉 Welcome to your new team!`, false);
-                
                 loadTeamLeaderboard(true).catch(e => {});
             } catch (err) {
                 showNotification(err.message || 'Failed to join team', true);
@@ -906,11 +854,9 @@
             const leaveBtn = document.getElementById('leaveTeamBtn');
             const cancelBtn = document.querySelector('#leaveTeamModal .modal-btn.secondary');
             const originalText = leaveBtn.innerHTML;
-            
             leaveBtn.disabled = true;
             cancelBtn.disabled = true;
             leaveBtn.innerHTML = '<span class="loading-spinner"></span> Leaving...';
-            
             try {
                 await apiCall('/api/team/leave');
                 showNotification('Left team', false);
@@ -931,7 +877,6 @@
             showNotification('Team code copied!');
         }
         
-        // Tab switching
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -939,18 +884,12 @@
                 tab.classList.add('active');
                 const tabName = tab.dataset.tab;
                 document.getElementById(tabName + 'Tab').classList.add('active');
-                
-                if (tabName === 'leaderboard') {
-                    loadTeamLeaderboard();
-                }
-                if (tabName === 'monthly') {
-                    loadMonthlyCompetition();
-                    updatePrizeInfoVisibility();
-                }
+                if (tabName === 'leaderboard') loadTeamLeaderboard();
+                if (tabName === 'monthly') { loadMonthlyCompetition(); updatePrizeInfoVisibility(); }
             });
         });
         
-        window.onclick = (e) => { 
+        window.onclick = (e) => {
             if (e.target.classList.contains('modal')) {
                 const modal = e.target;
                 if (modal.id === 'createTeamModal' && pendingCreate) return;
@@ -962,17 +901,10 @@
         };
         
         const codeInput = document.getElementById('teamCodeInput');
-        if (codeInput) {
-            codeInput.addEventListener('input', function() {
-                this.value = this.value.toUpperCase();
-            });
-        }
+        if (codeInput) codeInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
         
-        // Initial load
         document.addEventListener('DOMContentLoaded', () => {
-            loadMyTeamOnly().then(() => {
-                preloadOtherTabs();
-            });
+            loadMyTeamOnly().then(() => preloadOtherTabs());
             updatePrizeInfoVisibility();
         });
     </script>
