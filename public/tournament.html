@@ -663,24 +663,32 @@
         }
         
         async function loadTournament() {
-            const container = document.getElementById('standingsList');
-            container.innerHTML = '<div class="loading">Loading tournament...</div>';
-            
-            try {
-                const data = await apiCall('/api/tournament/standings');
-                renderStandings(data.standings);
-                updateMyRank(data);
-            } catch (err) {
-                console.error('Tournament error:', err);
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <p>Failed to load tournament</p>
-                        <button class="retry-btn" onclick="loadTournament()">Retry</button>
-                    </div>
-                `;
-            }
-        }
+    const container = document.getElementById('standingsList');
+    container.innerHTML = '<div class="loading">Loading tournament...</div>';
+    
+    try {
+        const data = await apiCall('/api/tournament/standings');
+        renderStandings(data.standings);
+        updateMyRank(data);
+    } catch (err) {
+        console.error('Tournament error:', err);
+        // Try to parse error message
+        let errorMsg = err.message;
+        try {
+            const parsed = JSON.parse(err.message);
+            errorMsg = parsed.error || parsed.message || err.message;
+        } catch (e) {}
+        
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load tournament</p>
+                <p style="font-size:11px; margin-top:5px; color: #ff5252;">${errorMsg}</p>
+                <button class="retry-btn" onclick="loadTournament()">Retry</button>
+            </div>
+        `;
+    }
+}
         
         async function joinTournament() {
             const joinBtn = document.getElementById('joinBtn');
