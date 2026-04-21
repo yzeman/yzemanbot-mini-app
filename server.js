@@ -658,8 +658,13 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     const { rewardAmount, adType } = req.body;
     const telegramId = req.telegramUser.id;
 
+    console.log(`📺 Ad reward request: ${rewardAmount} COINS, type: ${adType}`);
+
     const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    if (userResult.rows.length === 0) {
+      console.error(`User not found: ${telegramId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
     
     const userId = userResult.rows[0].id;
     
@@ -678,7 +683,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     await awardReferralCommission(client, userId, rewardAmount);
     
     const userCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
-    if (userCoins.rows[0].coins >= 1000000) {
+    if (parseFloat(userCoins.rows[0].coins) >= 1000000) {
       await awardAchievement(userId, 'Points Millionaire', client);
     }
     
@@ -686,7 +691,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     res.json({ success: true, coins: userCoins.rows[0].coins });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Ad Reward Error:', err);
+    console.error('Ad Reward Error Details:', err.message, err.stack);
     res.status(500).json({ error: 'Failed to process ad reward' });
   } finally {
     client.release();
