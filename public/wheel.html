@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Wheel of Fortune - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- TELEGRAM WEB APP SDK - MUST BE FIRST -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <style>
         :root {
             --primary: #4CAF50;
@@ -208,7 +205,7 @@
         <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
         <p>• Spin the wheel every 3 days for free!</p>
         <p>• Your tier multiplier applies to all wins!</p>
-        <p>• Win up to 10 COINS in a single spin!</p>
+        <p>• Win up to 20 COINS in a single spin!</p>
     </div>
     
     <div class="bottom-nav">
@@ -222,44 +219,30 @@
     <div class="notification" id="notification"></div>
     
     <script>
-        // Wait for Telegram WebApp to be fully ready
         let tg = null;
-        let initDataAvailable = false;
         
-        // Try to get Telegram WebApp - with retry logic
         function initTelegram() {
-            console.log('🔍 Checking Telegram WebApp...');
-            
             if (window.Telegram?.WebApp) {
                 tg = window.Telegram.WebApp;
                 tg.ready();
                 tg.expand();
-                
-                if (tg.initData) {
-                    initDataAvailable = true;
-                    console.log('✅ Telegram WebApp ready with initData');
-                    console.log('📝 InitData length:', tg.initData.length);
-                } else {
-                    console.warn('⚠️ Telegram WebApp ready but no initData');
-                }
+                console.log('✅ Telegram WebApp ready');
                 return true;
-            } else {
-                console.error('❌ Telegram WebApp not available');
-                return false;
             }
+            console.error('❌ Telegram WebApp not available');
+            return false;
         }
         
-        const POINTS_PER_COIN = 1000000;
-        
+        // Updated prizes in COINS (matching server)
         const PRIZES = [
-            { value: 50000, label: '0.05', color: '#FF6B6B' },
-            { value: 100000, label: '0.10', color: '#4ECDC4' },
-            { value: 250000, label: '0.25', color: '#45B7D1' },
-            { value: 500000, label: '0.50', color: '#96CEB4' },
-            { value: 1000000, label: '1.00', color: '#FFEAA7' },
-            { value: 2500000, label: '2.50', color: '#DDA0DD' },
-            { value: 5000000, label: '5.00', color: '#98D8C8' },
-            { value: 10000000, label: '10.00', color: '#F7B05E' }
+            { value: 0.1, label: '0.10', color: '#FF6B6B' },
+            { value: 0.2, label: '0.20', color: '#4ECDC4' },
+            { value: 0.5, label: '0.50', color: '#45B7D1' },
+            { value: 1.0, label: '1.00', color: '#96CEB4' },
+            { value: 2.0, label: '2.00', color: '#FFEAA7' },
+            { value: 5.0, label: '5.00', color: '#DDA0DD' },
+            { value: 10.0, label: '10.00', color: '#98D8C8' },
+            { value: 20.0, label: '20.00', color: '#F7B05E' }
         ];
         
         let wheelSpinning = false;
@@ -334,7 +317,6 @@
         }
         
         async function loadWheelStatus() {
-            // Re-check Telegram on each load attempt
             if (!tg || !tg.initData) {
                 if (!initTelegram()) {
                     document.getElementById('statusText').textContent = '❌ Not in Telegram';
@@ -352,15 +334,11 @@
             retryBtn.style.display = 'none';
             
             try {
-                console.log('📡 Fetching wheel status...');
-                
                 const response = await fetch('/api/wheel-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ initData: tg.initData })
                 });
-                
-                console.log('📡 Response status:', response.status);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -394,8 +372,8 @@
                 const lastRewardDiv = document.getElementById('lastRewardText');
                 if (lastRewardDiv) {
                     if (data.last_reward && data.last_reward > 0) {
-                        const coins = (data.last_reward / POINTS_PER_COIN).toFixed(2);
-                        lastRewardDiv.innerHTML = `Last spin: ${coins} COINS!`;
+                        // last_reward is now in COINS directly
+                        lastRewardDiv.innerHTML = `Last spin: ${data.last_reward.toFixed(2)} COINS!`;
                     } else {
                         lastRewardDiv.innerHTML = 'No spins yet!';
                     }
@@ -468,8 +446,8 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    const coins = (data.reward / POINTS_PER_COIN).toFixed(2);
-                    showNotification(`🎡 You won ${coins} COINS!`);
+                    // reward is now in COINS directly
+                    showNotification(`🎡 You won ${data.reward.toFixed(2)} COINS!`);
                     await loadWheelStatus();
                 } else {
                     showNotification(data.error || 'Failed to spin', true);
@@ -482,29 +460,20 @@
             }
         }
         
-        // Initialize everything
         document.addEventListener('DOMContentLoaded', () => {
             console.log('🎡 Wheel page DOM loaded');
             
-            // Initialize Telegram
             initTelegram();
-            
-            // Render UI
             renderPrizesGrid();
             drawWheel(0);
             
-            // Load status after a short delay to ensure Telegram is ready
-            setTimeout(() => {
-                loadWheelStatus();
-            }, 300);
+            setTimeout(() => loadWheelStatus(), 300);
             
-            // Set up spin button
             const spinBtn = document.getElementById('spinBtn');
             const newSpinBtn = spinBtn.cloneNode(true);
             spinBtn.parentNode.replaceChild(newSpinBtn, spinBtn);
             newSpinBtn.addEventListener('click', spinWheel);
             
-            // Set up retry button
             const retryBtn = document.getElementById('retryBtn');
             retryBtn.addEventListener('click', () => {
                 initTelegram();
@@ -512,10 +481,8 @@
             });
         });
         
-        // Also try when page becomes visible
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && !canSpin) {
-                console.log('📱 Page became visible, retrying...');
                 setTimeout(() => {
                     initTelegram();
                     loadWheelStatus();
@@ -524,4 +491,4 @@
         });
     </script>
 </body>
-                                                                                         </html>
+</html>
