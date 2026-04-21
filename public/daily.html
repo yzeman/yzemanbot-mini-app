@@ -297,14 +297,14 @@
     <div class="reward-card" id="claimBtn">
         <div class="reward-icon">🎁</div>
         <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
-        <div class="reward-amount"><span id="todayReward">0.10</span></div>
+        <div class="reward-amount"><span id="todayReward">0.20</span></div>
         <div class="reward-coin">COINS</div>
     </div>
     
     <div class="streak-info">
-        <p><i class="fas fa-fire" style="color: var(--gold);"></i> <strong>Streak Bonus:</strong> +0.05 COINS per day of streak!</p>
-        <p><i class="fas fa-calendar-week"></i> <strong>7-Day Bonus:</strong> Extra 0.5 COINS every week!</p>
-        <p><i class="fas fa-crown"></i> <strong>30-Day Bonus:</strong> Special achievement unlocked!</p>
+        <p><i class="fas fa-fire" style="color: var(--gold);"></i> <strong>Streak Bonus:</strong> +0.1 COINS per day of streak!</p>
+        <p><i class="fas fa-calendar-week"></i> <strong>7-Day Bonus:</strong> Extra 1 COIN every week!</p>
+        <p><i class="fas fa-crown"></i> <strong>30-Day Bonus:</strong> Special achievement (100 COINS)!</p>
     </div>
     
     <div class="calendar-section">
@@ -344,7 +344,7 @@
     
     <script>
         // ============================================
-        // DAILY PAGE - STANDALONE SCRIPT
+        // DAILY PAGE - UPDATED FOR COINS ONLY
         // ============================================
         
         const tg = window.Telegram?.WebApp;
@@ -353,8 +353,6 @@
             tg.expand();
             console.log('✅ Daily page: Telegram WebApp ready');
         }
-        
-        const POINTS_PER_COIN = 1000000;
         
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -406,12 +404,15 @@
             if (totalDays) totalDays.textContent = data.last_7_days?.length || 0;
             if (maxStreak) maxStreak.textContent = data.max_streak || 0;
             
-            const baseReward = 100000;
-            const streakBonus = (data.current_streak || 0) * 50000;
-            const totalReward = baseReward + streakBonus;
-            const coins = (totalReward / POINTS_PER_COIN).toFixed(2);
+            // Calculate today's potential reward (base + streak bonus)
+            const baseReward = 0.2;
+            const streakBonus = (data.current_streak || 0) * 0.1;
+            let totalReward = baseReward + streakBonus;
+            if ((data.current_streak || 0) > 0 && (data.current_streak % 7 === 0)) {
+                totalReward += 1.0; // 7-day bonus
+            }
             
-            if (todayReward) todayReward.textContent = coins;
+            if (todayReward) todayReward.textContent = totalReward.toFixed(2);
             
             if (claimBtn && claimBtnText) {
                 if (data.claimed_today) {
@@ -449,7 +450,7 @@
                 const dateStr = date.toISOString().split('T')[0];
                 const dayOfWeek = date.getDay();
                 
-                // Correct Day Abbreviations: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+                // Day abbreviations: Sun, Mon, Tue, Wed, Thu, Fri, Sat
                 const dayAbbr = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][dayOfWeek];
                 const dayNumber = date.getDate();
                 const isClaimed = claimedDates.has(dateStr);
@@ -484,7 +485,8 @@
             try {
                 const data = await apiCall('/api/daily-reward', { initData: tg.initData });
                 
-                const coins = (data.reward / POINTS_PER_COIN).toFixed(2);
+                // API returns reward in COINS directly
+                const coins = data.reward.toFixed(2);
                 showNotification(`🎁 Daily reward claimed! +${coins} COINS! Streak: ${data.streak} days 🔥`);
                 
                 await loadDailyStats();
@@ -510,7 +512,6 @@
         
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📅 Daily page loading...');
-            console.log('📅 Today is: ' + new Date().toDateString());
             
             loadDailyStats();
             
