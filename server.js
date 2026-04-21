@@ -45,7 +45,7 @@ app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
 // ============================================
-// DATABASE INITIALIZATION (UPDATED FOR COINS)
+// DATABASE INITIALIZATION (UPDATED WITH FIX)
 // ============================================
 
 async function initDB() {
@@ -73,6 +73,16 @@ async function initDB() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date DATE`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_coins_earned DECIMAL(20,3) DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER`);
+
+    // Migrate old points column to coins if exists (optional)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='points') THEN
+          UPDATE users SET coins = points / 1000000.0 WHERE coins = 0;
+        END IF;
+      END $$;
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
@@ -155,8 +165,18 @@ async function initDB() {
         description TEXT,
         badge_icon TEXT,
         required_value INTEGER,
-        coins_reward DECIMAL(10,3) DEFAULT 0
+        points_reward BIGINT DEFAULT 0
       )`);
+
+    // ===== FIX: Add coins_reward column if not exists =====
+    await client.query(`
+      ALTER TABLE achievements ADD COLUMN IF NOT EXISTS coins_reward DECIMAL(10,3) DEFAULT 0
+    `);
+
+    // Migrate existing points_reward to coins_reward (optional)
+    await client.query(`
+      UPDATE achievements SET coins_reward = points_reward / 1000000.0 WHERE coins_reward = 0 AND points_reward > 0
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_achievements (
@@ -227,7 +247,6 @@ async function initDB() {
       )
     `);
 
-    // Commission tracking
     await client.query(`
       CREATE TABLE IF NOT EXISTS referral_commissions (
         id SERIAL PRIMARY KEY,
@@ -239,7 +258,7 @@ async function initDB() {
       )
     `);
 
-    // Insert achievements with coin rewards
+    // Insert/update achievements with coin rewards (now works because column exists)
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, coins_reward) VALUES
         ('Loyal User', '30 day login streak', '🔥', 30, 100),
@@ -302,7 +321,7 @@ async function awardReferralCommission(client, referredUserId, coinsEarned) {
 }
 
 // ============================================
-// HELPER: Award Achievement
+// HELPER: Award Achievement (UPDATED FOR COINS)
 // ============================================
 
 async function awardAchievement(userId, achievementName, clientParam = null) {
@@ -907,7 +926,6 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
 // TEAM APIS (UPDATED TO USE COINS)
 // ============================================
 
-// Create a team
 app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -973,7 +991,7 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
     
     await client.query('COMMIT');
     
-    res.json({ success: true, team });
+    res.json({ success: true, team, teamCode: team.code });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Create team error:', err);
@@ -983,7 +1001,6 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Join a team by code
 app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1046,7 +1063,6 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Get user's team info
 app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   try {
     let teamId = req.body.teamId;
@@ -1106,7 +1122,6 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Leave team
 app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -1176,7 +1191,6 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Team leaderboard
 app.get('/api/team/leaderboard', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -1199,7 +1213,6 @@ app.get('/api/team/leaderboard', async (req, res) => {
   }
 });
 
-// Monthly competition standings
 app.post('/api/team/monthly-competition', async (req, res) => {
   try {
     const now = new Date();
@@ -1229,7 +1242,6 @@ app.post('/api/team/monthly-competition', async (req, res) => {
   }
 });
 
-// Check if team name exists
 app.post('/api/team/check-name', verifyTelegramData, async (req, res) => {
   try {
     const { teamName } = req.body;
@@ -1242,7 +1254,6 @@ app.post('/api/team/check-name', verifyTelegramData, async (req, res) => {
   }
 });
 
-// Check if team code exists
 app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
   try {
     const { teamCode } = req.body;
