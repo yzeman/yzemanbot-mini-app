@@ -45,7 +45,7 @@ app.use(bodyParser.json({ limit: '10kb' }));
 app.use(express.static('public'));
 
 // ============================================
-// DATABASE INITIALIZATION (UPDATED WITH FIX)
+// DATABASE INITIALIZATION (WITH MIGRATION)
 // ============================================
 
 async function initDB() {
@@ -53,6 +53,7 @@ async function initDB() {
   try {
     await client.query('BEGIN');
     
+    // ===== STEP 1: CREATE USERS TABLE (IF NOT EXISTS) =====
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -62,35 +63,67 @@ async function initDB() {
         username TEXT,
         photo_url TEXT,
         referral_code TEXT UNIQUE,
-        coins DECIMAL(20,3) NOT NULL DEFAULT 0,
+        points BIGINT DEFAULT 0,
         tier TEXT NOT NULL DEFAULT 'Fresher',
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )`);
-    
+      )
+    `);
+
+    // ===== STEP 2: ADD 'coins' COLUMN IF IT DOESN'T EXIST =====
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS coins DECIMAL(20,3) DEFAULT 0
+    `);
+
+    // ===== STEP 3: MIGRATE DATA FROM 'points' TO 'coins' =====
+    // Only run if 'points' column exists and has data
+    const pointsColumnExists = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='points'
+      )
+    `);
+    if (pointsColumnExists.rows[0].exists) {
+      await client.query(`
+        UPDATE users 
+        SET coins = points / 1000000.0 
+        WHERE coins = 0 AND points > 0
+      `);
+      console.log('✅ Migrated points to coins');
+    }
+
+    // ===== STEP 4: ADD OTHER COLUMNS =====
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_address TEXT`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referrals INTEGER DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date DATE`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_coins_earned DECIMAL(20,3) DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER`);
 
-    // Migrate old points column to coins if exists (optional)
-    await client.query(`
-      DO $$
-      BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='points') THEN
-          UPDATE users SET coins = points / 1000000.0 WHERE coins = 0;
-        END IF;
-      END $$;
+    // Migrate total_points_earned if exists
+    const totalPointsExists = await client.query(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name='users' AND column_name='total_points_earned'
+      )
     `);
+    if (totalPointsExists.rows[0].exists) {
+      await client.query(`
+        UPDATE users 
+        SET total_coins_earned = total_points_earned / 1000000.0 
+        WHERE total_coins_earned = 0 AND total_points_earned > 0
+      `);
+      console.log('✅ Migrated total_points_earned to total_coins_earned');
+    }
 
+    // ===== STEP 5: TIERS TABLE =====
     await client.query(`
       CREATE TABLE IF NOT EXISTS tiers (
         name TEXT PRIMARY KEY,
         refs_required INTEGER NOT NULL,
         multiplier REAL NOT NULL,
         referral_reward DECIMAL(10,3) NOT NULL
-      )`);
+      )
+    `);
 
     await client.query(`
       INSERT INTO tiers (name, refs_required, multiplier, referral_reward) 
@@ -106,6 +139,7 @@ async function initDB() {
         referral_reward = EXCLUDED.referral_reward
     `);
 
+    // ===== STEP 6: OTHER TABLES =====
     await client.query(`
       CREATE TABLE IF NOT EXISTS referrals (
         id SERIAL PRIMARY KEY,
@@ -113,7 +147,8 @@ async function initDB() {
         referred_id INTEGER NOT NULL REFERENCES users(id),
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         UNIQUE (referred_id)
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS ad_rewards (
@@ -122,7 +157,8 @@ async function initDB() {
         reward_amount DECIMAL(10,3) NOT NULL,
         ad_type TEXT NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS withdrawals (
@@ -133,7 +169,8 @@ async function initDB() {
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS daily_rewards (
@@ -145,7 +182,8 @@ async function initDB() {
         claimed BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, reward_date)
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS wheel_spins (
@@ -156,7 +194,8 @@ async function initDB() {
         spin_type TEXT DEFAULT 'normal',
         created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, spin_date)
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS achievements (
@@ -166,16 +205,19 @@ async function initDB() {
         badge_icon TEXT,
         required_value INTEGER,
         points_reward BIGINT DEFAULT 0
-      )`);
+      )
+    `);
 
-    // ===== FIX: Add coins_reward column if not exists =====
+    // Add coins_reward column
     await client.query(`
       ALTER TABLE achievements ADD COLUMN IF NOT EXISTS coins_reward DECIMAL(10,3) DEFAULT 0
     `);
 
-    // Migrate existing points_reward to coins_reward (optional)
+    // Migrate achievement rewards
     await client.query(`
-      UPDATE achievements SET coins_reward = points_reward / 1000000.0 WHERE coins_reward = 0 AND points_reward > 0
+      UPDATE achievements 
+      SET coins_reward = points_reward / 1000000.0 
+      WHERE coins_reward = 0 AND points_reward > 0
     `);
 
     await client.query(`
@@ -185,7 +227,8 @@ async function initDB() {
         achievement_id INTEGER NOT NULL REFERENCES achievements(id),
         achieved_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(user_id, achievement_id)
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS teams (
@@ -194,7 +237,8 @@ async function initDB() {
         code TEXT UNIQUE NOT NULL,
         created_by INTEGER REFERENCES users(id),
         created_at TIMESTAMP DEFAULT NOW()
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS team_members (
@@ -203,7 +247,8 @@ async function initDB() {
         user_id INTEGER NOT NULL REFERENCES users(id),
         joined_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(team_id, user_id)
-      )`);
+      )
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS ad_statistics (
@@ -258,7 +303,7 @@ async function initDB() {
       )
     `);
 
-    // Insert/update achievements with coin rewards (now works because column exists)
+    // Insert/update achievements with coin rewards
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, coins_reward) VALUES
         ('Loyal User', '30 day login streak', '🔥', 30, 100),
@@ -278,7 +323,7 @@ async function initDB() {
     `);
 
     await client.query('COMMIT');
-    console.log('✅ Database initialized successfully');
+    console.log('✅ Database initialized and migrated successfully');
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('❌ Database initialization failed:', err.stack);
