@@ -533,7 +533,6 @@
     
     let hasJoined = false;
     
-    // Info box dismissal - resets every Monday
     function shouldShowInfoBox() {
         const dismissedWeek = localStorage.getItem('tournamentInfoDismissedWeek');
         const currentWeek = getWeekNumber(new Date());
@@ -555,11 +554,8 @@
     
     function updateInfoBoxVisibility() {
         const infoBox = document.getElementById('infoBox');
-        if (!shouldShowInfoBox()) {
-            infoBox.classList.add('dismissed');
-        } else {
-            infoBox.classList.remove('dismissed');
-        }
+        if (!shouldShowInfoBox()) infoBox.classList.add('dismissed');
+        else infoBox.classList.remove('dismissed');
     }
     
     function showNotification(msg, isError = false) {
@@ -572,13 +568,11 @@
     
     async function apiCall(endpoint, data = null) {
         if (!tg?.initData) throw new Error('Not in Telegram');
-        
         const options = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData })
         };
-        
         const response = await fetch(endpoint, options);
         if (!response.ok) {
             const error = await response.text();
@@ -597,24 +591,35 @@
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        
         document.getElementById('tournamentTimer').textContent = `${days}d ${hours}h ${minutes}m`;
+    }
+    
+    // Format coins - handles both points (old) and coins (new)
+    function formatCoins(amount) {
+        const num = parseFloat(amount) || 0;
+        // If number is very large (>10000), assume it's points and convert to coins
+        const coins = num > 10000 ? num / 1000000 : num;
+        
+        if (coins >= 1000000) {
+            return (coins / 1000000).toFixed(2) + 'M';
+        } else if (coins >= 1000) {
+            return (coins / 1000).toFixed(2) + 'K';
+        } else {
+            return coins.toFixed(2);
+        }
     }
     
     function renderStandings(standings) {
         const container = document.getElementById('standingsList');
-        
         if (!standings || standings.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No participants yet. Be the first to join!</p></div>';
+            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No participants yet.</p></div>';
             return;
         }
         
         container.innerHTML = standings.map((user, idx) => {
             const rank = idx + 1;
             const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-            // Convert to number safely
-            const coinsValue = parseFloat(user.weekly_coins) || 0;
-            const coins = coinsValue.toFixed(2);
+            const coinsFormatted = formatCoins(user.weekly_coins);
             const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
             
             return `
@@ -630,7 +635,7 @@
                         </div>
                         <div class="username">${user.username ? '@' + user.username : ''}</div>
                     </div>
-                    <div class="coins">${coins} <small>COINS</small></div>
+                    <div class="coins">${coinsFormatted} <small>COINS</small></div>
                 </div>
             `;
         }).join('');
@@ -650,9 +655,7 @@
             if (data.my_rank) {
                 myRankCard.style.display = 'block';
                 document.getElementById('myRank').textContent = `#${data.my_rank}`;
-                
-                const myCoinsValue = parseFloat(data.my_coins) || 0;
-                document.getElementById('myCoins').textContent = myCoinsValue.toFixed(2);
+                document.getElementById('myCoins').textContent = formatCoins(data.my_coins);
                 
                 const myData = data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id);
                 document.getElementById('myReferrals').textContent = myData?.referral_count || 0;
@@ -675,11 +678,7 @@
         } catch (err) {
             console.error('Tournament error:', err);
             let errorMsg = err.message;
-            try {
-                const parsed = JSON.parse(err.message);
-                errorMsg = parsed.error || parsed.message || err.message;
-            } catch (e) {}
-            
+            try { errorMsg = JSON.parse(err.message).error || errorMsg; } catch(e) {}
             container.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-circle"></i>
@@ -709,14 +708,11 @@
         }
     }
     
-    // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('🏆 Tournament page loading...');
         updateTimer();
         setInterval(updateTimer, 60000);
         loadTournament();
         updateInfoBoxVisibility();
-        
         document.getElementById('joinBtn').addEventListener('click', joinTournament);
     });
 </script>
