@@ -1018,24 +1018,44 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
   }
 });
 
+// ============================================
+// TOURNAMENT: Current Week Standings
+// ============================================
 app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
+    
     const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    
     const userId = userResult.rows[0].id;
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    
+    // Find the most recent Monday
+    let daysSinceMonday = dayOfWeek - 1;
+    if (daysSinceMonday < 0) daysSinceMonday += 7;
+    
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - daysSinceMonday);
     weekStart.setHours(0, 0, 0, 0);
     const weekStartStr = weekStart.toISOString().split('T')[0];
     
-    const tournament = await pool.query('SELECT id FROM weekly_tournaments WHERE week_start = $1', [weekStartStr]);
+    // Get active tournament for this week
+    const tournament = await pool.query(
+      'SELECT id FROM weekly_tournaments WHERE week_start = $1 AND is_active = true',
+      [weekStartStr]
+    );
+    
     if (tournament.rows.length === 0) {
       return res.json({ standings: [], my_rank: null, my_coins: 0, has_joined: false });
     }
+    
     const tournamentId = tournament.rows[0].id;
-    const userJoined = await pool.query('SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2', [tournamentId, userId]);
+    const userJoined = await pool.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
     const hasJoined = userJoined.rows.length > 0;
     
     const standings = await pool.query(`
@@ -1045,17 +1065,24 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
         ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
       FROM tournament_participants tp
       JOIN users u ON tp.user_id = u.id
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at > NOW() - INTERVAL '7 days'
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+        AND ar.created_at >= $2
       WHERE tp.tournament_id = $1
       GROUP BY u.id
       ORDER BY weekly_coins DESC
-    `, [tournamentId]);
+    `, [tournamentId, weekStart.toISOString()]);
     
     let myRank = null, myCoins = 0;
     for (const row of standings.rows) {
-      if (row.id === userId) { myRank = row.rank; myCoins = parseFloat(row.weekly_coins); break; }
+      if (row.id === userId) { 
+        myRank = row.rank; 
+        myCoins = parseFloat(row.weekly_coins); 
+        break; 
+      }
     }
+    
     res.json({ standings: standings.rows, my_rank: myRank, my_coins: myCoins, has_joined: hasJoined });
+    
   } catch (err) {
     console.error('Tournament standings error:', err);
     res.status(500).json({ error: 'Failed to fetch standings' });
@@ -1509,6 +1536,95 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Award weekly error:', err);
     res.status(500).json({ error: 'Failed to award weekly prizes' });
+  } finally {
+    client.release();
+  }
+});
+
+// ============================================
+// TOURNAMENT: Auto-Award Weekly Prizes (Every Monday Midnight)
+// ============================================
+
+app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // Get the most recent Monday at midnight (start of the week we're awarding for)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+    
+    // Find the most recent Monday
+    let daysSinceMonday = dayOfWeek - 1;
+    if (daysSinceMonday < 0) daysSinceMonday += 7; // If today is Sunday, go back 6 days
+    
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - daysSinceMonday);
+    lastMonday.setHours(0, 0, 0, 0);
+    const lastMondayStr = lastMonday.toISOString().split('T')[0];
+    
+    // Find the tournament for that week
+    const tournament = await client.query(
+      'SELECT id FROM weekly_tournaments WHERE week_start = $1',
+      [lastMondayStr]
+    );
+    
+    if (tournament.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.json({ success: true, message: 'No tournament found for this week' });
+    }
+    
+    const tournamentId = tournament.rows[0].id;
+    
+    // Get top 3 participants based on weekly coins earned
+    const topParticipants = await client.query(`
+      SELECT 
+        u.id, u.first_name,
+        COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
+      FROM tournament_participants tp
+      JOIN users u ON tp.user_id = u.id
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+        AND ar.created_at >= $2
+        AND ar.created_at < $3
+      WHERE tp.tournament_id = $1
+      GROUP BY u.id
+      ORDER BY weekly_coins DESC
+      LIMIT 3
+    `, [tournamentId, lastMondayStr, now.toISOString()]);
+    
+    const prizes = [1000, 500, 200]; // 1st, 2nd, 3rd place COINS
+    
+    for (let i = 0; i < topParticipants.rows.length; i++) {
+      const user = topParticipants.rows[i];
+      const prize = prizes[i];
+      if (user.weekly_coins > 0) {
+        await client.query(
+          'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+          [prize, user.id]
+        );
+        
+        // Mark as awarded
+        await client.query(
+          'UPDATE tournament_participants SET prize_awarded = true, rank = $1 WHERE tournament_id = $2 AND user_id = $3',
+          [i + 1, tournamentId, user.id]
+        );
+        
+        console.log(`🏆 Tournament prize: ${prize} COINS awarded to ${user.first_name} (rank #${i + 1})`);
+      }
+    }
+    
+    // Mark tournament as inactive
+    await client.query(
+      'UPDATE weekly_tournaments SET is_active = false WHERE id = $1',
+      [tournamentId]
+    );
+    
+    await client.query('COMMIT');
+    res.json({ success: true, awarded: topParticipants.rows.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Award tournament error:', err);
+    res.status(500).json({ error: 'Failed to award tournament prizes' });
   } finally {
     client.release();
   }
