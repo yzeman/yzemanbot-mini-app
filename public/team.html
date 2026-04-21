@@ -351,6 +351,16 @@
             font-size: 10px;
             cursor: pointer;
         }
+        
+        /* Monthly coin indicator */
+        .monthly-badge {
+            background: var(--secondary);
+            color: white;
+            font-size: 8px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -527,7 +537,7 @@
     function formatCoinsFull(amount) {
         const num = parseFloat(amount) || 0;
         if (num >= 1000) return num.toFixed(2);
-        return num.toFixed(3);  // Show 3 decimals for <1000 so they can see small increases
+        return num.toFixed(3);
     }
     
     function getTeamRank(teamId) {
@@ -601,7 +611,8 @@
         
         const team = data.team;
         const members = data.members || [];
-        const totalCoins = parseFloat(team.total_coins) || 0;
+        // Show monthly coins for team total
+        const monthlyCoins = parseFloat(team.monthly_coins) || 0;
         const rank = getTeamRank(team.id);
         
         container.innerHTML = `
@@ -616,7 +627,7 @@
                 </div>
                 <div class="team-stats">
                     <div class="team-stat"><div class="team-stat-value">${team.member_count || 0}</div><div class="team-stat-label">Members</div></div>
-                    <div class="team-stat"><div class="team-stat-value">${formatCoinsFull(totalCoins)}</div><div class="team-stat-label">COINS</div></div>
+                    <div class="team-stat"><div class="team-stat-value">${formatCoinsFull(monthlyCoins)}</div><div class="team-stat-label">This Month</div></div>
                     <div class="team-stat"><div class="team-stat-value">${team.total_referrals || 0}</div><div class="team-stat-label">Refs</div></div>
                     <div class="team-stat"><div class="team-stat-value">${rank}</div><div class="team-stat-label">Rank</div></div>
                 </div>
@@ -627,7 +638,8 @@
             </div>
             <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span></div>
             ${members.map(m => {
-                const coins = parseFloat(m.coins) || 0;
+                const personalCoins = parseFloat(m.coins) || 0;
+                const monthlyCoins = parseFloat(m.monthly_coins) || 0;
                 const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
                 const photoUrl = m.photo_url || '';
                 return `
@@ -642,7 +654,10 @@
                             </div>
                             <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} refs</div>
                         </div>
-                        <div class="member-coins">${formatCoinsFull(coins)}</div>
+                        <div class="member-coins" title="Total: ${formatCoinsFull(personalCoins)} | This Month: ${formatCoinsFull(monthlyCoins)}">
+                            ${formatCoinsFull(monthlyCoins)}
+                            <span style="font-size:8px;color:var(--gray);"> (${formatCoinsFull(personalCoins)})</span>
+                        </div>
                     </div>
                 `;
             }).join('')}
@@ -866,7 +881,7 @@
         leaveBtn.innerHTML = '<span class="loading-spinner"></span> Leaving...';
         try {
             await apiCall('/api/team/leave');
-            showNotification('Left team', false);
+            showNotification('Left team. Your coins are no longer contributing to the team.', false);
             closeLeaveModal();
             optimisticTeamData = null;
             await loadMyTeamOnly();
