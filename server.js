@@ -979,36 +979,85 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TOURNAMENT API
+// TOURNAMENT: Join Current Week's Tournament
 // ============================================
-
 app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
     const telegramId = req.telegramUser.id;
+    
     const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    
     const userId = userResult.rows[0].id;
-    const today = new Date();
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - today.getDay());
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    
+    // Find the most recent Monday
+    let daysSinceMonday = dayOfWeek - 1;
+    if (daysSinceMonday < 0) daysSinceMonday += 7;
+    
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - daysSinceMonday);
     weekStart.setHours(0, 0, 0, 0);
     const weekStartStr = weekStart.toISOString().split('T')[0];
+    
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
     const weekEndStr = weekEnd.toISOString().split('T')[0];
     
-    let tournament = await client.query('SELECT * FROM weekly_tournaments WHERE week_start = $1', [weekStartStr]);
+    // Get or create the ACTIVE tournament for THIS week
+    let tournament = await client.query(
+      'SELECT * FROM weekly_tournaments WHERE week_start = $1 AND is_active = true',
+      [weekStartStr]
+    );
+    
     if (tournament.rows.length === 0) {
-      const result = await client.query(`INSERT INTO weekly_tournaments (week_start, week_end, is_active) VALUES ($1, $2, true) RETURNING *`, [weekStartStr, weekEndStr]);
-      tournament = result;
+      // Check if there's already an inactive tournament for this week
+      const existingInactive = await client.query(
+        'SELECT * FROM weekly_tournaments WHERE week_start = $1',
+        [weekStartStr]
+      );
+      
+      if (existingInactive.rows.length > 0) {
+        // Reactivate it
+        await client.query(
+          'UPDATE weekly_tournaments SET is_active = true WHERE id = $1',
+          [existingInactive.rows[0].id]
+        );
+        tournament = { rows: [existingInactive.rows[0]] };
+      } else {
+        // Create new tournament
+        const result = await client.query(
+          `INSERT INTO weekly_tournaments (week_start, week_end, is_active) VALUES ($1, $2, true) RETURNING *`,
+          [weekStartStr, weekEndStr]
+        );
+        tournament = result;
+      }
     }
+    
     const tournamentId = tournament.rows[0].id;
-    const existing = await client.query('SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2', [tournamentId, userId]);
-    if (existing.rows.length > 0) return res.status(400).json({ error: 'Already joined this tournament' });
-    await client.query(`INSERT INTO tournament_participants (tournament_id, user_id) VALUES ($1, $2)`, [tournamentId, userId]);
+    
+    // Check if user already joined THIS WEEK'S tournament
+    const existing = await client.query(
+      'SELECT * FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2',
+      [tournamentId, userId]
+    );
+    
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'You already joined this week\'s tournament' });
+    }
+    
+    // Join the tournament
+    await client.query(
+      `INSERT INTO tournament_participants (tournament_id, user_id) VALUES ($1, $2)`,
+      [tournamentId, userId]
+    );
+    
     await client.query('COMMIT');
     res.json({ success: true, message: 'Joined tournament!' });
+    
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Tournament join error:', err);
