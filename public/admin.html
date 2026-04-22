@@ -620,8 +620,17 @@
     function closeUserDetail() { document.getElementById('userDetailModal').style.display = 'none'; }
     
     async function loadUsers() {
-        try { users = await apiCall('/api/admin/users'); renderUserList(users); updateStats(); } 
-        catch { document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>'; }
+        try { 
+            users = await apiCall('/api/admin/users'); 
+            renderUserList(users); 
+            updateStats();
+            const data = await apiCall('/api/admin/analytics');
+            document.getElementById('activeToday').textContent = data.activeToday || 0;
+            document.getElementById('adsToday').textContent = data.adsToday || 0;
+            document.getElementById('totalAdsWatched').textContent = data.totalAds || 0;
+        } catch { 
+            document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>'; 
+        }
     }
     
     function renderUserList(userArray) {
@@ -745,6 +754,8 @@
             document.getElementById('analyticsActiveWeek').textContent = data.activeWeek || 0;
             document.getElementById('analyticsTotalCoins').textContent = formatCoins(data.totalCoins || 0);
             document.getElementById('analyticsPendingW').textContent = data.pendingWithdrawals || 0;
+            document.getElementById('activeToday').textContent = data.activeToday || 0;
+            document.getElementById('adsToday').textContent = data.adsToday || 0;
             
             const tierDiv = document.getElementById('tierDistribution');
             if (data.tierDistribution && data.tierDistribution.length) {
@@ -753,7 +764,11 @@
             
             const dailyDiv = document.getElementById('dailyActive');
             if (data.dailyActive && data.dailyActive.length) {
-                dailyDiv.innerHTML = data.dailyActive.map(d => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${d.last_login_date}</span><span style="color:var(--gold);">${d.count}</span></div>`).join('');
+                dailyDiv.innerHTML = data.dailyActive.map(d => {
+                    const date = new Date(d.last_login_date);
+                    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
+                }).join('');
             } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
             
             await loadTodayActivity();
@@ -809,7 +824,6 @@
         document.getElementById('totalTeams').textContent = teams.length;
         const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
         document.getElementById('totalReferrals').textContent = totalRefs;
-        document.getElementById('activeToday').textContent = users.filter(u => u.last_login_date === new Date().toISOString().split('T')[0]).length;
         const totalAds = users.reduce((s,u) => s + (u.total_ads||0), 0);
         document.getElementById('totalAdsWatched').textContent = totalAds;
         const adsTodayCount = users.reduce((s,u) => s + (u.ads_today||0), 0);
