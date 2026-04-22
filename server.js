@@ -1571,24 +1571,38 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const activeToday = await pool.query('SELECT COUNT(*) FROM users WHERE last_login_date = $1', [today]);
     const activeWeek = await pool.query("SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'");
-    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
-    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
+    const totalAds = await pool.query('SELECT COALESCE(SUM(total_ads), 0) FROM ad_statistics');
+    const adsToday = await pool.query('SELECT COALESCE(SUM(ads_today), 0) FROM ad_statistics');
     const totalCoins = await pool.query('SELECT COALESCE(SUM(coins), 0) as total FROM users');
     const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
-    const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier');
+    const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
+    
+    // Get daily active for last 7 days
+    const dailyActive = await pool.query(`
+      SELECT last_login_date, COUNT(*) as count
+      FROM users 
+      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY last_login_date 
+      ORDER BY last_login_date DESC
+    `);
+    
     res.json({
       totalUsers: parseInt(totalUsers.rows[0].count),
       activeToday: parseInt(activeToday.rows[0].count),
       activeWeek: parseInt(activeWeek.rows[0].count),
-      totalAds: parseInt(totalAds.rows[0].count),
-      adsToday: parseInt(adsToday.rows[0].count),
+      totalAds: parseInt(totalAds.rows[0].coalesce) || 0,
+      adsToday: parseInt(adsToday.rows[0].coalesce) || 0,
       totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       totalReferrals: parseInt(totalReferrals.rows[0].count),
       pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
-      tierDistribution: tierDistribution.rows
+      tierDistribution: tierDistribution.rows,
+      dailyActive: dailyActive.rows
     });
-  } catch (err) { res.status(500).json({ error: 'Failed to fetch analytics' }); }
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
 });
 
 app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
@@ -1615,6 +1629,79 @@ app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
 app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
   try { await pool.query('DELETE FROM bonus_codes WHERE code = $1', [req.params.code.toUpperCase()]); res.json({ success: true }); }
   catch (err) { res.status(500).json({ error: 'Failed to delete' }); }
+});
+
+// ============================================
+// ADMIN: Today's Activity (Detailed)
+// ============================================
+app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
+        u.coins, u.tier, u.referrals,
+        COALESCE(ads.total_ads, 0) as total_ads,
+        COALESCE(ads.ads_today, 0) as ads_today,
+        COALESCE(ads.ads_week, 0) as ads_week,
+        u.last_login_date,
+        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.created_at::date = $1) as referrals_today
+      FROM users u
+      LEFT JOIN ad_statistics ads ON u.id = ads.user_id
+      WHERE u.last_login_date = $1
+      ORDER BY u.coins DESC
+    `, [today]);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Today activity error:', err);
+    res.status(500).json({ error: 'Failed to fetch today activity' });
+  }
+});
+
+// ============================================
+// ADMIN: Top Referrers (All Time)
+// ============================================
+app.get('/api/admin/top-referrers', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
+        u.referrals, u.coins, u.tier
+      FROM users u
+      WHERE u.referrals > 0
+      ORDER BY u.referrals DESC
+      LIMIT 20
+    `);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Top referrers error:', err);
+    res.status(500).json({ error: 'Failed to fetch top referrers' });
+  }
+});
+
+// ============================================
+// ADMIN: Daily Active Users (Last 7 Days) - FIXED
+// ============================================
+app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        last_login_date,
+        COUNT(*) as count
+      FROM users 
+      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY last_login_date 
+      ORDER BY last_login_date DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Daily active error:', err);
+    res.status(500).json({ error: 'Failed to fetch daily active' });
+  }
 });
 
 // ============================================
