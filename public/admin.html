@@ -383,6 +383,17 @@
             border: none; padding: 5px 10px; border-radius: 15px;
             font-size: 10px; cursor: pointer; margin-left: 10px;
         }
+        .header-refresh-btn {
+            background: var(--gold);
+            color: var(--dark);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -390,6 +401,7 @@
     <div class="header">
         <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
         <p>Manage users, withdrawals, teams & bonus codes</p>
+        <button class="header-refresh-btn" onclick="refreshAllStats()"><i class="fas fa-sync"></i> Refresh All Stats</button>
     </div>
     
     <!-- Stats Cards -->
@@ -581,25 +593,25 @@
             const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
             document.getElementById('totalReferrals').textContent = totalRefs;
             
-            const totalAds = users.reduce((s,u) => s + (u.total_ads||0), 0);
-            document.getElementById('totalAdsWatched').textContent = totalAds;
-            
-            const adsTodayCount = users.reduce((s,u) => s + (u.ads_today||0), 0);
-            document.getElementById('adsToday').textContent = adsTodayCount;
-            
-            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-            const weekAgoStr = weekAgo.toISOString().split('T')[0];
-            const activeWeek = users.filter(u => u.last_login_date && u.last_login_date >= weekAgoStr).length;
-            document.getElementById('activeWeek').textContent = activeWeek;
-            
-            // Fetch active today directly from analytics
-            fetch('/api/admin/analytics', { headers: { 'Authorization': ADMIN_TOKEN } })
-                .then(res => res.json())
-                .then(data => { document.getElementById('activeToday').textContent = data.activeToday || 0; })
-                .catch(() => {
-                    const today = new Date().toISOString().split('T')[0];
-                    document.getElementById('activeToday').textContent = users.filter(u => u.last_login_date === today).length;
-                });
+            // Fetch dynamic stats from analytics API
+            try {
+                const data = await apiCall('/api/admin/analytics');
+                document.getElementById('totalAdsWatched').textContent = data.totalAds || 0;
+                document.getElementById('adsToday').textContent = data.adsToday || 0;
+                document.getElementById('activeToday').textContent = data.activeToday || 0;
+                document.getElementById('activeWeek').textContent = data.activeWeek || 0;
+            } catch(e) {
+                console.error('Failed to fetch analytics stats:', e);
+            }
+        }
+        
+        async function refreshAllStats() {
+            showNotification('Refreshing all stats...');
+            await loadUsers();
+            await loadWithdrawals();
+            await loadTeams();
+            await updateTopStats();
+            showNotification('✅ Stats refreshed!');
         }
         
         function openUserDetail(user) {
@@ -633,7 +645,7 @@
             try { 
                 users = await apiCall('/api/admin/users'); 
                 renderUserList(users); 
-                updateTopStats();
+                await updateTopStats();
             } catch { 
                 document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>'; 
             }
@@ -767,7 +779,7 @@
                 const dailyDiv = document.getElementById('dailyActive');
                 if (data.dailyActive && data.dailyActive.length) {
                     dailyDiv.innerHTML = data.dailyActive.map(d => {
-                        const date = new Date(d.last_login_date);
+                        const date = new Date(d.activity_date);
                         const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                         return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
                     }).join('');
