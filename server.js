@@ -719,6 +719,7 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     const lastLogin = userResult.rows[0].last_login_date;
     
+    // Check if already claimed today
     const existing = await client.query('SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2', [userId, today]);
     if (existing.rows.length > 0) return res.status(400).json({ error: 'Already claimed today' });
     
@@ -745,17 +746,30 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    await client.query(
-      'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins) VALUES ($1, $2, $3, $4)',
-      [userId, today, streak, finalReward]
-    );
+    // Check if reward_coins column exists, if not use reward_points
+    const columnCheck = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'daily_rewards' AND column_name = 'reward_coins'
+    `);
+    
+    if (columnCheck.rows.length > 0) {
+      await client.query(
+        'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins) VALUES ($1, $2, $3, $4)',
+        [userId, today, streak, finalReward]
+      );
+    } else {
+      // Fallback to reward_points (convert to points)
+      await client.query(
+        'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_points) VALUES ($1, $2, $3, $4)',
+        [userId, today, streak, Math.floor(finalReward * 1000000)]
+      );
+    }
     
     await client.query(
       'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1, last_login_date = $2 WHERE id = $3',
       [finalReward, today, userId]
     );
     
-    // FIXED: Use finalReward instead of rewardAmount
     await trackMonthlyEarnings(client, userId, finalReward);
     await awardReferralCommission(client, userId, finalReward);
     
@@ -768,7 +782,7 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Daily reward error:', err);
-    res.status(500).json({ error: 'Failed to process daily reward' });
+    res.status(500).json({ error: 'Failed to process daily reward: ' + err.message });
   } finally {
     client.release();
   }
