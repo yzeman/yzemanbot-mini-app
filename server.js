@@ -1610,49 +1610,25 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
 app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
     const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
-    
-    // Use Africa/Lagos timezone for today
-    const activeToday = await pool.query(`
-      SELECT COUNT(*) FROM users 
-      WHERE DATE(last_login_date AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
-    `);
-    
-    const activeWeek = await pool.query(`
-      SELECT COUNT(*) FROM users 
-      WHERE last_login_date >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '7 days')::date
-    `);
-    
-    const totalAds = await pool.query('SELECT COALESCE(SUM(total_ads), 0) FROM ad_statistics');
-    
-    // Ads today in Lagos timezone
-    const adsToday = await pool.query(`
-      SELECT COUNT(*) FROM ad_rewards 
-      WHERE DATE(created_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
-    `);
-    
-    const totalCoins = await pool.query('SELECT COALESCE(SUM(coins), 0) as total FROM users');
     const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
+    const totalAds = await pool.query('SELECT COALESCE(SUM(total_ads), 0) FROM ad_statistics');
+    const totalCoins = await pool.query('SELECT COALESCE(SUM(coins), 0) as total FROM users');
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
     
     const dailyActive = await pool.query(`
-      SELECT 
-        DATE(last_login_date AT TIME ZONE 'Africa/Lagos') as last_login_date,
-        COUNT(*) as count
+      SELECT last_login_date, COUNT(*) as count
       FROM users 
-      WHERE last_login_date >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '7 days')::date
-      GROUP BY DATE(last_login_date AT TIME ZONE 'Africa/Lagos')
+      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY last_login_date 
       ORDER BY last_login_date DESC
     `);
     
     res.json({
       totalUsers: parseInt(totalUsers.rows[0].count),
-      activeToday: parseInt(activeToday.rows[0].count),
-      activeWeek: parseInt(activeWeek.rows[0].count),
-      totalAds: parseInt(totalAds.rows[0].coalesce) || 0,
-      adsToday: parseInt(adsToday.rows[0].count) || 0,
-      totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       totalReferrals: parseInt(totalReferrals.rows[0].count),
+      totalAds: parseInt(totalAds.rows[0].coalesce) || 0,
+      totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
       tierDistribution: tierDistribution.rows,
       dailyActive: dailyActive.rows
@@ -1714,6 +1690,43 @@ app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error('Today activity error:', err);
     res.status(500).json({ error: 'Failed to fetch today activity' });
+  }
+});
+
+// ============================================
+// ADMIN: Today's User Activity (Detailed)
+// ============================================
+app.get('/api/admin/today-user-activity', verifyAdmin, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
+        u.coins, u.tier,
+        COALESCE(ads.total_ads, 0) as total_ads,
+        COALESCE((
+          SELECT COUNT(*) FROM ad_rewards ar 
+          WHERE ar.user_id = u.id AND ar.created_at::date = $1
+        ), 0) as ads_today,
+        COALESCE((
+          SELECT SUM(ar.reward_amount) FROM ad_rewards ar 
+          WHERE ar.user_id = u.id AND ar.created_at::date = $1
+        ), 0) as coins_earned_today,
+        COALESCE((
+          SELECT COUNT(*) FROM referrals r 
+          WHERE r.referrer_id = u.id AND r.created_at::date = $1
+        ), 0) as referrals_today
+      FROM users u
+      LEFT JOIN ad_statistics ads ON u.id = ads.user_id
+      WHERE u.last_login_date = $1
+      ORDER BY coins_earned_today DESC, ads_today DESC
+    `, [today]);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Today user activity error:', err);
+    res.status(500).json({ error: 'Failed to fetch today user activity' });
   }
 });
 
