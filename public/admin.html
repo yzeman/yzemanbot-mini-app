@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin Panel - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -384,27 +383,6 @@
             border: none; padding: 5px 10px; border-radius: 15px;
             font-size: 10px; cursor: pointer; margin-left: 10px;
         }
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-size: 9px;
-            font-weight: bold;
-        }
-        .badge-success { background: var(--success); }
-        .badge-warning { background: var(--warning); }
-        .badge-danger { background: var(--danger); }
-        .view-all-btn {
-            background: var(--secondary);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 11px;
-            cursor: pointer;
-            margin-top: 10px;
-            width: 100%;
-        }
     </style>
 </head>
 <body>
@@ -413,6 +391,8 @@
         <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
         <p>Manage users, withdrawals, teams & bonus codes</p>
     </div>
+    
+    <!-- Stats Cards -->
     <div class="stats-grid">
         <div class="stat-card" onclick="switchTab('users')"><div class="stat-value" id="totalUsers">0</div><div class="stat-label">Total Users</div></div>
         <div class="stat-card" onclick="switchTab('withdrawals')"><div class="stat-value" id="pendingWithdrawals">0</div><div class="stat-label">Pending W/D</div></div>
@@ -423,6 +403,8 @@
         <div class="stat-card" onclick="switchTab('analytics')"><div class="stat-value" id="activeToday">0</div><div class="stat-label">Active Today</div></div>
         <div class="stat-card" onclick="switchTab('analytics')"><div class="stat-value" id="activeWeek">0</div><div class="stat-label">Active Week</div></div>
     </div>
+    
+    <!-- Tabs -->
     <div class="tabs">
         <div class="tab active" data-tab="users"><i class="fas fa-users"></i> Users</div>
         <div class="tab" data-tab="withdrawals"><i class="fas fa-wallet"></i> Withdrawals</div>
@@ -490,7 +472,6 @@
             <div class="analytics-card"><div class="analytics-value" id="analyticsPendingW">0</div><div class="analytics-label">Pending W/D</div></div>
         </div>
         
-        <!-- Today's Activity Section -->
         <div class="section-title"><i class="fas fa-calendar-day"></i><span>Today's Activity</span></div>
         <div class="activity-list" id="todayActivityList"><div class="loading">Loading today's activity...</div></div>
         
@@ -548,312 +529,305 @@
     </div>
     <div class="notification" id="notification"></div>
     
-   <script>
-    const ADMIN_TOKEN = 'Bearer admin123';
-    let currentUserId = null;
-    let users = [], withdrawals = [], teams = [], bonusCodes = [];
-    
-    function showNotification(msg, isError = false) {
-        const notif = document.getElementById('notification');
-        notif.textContent = msg;
-        notif.className = 'notification' + (isError ? ' error' : '');
-        notif.style.display = 'block';
-        setTimeout(() => notif.style.display = 'none', 3000);
-    }
-    
-    function formatCoins(amount) {
-        const num = parseFloat(amount) || 0;
-        if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-        if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
-        return num.toFixed(3);
-    }
-    
-    async function apiCall(endpoint, method = 'GET', body = null) {
-        const options = { method, headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN } };
-        if (body) options.body = JSON.stringify(body);
-        const response = await fetch(endpoint, options);
-        if (!response.ok) { const error = await response.text(); throw new Error(error); }
-        return response.json();
-    }
-    
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
-        document.getElementById(tabId + 'Tab').classList.add('active');
-        if (tabId === 'users') loadUsers();
-        if (tabId === 'withdrawals') loadWithdrawals();
-        if (tabId === 'teams') loadTeams();
-        if (tabId === 'bonus') loadBonusCodesDB();
-        if (tabId === 'analytics') loadAnalytics();
-    }
-    
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-    });
-    
-    // Update top stats from users data
-    function updateTopStats() {
-        document.getElementById('totalUsers').textContent = users.length;
-        document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
-        document.getElementById('totalTeams').textContent = teams.length;
+    <script>
+        const ADMIN_TOKEN = 'Bearer admin123';
+        let currentUserId = null;
+        let users = [], withdrawals = [], teams = [], bonusCodes = [];
         
-        const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
-        document.getElementById('totalReferrals').textContent = totalRefs;
-        
-        const totalAds = users.reduce((s,u) => s + (u.total_ads||0), 0);
-        document.getElementById('totalAdsWatched').textContent = totalAds;
-        
-        const today = new Date().toISOString().split('T')[0];
-        const activeToday = users.filter(u => u.last_login_date === today).length;
-        document.getElementById('activeToday').textContent = activeToday;
-        
-        const adsTodayCount = users.reduce((s,u) => {
-            const adsToday = u.ads_today || 0;
-            return s + adsToday;
-        }, 0);
-        document.getElementById('adsToday').textContent = adsTodayCount;
-        
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekAgoStr = weekAgo.toISOString().split('T')[0];
-        const activeWeek = users.filter(u => u.last_login_date && u.last_login_date >= weekAgoStr).length;
-        document.getElementById('activeWeek').textContent = activeWeek;
-    }
-    
-    function openUserDetail(user) {
-        const coins = parseFloat(user.coins) || 0;
-        const userSince = new Date(user.created_at).toLocaleDateString();
-        const lastActive = user.last_login_date || 'Never';
-        const adsWatched = user.total_ads || 0;
-        document.getElementById('userDetailContent').innerHTML = `
-            <div class="user-detail-header">
-                <div class="user-detail-avatar"><i class="fas fa-user"></i></div>
-                <div class="user-detail-info">
-                    <h3>${user.first_name || 'User'} ${user.last_name || ''}</h3>
-                    <p>@${user.username || 'no username'} • ID: ${user.telegram_id}</p>
-                </div>
-            </div>
-            <div class="detail-row"><span class="detail-label">💰 Balance</span><span class="detail-value">${formatCoins(coins)} COINS</span></div>
-            <div class="detail-row"><span class="detail-label">👑 Tier</span><span class="detail-value">${user.tier || 'Fresher'}</span></div>
-            <div class="detail-row"><span class="detail-label">👥 Referrals</span><span class="detail-value">${user.referrals || 0}</span></div>
-            <div class="detail-row"><span class="detail-label">📺 Ads Watched</span><span class="detail-value">${adsWatched}</span></div>
-            <div class="detail-row"><span class="detail-label">🔗 Referral Code</span><span class="detail-value">${user.referral_code || 'N/A'}</span></div>
-            <div class="detail-row"><span class="detail-label">👥 Team ID</span><span class="detail-value">${user.team_id || 'No Team'}</span></div>
-            <div class="detail-row"><span class="detail-label">💳 Wallet</span><span class="detail-value">${user.wallet_address ? user.wallet_address.substring(0, 20) + '...' : 'Not set'}</span></div>
-            <div class="detail-row"><span class="detail-label">📅 Joined</span><span class="detail-value">${userSince}</span></div>
-            <div class="detail-row"><span class="detail-label">🕐 Last Active</span><span class="detail-value">${lastActive}</span></div>
-        `;
-        document.getElementById('userDetailModal').style.display = 'flex';
-    }
-    function closeUserDetail() { document.getElementById('userDetailModal').style.display = 'none'; }
-    
-    async function loadUsers() {
-        try { 
-            users = await apiCall('/api/admin/users'); 
-            renderUserList(users); 
-            updateTopStats();
-        } catch { 
-            document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>'; 
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
         }
-    }
-    
-    function renderUserList(userArray) {
-        const container = document.getElementById('userList');
-        if (!userArray.length) { container.innerHTML = '<div class="empty-state">No users found</div>'; return; }
-        container.innerHTML = userArray.map(user => {
+        
+        function formatCoins(amount) {
+            const num = parseFloat(amount) || 0;
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+            return num.toFixed(3);
+        }
+        
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN } };
+            if (body) options.body = JSON.stringify(body);
+            const response = await fetch(endpoint, options);
+            if (!response.ok) { const error = await response.text(); throw new Error(error); }
+            return response.json();
+        }
+        
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(tabId + 'Tab').classList.add('active');
+            if (tabId === 'users') loadUsers();
+            if (tabId === 'withdrawals') loadWithdrawals();
+            if (tabId === 'teams') loadTeams();
+            if (tabId === 'bonus') loadBonusCodesDB();
+            if (tabId === 'analytics') loadAnalytics();
+        }
+        
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+        
+        async function updateTopStats() {
+            document.getElementById('totalUsers').textContent = users.length;
+            document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
+            document.getElementById('totalTeams').textContent = teams.length;
+            
+            const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
+            document.getElementById('totalReferrals').textContent = totalRefs;
+            
+            const totalAds = users.reduce((s,u) => s + (u.total_ads||0), 0);
+            document.getElementById('totalAdsWatched').textContent = totalAds;
+            
+            const adsTodayCount = users.reduce((s,u) => s + (u.ads_today||0), 0);
+            document.getElementById('adsToday').textContent = adsTodayCount;
+            
+            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+            const weekAgoStr = weekAgo.toISOString().split('T')[0];
+            const activeWeek = users.filter(u => u.last_login_date && u.last_login_date >= weekAgoStr).length;
+            document.getElementById('activeWeek').textContent = activeWeek;
+            
+            // Fetch active today directly from analytics
+            fetch('/api/admin/analytics', { headers: { 'Authorization': ADMIN_TOKEN } })
+                .then(res => res.json())
+                .then(data => { document.getElementById('activeToday').textContent = data.activeToday || 0; })
+                .catch(() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('activeToday').textContent = users.filter(u => u.last_login_date === today).length;
+                });
+        }
+        
+        function openUserDetail(user) {
             const coins = parseFloat(user.coins) || 0;
-            const hasTeam = user.team_id ? 'Yes' : 'No';
-            const tierColor = user.tier === 'Platinum' ? '💎' : user.tier === 'Gold' ? '🥇' : user.tier === 'Silver' ? '🥈' : '🟢';
+            const userSince = new Date(user.created_at).toLocaleDateString();
+            const lastActive = user.last_login_date || 'Never';
             const adsWatched = user.total_ads || 0;
-            return `<div class="user-item">
-                <div class="user-header" onclick="openUserDetail(${JSON.stringify(user).replace(/"/g, '&quot;')})">
-                    <div class="user-avatar">${(user.first_name || 'U')[0].toUpperCase()}</div>
-                    <div class="user-info"><div class="user-name">${user.first_name || 'User'} ${user.last_name || ''}<span class="user-tier">${tierColor} ${user.tier || 'Fresher'}</span></div><div class="user-id">ID: ${user.telegram_id} | @${user.username || 'unknown'}</div></div>
-                </div>
-                <div class="user-stats">
-                    <div class="user-stat"><div class="user-stat-value">${formatCoins(coins)}</div><div class="user-stat-label">COINS</div></div>
-                    <div class="user-stat"><div class="user-stat-value">${user.referrals || 0}</div><div class="user-stat-label">Refs</div></div>
-                    <div class="user-stat"><div class="user-stat-value">${adsWatched}</div><div class="user-stat-label">Ads</div></div>
-                    <div class="user-stat"><div class="user-stat-value">${hasTeam}</div><div class="user-stat-label">Team</div></div>
-                </div>
-                <div class="user-actions">
-                    <button class="action-btn btn-success" onclick="event.stopPropagation();openAddCoinsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
-                    <button class="action-btn btn-warning" onclick="event.stopPropagation();openDeductCoinsModal(${user.id})"><i class="fas fa-minus"></i> Deduct</button>
-                    <button class="action-btn btn-info" onclick="event.stopPropagation();viewUserReferrals(${user.id})"><i class="fas fa-users"></i> Refs</button>
-                    <button class="action-btn btn-danger" onclick="event.stopPropagation();openDeleteUserModal(${user.id}, '${user.first_name || 'User'}')"><i class="fas fa-trash"></i> Delete</button>
-                </div>
-            </div>`;
-        }).join('');
-    }
-    
-    async function viewUserReferrals(userId) { const user = users.find(u => u.id === userId); if (user) showNotification(`${user.first_name || 'User'} has ${user.referrals || 0} referrals`); }
-    function openAddCoinsModal(userId) { currentUserId = userId; document.getElementById('addCoinsModal').style.display = 'flex'; }
-    function closeAddCoinsModal() { document.getElementById('addCoinsModal').style.display = 'none'; document.getElementById('addCoinsAmount').value = ''; }
-    async function confirmAddCoins() {
-        const coins = parseFloat(document.getElementById('addCoinsAmount').value);
-        if (!coins || coins <= 0) { showNotification('Enter valid amount', true); return; }
-        try { await apiCall('/api/admin/add-coins', 'POST', { userId: currentUserId, coins }); showNotification(`Added ${coins} COINS`); closeAddCoinsModal(); loadUsers(); } 
-        catch { showNotification('Failed', true); }
-    }
-    function openDeductCoinsModal(userId) { currentUserId = userId; document.getElementById('deductCoinsModal').style.display = 'flex'; }
-    function closeDeductCoinsModal() { document.getElementById('deductCoinsModal').style.display = 'none'; document.getElementById('deductCoinsAmount').value = ''; }
-    async function confirmDeductCoins() {
-        const coins = parseFloat(document.getElementById('deductCoinsAmount').value);
-        if (!coins || coins <= 0) { showNotification('Enter valid amount', true); return; }
-        try { await apiCall('/api/admin/deduct-coins', 'POST', { userId: currentUserId, coins }); showNotification(`Deducted ${coins} COINS`); closeDeductCoinsModal(); loadUsers(); } 
-        catch { showNotification('Failed', true); }
-    }
-    let deleteUserId = null;
-    function openDeleteUserModal(userId, userName) { deleteUserId = userId; document.querySelector('#deleteUserModal .modal-title').innerHTML = `<i class="fas fa-trash"></i> Delete ${userName}?`; document.getElementById('deleteUserModal').style.display = 'flex'; }
-    function closeDeleteUserModal() { document.getElementById('deleteUserModal').style.display = 'none'; }
-    async function confirmDeleteUser() { if (!deleteUserId) return; try { await apiCall('/api/admin/delete-user', 'POST', { userId: deleteUserId }); showNotification('User deleted'); closeDeleteUserModal(); loadUsers(); loadTeams(); updateTopStats(); } catch { showNotification('Failed', true); } }
-    
-    async function loadWithdrawals() { try { withdrawals = await apiCall('/api/admin/withdrawals'); renderWithdrawalList(withdrawals); updateTopStats(); } catch { document.getElementById('withdrawalList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
-    function renderWithdrawalList(list) {
-        const container = document.getElementById('withdrawalList');
-        if (!list.length) { container.innerHTML = '<div class="empty-state">No withdrawals</div>'; return; }
-        container.innerHTML = list.map(w => {
-            const statusClass = w.status === 'pending' ? 'status-pending' : w.status === 'approved' ? 'status-approved' : 'status-rejected';
-            return `<div class="withdrawal-item"><div class="withdrawal-header"><span class="withdrawal-amount">${w.amount} COINS</span><span class="withdrawal-status ${statusClass}">${w.status}</span></div><div class="withdrawal-details"><i class="fas fa-user"></i> ${w.first_name || 'User'} (@${w.username || 'unknown'})<br><i class="fas fa-calendar"></i> ${new Date(w.created_at).toLocaleString()}</div><div class="withdrawal-wallet">${w.wallet_address}</div>${w.status === 'pending' ? `<div class="user-actions"><button class="action-btn btn-success" onclick="approveWithdrawal(${w.id})"><i class="fas fa-check"></i> Approve</button><button class="action-btn btn-danger" onclick="rejectWithdrawal(${w.id})"><i class="fas fa-times"></i> Reject</button></div>` : ''}</div>`;
-        }).join('');
-    }
-    async function approveWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'approved' }); showNotification('Approved'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
-    async function rejectWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'rejected' }); showNotification('Rejected'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
-    
-    async function loadTeams() { try { teams = await apiCall('/api/team/leaderboard'); renderTeamList(teams); updateTopStats(); } catch { document.getElementById('teamList').innerHTML = '<div class="empty-state">Failed to load teams</div>'; } }
-    function renderTeamList(teamArray) {
-        const container = document.getElementById('teamList');
-        if (!teamArray.length) { container.innerHTML = '<div class="empty-state">No teams found</div>'; return; }
-        container.innerHTML = teamArray.map(team => {
-            const totalCoins = parseFloat(team.total_coins) || 0;
-            return `<div class="team-item"><div class="team-header"><div class="team-avatar"><i class="fas fa-users"></i></div><div class="team-info"><div class="team-name">${team.name}</div><div class="team-meta">👑 ${team.leader_name || 'Unknown'} • ${team.member_count} members • ${formatCoins(totalCoins)} COINS</div></div><button class="action-btn btn-danger" style="width:auto;padding:5px 10px;" onclick="deleteTeam(${team.id})"><i class="fas fa-trash"></i></button></div><button class="action-btn btn-secondary" style="width:100%;margin-top:5px;" onclick="toggleTeamMembers(${team.id})"><i class="fas fa-chevron-down"></i> View Members</button><div class="team-members-list" id="teamMembers-${team.id}" style="display:none;"></div></div>`;
-        }).join('');
-    }
-    async function toggleTeamMembers(teamId) {
-        const container = document.getElementById(`teamMembers-${teamId}`);
-        if (container.style.display === 'none') {
-            container.innerHTML = '<div class="loading">Loading members...</div>'; container.style.display = 'block';
-            try {
-                const data = await apiCall('/api/team/info', 'POST', { teamId });
-                if (data.members && data.members.length) {
-                    container.innerHTML = data.members.map(m => `<div class="team-member-item"><span>${m.first_name || m.username || 'User'} ${m.is_leader ? '👑' : ''}</span><span>${formatCoins(m.coins || 0)} COINS</span>${!m.is_leader ? `<i class="fas fa-times remove-member-icon" onclick="forceRemoveMember(${teamId}, ${m.telegram_id})"></i>` : ''}</div>`).join('');
-                } else container.innerHTML = '<div class="empty-state">No members found</div>';
-            } catch { container.innerHTML = '<div class="empty-state">Failed to load members</div>'; }
-        } else container.style.display = 'none';
-    }
-    async function forceRemoveMember(teamId, memberTelegramId) { if (!confirm('Remove this member?')) return; try { await apiCall('/api/team/remove-member', 'POST', { teamId, memberTelegramId }); showNotification('Member removed'); loadTeams(); } catch { showNotification('Failed', true); } }
-    async function deleteTeam(teamId) { if (!confirm('Delete this team?')) return; try { await apiCall('/api/admin/delete-team', 'POST', { teamId }); showNotification('Team deleted'); loadTeams(); loadUsers(); } catch { showNotification('Failed', true); } }
-    
-    async function loadBonusCodesDB() { try { bonusCodes = await apiCall('/api/admin/bonus-codes'); renderBonusListDB(); } catch { document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
-    function renderBonusListDB() {
-        const container = document.getElementById('bonusList');
-        if (!bonusCodes.length) { container.innerHTML = '<div class="empty-state">No bonus codes yet.</div>'; return; }
-        container.innerHTML = bonusCodes.map(c => `<div class="bonus-item"><div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div><div style="display:flex;align-items:center;gap:10px;"><span class="bonus-coins">${formatCoins(c.coins || 0)} COINS</span><i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i></div></div>`).join('');
-    }
-    async function addBonusCodeDB() {
-        const code = document.getElementById('newBonusCode').value.trim().toUpperCase();
-        const coins = parseFloat(document.getElementById('newBonusCoins').value) || 0;
-        const desc = document.getElementById('newBonusDesc').value.trim();
-        if (!code) { showNotification('Enter a bonus code', true); return; }
-        if (coins <= 0) { showNotification('COINS must be greater than 0', true); return; }
-        try {
-            await apiCall('/api/admin/bonus-codes', 'POST', { code, coins, description: desc || `${coins} COINS bonus` });
-            showNotification(`✅ Bonus code "${code}" added! (+${coins} COINS)`);
-            document.getElementById('newBonusCode').value = '';
-            document.getElementById('newBonusCoins').value = '0';
-            document.getElementById('newBonusDesc').value = '';
-            loadBonusCodesDB();
-        } catch (e) { showNotification(e.message || 'Failed to add bonus code', true); }
-    }
-    async function deleteBonusCodeDB(code) { if (!confirm(`Delete ${code}?`)) return; try { await apiCall(`/api/admin/bonus-codes/${code}`, 'DELETE'); showNotification(`Deleted ${code}`); loadBonusCodesDB(); } catch { showNotification('Failed to delete', true); } }
-    
-    async function loadAnalytics() {
-        try {
-            const data = await apiCall('/api/admin/analytics');
-            
-            document.getElementById('analyticsTotalUsers').textContent = data.totalUsers || 0;
-            document.getElementById('analyticsTotalReferrals').textContent = data.totalReferrals || 0;
-            document.getElementById('analyticsTotalAds').textContent = data.totalAds || 0;
-            document.getElementById('analyticsTotalCoins').textContent = formatCoins(data.totalCoins || 0);
-            document.getElementById('analyticsPendingW').textContent = data.pendingWithdrawals || 0;
-            
-            const tierDiv = document.getElementById('tierDistribution');
-            if (data.tierDistribution && data.tierDistribution.length) {
-                tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
-            } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
-            
-            const dailyDiv = document.getElementById('dailyActive');
-            if (data.dailyActive && data.dailyActive.length) {
-                dailyDiv.innerHTML = data.dailyActive.map(d => {
-                    const date = new Date(d.last_login_date);
-                    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
-                }).join('');
-            } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
-            
-            // Load detailed user activity for today
-            await loadTodayUserActivity();
-            
-            // Top Earners
-            try {
-                const topEarners = await apiCall('/api/leaderboard/top-earners');
-                const topDiv = document.getElementById('topEarnersList');
-                if (topEarners && topEarners.length) {
-                    topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${formatCoins(user.coins || user.monthly_coins || 0)} COINS</span></div>`).join('');
-                } else topDiv.innerHTML = '<div class="empty-state">No data</div>';
-            } catch(e) { document.getElementById('topEarnersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
-            
-            // Top Referrers
-            try {
-                const topReferrers = await apiCall('/api/admin/top-referrers');
-                const refDiv = document.getElementById('topReferrersList');
-                if (topReferrers && topReferrers.length) {
-                    refDiv.innerHTML = topReferrers.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${user.referrals || 0} refs</span></div>`).join('');
-                } else refDiv.innerHTML = '<div class="empty-state">No referrals yet</div>';
-            } catch(e) { document.getElementById('topReferrersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
-            
-        } catch (err) { console.error('Analytics error:', err); }
-    }
-    
-    async function loadTodayUserActivity() {
-        const container = document.getElementById('todayActivityList');
-        try {
-            const data = await apiCall('/api/admin/today-user-activity');
-            if (!data || data.length === 0) { 
-                container.innerHTML = '<div class="empty-state">No activity today</div>'; 
-                return; 
-            }
-            let html = '';
-            for (const user of data) {
-                const adsToday = user.ads_today || 0;
-                const coins = formatCoins(user.coins || 0);
-                const coinsEarned = formatCoins(user.coins_earned_today || 0);
-                const refsToday = user.referrals_today || 0;
-                html += `<div class="activity-item">
-                    <div class="activity-avatar">${(user.first_name || 'U')[0].toUpperCase()}</div>
-                    <div class="activity-info">
-                        <div class="activity-name">${user.first_name || 'User'} ${user.last_name || ''}</div>
-                        <div class="activity-stats">
-                            <span class="activity-stat"><i class="fas fa-ad"></i> ${adsToday} ads</span>
-                            <span class="activity-stat"><i class="fas fa-user-plus"></i> ${refsToday} refs</span>
-                            <span class="activity-stat"><i class="fas fa-coins"></i> +${coinsEarned} today</span>
-                        </div>
+            document.getElementById('userDetailContent').innerHTML = `
+                <div class="user-detail-header">
+                    <div class="user-detail-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-detail-info">
+                        <h3>${user.first_name || 'User'} ${user.last_name || ''}</h3>
+                        <p>@${user.username || 'no username'} • ID: ${user.telegram_id}</p>
                     </div>
-                    <div class="activity-coins">${coins}</div>
-                </div>`;
-            }
-            container.innerHTML = html;
-        } catch (e) { 
-            container.innerHTML = '<div class="empty-state">Failed to load activity</div>'; 
+                </div>
+                <div class="detail-row"><span class="detail-label">💰 Balance</span><span class="detail-value">${formatCoins(coins)} COINS</span></div>
+                <div class="detail-row"><span class="detail-label">👑 Tier</span><span class="detail-value">${user.tier || 'Fresher'}</span></div>
+                <div class="detail-row"><span class="detail-label">👥 Referrals</span><span class="detail-value">${user.referrals || 0}</span></div>
+                <div class="detail-row"><span class="detail-label">📺 Ads Watched</span><span class="detail-value">${adsWatched}</span></div>
+                <div class="detail-row"><span class="detail-label">🔗 Referral Code</span><span class="detail-value">${user.referral_code || 'N/A'}</span></div>
+                <div class="detail-row"><span class="detail-label">👥 Team ID</span><span class="detail-value">${user.team_id || 'No Team'}</span></div>
+                <div class="detail-row"><span class="detail-label">💳 Wallet</span><span class="detail-value">${user.wallet_address ? user.wallet_address.substring(0, 20) + '...' : 'Not set'}</span></div>
+                <div class="detail-row"><span class="detail-label">📅 Joined</span><span class="detail-value">${userSince}</span></div>
+                <div class="detail-row"><span class="detail-label">🕐 Last Active</span><span class="detail-value">${lastActive}</span></div>
+            `;
+            document.getElementById('userDetailModal').style.display = 'flex';
         }
-    }
-    
-    document.getElementById('userSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderUserList(users.filter(u => (u.first_name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) || String(u.telegram_id).includes(q))); });
-    document.getElementById('withdrawalSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderWithdrawalList(withdrawals.filter(w => (w.first_name||'').toLowerCase().includes(q) || (w.username||'').toLowerCase().includes(q) || (w.wallet_address||'').toLowerCase().includes(q))); });
-    document.getElementById('teamSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderTeamList(teams.filter(t => t.name.toLowerCase().includes(q) || (t.leader_name||'').toLowerCase().includes(q))); });
-    
-    window.onclick = e => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; if (e.target.classList.contains('user-detail-modal')) e.target.style.display = 'none'; };
-    document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodesDB(); });
-</script>
+        function closeUserDetail() { document.getElementById('userDetailModal').style.display = 'none'; }
+        
+        async function loadUsers() {
+            try { 
+                users = await apiCall('/api/admin/users'); 
+                renderUserList(users); 
+                updateTopStats();
+            } catch { 
+                document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>'; 
+            }
+        }
+        
+        function renderUserList(userArray) {
+            const container = document.getElementById('userList');
+            if (!userArray.length) { container.innerHTML = '<div class="empty-state">No users found</div>'; return; }
+            container.innerHTML = userArray.map(user => {
+                const coins = parseFloat(user.coins) || 0;
+                const hasTeam = user.team_id ? 'Yes' : 'No';
+                const tierColor = user.tier === 'Platinum' ? '💎' : user.tier === 'Gold' ? '🥇' : user.tier === 'Silver' ? '🥈' : '🟢';
+                const adsWatched = user.total_ads || 0;
+                return `<div class="user-item">
+                    <div class="user-header" onclick="openUserDetail(${JSON.stringify(user).replace(/"/g, '&quot;')})">
+                        <div class="user-avatar">${(user.first_name || 'U')[0].toUpperCase()}</div>
+                        <div class="user-info"><div class="user-name">${user.first_name || 'User'} ${user.last_name || ''}<span class="user-tier">${tierColor} ${user.tier || 'Fresher'}</span></div><div class="user-id">ID: ${user.telegram_id} | @${user.username || 'unknown'}</div></div>
+                    </div>
+                    <div class="user-stats">
+                        <div class="user-stat"><div class="user-stat-value">${formatCoins(coins)}</div><div class="user-stat-label">COINS</div></div>
+                        <div class="user-stat"><div class="user-stat-value">${user.referrals || 0}</div><div class="user-stat-label">Refs</div></div>
+                        <div class="user-stat"><div class="user-stat-value">${adsWatched}</div><div class="user-stat-label">Ads</div></div>
+                        <div class="user-stat"><div class="user-stat-value">${hasTeam}</div><div class="user-stat-label">Team</div></div>
+                    </div>
+                    <div class="user-actions">
+                        <button class="action-btn btn-success" onclick="event.stopPropagation();openAddCoinsModal(${user.id})"><i class="fas fa-plus"></i> Add</button>
+                        <button class="action-btn btn-warning" onclick="event.stopPropagation();openDeductCoinsModal(${user.id})"><i class="fas fa-minus"></i> Deduct</button>
+                        <button class="action-btn btn-info" onclick="event.stopPropagation();viewUserReferrals(${user.id})"><i class="fas fa-users"></i> Refs</button>
+                        <button class="action-btn btn-danger" onclick="event.stopPropagation();openDeleteUserModal(${user.id}, '${user.first_name || 'User'}')"><i class="fas fa-trash"></i> Delete</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
+        async function viewUserReferrals(userId) { const user = users.find(u => u.id === userId); if (user) showNotification(`${user.first_name || 'User'} has ${user.referrals || 0} referrals`); }
+        function openAddCoinsModal(userId) { currentUserId = userId; document.getElementById('addCoinsModal').style.display = 'flex'; }
+        function closeAddCoinsModal() { document.getElementById('addCoinsModal').style.display = 'none'; document.getElementById('addCoinsAmount').value = ''; }
+        async function confirmAddCoins() {
+            const coins = parseFloat(document.getElementById('addCoinsAmount').value);
+            if (!coins || coins <= 0) { showNotification('Enter valid amount', true); return; }
+            try { await apiCall('/api/admin/add-coins', 'POST', { userId: currentUserId, coins }); showNotification(`Added ${coins} COINS`); closeAddCoinsModal(); loadUsers(); } 
+            catch { showNotification('Failed', true); }
+        }
+        function openDeductCoinsModal(userId) { currentUserId = userId; document.getElementById('deductCoinsModal').style.display = 'flex'; }
+        function closeDeductCoinsModal() { document.getElementById('deductCoinsModal').style.display = 'none'; document.getElementById('deductCoinsAmount').value = ''; }
+        async function confirmDeductCoins() {
+            const coins = parseFloat(document.getElementById('deductCoinsAmount').value);
+            if (!coins || coins <= 0) { showNotification('Enter valid amount', true); return; }
+            try { await apiCall('/api/admin/deduct-coins', 'POST', { userId: currentUserId, coins }); showNotification(`Deducted ${coins} COINS`); closeDeductCoinsModal(); loadUsers(); } 
+            catch { showNotification('Failed', true); }
+        }
+        
+        let deleteUserId = null;
+        function openDeleteUserModal(userId, userName) { deleteUserId = userId; document.querySelector('#deleteUserModal .modal-title').innerHTML = `<i class="fas fa-trash"></i> Delete ${userName}?`; document.getElementById('deleteUserModal').style.display = 'flex'; }
+        function closeDeleteUserModal() { document.getElementById('deleteUserModal').style.display = 'none'; }
+        async function confirmDeleteUser() { if (!deleteUserId) return; try { await apiCall('/api/admin/delete-user', 'POST', { userId: deleteUserId }); showNotification('User deleted'); closeDeleteUserModal(); loadUsers(); loadTeams(); updateTopStats(); } catch { showNotification('Failed', true); } }
+        
+        async function loadWithdrawals() { try { withdrawals = await apiCall('/api/admin/withdrawals'); renderWithdrawalList(withdrawals); updateTopStats(); } catch { document.getElementById('withdrawalList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
+        function renderWithdrawalList(list) {
+            const container = document.getElementById('withdrawalList');
+            if (!list.length) { container.innerHTML = '<div class="empty-state">No withdrawals</div>'; return; }
+            container.innerHTML = list.map(w => {
+                const statusClass = w.status === 'pending' ? 'status-pending' : w.status === 'approved' ? 'status-approved' : 'status-rejected';
+                return `<div class="withdrawal-item"><div class="withdrawal-header"><span class="withdrawal-amount">${w.amount} COINS</span><span class="withdrawal-status ${statusClass}">${w.status}</span></div><div class="withdrawal-details"><i class="fas fa-user"></i> ${w.first_name || 'User'} (@${w.username || 'unknown'})<br><i class="fas fa-calendar"></i> ${new Date(w.created_at).toLocaleString()}</div><div class="withdrawal-wallet">${w.wallet_address}</div>${w.status === 'pending' ? `<div class="user-actions"><button class="action-btn btn-success" onclick="approveWithdrawal(${w.id})"><i class="fas fa-check"></i> Approve</button><button class="action-btn btn-danger" onclick="rejectWithdrawal(${w.id})"><i class="fas fa-times"></i> Reject</button></div>` : ''}</div>`;
+            }).join('');
+        }
+        async function approveWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'approved' }); showNotification('Approved'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
+        async function rejectWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'rejected' }); showNotification('Rejected'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
+        
+        async function loadTeams() { try { teams = await apiCall('/api/team/leaderboard'); renderTeamList(teams); updateTopStats(); } catch { document.getElementById('teamList').innerHTML = '<div class="empty-state">Failed to load teams</div>'; } }
+        function renderTeamList(teamArray) {
+            const container = document.getElementById('teamList');
+            if (!teamArray.length) { container.innerHTML = '<div class="empty-state">No teams found</div>'; return; }
+            container.innerHTML = teamArray.map(team => {
+                const totalCoins = parseFloat(team.total_coins) || 0;
+                return `<div class="team-item"><div class="team-header"><div class="team-avatar"><i class="fas fa-users"></i></div><div class="team-info"><div class="team-name">${team.name}</div><div class="team-meta">👑 ${team.leader_name || 'Unknown'} • ${team.member_count} members • ${formatCoins(totalCoins)} COINS</div></div><button class="action-btn btn-danger" style="width:auto;padding:5px 10px;" onclick="deleteTeam(${team.id})"><i class="fas fa-trash"></i></button></div><button class="action-btn btn-secondary" style="width:100%;margin-top:5px;" onclick="toggleTeamMembers(${team.id})"><i class="fas fa-chevron-down"></i> View Members</button><div class="team-members-list" id="teamMembers-${team.id}" style="display:none;"></div></div>`;
+            }).join('');
+        }
+        async function toggleTeamMembers(teamId) {
+            const container = document.getElementById(`teamMembers-${teamId}`);
+            if (container.style.display === 'none') {
+                container.innerHTML = '<div class="loading">Loading members...</div>'; container.style.display = 'block';
+                try {
+                    const data = await apiCall('/api/team/info', 'POST', { teamId });
+                    if (data.members && data.members.length) {
+                        container.innerHTML = data.members.map(m => `<div class="team-member-item"><span>${m.first_name || m.username || 'User'} ${m.is_leader ? '👑' : ''}</span><span>${formatCoins(m.coins || 0)} COINS</span>${!m.is_leader ? `<i class="fas fa-times remove-member-icon" onclick="forceRemoveMember(${teamId}, ${m.telegram_id})"></i>` : ''}</div>`).join('');
+                    } else container.innerHTML = '<div class="empty-state">No members found</div>';
+                } catch { container.innerHTML = '<div class="empty-state">Failed to load members</div>'; }
+            } else container.style.display = 'none';
+        }
+        async function forceRemoveMember(teamId, memberTelegramId) { if (!confirm('Remove this member?')) return; try { await apiCall('/api/team/remove-member', 'POST', { teamId, memberTelegramId }); showNotification('Member removed'); loadTeams(); } catch { showNotification('Failed', true); } }
+        async function deleteTeam(teamId) { if (!confirm('Delete this team?')) return; try { await apiCall('/api/admin/delete-team', 'POST', { teamId }); showNotification('Team deleted'); loadTeams(); loadUsers(); } catch { showNotification('Failed', true); } }
+        
+        async function loadBonusCodesDB() { try { bonusCodes = await apiCall('/api/admin/bonus-codes'); renderBonusListDB(); } catch { document.getElementById('bonusList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
+        function renderBonusListDB() {
+            const container = document.getElementById('bonusList');
+            if (!bonusCodes.length) { container.innerHTML = '<div class="empty-state">No bonus codes yet.</div>'; return; }
+            container.innerHTML = bonusCodes.map(c => `<div class="bonus-item"><div><span class="bonus-code">${c.code}</span><div style="font-size:10px;color:var(--gray);">${c.description || ''}</div></div><div style="display:flex;align-items:center;gap:10px;"><span class="bonus-coins">${formatCoins(c.coins || 0)} COINS</span><i class="fas fa-trash delete-bonus-btn" onclick="deleteBonusCodeDB('${c.code}')"></i></div></div>`).join('');
+        }
+        async function addBonusCodeDB() {
+            const code = document.getElementById('newBonusCode').value.trim().toUpperCase();
+            const coins = parseFloat(document.getElementById('newBonusCoins').value) || 0;
+            const desc = document.getElementById('newBonusDesc').value.trim();
+            if (!code) { showNotification('Enter a bonus code', true); return; }
+            if (coins <= 0) { showNotification('COINS must be greater than 0', true); return; }
+            try {
+                await apiCall('/api/admin/bonus-codes', 'POST', { code, coins, description: desc || `${coins} COINS bonus` });
+                showNotification(`✅ Bonus code "${code}" added! (+${coins} COINS)`);
+                document.getElementById('newBonusCode').value = '';
+                document.getElementById('newBonusCoins').value = '0';
+                document.getElementById('newBonusDesc').value = '';
+                loadBonusCodesDB();
+            } catch (e) { showNotification(e.message || 'Failed to add bonus code', true); }
+        }
+        async function deleteBonusCodeDB(code) { if (!confirm(`Delete ${code}?`)) return; try { await apiCall(`/api/admin/bonus-codes/${code}`, 'DELETE'); showNotification(`Deleted ${code}`); loadBonusCodesDB(); } catch { showNotification('Failed to delete', true); } }
+        
+        async function loadAnalytics() {
+            try {
+                const data = await apiCall('/api/admin/analytics');
+                document.getElementById('analyticsTotalUsers').textContent = data.totalUsers || 0;
+                document.getElementById('analyticsTotalReferrals').textContent = data.totalReferrals || 0;
+                document.getElementById('analyticsTotalAds').textContent = data.totalAds || 0;
+                document.getElementById('analyticsTotalCoins').textContent = formatCoins(data.totalCoins || 0);
+                document.getElementById('analyticsPendingW').textContent = data.pendingWithdrawals || 0;
+                
+                const tierDiv = document.getElementById('tierDistribution');
+                if (data.tierDistribution && data.tierDistribution.length) {
+                    tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
+                } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
+                
+                const dailyDiv = document.getElementById('dailyActive');
+                if (data.dailyActive && data.dailyActive.length) {
+                    dailyDiv.innerHTML = data.dailyActive.map(d => {
+                        const date = new Date(d.last_login_date);
+                        const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
+                    }).join('');
+                } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
+                
+                await loadTodayUserActivity();
+                
+                try {
+                    const topEarners = await apiCall('/api/leaderboard/top-earners');
+                    const topDiv = document.getElementById('topEarnersList');
+                    if (topEarners && topEarners.length) {
+                        topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${formatCoins(user.coins || user.monthly_coins || 0)} COINS</span></div>`).join('');
+                    } else topDiv.innerHTML = '<div class="empty-state">No data</div>';
+                } catch(e) { document.getElementById('topEarnersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
+                
+                try {
+                    const topReferrers = await apiCall('/api/admin/top-referrers');
+                    const refDiv = document.getElementById('topReferrersList');
+                    if (topReferrers && topReferrers.length) {
+                        refDiv.innerHTML = topReferrers.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${user.referrals || 0} refs</span></div>`).join('');
+                    } else refDiv.innerHTML = '<div class="empty-state">No referrals yet</div>';
+                } catch(e) { document.getElementById('topReferrersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
+                
+            } catch (err) { console.error('Analytics error:', err); }
+        }
+        
+        async function loadTodayUserActivity() {
+            const container = document.getElementById('todayActivityList');
+            try {
+                const data = await apiCall('/api/admin/today-user-activity');
+                if (!data || data.length === 0) { container.innerHTML = '<div class="empty-state">No activity today</div>'; return; }
+                let html = '';
+                for (const user of data) {
+                    const adsToday = user.ads_today || 0;
+                    const coins = formatCoins(user.coins || 0);
+                    const coinsEarned = formatCoins(user.coins_earned_today || 0);
+                    const refsToday = user.referrals_today || 0;
+                    html += `<div class="activity-item">
+                        <div class="activity-avatar">${(user.first_name || 'U')[0].toUpperCase()}</div>
+                        <div class="activity-info">
+                            <div class="activity-name">${user.first_name || 'User'} ${user.last_name || ''}</div>
+                            <div class="activity-stats">
+                                <span class="activity-stat"><i class="fas fa-ad"></i> ${adsToday} ads</span>
+                                <span class="activity-stat"><i class="fas fa-user-plus"></i> ${refsToday} refs</span>
+                                <span class="activity-stat"><i class="fas fa-coins"></i> +${coinsEarned} today</span>
+                            </div>
+                        </div>
+                        <div class="activity-coins">${coins}</div>
+                    </div>`;
+                }
+                container.innerHTML = html;
+            } catch (e) { container.innerHTML = '<div class="empty-state">Failed to load activity</div>'; }
+        }
+        
+        document.getElementById('userSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderUserList(users.filter(u => (u.first_name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) || String(u.telegram_id).includes(q))); });
+        document.getElementById('withdrawalSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderWithdrawalList(withdrawals.filter(w => (w.first_name||'').toLowerCase().includes(q) || (w.username||'').toLowerCase().includes(q) || (w.wallet_address||'').toLowerCase().includes(q))); });
+        document.getElementById('teamSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderTeamList(teams.filter(t => t.name.toLowerCase().includes(q) || (t.leader_name||'').toLowerCase().includes(q))); });
+        
+        window.onclick = e => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; if (e.target.classList.contains('user-detail-modal')) e.target.style.display = 'none'; };
+        document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodesDB(); });
+    </script>
 </body>
 </html>
