@@ -646,19 +646,44 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
+    // 1. Insert ad reward record
     await client.query(
       'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
       [userId, rewardAmount, adType]
     );
     
+    // 2. Update user's coin balance
     await client.query(
       'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
       [rewardAmount, userId]
     );
     
+    // 3. Award referral commission
     await awardReferralCommission(client, userId, rewardAmount);
+    
+    // 4. Track monthly earnings
     await trackMonthlyEarnings(client, userId, rewardAmount);
-      
+    
+    // 5. Update ad_statistics (NEW)
+    await client.query(`
+      INSERT INTO ad_statistics (user_id, total_ads, ads_today, ads_week, updated_at)
+      VALUES ($1, 1, 1, 1, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET
+        total_ads = ad_statistics.total_ads + 1,
+        ads_today = CASE 
+          WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos' 
+          THEN ad_statistics.ads_today + 1 
+          ELSE 1 
+        END,
+        ads_week = CASE 
+          WHEN ad_statistics.updated_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '7 days')::date 
+          THEN ad_statistics.ads_week + 1 
+          ELSE 1 
+        END,
+        updated_at = NOW()
+    `, [userId]);
+    
+    // 6. Check for Points Millionaire achievement
     const userCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
     if (parseFloat(userCoins.rows[0].coins) >= 1000000) {
       await awardAchievement(userId, 'Points Millionaire', client);
@@ -1484,9 +1509,22 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
 // ============================================
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
-    const result = await pool.query(`SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url, u.referral_code, u.coins, u.tier, u.referrals, u.wallet_address, u.created_at, u.team_id, COALESCE(ads.total_ads, 0) as total_ads FROM users u LEFT JOIN ad_statistics ads ON u.id = ads.user_id ORDER BY u.id DESC`);
+    const result = await pool.query(`
+      SELECT u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url, 
+             u.referral_code, u.coins, u.tier, u.referrals, u.wallet_address, u.created_at, u.team_id,
+             COALESCE(ads.total_ads, 0) as total_ads,
+             COALESCE(ads.ads_today, 0) as ads_today,
+             COALESCE(ads.ads_week, 0) as ads_week,
+             u.last_login_date
+      FROM users u
+      LEFT JOIN ad_statistics ads ON u.id = ads.user_id
+      ORDER BY u.id DESC
+    `);
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: 'Failed to fetch users' }); }
+  } catch (err) { 
+    console.error('Admin users error:', err);
+    res.status(500).json({ error: 'Failed to fetch users' }); 
+  }
 });
 
 app.get('/api/admin/withdrawals', verifyAdmin, async (req, res) => {
@@ -1568,22 +1606,38 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
 app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
     const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
-    const today = new Date().toISOString().split('T')[0];
-    const activeToday = await pool.query('SELECT COUNT(*) FROM users WHERE last_login_date = $1', [today]);
-    const activeWeek = await pool.query("SELECT COUNT(*) FROM users WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'");
+    
+    // Use Africa/Lagos timezone for today
+    const activeToday = await pool.query(`
+      SELECT COUNT(*) FROM users 
+      WHERE DATE(last_login_date AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
+    `);
+    
+    const activeWeek = await pool.query(`
+      SELECT COUNT(*) FROM users 
+      WHERE last_login_date >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '7 days')::date
+    `);
+    
     const totalAds = await pool.query('SELECT COALESCE(SUM(total_ads), 0) FROM ad_statistics');
-    const adsToday = await pool.query('SELECT COALESCE(SUM(ads_today), 0) FROM ad_statistics');
+    
+    // Ads today in Lagos timezone
+    const adsToday = await pool.query(`
+      SELECT COUNT(*) FROM ad_rewards 
+      WHERE DATE(created_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
+    `);
+    
     const totalCoins = await pool.query('SELECT COALESCE(SUM(coins), 0) as total FROM users');
     const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
     
-    // Get daily active for last 7 days
     const dailyActive = await pool.query(`
-      SELECT last_login_date, COUNT(*) as count
+      SELECT 
+        DATE(last_login_date AT TIME ZONE 'Africa/Lagos') as last_login_date,
+        COUNT(*) as count
       FROM users 
-      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY last_login_date 
+      WHERE last_login_date >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '7 days')::date
+      GROUP BY DATE(last_login_date AT TIME ZONE 'Africa/Lagos')
       ORDER BY last_login_date DESC
     `);
     
@@ -1592,7 +1646,7 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
       activeToday: parseInt(activeToday.rows[0].count),
       activeWeek: parseInt(activeWeek.rows[0].count),
       totalAds: parseInt(totalAds.rows[0].coalesce) || 0,
-      adsToday: parseInt(adsToday.rows[0].coalesce) || 0,
+      adsToday: parseInt(adsToday.rows[0].count) || 0,
       totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       totalReferrals: parseInt(totalReferrals.rows[0].count),
       pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
@@ -1636,8 +1690,7 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
 // ============================================
 app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    
+    // Use Africa/Lagos timezone
     const result = await pool.query(`
       SELECT 
         u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
@@ -1646,12 +1699,12 @@ app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
         COALESCE(ads.ads_today, 0) as ads_today,
         COALESCE(ads.ads_week, 0) as ads_week,
         u.last_login_date,
-        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.created_at::date = $1) as referrals_today
+        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos') as referrals_today
       FROM users u
       LEFT JOIN ad_statistics ads ON u.id = ads.user_id
-      WHERE u.last_login_date = $1
+      WHERE DATE(u.last_login_date AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
       ORDER BY u.coins DESC
-    `, [today]);
+    `);
     
     res.json(result.rows);
   } catch (err) {
