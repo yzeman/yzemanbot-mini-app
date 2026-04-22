@@ -592,6 +592,34 @@
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
     
+    // Update top stats from users data
+    function updateTopStats() {
+        document.getElementById('totalUsers').textContent = users.length;
+        document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
+        document.getElementById('totalTeams').textContent = teams.length;
+        
+        const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
+        document.getElementById('totalReferrals').textContent = totalRefs;
+        
+        const totalAds = users.reduce((s,u) => s + (u.total_ads||0), 0);
+        document.getElementById('totalAdsWatched').textContent = totalAds;
+        
+        const today = new Date().toISOString().split('T')[0];
+        const activeToday = users.filter(u => u.last_login_date === today).length;
+        document.getElementById('activeToday').textContent = activeToday;
+        
+        const adsTodayCount = users.reduce((s,u) => {
+            const adsToday = u.ads_today || 0;
+            return s + adsToday;
+        }, 0);
+        document.getElementById('adsToday').textContent = adsTodayCount;
+        
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoStr = weekAgo.toISOString().split('T')[0];
+        const activeWeek = users.filter(u => u.last_login_date && u.last_login_date >= weekAgoStr).length;
+        document.getElementById('activeWeek').textContent = activeWeek;
+    }
+    
     function openUserDetail(user) {
         const coins = parseFloat(user.coins) || 0;
         const userSince = new Date(user.created_at).toLocaleDateString();
@@ -623,11 +651,7 @@
         try { 
             users = await apiCall('/api/admin/users'); 
             renderUserList(users); 
-            updateStats();
-            const data = await apiCall('/api/admin/analytics');
-            document.getElementById('activeToday').textContent = data.activeToday || 0;
-            document.getElementById('adsToday').textContent = data.adsToday || 0;
-            document.getElementById('totalAdsWatched').textContent = data.totalAds || 0;
+            updateTopStats();
         } catch { 
             document.getElementById('userList').innerHTML = '<div class="empty-state">Failed to load users</div>'; 
         }
@@ -682,9 +706,9 @@
     let deleteUserId = null;
     function openDeleteUserModal(userId, userName) { deleteUserId = userId; document.querySelector('#deleteUserModal .modal-title').innerHTML = `<i class="fas fa-trash"></i> Delete ${userName}?`; document.getElementById('deleteUserModal').style.display = 'flex'; }
     function closeDeleteUserModal() { document.getElementById('deleteUserModal').style.display = 'none'; }
-    async function confirmDeleteUser() { if (!deleteUserId) return; try { await apiCall('/api/admin/delete-user', 'POST', { userId: deleteUserId }); showNotification('User deleted'); closeDeleteUserModal(); loadUsers(); loadTeams(); updateStats(); } catch { showNotification('Failed', true); } }
+    async function confirmDeleteUser() { if (!deleteUserId) return; try { await apiCall('/api/admin/delete-user', 'POST', { userId: deleteUserId }); showNotification('User deleted'); closeDeleteUserModal(); loadUsers(); loadTeams(); updateTopStats(); } catch { showNotification('Failed', true); } }
     
-    async function loadWithdrawals() { try { withdrawals = await apiCall('/api/admin/withdrawals'); renderWithdrawalList(withdrawals); updateStats(); } catch { document.getElementById('withdrawalList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
+    async function loadWithdrawals() { try { withdrawals = await apiCall('/api/admin/withdrawals'); renderWithdrawalList(withdrawals); updateTopStats(); } catch { document.getElementById('withdrawalList').innerHTML = '<div class="empty-state">Failed to load</div>'; } }
     function renderWithdrawalList(list) {
         const container = document.getElementById('withdrawalList');
         if (!list.length) { container.innerHTML = '<div class="empty-state">No withdrawals</div>'; return; }
@@ -696,7 +720,7 @@
     async function approveWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'approved' }); showNotification('Approved'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
     async function rejectWithdrawal(id) { try { await apiCall('/api/admin/update-withdrawal', 'POST', { withdrawalId: id, status: 'rejected' }); showNotification('Rejected'); loadWithdrawals(); } catch { showNotification('Failed', true); } }
     
-    async function loadTeams() { try { teams = await apiCall('/api/team/leaderboard'); renderTeamList(teams); updateStats(); } catch { document.getElementById('teamList').innerHTML = '<div class="empty-state">Failed to load teams</div>'; } }
+    async function loadTeams() { try { teams = await apiCall('/api/team/leaderboard'); renderTeamList(teams); updateTopStats(); } catch { document.getElementById('teamList').innerHTML = '<div class="empty-state">Failed to load teams</div>'; } }
     function renderTeamList(teamArray) {
         const container = document.getElementById('teamList');
         if (!teamArray.length) { container.innerHTML = '<div class="empty-state">No teams found</div>'; return; }
@@ -746,16 +770,12 @@
     async function loadAnalytics() {
         try {
             const data = await apiCall('/api/admin/analytics');
+            
             document.getElementById('analyticsTotalUsers').textContent = data.totalUsers || 0;
             document.getElementById('analyticsTotalReferrals').textContent = data.totalReferrals || 0;
             document.getElementById('analyticsTotalAds').textContent = data.totalAds || 0;
-            document.getElementById('analyticsAdsToday').textContent = data.adsToday || 0;
-            document.getElementById('analyticsActiveToday').textContent = data.activeToday || 0;
-            document.getElementById('analyticsActiveWeek').textContent = data.activeWeek || 0;
             document.getElementById('analyticsTotalCoins').textContent = formatCoins(data.totalCoins || 0);
             document.getElementById('analyticsPendingW').textContent = data.pendingWithdrawals || 0;
-            document.getElementById('activeToday').textContent = data.activeToday || 0;
-            document.getElementById('adsToday').textContent = data.adsToday || 0;
             
             const tierDiv = document.getElementById('tierDistribution');
             if (data.tierDistribution && data.tierDistribution.length) {
@@ -771,8 +791,10 @@
                 }).join('');
             } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
             
-            await loadTodayActivity();
+            // Load detailed user activity for today
+            await loadTodayUserActivity();
             
+            // Top Earners
             try {
                 const topEarners = await apiCall('/api/leaderboard/top-earners');
                 const topDiv = document.getElementById('topEarnersList');
@@ -781,6 +803,7 @@
                 } else topDiv.innerHTML = '<div class="empty-state">No data</div>';
             } catch(e) { document.getElementById('topEarnersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
             
+            // Top Referrers
             try {
                 const topReferrers = await apiCall('/api/admin/top-referrers');
                 const refDiv = document.getElementById('topReferrersList');
@@ -792,15 +815,19 @@
         } catch (err) { console.error('Analytics error:', err); }
     }
     
-    async function loadTodayActivity() {
+    async function loadTodayUserActivity() {
         const container = document.getElementById('todayActivityList');
         try {
-            const data = await apiCall('/api/admin/today-activity');
-            if (!data || data.length === 0) { container.innerHTML = '<div class="empty-state">No activity today</div>'; return; }
+            const data = await apiCall('/api/admin/today-user-activity');
+            if (!data || data.length === 0) { 
+                container.innerHTML = '<div class="empty-state">No activity today</div>'; 
+                return; 
+            }
             let html = '';
             for (const user of data) {
                 const adsToday = user.ads_today || 0;
                 const coins = formatCoins(user.coins || 0);
+                const coinsEarned = formatCoins(user.coins_earned_today || 0);
                 const refsToday = user.referrals_today || 0;
                 html += `<div class="activity-item">
                     <div class="activity-avatar">${(user.first_name || 'U')[0].toUpperCase()}</div>
@@ -809,27 +836,16 @@
                         <div class="activity-stats">
                             <span class="activity-stat"><i class="fas fa-ad"></i> ${adsToday} ads</span>
                             <span class="activity-stat"><i class="fas fa-user-plus"></i> ${refsToday} refs</span>
+                            <span class="activity-stat"><i class="fas fa-coins"></i> +${coinsEarned} today</span>
                         </div>
                     </div>
                     <div class="activity-coins">${coins}</div>
                 </div>`;
             }
             container.innerHTML = html;
-        } catch (e) { container.innerHTML = '<div class="empty-state">Failed to load activity</div>'; }
-    }
-    
-    function updateStats() {
-        document.getElementById('totalUsers').textContent = users.length;
-        document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
-        document.getElementById('totalTeams').textContent = teams.length;
-        const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
-        document.getElementById('totalReferrals').textContent = totalRefs;
-        const totalAds = users.reduce((s,u) => s + (u.total_ads||0), 0);
-        document.getElementById('totalAdsWatched').textContent = totalAds;
-        const adsTodayCount = users.reduce((s,u) => s + (u.ads_today||0), 0);
-        document.getElementById('adsToday').textContent = adsTodayCount;
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-        document.getElementById('activeWeek').textContent = users.filter(u => u.last_login_date && new Date(u.last_login_date) >= weekAgo).length;
+        } catch (e) { 
+            container.innerHTML = '<div class="empty-state">Failed to load activity</div>'; 
+        }
     }
     
     document.getElementById('userSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderUserList(users.filter(u => (u.first_name||'').toLowerCase().includes(q) || (u.username||'').toLowerCase().includes(q) || String(u.telegram_id).includes(q))); });
