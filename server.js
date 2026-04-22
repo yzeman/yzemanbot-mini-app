@@ -341,7 +341,7 @@ async function trackMonthlyEarnings(client, userId, coinsEarned) {
 }
 
 // ============================================
-// HELPER: Award 2% Commission to Referrer
+// HELPER: Award 2% Commission to Referrer (WITH TRACKING)
 // ============================================
 async function awardReferralCommission(client, referredUserId, coinsEarned) {
     try {
@@ -364,6 +364,15 @@ async function awardReferralCommission(client, referredUserId, coinsEarned) {
             'INSERT INTO referral_commissions (referrer_id, referred_id, coins_earned, commission_coins) VALUES ($1, $2, $3, $4)',
             [referrerId, referredUserId, coinsEarned, commission]
         );
+        
+        // ✅ TRACK COMMISSION - Leaderboard Only (NOT Tournament)
+        await client.query(
+            'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+            [referrerId, commission, 'referral_commission']
+        );
+        
+        // Track monthly earnings for commission
+        await trackMonthlyEarnings(client, referrerId, commission);
         
         console.log(`💰 Commission: User ${referredUserId} earned ${coinsEarned} COINS → referrer ${referrerId} gets ${commission} COINS`);
     } catch (err) {
@@ -583,10 +592,10 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               [refereeBonus, user.id]
             );
             
-            // ✅ TRACK REFERRAL BONUS IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+            // ✅ TRACK REFERRAL BONUS - Leaderboard Only (NOT Tournament)
             await client.query(
               'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
-              [user.id, refereeBonus, 'referral']
+              [user.id, refereeBonus, 'referral_bonus']
             );
             
             // Track monthly earnings for the bonus
@@ -954,7 +963,7 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// LEADERBOARD: Monthly Top Earners
+// LEADERBOARD: Monthly Top Earners (FAIR SYSTEM)
 // ============================================
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
@@ -972,6 +981,10 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
       FROM users u
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $1
+        AND ar.ad_type IN (
+          'ad', 'daily', 'wheel', 'achievement', 'task',
+          'referral_bonus', 'referral_commission', 'bonus', 'admin_add'
+        )
       GROUP BY u.id
       ORDER BY monthly_coins DESC
       LIMIT 50
@@ -979,7 +992,6 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
     
     console.log(`✅ Found ${result.rows.length} users with earnings`);
     
-    // Ensure we return an array even if empty
     res.json(result.rows || []);
   } catch (err) {
     console.error('❌ Top earners error:', err);
@@ -1163,7 +1175,7 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TOURNAMENT: Current Week Standings
+// TOURNAMENT: Current Week Standings (FAIR SYSTEM)
 // ============================================
 app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
   try {
@@ -1209,6 +1221,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
       JOIN users u ON tp.user_id = u.id
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $2
+        AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
       WHERE tp.tournament_id = $1
       GROUP BY u.id
       ORDER BY weekly_coins DESC
@@ -1614,12 +1627,37 @@ app.post('/api/admin/update-withdrawal', verifyAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Failed to update withdrawal' }); }
 });
 
+// ============================================
+// ADMIN: Add Coins (Leaderboard Only)
+// ============================================
 app.post('/api/admin/add-coins', verifyAdmin, async (req, res) => {
   const { userId, coins } = req.body;
+  const client = await pool.connect();
   try {
-    await pool.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [coins, userId]);
+    await client.query('BEGIN');
+    
+    await client.query(
+      'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+      [coins, userId]
+    );
+    
+    // ✅ TRACK ADMIN ADDED COINS - Leaderboard Only (NOT Tournament)
+    await client.query(
+      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+      [userId, coins, 'admin_add']
+    );
+    
+    await trackMonthlyEarnings(client, userId, coins);
+    
+    await client.query('COMMIT');
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: 'Failed to add coins' }); }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Add coins error:', err);
+    res.status(500).json({ error: 'Failed to add coins' });
+  } finally {
+    client.release();
+  }
 });
 
 app.post('/api/admin/deduct-coins', verifyAdmin, async (req, res) => {
@@ -1896,10 +1934,18 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       const user = topEarners.rows[i];
       const prize = prizes[i];
       if (user.monthly_coins > 0) {
+        // 1. Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
+        
+        // 2. ✅ TRACK LEADERBOARD PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
+        await client.query(
+          'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+          [user.id, prize, 'leaderboard_prize']
+        );
+        
         console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name} (earned ${user.monthly_coins} this month)`);
       }
     }
@@ -1948,10 +1994,18 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       const user = topReferrers.rows[i];
       const prize = prizes[i];
       if (user.referral_count > 0) {
+        // 1. Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
+        
+        // 2. ✅ TRACK WEEKLY REFERRAL PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
+        await client.query(
+          'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+          [user.id, prize, 'weekly_prize']
+        );
+        
         console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals this week)`);
       }
     }
@@ -2019,11 +2073,19 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
       const user = topParticipants.rows[i];
       const prize = prizes[i];
       if (user.weekly_coins > 0) {
+        // 1. Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
         
+        // 2. ✅ TRACK TOURNAMENT PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
+        await client.query(
+          'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+          [user.id, prize, 'tournament_prize']
+        );
+        
+        // 3. Mark as awarded
         await client.query(
           'UPDATE tournament_participants SET prize_awarded = true, rank = $1 WHERE tournament_id = $2 AND user_id = $3',
           [i + 1, tournamentId, user.id]
@@ -2033,6 +2095,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
       }
     }
     
+    // Mark tournament as inactive
     await client.query(
       'UPDATE weekly_tournaments SET is_active = false WHERE id = $1',
       [tournamentId]
@@ -2106,9 +2169,16 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
       console.log(`   Awarding ${prizePerMember} COINS to ${members.rows.length} members...`);
       
       for (const member of members.rows) {
+        // 1. Update member's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prizePerMember, member.id]
+        );
+        
+        // 2. ✅ TRACK TEAM PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
+        await client.query(
+          'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+          [member.id, prizePerMember, 'team_prize']
         );
         
         totalAwarded++;
