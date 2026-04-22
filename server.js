@@ -1611,12 +1611,17 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
     const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
     const totalReferrals = await pool.query('SELECT COUNT(*) FROM referrals');
-    const totalAds = await pool.query('SELECT COALESCE(SUM(total_ads), 0) FROM ad_statistics');
     const totalCoins = await pool.query('SELECT COALESCE(SUM(coins), 0) as total FROM users');
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
     
     const today = new Date().toISOString().split('T')[0];
+    
+    // Total ads all time
+    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
+    
+    // Ads today
+    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
     
     // Active Today = users who watched ads today OR logged in today
     const activeToday = await pool.query(`
@@ -1630,8 +1635,6 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at >= CURRENT_DATE - INTERVAL '7 days'
       WHERE u.last_login_date >= CURRENT_DATE - INTERVAL '7 days' OR ar.id IS NOT NULL
     `);
-    
-    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
     
     const dailyActive = await pool.query(`
       SELECT 
@@ -1653,7 +1656,7 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
     res.json({
       totalUsers: parseInt(totalUsers.rows[0].count),
       totalReferrals: parseInt(totalReferrals.rows[0].count),
-      totalAds: parseInt(totalAds.rows[0].coalesce) || 0,
+      totalAds: parseInt(totalAds.rows[0].count) || 0,
       adsToday: parseInt(adsToday.rows[0].count) || 0,
       totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
