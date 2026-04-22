@@ -664,24 +664,24 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     // 4. Track monthly earnings
     await trackMonthlyEarnings(client, userId, rewardAmount);
     
-    // 5. Update ad_statistics (NEW)
-    await client.query(`
-      INSERT INTO ad_statistics (user_id, total_ads, ads_today, ads_week, updated_at)
-      VALUES ($1, 1, 1, 1, NOW())
-      ON CONFLICT (user_id) DO UPDATE SET
-        total_ads = ad_statistics.total_ads + 1,
-        ads_today = CASE 
-          WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos' 
-          THEN ad_statistics.ads_today + 1 
-          ELSE 1 
-        END,
-        ads_week = CASE 
-          WHEN ad_statistics.updated_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '7 days')::date 
-          THEN ad_statistics.ads_week + 1 
-          ELSE 1 
-        END,
-        updated_at = NOW()
-    `, [userId]);
+    // 5. Update ad_statistics (FIXED)
+await client.query(`
+  INSERT INTO ad_statistics (user_id, total_ads, ads_today, ads_week, updated_at)
+  VALUES ($1, 1, 1, 1, NOW())
+  ON CONFLICT (user_id) DO UPDATE SET
+    total_ads = ad_statistics.total_ads + 1,
+    ads_today = CASE 
+      WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos' 
+      THEN ad_statistics.ads_today + 1 
+      ELSE 1 
+    END,
+    ads_week = CASE 
+      WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '6 days')::date
+      THEN ad_statistics.ads_week + 1 
+      ELSE 1 
+    END,
+    updated_at = NOW()
+`, [userId]);
     
     // 6. Check for Points Millionaire achievement
     const userCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
