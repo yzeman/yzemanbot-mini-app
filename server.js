@@ -724,8 +724,11 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     
     let streak = 1;
     if (lastLogin) {
-      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-      if (lastLogin.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0]) {
+      const yesterday = new Date(); 
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      if (lastLogin.toISOString().split('T')[0] === yesterdayStr) {
         const lastStreak = await client.query('SELECT streak_count FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 1', [userId]);
         streak = (lastStreak.rows[0]?.streak_count || 0) + 1;
       }
@@ -741,18 +744,24 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     const finalReward = rewardCoins * (multipliers[userTier.rows[0]?.tier] || 1.0);
     
     await client.query('BEGIN');
+    
     await client.query(
       'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins) VALUES ($1, $2, $3, $4)',
       [userId, today, streak, finalReward]
     );
+    
     await client.query(
       'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1, last_login_date = $2 WHERE id = $3',
       [finalReward, today, userId]
     );
+    
+    // FIXED: Use finalReward instead of rewardAmount
     await trackMonthlyEarnings(client, userId, finalReward);
     await awardReferralCommission(client, userId, finalReward);
+    
     if (streak >= 7) await awardAchievement(userId, 'Daily Streak 7', client);
     if (streak >= 30) await awardAchievement(userId, 'Loyal User', client);
+    
     await client.query('COMMIT');
     
     res.json({ success: true, reward: finalReward, streak });
