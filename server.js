@@ -911,17 +911,21 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// LEADERBOARD: Monthly Top Earners (Resets 1st of Month)
+// LEADERBOARD: Monthly Top Earners
 // ============================================
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     
+    console.log(`📊 Fetching monthly leaderboard for month starting: ${firstOfMonth}`);
+    
     const result = await pool.query(`
-      SELECT u.id, u.username, u.first_name, u.photo_url,
-             COALESCE(SUM(ar.reward_amount), 0) as monthly_coins,
-             u.tier, u.referrals, u.telegram_id
+      SELECT 
+        u.id, u.username, u.first_name, u.photo_url,
+        COALESCE(SUM(ar.reward_amount), 0) as monthly_coins,
+        u.tier, u.referrals, u.telegram_id,
+        u.coins as total_coins
       FROM users u
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $1
@@ -930,9 +934,12 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
       LIMIT 50
     `, [firstOfMonth]);
     
-    res.json(result.rows);
+    console.log(`✅ Found ${result.rows.length} users with earnings`);
+    
+    // Ensure we return an array even if empty
+    res.json(result.rows || []);
   } catch (err) {
-    console.error('Top earners error:', err);
+    console.error('❌ Top earners error:', err);
     res.status(500).json({ error: 'Failed to fetch top earners' });
   }
 });
