@@ -1616,21 +1616,50 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
     
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Active Today = users who watched ads today OR logged in today
+    const activeToday = await pool.query(`
+      SELECT COUNT(DISTINCT u.id) FROM users u
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at::date = $1
+      WHERE u.last_login_date = $1 OR ar.id IS NOT NULL
+    `, [today]);
+    
+    const activeWeek = await pool.query(`
+      SELECT COUNT(DISTINCT u.id) FROM users u
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at >= CURRENT_DATE - INTERVAL '7 days'
+      WHERE u.last_login_date >= CURRENT_DATE - INTERVAL '7 days' OR ar.id IS NOT NULL
+    `);
+    
+    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
+    
     const dailyActive = await pool.query(`
-      SELECT last_login_date, COUNT(*) as count
-      FROM users 
-      WHERE last_login_date >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY last_login_date 
-      ORDER BY last_login_date DESC
+      SELECT 
+        activity_date,
+        COUNT(DISTINCT user_id) as count
+      FROM (
+        SELECT u.id as user_id, u.last_login_date as activity_date
+        FROM users u
+        WHERE u.last_login_date >= CURRENT_DATE - INTERVAL '7 days'
+        UNION ALL
+        SELECT ar.user_id, ar.created_at::date
+        FROM ad_rewards ar
+        WHERE ar.created_at::date >= CURRENT_DATE - INTERVAL '7 days'
+      ) activities
+      GROUP BY activity_date
+      ORDER BY activity_date DESC
     `);
     
     res.json({
       totalUsers: parseInt(totalUsers.rows[0].count),
       totalReferrals: parseInt(totalReferrals.rows[0].count),
       totalAds: parseInt(totalAds.rows[0].coalesce) || 0,
+      adsToday: parseInt(adsToday.rows[0].count) || 0,
       totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
       tierDistribution: tierDistribution.rows,
+      activeToday: parseInt(activeToday.rows[0].count),
+      activeWeek: parseInt(activeWeek.rows[0].count),
       dailyActive: dailyActive.rows
     });
   } catch (err) {
