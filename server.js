@@ -372,7 +372,7 @@ async function awardReferralCommission(client, referredUserId, coinsEarned) {
 }
 
 // ============================================
-// HELPER: Award Achievement (UPDATED FOR COINS)
+// HELPER: Award Achievement (UPDATED FOR COINS WITH TRACKING)
 // ============================================
 async function awardAchievement(userId, achievementName, clientParam = null) {
     const client = clientParam || await pool.connect();
@@ -412,6 +412,13 @@ async function awardAchievement(userId, achievementName, clientParam = null) {
                 'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
                 [coinsReward, userId]
             );
+            
+            // ✅ TRACK ACHIEVEMENT REWARD IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+            await client.query(
+                'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+                [userId, coinsReward, 'achievement']
+            );
+            
             console.log(`🎉 Achievement "${achievementName}" awarded to user ${userId} +${coinsReward} COINS`);
         }
         
@@ -576,6 +583,12 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               [refereeBonus, user.id]
             );
             
+            // ✅ TRACK REFERRAL BONUS IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+            await client.query(
+              'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+              [user.id, refereeBonus, 'referral']
+            );
+            
             // Track monthly earnings for the bonus
             await trackMonthlyEarnings(client, user.id, refereeBonus);
             
@@ -705,7 +718,7 @@ await client.query(`
 });
 
 // ============================================
-// DAILY REWARD ENDPOINT (WITH COMMISSION)
+// DAILY REWARD ENDPOINT (WITH TRACKING)
 // ============================================
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -719,7 +732,6 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     const lastLogin = userResult.rows[0].last_login_date;
     
-    // Check if already claimed today
     const existing = await client.query('SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2', [userId, today]);
     if (existing.rows.length > 0) return res.status(400).json({ error: 'Already claimed today' });
     
@@ -746,28 +758,22 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    // Check if reward_coins column exists, if not use reward_points
-    const columnCheck = await client.query(`
-      SELECT column_name FROM information_schema.columns 
-      WHERE table_name = 'daily_rewards' AND column_name = 'reward_coins'
-    `);
+    // Insert into daily_rewards (handles both old and new column structure)
+    await client.query(
+      'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins, reward_points) VALUES ($1, $2, $3, $4, $5)',
+      [userId, today, streak, finalReward, Math.floor(finalReward * 1000000)]
+    );
     
-    if (columnCheck.rows.length > 0) {
-      await client.query(
-        'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins) VALUES ($1, $2, $3, $4)',
-        [userId, today, streak, finalReward]
-      );
-    } else {
-      // Fallback to reward_points (convert to points)
-      await client.query(
-        'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_points) VALUES ($1, $2, $3, $4)',
-        [userId, today, streak, Math.floor(finalReward * 1000000)]
-      );
-    }
-    
+    // Update user balance
     await client.query(
       'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1, last_login_date = $2 WHERE id = $3',
       [finalReward, today, userId]
+    );
+    
+    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    await client.query(
+      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+      [userId, finalReward, 'daily']
     );
     
     await trackMonthlyEarnings(client, userId, finalReward);
@@ -820,7 +826,7 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// WHEEL SPIN ENDPOINT (WITH COMMISSION)
+// WHEEL SPIN ENDPOINT (WITH TRACKING)
 // ============================================
 app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -848,6 +854,13 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
     await client.query('BEGIN');
     await client.query('INSERT INTO wheel_spins (user_id, spin_date, reward_coins) VALUES ($1, $2, $3)', [userId, today, finalReward]);
     await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [finalReward, userId]);
+    
+    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    await client.query(
+      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+      [userId, finalReward, 'wheel']
+    );
+    
     await awardReferralCommission(client, userId, finalReward);
     await trackMonthlyEarnings(client, userId, finalReward);
     if (rewardCoins >= 20) await awardAchievement(userId, 'Wheel Champion', client);
@@ -884,7 +897,7 @@ app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TASK COMPLETION ENDPOINT (WITH COMMISSION)
+// TASK COMPLETION ENDPOINT (WITH TRACKING)
 // ============================================
 app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
   const { taskName, coins } = req.body;
@@ -901,6 +914,13 @@ app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
     
     await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [coins, userId]);
     await client.query('INSERT INTO social_tasks (user_id, task_name) VALUES ($1, $2)', [userId, taskName]);
+    
+    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    await client.query(
+      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+      [userId, coins, 'task']
+    );
+    
     await awardReferralCommission(client, userId, coins);
     await trackMonthlyEarnings(client, userId, coins);
     
@@ -1475,7 +1495,7 @@ app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// BONUS CODES
+// BONUS CODE REDEMPTION (WITH TRACKING)
 // ============================================
 app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
   const { code } = req.body;
@@ -1486,21 +1506,34 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) throw new Error('User not found');
     const userId = userResult.rows[0].id;
+    
     const existing = await client.query('SELECT * FROM user_bonus_redemptions WHERE user_id = $1 AND bonus_code = $2', [userId, code.toUpperCase()]);
     if (existing.rows.length > 0) throw new Error('Code already redeemed');
+    
     const bonus = await client.query('SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true', [code.toUpperCase()]);
     if (bonus.rows.length === 0) throw new Error('Invalid or expired code');
+    
     const coins = bonus.rows[0].coins;
     await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [coins, userId]);
     await client.query('INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)', [userId, code.toUpperCase()]);
+    
+    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    await client.query(
+      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+      [userId, coins, 'bonus']
+    );
+    
     await awardReferralCommission(client, userId, coins);
     await trackMonthlyEarnings(client, userId, coins);
+    
     await client.query('COMMIT');
     res.json({ success: true, coins, message: `🎉 You redeemed ${coins} COINS!` });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(400).json({ error: err.message });
-  } finally { client.release(); }
+  } finally {
+    client.release();
+  }
 });
 
 app.post('/api/bonus-history', verifyTelegramData, async (req, res) => {
