@@ -499,10 +499,13 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     let user;
     
     if (existingUser.rows.length > 0) {
+      // UPDATE EXISTING USER - Added last_login_date
       const updateQuery = `
         UPDATE users 
         SET first_name = $1, last_name = $2, username = $3, photo_url = $4,
-            wallet_address = COALESCE($5, wallet_address), updated_at = NOW()
+            wallet_address = COALESCE($5, wallet_address), 
+            last_login_date = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date,
+            updated_at = NOW()
         WHERE telegram_id = $6
         RETURNING *
       `;
@@ -510,13 +513,14 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         first_name, last_name, username, photo_url, walletAddress, id
       ]);
       user = result.rows[0];
-      console.log(`✅ Existing user ${id} updated`);
+      console.log(`✅ Existing user ${id} updated, last_login_date set`);
     } else {
+      // NEW USER - Create account
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       
       const insertQuery = `
-        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code, wallet_address)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code, wallet_address, last_login_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date)
         RETURNING *
       `;
       const result = await client.query(insertQuery, [
