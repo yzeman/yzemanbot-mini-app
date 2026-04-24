@@ -20,16 +20,20 @@ if (tg) {
 const COIN_ECONOMY = {
     MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
     
-    // Ad rewards per tier (in COINS)
+  // ============================================================
+    // GAMIFIED AD REWARDS - FUN & EXCITING!
+    // ============================================================
+    
+    // Base ad rewards per tier (in COINS) - Higher but still balanced
     AD_REWARDS: {
-        'Fresher': 0.008,
-        'Brute': 0.012,
-        'Silver': 0.016,
-        'Gold': 0.024,
-        'Platinum': 0.040
+        'Fresher': 0.5,      // 0.5 COINS per ad (200 ads = 100 COINS)
+        'Brute': 0.8,        // 0.8 COINS per ad (125 ads = 100 COINS)
+        'Silver': 1.2,       // 1.2 COINS per ad (84 ads = 100 COINS)
+        'Gold': 1.8,         // 1.8 COINS per ad (56 ads = 100 COINS)
+        'Platinum': 2.5      // 2.5 COINS per ad (40 ads = 100 COINS)
     },
     
-    // Tier requirements (referral count)
+    // Tier requirements (referral count) - SAME
     TIER_REQUIREMENTS: {
         'Fresher': 0,
         'Brute': 150,
@@ -53,16 +57,41 @@ const COIN_ECONOMY = {
     // Lifetime commission rate (2%)
     COMMISSION_RATE: 0.02,
     
-    // Ad streak bonuses (in COINS)
-    AD_STREAK_BONUSES: { 5: 0.02, 10: 0.05, 25: 0.2, 50: 1, 100: 5 },
-    LUCKY_AD_CHANCE: 0.10,
-    GOLDEN_AD_CHANCE: 0.02,
-    MEGA_AD_CHANCE: 0.005,
-    DAILY_AD_GOAL: 20,
-    DAILY_AD_GOAL_REWARD: 1,           // 1 COIN
-    WEEKLY_AD_GOAL: 100,
-    WEEKLY_AD_GOAL_REWARD: 10,         // 10 COINS
-    AD_MILESTONES: { 100: 2, 500: 20, 1000: 100, 5000: 500, 10000: 2000 },
+    // ============================================================
+    // EXCITING AD BONUSES & SURPRISES
+    // ============================================================
+    
+    // Streak bonuses - BIG rewards for consistency!
+    AD_STREAK_BONUSES: { 
+        5: 1,      // 5 ads streak → +1 COIN
+        10: 3,     // 10 ads streak → +3 COINS
+        25: 10,    // 25 ads streak → +10 COINS
+        50: 25,    // 50 ads streak → +25 COINS
+        100: 100   // 100 ads streak → +100 COINS (JACKPOT!)
+    },
+    
+    // Random bonus chances (exciting surprises!)
+    LUCKY_AD_CHANCE: 0.15,      // 15% chance for 2x reward
+    GOLDEN_AD_CHANCE: 0.05,     // 5% chance for 5x reward
+    MEGA_AD_CHANCE: 0.01,       // 1% chance for 10x reward
+    EPIC_AD_CHANCE: 0.002,      // 0.2% chance for 25x reward (EPIC!)
+    
+    // Daily & Weekly Goals
+    DAILY_AD_GOAL: 10,          // Only 10 ads per day for daily bonus (easier!)
+    DAILY_AD_GOAL_REWARD: 2,    // +2 COINS bonus
+    WEEKLY_AD_GOAL: 50,         // 50 ads per week
+    WEEKLY_AD_GOAL_REWARD: 15,  // +15 COINS bonus
+    
+    // Milestone rewards for total ads watched
+    AD_MILESTONES: { 
+        100: 10,      // 100 ads → +10 COINS
+        250: 30,      // 250 ads → +30 COINS
+        500: 75,      // 500 ads → +75 COINS
+        1000: 200,    // 1,000 ads → +200 COINS
+        2500: 500,    // 2,500 ads → +500 COINS
+        5000: 1000,   // 5,000 ads → +1,000 COINS
+        10000: 2500   // 10,000 ads → +2,500 COINS (LEGENDARY!)
+    },
     
     // Daily base reward
     DAILY_BASE_REWARD: 0.2,            // 0.2 COINS
