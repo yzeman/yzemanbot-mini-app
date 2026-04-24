@@ -582,23 +582,31 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               [referrerId, user.id]
             );
             
+            // Give bonus to REFERRER (the person who shared the link)
             await client.query(
               'UPDATE users SET coins = coins + $1, referrals = referrals + 1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
               [referrerReward, referrerId]
             );
             
+            // ✅ TRACK REFERRER'S BONUS IN HISTORY
+            await client.query(
+              'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+              [referrerId, referrerReward, 'referral_bonus']
+            );
+            
+            // Give bonus to REFEREE (the new user)
             await client.query(
               'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
               [refereeBonus, user.id]
             );
             
-            // ✅ TRACK REFERRAL BONUS - Leaderboard Only (NOT Tournament)
+            // ✅ TRACK REFEREE'S BONUS IN HISTORY (2,000 COINS)
             await client.query(
               'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
               [user.id, refereeBonus, 'referral_bonus']
             );
             
-            // Track monthly earnings for the bonus
+            // Track monthly earnings for the referee's bonus
             await trackMonthlyEarnings(client, user.id, refereeBonus);
             
             const newReferralCount = await client.query(
