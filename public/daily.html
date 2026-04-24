@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Daily Rewards - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
@@ -35,20 +35,22 @@
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
+            overflow-x: hidden;
+            width: 100%;
         }
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 30px;
+            padding: 20px 15px 25px;
             border-radius: 0 0 30px 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             text-align: center;
             position: relative;
+            width: 100%;
         }
         
         .header h1 {
             font-size: 24px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         
         .header i {
@@ -58,7 +60,7 @@
         
         .header p {
             color: var(--gray);
-            font-size: 14px;
+            font-size: 13px;
         }
         
         .back-btn-header {
@@ -66,27 +68,27 @@
             top: 20px;
             left: 20px;
             color: white;
-            font-size: 24px;
+            font-size: 22px;
             text-decoration: none;
             z-index: 10;
         }
         
-        /* Stats Cards */
+        /* Stats Cards - Fixed Width */
         .stats-container {
             display: flex;
-            justify-content: space-around;
-            padding: 15px;
-            background: var(--darker);
-            margin: 20px 15px;
-            border-radius: 20px;
+            justify-content: space-between;
             gap: 10px;
+            padding: 15px;
+            margin: 15px;
+            background: var(--darker);
+            border-radius: 20px;
         }
         
         .stat-item {
-            text-align: center;
             flex: 1;
+            text-align: center;
             background: rgba(255,255,255,0.05);
-            padding: 12px;
+            padding: 12px 8px;
             border-radius: 15px;
         }
         
@@ -102,12 +104,19 @@
             margin-top: 5px;
         }
         
+        .stat-help {
+            font-size: 9px;
+            color: var(--gray);
+            margin-top: 3px;
+            opacity: 0.7;
+        }
+        
         /* Main Reward Card */
         .reward-card {
             background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
             border-radius: 25px;
-            padding: 35px 25px;
-            margin: 20px 15px;
+            padding: 30px 20px;
+            margin: 15px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -134,7 +143,6 @@
         
         .reward-card:hover {
             transform: scale(1.02);
-            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
         }
         
         .reward-card.disabled {
@@ -144,37 +152,26 @@
             opacity: 0.8;
         }
         
-        .reward-card.disabled:hover {
-            transform: none;
-        }
-        
         .reward-icon {
-            font-size: 60px;
+            font-size: 50px;
             margin-bottom: 10px;
-            animation: bounce 2s infinite;
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
         }
         
         .reward-title {
-            font-size: 22px;
+            font-size: 18px;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         
         .reward-amount {
-            font-size: 48px;
+            font-size: 42px;
             font-weight: bold;
             color: var(--gold);
             margin-bottom: 5px;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         
         .reward-coin {
-            font-size: 14px;
+            font-size: 13px;
             opacity: 0.9;
         }
         
@@ -184,33 +181,27 @@
             border-radius: 20px;
             padding: 5px 12px;
             margin-top: 10px;
-            font-size: 12px;
+            font-size: 11px;
         }
         
         /* Streak Info Section */
         .streak-info {
             background: linear-gradient(135deg, #ff6b6b20, #ffa50220);
             border-radius: 20px;
-            padding: 20px;
-            margin: 20px 15px;
+            padding: 15px;
+            margin: 15px;
             border: 1px solid var(--gold);
         }
         
         .streak-header {
             display: flex;
             align-items: center;
-            gap: 15px;
-            margin-bottom: 15px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
         
         .streak-fire {
-            font-size: 48px;
-            animation: flame 0.5s infinite alternate;
-        }
-        
-        @keyframes flame {
-            from { text-shadow: 0 0 5px orange; }
-            to { text-shadow: 0 0 20px red; }
+            font-size: 40px;
         }
         
         .streak-info-text {
@@ -218,47 +209,47 @@
         }
         
         .streak-info-text h3 {
-            font-size: 18px;
-            margin-bottom: 5px;
+            font-size: 16px;
+            margin-bottom: 3px;
         }
         
         .streak-info-text p {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--gray);
         }
         
         .bonus-list {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 8px;
+            margin-top: 12px;
             flex-wrap: wrap;
         }
         
         .bonus-chip {
             background: rgba(255,215,0,0.1);
             border-radius: 20px;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 6px 10px;
+            font-size: 11px;
             border: 1px solid var(--gold);
         }
         
         .bonus-chip i {
             color: var(--gold);
-            margin-right: 5px;
+            margin-right: 4px;
         }
         
         /* Calendar Section */
         .calendar-section {
             background: var(--darker);
             border-radius: 20px;
-            padding: 20px;
-            margin: 20px 15px;
+            padding: 15px;
+            margin: 15px;
         }
         
         .calendar-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -267,7 +258,7 @@
         .calendar {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
+            gap: 6px;
         }
         
         .calendar-day {
@@ -277,30 +268,37 @@
             align-items: center;
             justify-content: center;
             background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            font-size: 12px;
-            transition: all 0.2s ease;
+            border-radius: 10px;
+            font-size: 11px;
+            padding: 5px;
+            text-align: center;
         }
         
         .calendar-day.claimed {
             background: linear-gradient(135deg, var(--success), #008C4A);
-            color: white;
-            transform: scale(1.02);
         }
         
         .calendar-day.today {
             border: 2px solid var(--gold);
             background: rgba(255, 215, 0, 0.15);
-            box-shadow: 0 0 10px rgba(255,215,0,0.3);
-        }
-        
-        .calendar-day.future {
-            opacity: 0.4;
         }
         
         .calendar-day i {
-            font-size: 10px;
-            margin-top: 3px;
+            font-size: 9px;
+            margin-top: 2px;
+        }
+        
+        /* Countdown Timer */
+        .countdown {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 11px;
+            color: var(--gray);
+        }
+        
+        .countdown span {
+            color: var(--gold);
+            font-weight: bold;
         }
         
         /* Bottom Navigation */
@@ -311,7 +309,7 @@
             right: 0;
             background: var(--darker);
             display: flex;
-            padding: 10px 20px;
+            padding: 8px 15px;
             border-top: 1px solid rgba(255,255,255,0.1);
             z-index: 100;
         }
@@ -321,16 +319,16 @@
             text-align: center;
             color: var(--gray);
             text-decoration: none;
-            font-size: 12px;
-            padding: 8px;
-            border-radius: 10px;
+            font-size: 11px;
+            padding: 6px;
+            border-radius: 8px;
             transition: all 0.2s ease;
         }
         
         .nav-item i {
-            font-size: 22px;
+            font-size: 20px;
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 3px;
         }
         
         .nav-item.active {
@@ -340,140 +338,134 @@
         
         .notification {
             position: fixed;
-            bottom: 90px;
-            left: 20px;
-            right: 20px;
+            bottom: 80px;
+            left: 15px;
+            right: 15px;
             background: var(--success);
             color: white;
-            padding: 15px 20px;
+            padding: 12px 18px;
             border-radius: 12px;
             text-align: center;
             font-weight: 500;
             display: none;
             z-index: 1000;
-            animation: slideUp 0.3s ease;
+            font-size: 13px;
         }
         
         .notification.error {
             background: var(--danger);
         }
         
-        @keyframes slideUp {
-            from { transform: translateY(100px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 30px;
             color: var(--gray);
         }
         
-        /* Countdown Timer */
-        .countdown {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 12px;
-            color: var(--gray);
-        }
-        
-        .countdown span {
-            color: var(--gold);
-            font-weight: bold;
+        /* Fix for Telegram WebView */
+        .telegram-mobile {
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
         }
     </style>
 </head>
 <body>
-    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
-    
-    <div class="header">
-        <h1><i class="fas fa-calendar-check"></i> Daily Rewards</h1>
-        <p>Login every day to earn COINS and build your streak!</p>
-    </div>
-    
-    <!-- Stats Cards -->
-    <div class="stats-container">
-        <div class="stat-item">
-            <div class="stat-value" id="streakCount">0</div>
-            <div class="stat-label">Current Streak 🔥</div>
+    <div class="telegram-mobile">
+        <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
+        
+        <div class="header">
+            <h1><i class="fas fa-calendar-check"></i> Daily Rewards</h1>
+            <p>Login every day to earn COINS and build your streak!</p>
         </div>
-        <div class="stat-item">
-            <div class="stat-value" id="totalDays">0</div>
-            <div class="stat-label">Total Days</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="maxStreak">0</div>
-            <div class="stat-label">Best Streak 🏆</div>
-        </div>
-    </div>
-    
-    <!-- Main Reward Card -->
-    <div class="reward-card" id="claimBtn">
-        <div class="reward-icon" id="rewardIcon">🎁</div>
-        <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
-        <div class="reward-amount"><span id="todayReward">0.20</span></div>
-        <div class="reward-coin">COINS</div>
-        <div class="streak-bonus-badge" id="streakBonusBadge">+0 Streak Bonus</div>
-    </div>
-    
-    <!-- Streak Info Section -->
-    <div class="streak-info">
-        <div class="streak-header">
-            <div class="streak-fire">🔥</div>
-            <div class="streak-info-text">
-                <h3>Streak Rewards</h3>
-                <p>The longer you play, the more you earn!</p>
+        
+        <!-- Stats Cards with Explanations -->
+        <div class="stats-container">
+            <div class="stat-item">
+                <div class="stat-value" id="streakCount">0</div>
+                <div class="stat-label">Current Streak 🔥</div>
+                <div class="stat-help">Days in a row you've claimed</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="maxStreak">0</div>
+                <div class="stat-label">Best Streak 🏆</div>
+                <div class="stat-help">Your highest streak ever</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalDays">0</div>
+                <div class="stat-label">Total Days</div>
+                <div class="stat-help">Total days you've claimed</div>
             </div>
         </div>
-        <div class="bonus-list">
-            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1 COINS/day</div>
-            <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 COINS every 7 days</div>
-            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100 COINS</div>
-            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500 COINS</div>
+        
+        <!-- Main Reward Card -->
+        <div class="reward-card" id="claimBtn">
+            <div class="reward-icon" id="rewardIcon">🎁</div>
+            <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
+            <div class="reward-amount"><span id="todayReward">0.20</span></div>
+            <div class="reward-coin">COINS</div>
+            <div class="streak-bonus-badge" id="streakBonusBadge">+0 Streak Bonus</div>
         </div>
-    </div>
-    
-    <!-- Calendar -->
-    <div class="calendar-section">
-        <div class="calendar-title">
-            <i class="fas fa-calendar-alt"></i>
-            <span>Your Week</span>
+        
+        <!-- Streak Info Section -->
+        <div class="streak-info">
+            <div class="streak-header">
+                <div class="streak-fire">🔥</div>
+                <div class="streak-info-text">
+                    <h3>How Streak Works</h3>
+                    <p>Claim daily without missing a day to increase your streak!</p>
+                </div>
+            </div>
+            <div class="bonus-list">
+                <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1 COINS per streak day</div>
+                <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 COINS every 7 days</div>
+                <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100 COINS</div>
+                <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500 COINS</div>
+            </div>
         </div>
-        <div class="calendar" id="calendar">
-            <div class="loading">Loading...</div>
+        
+        <!-- Calendar -->
+        <div class="calendar-section">
+            <div class="calendar-title">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Last 7 Days</span>
+            </div>
+            <div class="calendar" id="calendar">
+                <div class="loading">Loading...</div>
+            </div>
+            <div class="countdown" id="countdown">Next reward in: <span>--:--:--</span></div>
         </div>
-        <div class="countdown" id="countdown">Next reward in: <span>--:--:--</span></div>
+        
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <a href="/" class="nav-item">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="/daily.html" class="nav-item active">
+                <i class="fas fa-calendar-check"></i>
+                <span>Daily</span>
+            </a>
+            <a href="/wheel.html" class="nav-item">
+                <i class="fas fa-dharmachakra"></i>
+                <span>Wheel</span>
+            </a>
+            <a href="/leaderboard.html" class="nav-item">
+                <i class="fas fa-trophy"></i>
+                <span>Ranks</span>
+            </a>
+            <a href="/team.html" class="nav-item">
+                <i class="fas fa-users"></i>
+                <span>Team</span>
+            </a>
+        </div>
+        
+        <div class="notification" id="notification"></div>
     </div>
-    
-    <!-- Bottom Navigation -->
-    <div class="bottom-nav">
-        <a href="/" class="nav-item">
-            <i class="fas fa-home"></i>
-            <span>Home</span>
-        </a>
-        <a href="/daily.html" class="nav-item active">
-            <i class="fas fa-calendar-check"></i>
-            <span>Daily</span>
-        </a>
-        <a href="/wheel.html" class="nav-item">
-            <i class="fas fa-dharmachakra"></i>
-            <span>Wheel</span>
-        </a>
-        <a href="/leaderboard.html" class="nav-item">
-            <i class="fas fa-trophy"></i>
-            <span>Ranks</span>
-        </a>
-        <a href="/team.html" class="nav-item">
-            <i class="fas fa-users"></i>
-            <span>Team</span>
-        </a>
-    </div>
-    
-    <div class="notification" id="notification"></div>
     
     <script>
         // ============================================
-        // DAILY PAGE - EXCITING & GAMIFIED!
+        // DAILY PAGE - FIXED WIDTH & EXPLANATIONS
         // ============================================
         
         const tg = window.Telegram?.WebApp;
@@ -562,8 +554,8 @@
             
             // Update stats
             document.getElementById('streakCount').textContent = currentStreak;
-            document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
             document.getElementById('maxStreak').textContent = data.max_streak || 0;
+            document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
             
             // Calculate reward
             const { streakBonus, totalReward } = calculateReward(currentStreak);
@@ -617,10 +609,9 @@
                 const dayNumber = date.getDate();
                 const isClaimed = claimedDates.has(dateStr);
                 const isToday = dateStr === todayStr;
-                const isFuture = date > today;
                 
                 const dayDiv = document.createElement('div');
-                dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''} ${isFuture ? 'future' : ''}`;
+                dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}`;
                 
                 let checkIcon = '';
                 if (isClaimed) {
@@ -631,7 +622,7 @@
                 
                 dayDiv.innerHTML = `
                     <div>${dayAbbr}</div>
-                    <div style="font-size: 10px; margin-top: 5px;">${dayNumber}</div>
+                    <div style="font-size: 9px; margin-top: 3px;">${dayNumber}</div>
                     ${checkIcon}
                 `;
                 calendar.appendChild(dayDiv);
@@ -650,7 +641,6 @@
                 const diff = tomorrow - now;
                 
                 if (diff <= 0) {
-                    // It's a new day! Reload stats
                     loadDailyStats();
                     return;
                 }
@@ -678,7 +668,6 @@
                 return;
             }
             
-            // Animation effect
             claimBtn.style.transform = 'scale(0.98)';
             setTimeout(() => {
                 claimBtn.style.transform = '';
@@ -703,7 +692,6 @@
                 
                 showNotification(message);
                 
-                // Refresh UI
                 await loadDailyStats();
                 
             } catch (err) {
@@ -727,7 +715,6 @@
         
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📅 Daily page loading...');
-            
             loadDailyStats();
             
             const claimBtn = document.getElementById('claimBtn');
@@ -736,8 +723,6 @@
                 claimBtn.parentNode.replaceChild(newClaimBtn, claimBtn);
                 newClaimBtn.addEventListener('click', claimDailyReward);
             }
-            
-            console.log('✅ Daily page initialized');
         });
     </script>
 </body>
