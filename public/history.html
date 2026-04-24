@@ -276,7 +276,6 @@
         const container = document.getElementById('transactionList');
         container.innerHTML = '<div class="loading">Loading history...</div>';
 
-        // Update month label
         const [year, month] = currentMonth.split('-').map(Number);
         const date = new Date(year, month - 1, 1);
         document.getElementById('currentMonthLabel').textContent = 
@@ -291,20 +290,19 @@
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
-            // Update summary
-            document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(3);
-            document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(3);
+            // Show totals with 2 decimals
+            document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(2);
+            document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(2);
             document.getElementById('totalReferrals').textContent = 
-                ((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(3);
+                (((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0))).toFixed(2);
 
-            // Render transactions
             if (!data.transactions || data.transactions.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
                 return;
             }
 
             container.innerHTML = data.transactions.map(tx => {
-                const amount = parseFloat(tx.amount).toFixed(3);
+                const amount = parseFloat(tx.amount).toFixed(2);
                 return `
                     <div class="transaction-item">
                         <div class="tx-icon ${tx.type}">
@@ -325,7 +323,6 @@
         }
     }
 
-    // Timezone-safe month navigation
     function changeMonth(delta) {
         const [year, month] = currentMonth.split('-').map(Number);
         let newMonth = month + delta;
