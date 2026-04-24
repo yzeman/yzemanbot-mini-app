@@ -136,7 +136,8 @@
     </div>
     <div class="info-box">
         <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
-        <p>• Spin every 3 days for free! • Tier multiplier applies • Win up to 20 COINS!</p>
+        <p>• Spin every 3 days for free! • Tier multiplier applies • Win up to 2,000 COINS!</p>
+        <p>• 🟢 Green/Yellow: Easy wins (50, 100) • 🟠 Orange: Medium (200, 500) • 🔴 Red: Rare (1,000, 2,000)</p>
     </div>
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
@@ -150,16 +151,25 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
 
-        // Prize values in COINS (new economy)
+        // ============================================================
+        // NEW WHEEL PRIZES - 12 Segments with Weighted Distribution
+        // Easy: 50 (x4), 100 (x3) = 7 segments (58% chance)
+        // Medium: 200 (x2), 500 (x1) = 3 segments (25% chance)
+        // Rare: 1000 (x1), 2000 (x1) = 2 segments (17% chance)
+        // ============================================================
         const PRIZES = [
-            { value: 0.1, label: '0.10', color: '#FF6B6B' },
-            { value: 0.2, label: '0.20', color: '#4ECDC4' },
-            { value: 0.5, label: '0.50', color: '#45B7D1' },
-            { value: 1.0, label: '1.00', color: '#96CEB4' },
-            { value: 2.0, label: '2.00', color: '#FFEAA7' },
-            { value: 5.0, label: '5.00', color: '#DDA0DD' },
-            { value: 10.0, label: '10.00', color: '#98D8C8' },
-            { value: 20.0, label: '20.00', color: '#F7B05E' }
+            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
+            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
+            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
+            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
+            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },    // Easy - Light Green
+            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },    // Easy - Light Green
+            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },    // Easy - Light Green
+            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },  // Medium - Orange
+            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },  // Medium - Orange
+            { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },  // Medium - Deep Orange
+            { value: 1000, label: '1000', color: '#F44336', rarity: 'rare' },  // Rare - Red
+            { value: 2000, label: '2000', color: '#D32F2F', rarity: 'rare' }   // Rare - Dark Red
         ];
 
         let wheelSpinning = false, wheelAnimationFrame = null, wheelCurrentAngle = 0, canSpin = false;
@@ -173,7 +183,16 @@
         }
 
         function renderPrizesGrid() {
-            document.getElementById('prizesGrid').innerHTML = PRIZES.map(p => `
+            // Show unique prizes (remove duplicates for display)
+            const uniquePrizes = [];
+            const seen = new Set();
+            for (const p of PRIZES) {
+                if (!seen.has(p.value)) {
+                    seen.add(p.value);
+                    uniquePrizes.push(p);
+                }
+            }
+            document.getElementById('prizesGrid').innerHTML = uniquePrizes.map(p => `
                 <div class="prize-item"><div class="prize-color" style="background:${p.color};"></div><div class="prize-value">${p.label}</div><div class="prize-label">COINS</div></div>
             `).join('');
         }
@@ -196,23 +215,31 @@
                 ctx.save();
                 ctx.translate(center,center);
                 ctx.rotate(start + segAngle/2);
-                ctx.fillStyle='#1a1a2e';
+                ctx.fillStyle='white';
                 ctx.font="bold 14px 'Segoe UI'";
                 ctx.textAlign='center'; ctx.textBaseline='middle';
+                ctx.shadowBlur = 2;
+                ctx.shadowColor = 'black';
                 ctx.fillText(PRIZES[i].label, radius*0.65, 0);
+                ctx.shadowBlur = 0;
                 ctx.restore();
             }
-            ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,15,0,Math.PI*2); ctx.fill();
-            ctx.fillStyle='#1a1a2e'; ctx.font='bold 20px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,18,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle='#1a1a2e'; ctx.font='bold 22px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
             ctx.fillText('🎡', center, center);
+            // Add outer ring
+            ctx.beginPath();
+            ctx.arc(center, center, radius+2, 0, Math.PI*2);
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 3;
+            ctx.stroke();
         }
 
-        // Helper to safely parse reward (handles both points and coins)
+        // Helper to safely parse reward
         function parseRewardToCoins(value) {
             if (value === undefined || value === null) return 0;
             const num = Number(value);
-            // If value is > 1000, it's likely old points; convert to coins
-            return num > 10000 ? num / 1000000 : num;
+            return num;
         }
 
         async function loadWheelStatus() {
@@ -248,7 +275,7 @@
                 
                 const lastReward = parseRewardToCoins(data.last_reward);
                 document.getElementById('lastRewardText').innerHTML = lastReward > 0 
-                    ? `Last spin: ${lastReward.toFixed(3)} COINS!` 
+                    ? `Last spin: ${lastReward.toFixed(2)} COINS!` 
                     : 'No spins yet!';
                 
                 spinBtn.disabled = !data.can_spin;
@@ -268,6 +295,7 @@
             spinBtn.disabled = true;
             spinBtn.textContent = '🎡 SPINNING...';
 
+            // Random number of full rotations (5-10) + random final angle
             const spinAngle = Math.random() * (Math.PI*2*5) + (Math.PI*2*3);
             const startTime = performance.now();
             const duration = 3000;
@@ -302,7 +330,10 @@
                 const data = await res.json();
                 if (res.ok) {
                     const reward = parseRewardToCoins(data.reward);
-                    showNotification(`🎡 You won ${reward.toFixed(3)} COINS!`);
+                    let celebrationMsg = `🎡 You won ${reward.toFixed(2)} COINS!`;
+                    if (reward >= 1000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
+                    else if (reward >= 500) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
+                    showNotification(celebrationMsg, false);
                     await loadWheelStatus();
                 } else {
                     showNotification(data.error || 'Spin failed', true);
@@ -311,6 +342,9 @@
             } catch(err) {
                 showNotification('Network error', true);
                 await loadWheelStatus();
+            } finally {
+                const spinBtn = document.getElementById('spinBtn');
+                if (spinBtn) spinBtn.textContent = '🎡 SPIN NOW';
             }
         }
 
