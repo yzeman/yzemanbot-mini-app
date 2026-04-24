@@ -20,7 +20,7 @@ if (tg) {
 const COIN_ECONOMY = {
     MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
     
-  // ============================================================
+    // ============================================================
     // GAMIFIED AD REWARDS - FUN & EXCITING!
     // ============================================================
     
@@ -558,7 +558,7 @@ function updateUI() {
         referralReward.textContent = `${reward.toFixed(2)} COINS`;
     }
     if (adReward) {
-        const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.008;
+        const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.5;
         adReward.textContent = `${reward.toFixed(3)} COINS`;
     }
     if (referralLink && currentUser.referral_code) {
@@ -606,16 +606,32 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// AD HELPER FUNCTIONS
+// AD HELPER FUNCTIONS - UPDATED WITH EPIC BONUS
 // ============================================================
 
 function calculateAdReward() {
-    const baseReward = COIN_ECONOMY.AD_REWARDS[currentUser?.tier] || 0.008;
+    const baseReward = COIN_ECONOMY.AD_REWARDS[currentUser?.tier] || 0.5;
     const rand = Math.random();
     let multiplier = 1, luckyType = 'normal';
-    if (rand < COIN_ECONOMY.MEGA_AD_CHANCE) { multiplier = 10; luckyType = 'mega'; }
-    else if (rand < COIN_ECONOMY.MEGA_AD_CHANCE + COIN_ECONOMY.GOLDEN_AD_CHANCE) { multiplier = 5; luckyType = 'golden'; }
-    else if (rand < COIN_ECONOMY.MEGA_AD_CHANCE + COIN_ECONOMY.GOLDEN_AD_CHANCE + COIN_ECONOMY.LUCKY_AD_CHANCE) { multiplier = 2; luckyType = 'lucky'; }
+    
+    // Check EPIC first (highest rarity - 0.2% chance)
+    if (rand < COIN_ECONOMY.EPIC_AD_CHANCE) { 
+        multiplier = 25; 
+        luckyType = 'epic'; 
+    }
+    else if (rand < COIN_ECONOMY.EPIC_AD_CHANCE + COIN_ECONOMY.MEGA_AD_CHANCE) { 
+        multiplier = 10; 
+        luckyType = 'mega'; 
+    }
+    else if (rand < COIN_ECONOMY.EPIC_AD_CHANCE + COIN_ECONOMY.MEGA_AD_CHANCE + COIN_ECONOMY.GOLDEN_AD_CHANCE) { 
+        multiplier = 5; 
+        luckyType = 'golden'; 
+    }
+    else if (rand < COIN_ECONOMY.EPIC_AD_CHANCE + COIN_ECONOMY.MEGA_AD_CHANCE + COIN_ECONOMY.GOLDEN_AD_CHANCE + COIN_ECONOMY.LUCKY_AD_CHANCE) { 
+        multiplier = 2; 
+        luckyType = 'lucky'; 
+    }
+    
     return { baseReward, multiplier, finalReward: baseReward * multiplier, luckyType };
 }
 
@@ -711,7 +727,8 @@ async function awardAdReward() {
     totalCoins += dailyGoalBonus + weeklyGoalBonus;
     
     let celebrationMsg = 'Ad Completed!';
-    if (luckyType === 'mega') celebrationMsg = '🌟 MEGA AD! 10x REWARD! 🌟';
+    if (luckyType === 'epic') celebrationMsg = '🔥 EPIC AD! 25x REWARD! 🔥';
+    else if (luckyType === 'mega') celebrationMsg = '🌟 MEGA AD! 10x REWARD! 🌟';
     else if (luckyType === 'golden') celebrationMsg = '⭐ GOLDEN AD! 5x REWARD! ⭐';
     else if (luckyType === 'lucky') celebrationMsg = '✨ LUCKY AD! 2x REWARD! ✨';
     
