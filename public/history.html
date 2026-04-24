@@ -189,7 +189,7 @@
 
     <div class="notification" id="notification"></div>
 
-    <script>
+   <script>
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
 
@@ -290,19 +290,20 @@
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
-            // Show totals with 2 decimals
+            // Totals with 2 decimals
             document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(2);
             document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(2);
             document.getElementById('totalReferrals').textContent = 
-                (((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0))).toFixed(2);
+                ((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(2);
 
             if (!data.transactions || data.transactions.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
                 return;
             }
 
+            // Transaction list with 3 decimals
             container.innerHTML = data.transactions.map(tx => {
-                const amount = parseFloat(tx.amount).toFixed(2);
+                const amount = parseFloat(tx.amount).toFixed(3);
                 return `
                     <div class="transaction-item">
                         <div class="tx-icon ${tx.type}">
