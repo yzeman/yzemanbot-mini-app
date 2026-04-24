@@ -938,7 +938,8 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
       if (daysDiff < 3) return res.status(400).json({ error: `Next spin in ${3 - daysDiff} day(s)`, daysLeft: 3 - daysDiff });
     }
     
-    const prizes = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20];
+    // Updated wheel prizes - matches frontend distribution
+    const prizes = [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000];
     const rewardCoins = prizes[Math.floor(Math.random() * prizes.length)];
     
     const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
