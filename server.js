@@ -296,23 +296,35 @@ async function initDB() {
       )
     `);
 
+   // ============================================
+    // ACHIEVEMENTS INSERT - UPDATED WITH NEW REWARDS
+    // ============================================
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, coins_reward) VALUES
-        ('Loyal User', '30 day login streak', '🔥', 30, 100),
-        ('Referral Master', 'Get 100 referrals', '👑', 100, 200),
+        ('Loyal User', '30 day login streak', '🔥', 30, 500),
+        ('Referral Master', 'Get 100 referrals', '👑', 100, 3000),
         ('Points Millionaire', 'Earn 1,000,000 COINS', '💰', 1000000, 2000),
-        ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 50),
-        ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 100),
-        ('Team Player', 'Join a team', '🤝', 1, 20),
-        ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 500),
-        ('Wheel Champion', 'Win 20 COINS on wheel', '🎡', 20, 50),
-        ('Daily Streak 7', '7 day login streak', '📅', 7, 10),
-        ('Super Referrer', 'Get 500 referrals', '⭐', 500, 1000),
-        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 10000)
+        ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 15000),
+        ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 1500),
+        ('Team Player', 'Join a team', '🤝', 1, 200),
+        ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 10000),
+        ('Wheel Champion', 'Win 20 COINS on wheel', '🎡', 20, 1000),
+        ('Daily Streak 7', '7 day login streak', '📅', 7, 1000),
+        ('Super Referrer', 'Get 500 referrals', '⭐', 500, 7000),
+        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 2500),
+        -- NEW ACHIEVEMENTS
+        ('Team Winner', 'Your team wins monthly competition', '🏅', 1, 5000),
+        ('Leaderboard Winner', 'Finish Top 3 on monthly leaderboard', '👑', 3, 3000),
+        ('Ad Master Platinum', 'Watch 5000 ads', '💎', 5000, 10000),
+        ('Referral King', 'Get 1000 referrals', '👑', 1000, 15000),
+        ('Monthly Top Earner', 'Finish #1 on monthly leaderboard', '⭐', 1, 5000)
       ON CONFLICT (name) DO UPDATE SET
         description = EXCLUDED.description,
-        coins_reward = EXCLUDED.coins_reward
+        coins_reward = EXCLUDED.coins_reward,
+        required_value = EXCLUDED.required_value
     `);
+    
+    console.log('✅ Achievements table seeded with updated rewards');
 
     await client.query('COMMIT');
     console.log('✅ Database initialized successfully');
