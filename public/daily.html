@@ -73,7 +73,7 @@
             z-index: 10;
         }
         
-        /* Stats Cards - Fixed Width */
+        /* Stats Cards */
         .stats-container {
             display: flex;
             justify-content: space-between;
@@ -115,7 +115,7 @@
         .reward-card {
             background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
             border-radius: 25px;
-            padding: 30px 20px;
+            padding: 25px 20px;
             margin: 15px;
             text-align: center;
             cursor: pointer;
@@ -238,12 +238,14 @@
             margin-right: 4px;
         }
         
-        /* Calendar Section */
+        /* Calendar Section - COMPLETELY FIXED */
         .calendar-section {
             background: var(--darker);
             border-radius: 20px;
             padding: 15px;
             margin: 15px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
         
         .calendar-title {
@@ -255,27 +257,52 @@
             gap: 8px;
         }
         
+        .calendar-wrapper {
+            overflow-x: auto;
+            width: 100%;
+        }
+        
         .calendar {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 6px;
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            min-width: 100%;
         }
         
         .calendar-day {
-            aspect-ratio: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            flex: 1;
+            min-width: 44px;
             background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            font-size: 11px;
-            padding: 5px;
+            border-radius: 12px;
+            padding: 10px 4px;
             text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        .calendar-day .day-letter {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--gray);
+        }
+        
+        .calendar-day .day-number {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .calendar-day i {
+            font-size: 10px;
+            margin-top: 4px;
+            display: block;
         }
         
         .calendar-day.claimed {
             background: linear-gradient(135deg, var(--success), #008C4A);
+        }
+        
+        .calendar-day.claimed .day-number {
+            color: white;
         }
         
         .calendar-day.today {
@@ -283,22 +310,24 @@
             background: rgba(255, 215, 0, 0.15);
         }
         
-        .calendar-day i {
-            font-size: 9px;
-            margin-top: 2px;
+        .calendar-day.today .day-number {
+            color: var(--gold);
         }
         
         /* Countdown Timer */
         .countdown {
             text-align: center;
-            margin-top: 12px;
-            font-size: 11px;
+            margin-top: 15px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
             color: var(--gray);
         }
         
         .countdown span {
             color: var(--gold);
             font-weight: bold;
+            font-size: 16px;
         }
         
         /* Bottom Navigation */
@@ -361,111 +390,104 @@
             padding: 30px;
             color: var(--gray);
         }
-        
-        /* Fix for Telegram WebView */
-        .telegram-mobile {
-            width: 100%;
-            max-width: 100vw;
-            overflow-x: hidden;
-        }
     </style>
 </head>
 <body>
-    <div class="telegram-mobile">
-        <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
-        
-        <div class="header">
-            <h1><i class="fas fa-calendar-check"></i> Daily Rewards</h1>
-            <p>Login every day to earn COINS and build your streak!</p>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
+    
+    <div class="header">
+        <h1><i class="fas fa-calendar-check"></i> Daily Rewards</h1>
+        <p>Login every day to earn COINS and build your streak!</p>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="stats-container">
+        <div class="stat-item">
+            <div class="stat-value" id="streakCount">0</div>
+            <div class="stat-label">Current Streak 🔥</div>
+            <div class="stat-help">Days in a row</div>
         </div>
-        
-        <!-- Stats Cards with Explanations -->
-        <div class="stats-container">
-            <div class="stat-item">
-                <div class="stat-value" id="streakCount">0</div>
-                <div class="stat-label">Current Streak 🔥</div>
-                <div class="stat-help">Days in a row you've claimed</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="maxStreak">0</div>
-                <div class="stat-label">Best Streak 🏆</div>
-                <div class="stat-help">Your highest streak ever</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="totalDays">0</div>
-                <div class="stat-label">Total Days</div>
-                <div class="stat-help">Total days you've claimed</div>
-            </div>
+        <div class="stat-item">
+            <div class="stat-value" id="maxStreak">0</div>
+            <div class="stat-label">Best Streak 🏆</div>
+            <div class="stat-help">Your highest ever</div>
         </div>
-        
-        <!-- Main Reward Card -->
-        <div class="reward-card" id="claimBtn">
-            <div class="reward-icon" id="rewardIcon">🎁</div>
-            <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
-            <div class="reward-amount"><span id="todayReward">0.20</span></div>
-            <div class="reward-coin">COINS</div>
-            <div class="streak-bonus-badge" id="streakBonusBadge">+0 Streak Bonus</div>
+        <div class="stat-item">
+            <div class="stat-value" id="totalDays">0</div>
+            <div class="stat-label">Total Days</div>
+            <div class="stat-help">Total claims</div>
         </div>
-        
-        <!-- Streak Info Section -->
-        <div class="streak-info">
-            <div class="streak-header">
-                <div class="streak-fire">🔥</div>
-                <div class="streak-info-text">
-                    <h3>How Streak Works</h3>
-                    <p>Claim daily without missing a day to increase your streak!</p>
-                </div>
-            </div>
-            <div class="bonus-list">
-                <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1 COINS per streak day</div>
-                <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 COINS every 7 days</div>
-                <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100 COINS</div>
-                <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500 COINS</div>
+    </div>
+    
+    <!-- Main Reward Card -->
+    <div class="reward-card" id="claimBtn">
+        <div class="reward-icon" id="rewardIcon">🎁</div>
+        <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
+        <div class="reward-amount"><span id="todayReward">0.20</span></div>
+        <div class="reward-coin">COINS</div>
+        <div class="streak-bonus-badge" id="streakBonusBadge">+0 Streak Bonus</div>
+    </div>
+    
+    <!-- Streak Info Section -->
+    <div class="streak-info">
+        <div class="streak-header">
+            <div class="streak-fire">🔥</div>
+            <div class="streak-info-text">
+                <h3>How Streak Works</h3>
+                <p>Claim daily without missing a day to increase your streak!</p>
             </div>
         </div>
-        
-        <!-- Calendar -->
-        <div class="calendar-section">
-            <div class="calendar-title">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Last 7 Days</span>
-            </div>
+        <div class="bonus-list">
+            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
+            <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
+            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
+            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
+        </div>
+    </div>
+    
+    <!-- Calendar Section - FIXED with horizontal scroll if needed -->
+    <div class="calendar-section">
+        <div class="calendar-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Last 7 Days</span>
+        </div>
+        <div class="calendar-wrapper">
             <div class="calendar" id="calendar">
                 <div class="loading">Loading...</div>
             </div>
-            <div class="countdown" id="countdown">Next reward in: <span>--:--:--</span></div>
         </div>
-        
-        <!-- Bottom Navigation -->
-        <div class="bottom-nav">
-            <a href="/" class="nav-item">
-                <i class="fas fa-home"></i>
-                <span>Home</span>
-            </a>
-            <a href="/daily.html" class="nav-item active">
-                <i class="fas fa-calendar-check"></i>
-                <span>Daily</span>
-            </a>
-            <a href="/wheel.html" class="nav-item">
-                <i class="fas fa-dharmachakra"></i>
-                <span>Wheel</span>
-            </a>
-            <a href="/leaderboard.html" class="nav-item">
-                <i class="fas fa-trophy"></i>
-                <span>Ranks</span>
-            </a>
-            <a href="/team.html" class="nav-item">
-                <i class="fas fa-users"></i>
-                <span>Team</span>
-            </a>
-        </div>
-        
-        <div class="notification" id="notification"></div>
+        <div class="countdown" id="countdown">Next reward in: <span>--:--:--</span></div>
     </div>
+    
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="/" class="nav-item">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="/daily.html" class="nav-item active">
+            <i class="fas fa-calendar-check"></i>
+            <span>Daily</span>
+        </a>
+        <a href="/wheel.html" class="nav-item">
+            <i class="fas fa-dharmachakra"></i>
+            <span>Wheel</span>
+        </a>
+        <a href="/leaderboard.html" class="nav-item">
+            <i class="fas fa-trophy"></i>
+            <span>Ranks</span>
+        </a>
+        <a href="/team.html" class="nav-item">
+            <i class="fas fa-users"></i>
+            <span>Team</span>
+        </a>
+    </div>
+    
+    <div class="notification" id="notification"></div>
     
     <script>
         // ============================================
-        // DAILY PAGE - FIXED WIDTH & EXPLANATIONS
+        // DAILY PAGE - COMPLETELY FIXED CALENDAR
         // ============================================
         
         const tg = window.Telegram?.WebApp;
@@ -506,7 +528,6 @@
             const streakBonus = (streak || 0) * 0.1;
             let totalReward = baseReward + streakBonus;
             
-            // 7-day bonus
             if ((streak || 0) > 0 && (streak % 7 === 0)) {
                 totalReward += 1.0;
             }
@@ -552,19 +573,15 @@
             const currentStreak = data.current_streak || 0;
             const claimedToday = data.claimed_today || false;
             
-            // Update stats
             document.getElementById('streakCount').textContent = currentStreak;
             document.getElementById('maxStreak').textContent = data.max_streak || 0;
             document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
             
-            // Calculate reward
             const { streakBonus, totalReward } = calculateReward(currentStreak);
             
-            // Update reward display
             document.getElementById('todayReward').textContent = totalReward.toFixed(2);
             document.getElementById('streakBonusBadge').innerHTML = streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus';
             
-            // Update icon and title based on streak
             const rewardIcon = document.getElementById('rewardIcon');
             const claimBtnText = document.getElementById('claimBtnText');
             const claimBtn = document.getElementById('claimBtn');
@@ -593,11 +610,12 @@
             const claimedDays = data?.last_7_days || [];
             const claimedDates = new Set(claimedDays.map(d => d.reward_date));
             
-            // Start from 6 days ago
             const startDate = new Date(today);
             startDate.setDate(today.getDate() - 6);
             
             calendar.innerHTML = '';
+            
+            const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
             
             for (let i = 0; i < 7; i++) {
                 const date = new Date(startDate);
@@ -605,8 +623,9 @@
                 
                 const dateStr = date.toISOString().split('T')[0];
                 const dayOfWeek = date.getDay();
-                const dayAbbr = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][dayOfWeek];
+                const dayLetter = dayNames[dayOfWeek];
                 const dayNumber = date.getDate();
+                const month = date.getMonth() + 1;
                 const isClaimed = claimedDates.has(dateStr);
                 const isToday = dateStr === todayStr;
                 
@@ -615,14 +634,14 @@
                 
                 let checkIcon = '';
                 if (isClaimed) {
-                    checkIcon = '<i class="fas fa-check"></i>';
+                    checkIcon = '<i class="fas fa-check-circle"></i>';
                 } else if (isToday && !isClaimed) {
                     checkIcon = '<i class="fas fa-gift"></i>';
                 }
                 
                 dayDiv.innerHTML = `
-                    <div>${dayAbbr}</div>
-                    <div style="font-size: 9px; margin-top: 3px;">${dayNumber}</div>
+                    <div class="day-letter">${dayLetter}</div>
+                    <div class="day-number">${dayNumber}/${month}</div>
                     ${checkIcon}
                 `;
                 calendar.appendChild(dayDiv);
@@ -691,7 +710,6 @@
                 else message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
                 
                 showNotification(message);
-                
                 await loadDailyStats();
                 
             } catch (err) {
