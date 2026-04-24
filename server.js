@@ -727,6 +727,71 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
+// USER EARNINGS HISTORY (DETAILED)
+// ============================================
+app.post('/api/earnings-history', verifyTelegramData, async (req, res) => {
+  try {
+    const telegramId = req.telegramUser.id;
+    const month = req.body.month; // Format: 'YYYY-MM' (e.g., '2026-04')
+    
+    const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const userId = userResult.rows[0].id;
+    
+    const monthStart = month + '-01';
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const monthEnd = nextMonth.toISOString().split('T')[0];
+    
+    // Fetch all ad_rewards for this user in the given month
+    // Join with referral info for commission/referral entries
+    const earnings = await pool.query(`
+      SELECT 
+        ar.id,
+        ar.reward_amount as amount,
+        ar.ad_type as type,
+        ar.created_at,
+        -- For referral_bonus: get the user who was referred
+        CASE WHEN ar.ad_type = 'referral_bonus' THEN
+          (SELECT u2.first_name FROM referrals r2 JOIN users u2 ON r2.referred_id = u2.id WHERE r2.referrer_id = $1 AND r2.created_at::date = ar.created_at::date ORDER BY r2.id DESC LIMIT 1)
+        ELSE NULL END as referral_name,
+        -- For referral_commission: get the user who earned the coins
+        CASE WHEN ar.ad_type = 'referral_commission' THEN
+          (SELECT u3.first_name FROM referral_commissions rc JOIN users u3 ON rc.referred_id = u3.id WHERE rc.referrer_id = $1 AND rc.created_at = ar.created_at LIMIT 1)
+        ELSE NULL END as commission_from,
+        -- For admin_add: who added it
+        CASE WHEN ar.ad_type = 'admin_add' THEN 'Admin' ELSE NULL END as admin_note
+      FROM ad_rewards ar
+      WHERE ar.user_id = $1
+        AND ar.created_at >= $2::timestamp
+        AND ar.created_at < $3::timestamp
+      ORDER BY ar.created_at DESC
+      LIMIT 200
+    `, [userId, monthStart, monthEnd]);
+    
+    // Calculate totals by type
+    const totals = {};
+    let overallTotal = 0;
+    earnings.rows.forEach(row => {
+      const amount = parseFloat(row.amount);
+      overallTotal += amount;
+      totals[row.type] = (totals[row.type] || 0) + amount;
+    });
+    
+    res.json({
+      month,
+      overallTotal,
+      totals,
+      transactions: earnings.rows
+    });
+  } catch (err) {
+    console.error('Earnings history error:', err);
+    res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+
+// ============================================
 // DAILY REWARD ENDPOINT (WITH TRACKING)
 // ============================================
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
