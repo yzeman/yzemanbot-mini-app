@@ -26,11 +26,11 @@ const COIN_ECONOMY = {
     // ============================================================
     
     AD_REWARDS: {
-        'Fresher': 0.2,      // 10 ads = 2 COINS (500,000 ads to 100k)
-        'Brute': 0.35,       // 10 ads = 3.5 COINS (285,714 ads to 100k)
-        'Silver': 0.5,       // 10 ads = 5 COINS (200,000 ads to 100k)
-        'Gold': 0.75,        // 10 ads = 7.5 COINS (133,333 ads to 100k)
-        'Platinum': 1.0      // 10 ads = 10 COINS (100,000 ads to 100k)
+        'Fresher': 0.2,
+        'Brute': 0.35,
+        'Silver': 0.5,
+        'Gold': 0.75,
+        'Platinum': 1.0
     },
     
     // Tier requirements (referral count)
@@ -63,44 +63,44 @@ const COIN_ECONOMY = {
     
     // Streak bonuses - Rewards consistency
     AD_STREAK_BONUSES: { 
-        5: 1,      // 5 ads streak → +1 COIN
-        10: 3,     // 10 ads streak → +3 COINS
-        25: 10,    // 25 ads streak → +10 COINS
-        50: 25,    // 50 ads streak → +25 COINS
-        100: 100   // 100 ads streak → +100 COINS (JACKPOT!)
+        5: 1,
+        10: 3,
+        25: 10,
+        50: 25,
+        100: 100
     },
     
     // Random bonus chances (exciting surprises!)
-    LUCKY_AD_CHANCE: 0.15,      // 15% chance for 2x reward
-    GOLDEN_AD_CHANCE: 0.05,     // 5% chance for 5x reward
-    MEGA_AD_CHANCE: 0.01,       // 1% chance for 10x reward
-    EPIC_AD_CHANCE: 0.002,      // 0.2% chance for 25x reward (EPIC!)
+    LUCKY_AD_CHANCE: 0.15,
+    GOLDEN_AD_CHANCE: 0.05,
+    MEGA_AD_CHANCE: 0.01,
+    EPIC_AD_CHANCE: 0.002,
     
     // Daily & Weekly Goals
-    DAILY_AD_GOAL: 10,          // 10 ads per day for daily bonus
-    DAILY_AD_GOAL_REWARD: 2,    // +2 COINS bonus
-    WEEKLY_AD_GOAL: 50,         // 50 ads per week
-    WEEKLY_AD_GOAL_REWARD: 15,  // +15 COINS bonus
+    DAILY_AD_GOAL: 20,
+    DAILY_AD_GOAL_REWARD: 2,
+    WEEKLY_AD_GOAL: 100,
+    WEEKLY_AD_GOAL_REWARD: 15,
     
     // Milestone rewards for total ads watched
     AD_MILESTONES: { 
-        100: 10,      // 100 ads → +10 COINS
-        250: 30,      // 250 ads → +30 COINS
-        500: 75,      // 500 ads → +75 COINS
-        1000: 200,    // 1,000 ads → +200 COINS
-        2500: 500,    // 2,500 ads → +500 COINS
-        5000: 1000,   // 5,000 ads → +1,000 COINS
-        10000: 2500   // 10,000 ads → +2,500 COINS (LEGENDARY!)
+        100: 10,
+        250: 30,
+        500: 75,
+        1000: 200,
+        2500: 500,
+        5000: 1000,
+        10000: 2500
     },
     
     // Daily base reward
-    DAILY_BASE_REWARD: 0.2,            // 0.2 COINS
-    DAILY_STREAK_BONUS: 0.1,           // 0.1 COINS per streak day
+    DAILY_BASE_REWARD: 0.2,
+    DAILY_STREAK_BONUS: 0.1,
     
-    // Wheel prizes (12 prizes with weighted distribution)
+    // Wheel prizes
     WHEEL_PRIZES: [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000],
     
-    // Social task rewards (one-time, in COINS)
+    // Social task rewards
     SOCIAL_TASK_REWARDS: {
         'youtube1': 100,
         'youtube2': 100,
@@ -110,10 +110,7 @@ const COIN_ECONOMY = {
         'telegram': 100
     },
     
-    // Play and earn
     PLAY_EARN_REWARD: 200,
-    
-    // Website task reward
     WEBSITE_TASK_REWARD: 5,
     
     // Achievement rewards
@@ -136,7 +133,6 @@ const COIN_ECONOMY = {
         'Monthly Top Earner': 5000
     },
     
-    // Tournament prizes
     TOURNAMENT_PRIZES: {
         1: 1000,
         2: 500,
@@ -146,7 +142,6 @@ const COIN_ECONOMY = {
     }
 };
 
-// For backward compatibility
 const POINT_ECONOMY = COIN_ECONOMY;
 
 // ============================================================
@@ -253,7 +248,7 @@ async function apiCall(endpoint, data = null) {
 }
 
 // ============================================================
-// AUDIO MANAGER (Sound Effects Only)
+// AUDIO MANAGER
 // ============================================================
 
 const AudioManager = {
@@ -264,7 +259,6 @@ const AudioManager = {
     
     init() {
         if (this.initialized) return;
-        
         const soundFiles = {
             click: '/sounds/click.mp3',
             notification: '/sounds/notification.mp3',
@@ -272,7 +266,6 @@ const AudioManager = {
             error: '/sounds/error.mp3',
             success: '/sounds/success.mp3'
         };
-        
         for (const [name, path] of Object.entries(soundFiles)) {
             try {
                 const audio = new Audio(path);
@@ -283,27 +276,8 @@ const AudioManager = {
                 console.warn(`Sound ${name} failed:`, e);
             }
         }
-        
         this.initialized = true;
         console.log('🔊 Sound effects initialized');
-    },
-    
-    setSfxVolume(value) {
-        this.sfxVolume = Math.max(0, Math.min(1, value));
-        localStorage.setItem('sfxVolume', this.sfxVolume);
-        Object.values(this.sounds).forEach(sound => {
-            sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
-        });
-        this.updateVolumeUI();
-    },
-    
-    toggleSfx() {
-        this.sfxEnabled = !this.sfxEnabled;
-        localStorage.setItem('sfxEnabled', this.sfxEnabled);
-        Object.values(this.sounds).forEach(sound => {
-            sound.volume = this.sfxEnabled ? this.sfxVolume : 0;
-        });
-        this.updateVolumeUI();
     },
     
     playSound(soundName) {
@@ -533,7 +507,6 @@ function updateUI() {
     const progress = Math.min((coins / COIN_ECONOMY.MIN_WITHDRAWAL_COINS) * 100, 100);
     
     const coinsEl = document.getElementById('coins');
-    const usdEl = document.getElementById('usd');
     const tierEl = document.getElementById('tier');
     const progressAmount = document.getElementById('progressAmount');
     const progressBar = document.getElementById('progressBar');
@@ -543,7 +516,6 @@ function updateUI() {
     const referralLink = document.getElementById('referralLink');
     
     if (coinsEl) coinsEl.textContent = coins.toFixed(2);
-    if (usdEl) usdEl.textContent = `${coins.toFixed(2)} COINS`;
     if (tierEl) tierEl.textContent = currentUser.tier || 'Fresher';
     if (progressAmount) progressAmount.textContent = `${coins.toFixed(2)} / ${COIN_ECONOMY.MIN_WITHDRAWAL_COINS} COINS`;
     if (progressBar) progressBar.style.width = progress + '%';
@@ -555,7 +527,7 @@ function updateUI() {
     }
     if (adReward) {
         const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.2;
-        adReward.textContent = `${reward.toFixed(3)} COINS`;
+        adReward.textContent = `${reward.toFixed(2)} COINS`;
     }
     if (referralLink && currentUser.referral_code) {
         referralLink.textContent = `https://t.me/YzemanBot?start=${currentUser.referral_code}`;
@@ -602,15 +574,16 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// AD HELPER FUNCTIONS - WITH EPIC BONUS
+// AD HELPER FUNCTIONS - WITH WORKING BONUSES!
 // ============================================================
 
 function calculateAdReward() {
     const baseReward = COIN_ECONOMY.AD_REWARDS[currentUser?.tier] || 0.2;
     const rand = Math.random();
-    let multiplier = 1, luckyType = 'normal';
+    let multiplier = 1;
+    let luckyType = 'normal';
     
-    // Check EPIC first (highest rarity - 0.2% chance)
+    // Check EPIC first (0.2% chance)
     if (rand < COIN_ECONOMY.EPIC_AD_CHANCE) { 
         multiplier = 25; 
         luckyType = 'epic'; 
@@ -628,13 +601,19 @@ function calculateAdReward() {
         luckyType = 'lucky'; 
     }
     
-    return { baseReward, multiplier, finalReward: baseReward * multiplier, luckyType };
+    const finalReward = baseReward * multiplier;
+    console.log(`🎲 Ad reward: base=${baseReward}, multiplier=${multiplier}x, type=${luckyType}, final=${finalReward}`);
+    
+    return { baseReward, multiplier, finalReward, luckyType };
 }
 
 function checkAndAwardStreakBonus() {
     const bonuses = COIN_ECONOMY.AD_STREAK_BONUSES;
     for (const [streakRequired, bonus] of Object.entries(bonuses)) {
-        if (adStreak === parseInt(streakRequired)) return bonus;
+        if (adStreak === parseInt(streakRequired)) {
+            console.log(`🔥 Streak bonus earned: ${bonus} COINS for ${adStreak} ads streak!`);
+            return bonus;
+        }
     }
     return 0;
 }
@@ -647,6 +626,7 @@ function checkAndAwardMilestones() {
         if (totalAdsWatched >= parseInt(required) && !earnedMilestones.includes(required)) {
             milestoneBonus += bonus;
             earnedMilestones.push(required);
+            console.log(`🏆 Milestone reached: ${required} ads! +${bonus} COINS`);
         }
     }
     localStorage.setItem('earnedMilestones', JSON.stringify(earnedMilestones));
@@ -665,6 +645,7 @@ function updateAdStats() {
     localStorage.setItem('adsWatchedWeek', adsWatchedWeek);
     localStorage.setItem('lastAdDate', lastAdDate);
     updateAdStreakDisplay();
+    console.log(`📊 Ad stats updated: streak=${adStreak}, total=${totalAdsWatched}, today=${adsWatchedToday}, week=${adsWatchedWeek}`);
 }
 
 // ============================================================
@@ -703,7 +684,7 @@ async function preloadMonetagAd() {
 }
 
 async function awardAdReward() {
-    const { finalReward, luckyType } = calculateAdReward();
+    const { finalReward, luckyType, multiplier } = calculateAdReward();
     updateAdStats();
     const streakBonus = checkAndAwardStreakBonus();
     const milestoneBonus = checkAndAwardMilestones();
@@ -714,11 +695,13 @@ async function awardAdReward() {
         dailyGoalBonus = COIN_ECONOMY.DAILY_AD_GOAL_REWARD;
         dailyGoalClaimed = true;
         localStorage.setItem('dailyGoalClaimed', 'true');
+        console.log(`📅 Daily goal reached! +${dailyGoalBonus} COINS`);
     }
     if (adsWatchedWeek >= COIN_ECONOMY.WEEKLY_AD_GOAL && !weeklyGoalClaimed) {
         weeklyGoalBonus = COIN_ECONOMY.WEEKLY_AD_GOAL_REWARD;
         weeklyGoalClaimed = true;
         localStorage.setItem('weeklyGoalClaimed', 'true');
+        console.log(`📆 Weekly goal reached! +${weeklyGoalBonus} COINS`);
     }
     totalCoins += dailyGoalBonus + weeklyGoalBonus;
     
@@ -728,10 +711,12 @@ async function awardAdReward() {
     else if (luckyType === 'golden') celebrationMsg = '⭐ GOLDEN AD! 5x REWARD! ⭐';
     else if (luckyType === 'lucky') celebrationMsg = '✨ LUCKY AD! 2x REWARD! ✨';
     
+    console.log(`💰 Total reward: ${totalCoins} COINS (base: ${finalReward}, streak: ${streakBonus}, milestone: ${milestoneBonus}, daily: ${dailyGoalBonus}, weekly: ${weeklyGoalBonus})`);
+    
     showCelebration(celebrationMsg, totalCoins);
     await addCoins(totalCoins, 'monetag');
     
-    if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${streakBonus.toFixed(3)} COINS!`);
+    if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${streakBonus} COINS!`);
     if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached! +${dailyGoalBonus} COINS`);
     if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached! +${weeklyGoalBonus} COINS`);
     if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone! +${milestoneBonus} COINS`);
@@ -837,106 +822,9 @@ async function completeTaskOnServer(taskName, coins) {
     } catch (e) { showNotification('Failed to claim reward', true); return false; }
 }
 
-function startTimer(taskKey, task) {
-    if (timerInterval) clearInterval(timerInterval);
-    if (taskCheckInterval) clearInterval(taskCheckInterval);
-    
-    activeTask = taskKey;
-    taskStartTime = Date.now();
-    
-    if (task.useFrame) taskWindow = window.open(task.url, '_blank');
-    else {
-        const a = document.createElement('a');
-        a.href = task.url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.click();
-    }
-    
-    const popup = document.getElementById('timerPopup');
-    const timerEl = document.getElementById('timerTimeLeft');
-    if (popup) popup.classList.add('active');
-    
-    timerInterval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
-        const remaining = Math.max(0, task.time - elapsed);
-        const mins = Math.floor(remaining / 60);
-        const secs = remaining % 60;
-        if (timerEl) timerEl.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
-        
-        if (remaining <= 0) {
-            clearInterval(timerInterval);
-            clearInterval(taskCheckInterval);
-            timerInterval = null;
-            taskCheckInterval = null;
-            if (popup) popup.classList.remove('active');
-            if (taskWindow && !taskWindow.closed) taskWindow.close();
-            showNotification(`Task completed! +${task.coins} COINS!`, false);
-            completeTaskOnServer(task.name, task.coins);
-            activeTask = null;
-            taskWindow = null;
-        }
-    }, 1000);
-    
-    if (task.useFrame) {
-        taskCheckInterval = setInterval(() => {
-            if (taskWindow && taskWindow.closed) {
-                clearInterval(timerInterval);
-                clearInterval(taskCheckInterval);
-                timerInterval = null;
-                taskCheckInterval = null;
-                if (popup) popup.classList.remove('active');
-                showNotification('Task cancelled - window closed early. No reward.', true);
-                activeTask = null;
-                taskWindow = null;
-            }
-        }, 500);
-    }
-}
-
-function cancelTask() {
-    if (timerInterval) clearInterval(timerInterval);
-    if (taskCheckInterval) clearInterval(taskCheckInterval);
-    timerInterval = null;
-    taskCheckInterval = null;
-    if (taskWindow && !taskWindow.closed) taskWindow.close();
-    const popup = document.getElementById('timerPopup');
-    if (popup) popup.classList.remove('active');
-    showNotification('Task cancelled. No reward.', true);
-    activeTask = null;
-    taskWindow = null;
-}
-
-async function handleTaskClick(taskKey) {
-    const TASK_CONFIG = window.TASK_CONFIG;
-    if (!TASK_CONFIG) return;
-    if (activeTask) { showNotification('Complete current task first!', true); return; }
-    const task = TASK_CONFIG[taskKey];
-    if (!task) return;
-    const completed = await checkTask(task.name);
-    if (completed) {
-        showNotification('Task already completed!', true);
-        const btn = document.getElementById(`task${taskKey.charAt(0).toUpperCase() + taskKey.slice(1)}`);
-        if (btn) {
-            btn.classList.add('completed');
-            if (!btn.querySelector('.completed-badge')) {
-                const b = document.createElement('div');
-                b.className = 'completed-badge';
-                b.innerHTML = '✓ Done';
-                btn.appendChild(b);
-            }
-        }
-        return;
-    }
-    startTimer(taskKey, task);
-}
-
 window.TASK_CONFIG = window.TASK_CONFIG || {};
-window.handleTaskClick = handleTaskClick;
-window.cancelTask = cancelTask;
-window.startTimer = startTimer;
-window.checkTask = checkTask;
-window.completeTask = completeTaskOnServer;
+window.handleTaskClick = window.handleTaskClick || function() {};
+window.cancelTask = window.cancelTask || function() {};
 
 // ============================================================
 // BONUS CODES & HISTORY
@@ -968,12 +856,12 @@ function displayBonusHistoryUI(history) {
         const redeemedDate = new Date(item.redeemed_at);
         const formattedDate = redeemedDate.toLocaleDateString() + ' ' + redeemedDate.toLocaleTimeString();
         return `
-            <div class="bonus-history-item" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 8px;">
+            <div class="bonus-history-item">
                 <div>
-                    <div class="bonus-code-display" style="font-weight: bold; color: var(--gold); font-family: monospace; font-size: 14px;">${item.bonus_code}</div>
-                    <div class="bonus-expiry" style="font-size: 10px; color: var(--gray);">Redeemed: ${formattedDate}</div>
+                    <div class="bonus-code-display">${item.bonus_code}</div>
+                    <div class="bonus-expiry">Redeemed: ${formattedDate}</div>
                 </div>
-                <div><span class="bonus-used-badge" style="background: var(--success); color: white; padding: 3px 8px; border-radius: 5px; font-size: 10px;">✅ Redeemed</span></div>
+                <div><span class="bonus-used-badge">✅ Redeemed</span></div>
             </div>
         `;
     }).join('');
@@ -1079,141 +967,42 @@ async function loadDailyStats() {
     try {
         const data = await apiCall('/api/daily-stats', { initData: tg.initData });
         const streakCount = document.getElementById('streakCount');
-        const totalDays = document.getElementById('totalDays');
-        const maxStreak = document.getElementById('maxStreak');
-        const todayReward = document.getElementById('todayReward');
-        const claimBtn = document.getElementById('claimBtn');
         if (streakCount) streakCount.textContent = data.current_streak || 0;
-        if (totalDays) totalDays.textContent = data.last_7_days?.length || 0;
-        if (maxStreak) maxStreak.textContent = data.max_streak || 0;
-        const streak = data.current_streak || 0;
-        const totalReward = COIN_ECONOMY.DAILY_BASE_REWARD + (streak * COIN_ECONOMY.DAILY_STREAK_BONUS);
-        if (todayReward) todayReward.textContent = `${totalReward.toFixed(2)} COINS`;
-        if (claimBtn) {
-            if (data.claimed_today) { claimBtn.disabled = true; claimBtn.textContent = '✅ Already Claimed Today'; }
-            else { claimBtn.disabled = false; claimBtn.textContent = '🎁 Claim Daily Reward'; }
-        }
-        renderCalendar(data);
     } catch (err) { console.error('Daily stats error:', err); }
 }
 
-function renderCalendar(data) {
-    const calendar = document.getElementById('calendar');
-    if (!calendar) return;
-    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    const claimedDays = data?.last_7_days || [];
-    const claimedDates = new Set(claimedDays.map(d => d.reward_date));
-    const todayStr = new Date().toISOString().split('T')[0];
-    calendar.innerHTML = days.map((day, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
-        const dateStr = date.toISOString().split('T')[0];
-        const isClaimed = claimedDates.has(dateStr);
-        const isToday = dateStr === todayStr;
-        return `<div class="calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}"><div>${day}</div><div style="font-size: 10px; margin-top: 5px;">${date.getDate()}</div>${isClaimed ? '<i class="fas fa-check" style="font-size: 10px; margin-top: 3px;"></i>' : ''}</div>`;
-    }).join('');
-}
-
 // ============================================================
-// WHEEL OF FORTUNE FUNCTIONS
+// WHEEL FUNCTIONS (Simplified)
 // ============================================================
 
-let wheelSpinning = false, wheelAnimationFrame = null, wheelCurrentAngle = 0;
-
-function drawWheel(segments, currentAngle) {
-    const canvas = document.getElementById('wheelCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const size = canvas.width, center = size / 2, radius = size / 2 - 10;
-    const anglePerSegment = (Math.PI * 2) / segments.length;
-    for (let i = 0; i < segments.length; i++) {
-        const startAngle = currentAngle + i * anglePerSegment;
-        const endAngle = startAngle + anglePerSegment;
-        ctx.beginPath();
-        ctx.fillStyle = segments[i].color;
-        ctx.moveTo(center, center);
-        ctx.arc(center, center, radius, startAngle, endAngle);
-        ctx.fill();
-        ctx.save();
-        ctx.translate(center, center);
-        ctx.rotate(startAngle + anglePerSegment / 2);
-        ctx.fillStyle = "#1a1a2e";
-        ctx.font = "bold 14px 'Segoe UI'";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(segments[i].value.toFixed(2), radius * 0.65, 0);
-        ctx.restore();
-    }
-    ctx.beginPath();
-    ctx.fillStyle = "#FFD700";
-    ctx.arc(center, center, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#1a1a2e";
-    ctx.font = "bold 20px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🎡", center, center);
-}
+let wheelSpinning = false;
 
 async function spinWheel() {
     if (wheelSpinning) return;
-    const prizes = COIN_ECONOMY.WHEEL_PRIZES;
-    const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i % 8] }));
-    const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
-    const startTime = performance.now();
-    const duration = 3000;
     wheelSpinning = true;
-    const spinBtn = document.getElementById('spinBtn');
-    if (spinBtn) spinBtn.disabled = true;
-    function animateSpin(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(1, elapsed / duration);
-        const easeOut = 1 - Math.pow(1 - progress, 3);
-        const angle = spinAngle * easeOut;
-        wheelCurrentAngle = (wheelCurrentAngle + angle) % (Math.PI * 2);
-        drawWheel(segments, wheelCurrentAngle);
-        if (progress < 1) { wheelAnimationFrame = requestAnimationFrame(animateSpin); }
-        else {
-            wheelAnimationFrame = null;
-            const finalAngle = wheelCurrentAngle % (Math.PI * 2);
-            const segmentIndex = Math.floor(((Math.PI * 2) - finalAngle) / ((Math.PI * 2) / segments.length)) % segments.length;
-            submitSpin(segments[segmentIndex].value);
-        }
-    }
-    if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
-    wheelAnimationFrame = requestAnimationFrame(animateSpin);
-}
-
-async function submitSpin(prize) {
     try {
-        await apiCall('/api/wheel-spin', { initData: tg.initData });
-        await addCoins(prize, 'wheel');
-        showNotification(`🎡 You won ${prize.toFixed(2)} COINS!`);
-        await loadWheelStatus();
+        const result = await apiCall('/api/wheel-spin', { initData: tg.initData });
+        showNotification(`🎡 You won ${result.reward.toFixed(2)} COINS!`);
         await refreshUser();
-    } catch (err) { showNotification(err.message, true); document.getElementById('spinBtn').disabled = false; }
-    finally { wheelSpinning = false; }
+        await loadWheelStatus();
+    } catch (err) {
+        showNotification(err.message, true);
+    } finally {
+        wheelSpinning = false;
+    }
 }
 
 async function loadWheelStatus() {
     try {
         const data = await apiCall('/api/wheel-status', { initData: tg.initData });
+        const spinBtn = document.getElementById('spinBtn');
+        if (spinBtn) spinBtn.disabled = !data.can_spin;
         const statusDiv = document.getElementById('statusText');
         const timerDiv = document.getElementById('timerText');
         const lastRewardDiv = document.getElementById('lastRewardText');
-        const spinBtn = document.getElementById('spinBtn');
-        if (statusDiv) statusDiv.innerHTML = data.can_spin ? '<span style="color: var(--success);">✅ Ready to spin!</span>' : '<span style="color: var(--warning);">⏳ Next spin available in:</span>';
+        if (statusDiv) statusDiv.innerHTML = data.can_spin ? '✅ Ready to spin!' : '⏳ Next spin available in:';
         if (timerDiv && !data.can_spin) timerDiv.innerHTML = `${data.days_left} day${data.days_left !== 1 ? 's' : ''}`;
-        else if (timerDiv) timerDiv.innerHTML = '';
         if (lastRewardDiv && data.last_reward > 0) lastRewardDiv.innerHTML = `Last spin: ${data.last_reward.toFixed(2)} COINS!`;
-        else if (lastRewardDiv) lastRewardDiv.innerHTML = 'No spins yet!';
-        if (spinBtn) spinBtn.disabled = !data.can_spin;
-        const canvas = document.getElementById('wheelCanvas');
-        if (canvas) {
-            const prizes = COIN_ECONOMY.WHEEL_PRIZES;
-            const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i % 8] }));
-            drawWheel(segments, wheelCurrentAngle);
-        }
     } catch (err) { console.error('Wheel status error:', err); }
 }
 
@@ -1236,11 +1025,6 @@ async function init() {
         if (document.getElementById('wheelCanvas')) loadWheelStatus();
         
         setTimeout(preloadMonetagAd, 2000);
-    } else {
-        if (currentUser) {
-            updateUI();
-            updateAdStreakDisplay();
-        }
     }
     
     const watchAdBtn = document.getElementById('watchAdBtn');
@@ -1257,9 +1041,6 @@ async function init() {
     
     const withdrawBtn = document.getElementById('withdrawBtn');
     if (withdrawBtn) withdrawBtn.addEventListener('click', requestWithdrawal);
-    
-    const claimBtn = document.getElementById('claimBtn');
-    if (claimBtn) claimBtn.addEventListener('click', claimDailyReward);
     
     const spinBtn = document.getElementById('spinBtn');
     if (spinBtn) spinBtn.addEventListener('click', spinWheel);
