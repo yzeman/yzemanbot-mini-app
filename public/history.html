@@ -193,7 +193,6 @@
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
 
-    // Set current month using local time (timezone-safe)
     const now = new Date();
     let currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -301,8 +300,16 @@
                 return;
             }
 
+            // Filter out transactions with amount 0 (or < 0.001)
+            const visibleTransactions = data.transactions.filter(tx => parseFloat(tx.amount) >= 0.001);
+
+            if (visibleTransactions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
+                return;
+            }
+
             // Transaction list with 3 decimals
-            container.innerHTML = data.transactions.map(tx => {
+            container.innerHTML = visibleTransactions.map(tx => {
                 const amount = parseFloat(tx.amount).toFixed(3);
                 return `
                     <div class="transaction-item">
