@@ -14,26 +14,26 @@ if (tg) {
 }
 
 // ============================================================
-// COIN ECONOMY CONFIGURATION (UPDATED - COINS ONLY)
+// COIN ECONOMY CONFIGURATION (BALANCED FOR GROWING APP)
 // ============================================================
 
 const COIN_ECONOMY = {
     MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
     
     // ============================================================
-    // GAMIFIED AD REWARDS - FUN & EXCITING!
+    // BALANCED AD REWARDS - FUN BUT NOT TOO FAST
+    // Fresher: 0.2 | Brute: 0.35 | Silver: 0.5 | Gold: 0.75 | Platinum: 1.0
     // ============================================================
     
-    // Base ad rewards per tier (in COINS) - Higher but still balanced
     AD_REWARDS: {
-        'Fresher': 0.5,      // 0.5 COINS per ad (200 ads = 100 COINS)
-        'Brute': 0.8,        // 0.8 COINS per ad (125 ads = 100 COINS)
-        'Silver': 1.2,       // 1.2 COINS per ad (84 ads = 100 COINS)
-        'Gold': 1.8,         // 1.8 COINS per ad (56 ads = 100 COINS)
-        'Platinum': 2.5      // 2.5 COINS per ad (40 ads = 100 COINS)
+        'Fresher': 0.2,      // 10 ads = 2 COINS (500,000 ads to 100k)
+        'Brute': 0.35,       // 10 ads = 3.5 COINS (285,714 ads to 100k)
+        'Silver': 0.5,       // 10 ads = 5 COINS (200,000 ads to 100k)
+        'Gold': 0.75,        // 10 ads = 7.5 COINS (133,333 ads to 100k)
+        'Platinum': 1.0      // 10 ads = 10 COINS (100,000 ads to 100k)
     },
     
-    // Tier requirements (referral count) - SAME
+    // Tier requirements (referral count)
     TIER_REQUIREMENTS: {
         'Fresher': 0,
         'Brute': 150,
@@ -61,7 +61,7 @@ const COIN_ECONOMY = {
     // EXCITING AD BONUSES & SURPRISES
     // ============================================================
     
-    // Streak bonuses - BIG rewards for consistency!
+    // Streak bonuses - Rewards consistency
     AD_STREAK_BONUSES: { 
         5: 1,      // 5 ads streak → +1 COIN
         10: 3,     // 10 ads streak → +3 COINS
@@ -77,7 +77,7 @@ const COIN_ECONOMY = {
     EPIC_AD_CHANCE: 0.002,      // 0.2% chance for 25x reward (EPIC!)
     
     // Daily & Weekly Goals
-    DAILY_AD_GOAL: 10,          // Only 10 ads per day for daily bonus (easier!)
+    DAILY_AD_GOAL: 10,          // 10 ads per day for daily bonus
     DAILY_AD_GOAL_REWARD: 2,    // +2 COINS bonus
     WEEKLY_AD_GOAL: 50,         // 50 ads per week
     WEEKLY_AD_GOAL_REWARD: 15,  // +15 COINS bonus
@@ -97,10 +97,7 @@ const COIN_ECONOMY = {
     DAILY_BASE_REWARD: 0.2,            // 0.2 COINS
     DAILY_STREAK_BONUS: 0.1,           // 0.1 COINS per streak day
     
-    // Wheel prizes (in COINS) - UPDATED: 12 prizes with weighted distribution
-    // Easy: 50 (x4), 100 (x3) = 7 segments (58% chance)
-    // Medium: 200 (x2), 500 (x1) = 3 segments (25% chance)  
-    // Rare: 1000 (x1), 2000 (x1) = 2 segments (17% chance)
+    // Wheel prizes (12 prizes with weighted distribution)
     WHEEL_PRIZES: [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000],
     
     // Social task rewards (one-time, in COINS)
@@ -119,7 +116,7 @@ const COIN_ECONOMY = {
     // Website task reward
     WEBSITE_TASK_REWARD: 5,
     
-    // Achievement rewards (in COINS) - UPDATED with new values
+    // Achievement rewards
     ACHIEVEMENT_REWARDS: {
         'Loyal User': 500,
         'Referral Master': 3000,
@@ -132,7 +129,6 @@ const COIN_ECONOMY = {
         'Daily Streak 7': 1000,
         'Super Referrer': 7000,
         'Ad Master': 2500,
-        // NEW ACHIEVEMENTS
         'Team Winner': 5000,
         'Leaderboard Winner': 3000,
         'Ad Master Platinum': 10000,
@@ -150,7 +146,7 @@ const COIN_ECONOMY = {
     }
 };
 
-// For backward compatibility with old variable name
+// For backward compatibility
 const POINT_ECONOMY = COIN_ECONOMY;
 
 // ============================================================
@@ -558,7 +554,7 @@ function updateUI() {
         referralReward.textContent = `${reward.toFixed(2)} COINS`;
     }
     if (adReward) {
-        const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.5;
+        const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.2;
         adReward.textContent = `${reward.toFixed(3)} COINS`;
     }
     if (referralLink && currentUser.referral_code) {
@@ -606,11 +602,11 @@ function updateAdStreakDisplay() {
 }
 
 // ============================================================
-// AD HELPER FUNCTIONS - UPDATED WITH EPIC BONUS
+// AD HELPER FUNCTIONS - WITH EPIC BONUS
 // ============================================================
 
 function calculateAdReward() {
-    const baseReward = COIN_ECONOMY.AD_REWARDS[currentUser?.tier] || 0.5;
+    const baseReward = COIN_ECONOMY.AD_REWARDS[currentUser?.tier] || 0.2;
     const rand = Math.random();
     let multiplier = 1, luckyType = 'normal';
     
@@ -672,7 +668,7 @@ function updateAdStats() {
 }
 
 // ============================================================
-// MONETAG REWARDED INTERSTITIAL INTEGRATION (Zone: 9683863)
+// MONETAG REWARDED INTERSTITIAL INTEGRATION
 // ============================================================
 
 function initMonetag() {
@@ -736,9 +732,9 @@ async function awardAdReward() {
     await addCoins(totalCoins, 'monetag');
     
     if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${streakBonus.toFixed(3)} COINS!`);
-    if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached!`);
-    if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached!`);
-    if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone!`);
+    if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached! +${dailyGoalBonus} COINS`);
+    if (weeklyGoalBonus > 0) showNotification(`🏆 Weekly goal reached! +${weeklyGoalBonus} COINS`);
+    if (milestoneBonus > 0) showNotification(`🎖️ Ad milestone! +${milestoneBonus} COINS`);
     
     adPreloaded = false;
     setTimeout(() => preloadMonetagAd(), 2000);
@@ -809,7 +805,7 @@ window.resetAdStreak = function() {
 };
 
 // ============================================================
-// TASK FUNCTIONS (TIMER & ONE-TIME REWARDS)
+// TASK FUNCTIONS
 // ============================================================
 
 async function checkTask(taskName) {
@@ -1162,7 +1158,7 @@ function drawWheel(segments, currentAngle) {
 async function spinWheel() {
     if (wheelSpinning) return;
     const prizes = COIN_ECONOMY.WHEEL_PRIZES;
-    const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i] }));
+    const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i % 8] }));
     const spinAngle = Math.random() * (Math.PI * 2 * 5) + (Math.PI * 2 * 3);
     const startTime = performance.now();
     const duration = 3000;
@@ -1215,7 +1211,7 @@ async function loadWheelStatus() {
         const canvas = document.getElementById('wheelCanvas');
         if (canvas) {
             const prizes = COIN_ECONOMY.WHEEL_PRIZES;
-            const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i] }));
+            const segments = prizes.map((prize, i) => ({ label: prize.toFixed(1), value: prize, color: ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7B05E"][i % 8] }));
             drawWheel(segments, wheelCurrentAngle);
         }
     } catch (err) { console.error('Wheel status error:', err); }
