@@ -190,147 +190,153 @@
     <div class="notification" id="notification"></div>
 
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.ready(); tg.expand(); }
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
 
-        let currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    // Set current month using local time (timezone-safe)
+    const now = new Date();
+    let currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
+    function showNotification(msg, isError = false) {
+        const notif = document.getElementById('notification');
+        notif.textContent = msg;
+        notif.className = 'notification' + (isError ? ' error' : '');
+        notif.style.display = 'block';
+        setTimeout(() => notif.style.display = 'none', 3000);
+    }
+
+    function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+               d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getTypeLabel(type) {
+        const labels = {
+            'ad': 'Watched Ad',
+            'daily': 'Daily Reward',
+            'wheel': 'Wheel Spin',
+            'achievement': 'Achievement',
+            'task': 'Task Completed',
+            'referral_bonus': 'Referral Bonus',
+            'referral_commission': 'Referral Commission',
+            'bonus': 'Bonus Code',
+            'admin_add': 'Admin Added',
+            'tournament_prize': 'Tournament Prize',
+            'leaderboard_prize': 'Leaderboard Prize',
+            'team_prize': 'Team Prize',
+            'weekly_prize': 'Weekly Prize'
+        };
+        return labels[type] || type;
+    }
+
+    function getDescription(tx) {
+        switch(tx.type) {
+            case 'referral_commission': return `2% commission from ${tx.commission_from || 'referral'}`;
+            case 'referral_bonus': return `Bonus for inviting ${tx.referral_name || 'a friend'}`;
+            case 'daily': return `Daily reward`;
+            case 'wheel': return `Wheel spin win`;
+            case 'achievement': return `Achievement unlocked`;
+            case 'task': return `Task completed`;
+            case 'ad': return `Ad watched`;
+            case 'bonus': return `Bonus code redeemed`;
+            case 'admin_add': return `Added by admin`;
+            case 'tournament_prize': return `Tournament prize`;
+            case 'leaderboard_prize': return `Monthly leaderboard prize`;
+            case 'team_prize': return `Team prize`;
+            case 'weekly_prize': return `Weekly referral prize`;
+            default: return '';
         }
+    }
 
-        function formatDate(dateStr) {
-            const d = new Date(dateStr);
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
-                   d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    function getIcon(type) {
+        const icons = {
+            'ad': 'fa-play-circle',
+            'daily': 'fa-calendar-check',
+            'wheel': 'fa-dharmachakra',
+            'achievement': 'fa-medal',
+            'task': 'fa-tasks',
+            'referral_bonus': 'fa-user-plus',
+            'referral_commission': 'fa-hand-holding-usd',
+            'bonus': 'fa-gift',
+            'admin_add': 'fa-shield-alt',
+            'tournament_prize': 'fa-trophy',
+            'leaderboard_prize': 'fa-crown',
+            'team_prize': 'fa-users',
+            'weekly_prize': 'fa-star'
+        };
+        return icons[type] || 'fa-coin';
+    }
+
+    async function loadHistory() {
+        if (!tg?.initData) {
+            showNotification('Open from Telegram', true);
+            return;
         }
+        const container = document.getElementById('transactionList');
+        container.innerHTML = '<div class="loading">Loading history...</div>';
 
-        function getTypeLabel(type) {
-            const labels = {
-                'ad': 'Watched Ad',
-                'daily': 'Daily Reward',
-                'wheel': 'Wheel Spin',
-                'achievement': 'Achievement',
-                'task': 'Task Completed',
-                'referral_bonus': 'Referral Bonus',
-                'referral_commission': 'Referral Commission',
-                'bonus': 'Bonus Code',
-                'admin_add': 'Admin Added',
-                'tournament_prize': 'Tournament Prize',
-                'leaderboard_prize': 'Leaderboard Prize',
-                'team_prize': 'Team Prize',
-                'weekly_prize': 'Weekly Prize'
-            };
-            return labels[type] || type;
-        }
+        // Update month label
+        const [year, month] = currentMonth.split('-').map(Number);
+        const date = new Date(year, month - 1, 1);
+        document.getElementById('currentMonthLabel').textContent = 
+            date.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-        function getDescription(tx) {
-            switch(tx.type) {
-                case 'referral_commission': return `2% commission from ${tx.commission_from || 'referral'}`;
-                case 'referral_bonus': return `Bonus for inviting ${tx.referral_name || 'a friend'}`;
-                case 'daily': return `Daily reward`;
-                case 'wheel': return `Wheel spin win`;
-                case 'achievement': return `Achievement unlocked`;
-                case 'task': return `Task completed`;
-                case 'ad': return `Ad watched`;
-                case 'bonus': return `Bonus code redeemed`;
-                case 'admin_add': return `Added by admin`;
-                case 'tournament_prize': return `Tournament prize`;
-                case 'leaderboard_prize': return `Monthly leaderboard prize`;
-                case 'team_prize': return `Team prize`;
-                case 'weekly_prize': return `Weekly referral prize`;
-                default: return '';
-            }
-        }
+        try {
+            const res = await fetch('/api/earnings-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: tg.initData, month: currentMonth })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
 
-        async function loadHistory() {
-            if (!tg?.initData) {
-                showNotification('Open from Telegram', true);
+            // Update summary
+            document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(3);
+            document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(3);
+            document.getElementById('totalReferrals').textContent = 
+                ((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(3);
+
+            // Render transactions
+            if (!data.transactions || data.transactions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
                 return;
             }
-            const container = document.getElementById('transactionList');
-            container.innerHTML = '<div class="loading">Loading history...</div>';
 
-            // Update month label
-            const [year, month] = currentMonth.split('-');
-            const date = new Date(year, month - 1, 1);
-            document.getElementById('currentMonthLabel').textContent = 
-                date.toLocaleString('default', { month: 'long', year: 'numeric' });
-
-            try {
-                const res = await fetch('/api/earnings-history', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: tg.initData, month: currentMonth })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-
-                // Update summary
-                document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(3);
-                document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(3);
-                document.getElementById('totalReferrals').textContent = 
-                    ((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(3);
-
-                // Render transactions
-                if (!data.transactions || data.transactions.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
-                    return;
-                }
-
-                container.innerHTML = data.transactions.map(tx => {
-                    const amount = parseFloat(tx.amount).toFixed(3);
-                    return `
-                        <div class="transaction-item">
-                            <div class="tx-icon ${tx.type}">
-                                <i class="fas ${getIcon(tx.type)}"></i>
-                            </div>
-                            <div class="tx-info">
-                                <div class="tx-type">${getTypeLabel(tx.type)}</div>
-                                <div class="tx-desc">${getDescription(tx)}</div>
-                                <div class="tx-date">${formatDate(tx.created_at)}</div>
-                            </div>
-                            <div class="tx-amount">+${amount}</div>
+            container.innerHTML = data.transactions.map(tx => {
+                const amount = parseFloat(tx.amount).toFixed(3);
+                return `
+                    <div class="transaction-item">
+                        <div class="tx-icon ${tx.type}">
+                            <i class="fas ${getIcon(tx.type)}"></i>
                         </div>
-                    `;
-                }).join('');
+                        <div class="tx-info">
+                            <div class="tx-type">${getTypeLabel(tx.type)}</div>
+                            <div class="tx-desc">${getDescription(tx)}</div>
+                            <div class="tx-date">${formatDate(tx.created_at)}</div>
+                        </div>
+                        <div class="tx-amount">+${amount}</div>
+                    </div>
+                `;
+            }).join('');
 
-            } catch (err) {
-                container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load history</p><p style="font-size:12px;color:#f44;">${err.message}</p></div>`;
-            }
+        } catch (err) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load history</p><p style="font-size:12px;color:#f44;">${err.message}</p></div>`;
         }
+    }
 
-        function getIcon(type) {
-            const icons = {
-                'ad': 'fa-play-circle',
-                'daily': 'fa-calendar-check',
-                'wheel': 'fa-dharmachakra',
-                'achievement': 'fa-medal',
-                'task': 'fa-tasks',
-                'referral_bonus': 'fa-user-plus',
-                'referral_commission': 'fa-hand-holding-usd',
-                'bonus': 'fa-gift',
-                'admin_add': 'fa-shield-alt',
-                'tournament_prize': 'fa-trophy',
-                'leaderboard_prize': 'fa-crown',
-                'team_prize': 'fa-users',
-                'weekly_prize': 'fa-star'
-            };
-            return icons[type] || 'fa-coin';
-        }
+    // Timezone-safe month navigation
+    function changeMonth(delta) {
+        const [year, month] = currentMonth.split('-').map(Number);
+        let newMonth = month + delta;
+        let newYear = year;
+        if (newMonth > 12) { newMonth = 1; newYear++; }
+        if (newMonth < 1) { newMonth = 12; newYear--; }
+        currentMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
+        loadHistory();
+    }
 
-        function changeMonth(delta) {
-            const [year, month] = currentMonth.split('-').map(Number);
-            const d = new Date(year, month - 1 + delta, 1);
-            currentMonth = d.toISOString().slice(0, 7);
-            loadHistory();
-        }
-
-        document.addEventListener('DOMContentLoaded', loadHistory);
-    </script>
+    document.addEventListener('DOMContentLoaded', loadHistory);
+</script>
 </body>
 </html>
