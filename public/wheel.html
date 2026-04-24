@@ -26,6 +26,8 @@
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
+            overflow-x: hidden;
+            width: 100%;
         }
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
@@ -42,7 +44,7 @@
             color: white; font-size: 24px; text-decoration: none; z-index: 10;
         }
         .wheel-container { display: flex; justify-content: center; margin: 20px 15px; }
-        .wheel-wrapper { position: relative; width: 100%; max-width: 350px; }
+        .wheel-wrapper { position: relative; width: 100%; max-width: 350px; margin: 0 auto; }
         #wheelCanvas { width: 100%; height: auto; display: block; }
         .wheel-pointer {
             position: absolute; top: -15px; left: 50%;
@@ -136,8 +138,9 @@
     </div>
     <div class="info-box">
         <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
-        <p>• Spin every 3 days for free! • Tier multiplier applies • Win up to 2,000 COINS!</p>
-        <p>• 🟢 Green/Yellow: Easy wins (50, 100) • 🟠 Orange: Medium (200, 500) • 🔴 Red: Rare (1,000, 2,000)</p>
+        <p>• Spin every 3 days for free! • Tier multiplier applies!</p>
+        <p>• 🟢 Easy (50, 100) • 🟠 Medium (200, 500) • 🔴 Rare (1,000, 2,000)</p>
+        <p>• 💎 Higher tier = Higher multiplier (Platinum = 3x prize!)</p>
     </div>
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
@@ -152,24 +155,22 @@
         if (tg) { tg.ready(); tg.expand(); }
 
         // ============================================================
-        // NEW WHEEL PRIZES - 12 Segments with Weighted Distribution
-        // Easy: 50 (x4), 100 (x3) = 7 segments (58% chance)
-        // Medium: 200 (x2), 500 (x1) = 3 segments (25% chance)
-        // Rare: 1000 (x1), 2000 (x1) = 2 segments (17% chance)
+        // 12 SEGMENT MIXED WHEEL - ALL VALUES MIXED, NO DUPLICATES IN A ROW
+        // Values: 50, 100, 200, 500, 50, 100, 200, 1000, 50, 100, 2000, 500
         // ============================================================
         const PRIZES = [
-            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
-            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
-            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
-            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // Easy - Green
-            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },    // Easy - Light Green
-            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },    // Easy - Light Green
-            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },    // Easy - Light Green
-            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },  // Medium - Orange
-            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },  // Medium - Orange
-            { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },  // Medium - Deep Orange
-            { value: 1000, label: '1000', color: '#F44336', rarity: 'rare' },  // Rare - Red
-            { value: 2000, label: '2000', color: '#D32F2F', rarity: 'rare' }   // Rare - Dark Red
+            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // 1 - Green
+            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },     // 2 - Light Green
+            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },   // 3 - Orange
+            { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },   // 4 - Deep Orange
+            { value: 50, label: '50', color: '#66BB6A', rarity: 'easy' },       // 5 - Light Green
+            { value: 100, label: '100', color: '#9CCC65', rarity: 'easy' },     // 6 - Yellow Green
+            { value: 200, label: '200', color: '#FFA726', rarity: 'medium' },   // 7 - Light Orange
+            { value: 1000, label: '1K', color: '#F44336', rarity: 'rare' },     // 8 - Red
+            { value: 50, label: '50', color: '#81C784', rarity: 'easy' },       // 9 - Green
+            { value: 100, label: '100', color: '#AED581', rarity: 'easy' },     // 10 - Light Green
+            { value: 2000, label: '2K', color: '#D32F2F', rarity: 'rare' },     // 11 - Dark Red
+            { value: 500, label: '500', color: '#E64A19', rarity: 'medium' }    // 12 - Deep Orange
         ];
 
         let wheelSpinning = false, wheelAnimationFrame = null, wheelCurrentAngle = 0, canSpin = false;
@@ -183,7 +184,7 @@
         }
 
         function renderPrizesGrid() {
-            // Show unique prizes (remove duplicates for display)
+            // Show unique prizes only for display
             const uniquePrizes = [];
             const seen = new Set();
             for (const p of PRIZES) {
@@ -204,6 +205,7 @@
             const size = canvas.width, center = size/2, radius = size/2 - 10;
             const segAngle = (Math.PI*2)/PRIZES.length;
             ctx.clearRect(0,0,size,size);
+            
             for(let i=0; i<PRIZES.length; i++){
                 const start = angle + i*segAngle, end = start + segAngle;
                 ctx.beginPath();
@@ -220,7 +222,11 @@
                 ctx.textAlign='center'; ctx.textBaseline='middle';
                 ctx.shadowBlur = 2;
                 ctx.shadowColor = 'black';
-                ctx.fillText(PRIZES[i].label, radius*0.65, 0);
+                
+                let displayLabel = PRIZES[i].label;
+                if (PRIZES[i].value >= 1000) displayLabel = PRIZES[i].value/1000 + 'K';
+                
+                ctx.fillText(displayLabel, radius*0.65, 0);
                 ctx.shadowBlur = 0;
                 ctx.restore();
             }
