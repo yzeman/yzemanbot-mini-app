@@ -59,8 +59,10 @@
             border-radius: 50px; font-size: 20px; font-weight: bold;
             cursor: pointer; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
             width: 100%; max-width: 300px;
+            transition: transform 0.2s ease;
         }
-        .spin-btn:disabled { background: var(--gray); box-shadow: none; cursor: not-allowed; opacity: 0.7; }
+        .spin-btn:active { transform: scale(0.98); }
+        .spin-btn:disabled { background: var(--gray); box-shadow: none; cursor: not-allowed; opacity: 0.7; transform: none; }
         .status-card {
             background: var(--darker); border-radius: 20px;
             padding: 20px; margin: 20px 15px; text-align: center;
@@ -72,15 +74,116 @@
             background: var(--darker); border-radius: 20px;
             padding: 20px; margin: 20px 15px;
         }
-        .prizes-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
-        .prizes-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .prizes-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .prizes-title i { color: var(--gold); }
+        .prizes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .prize-item {
-            background: rgba(255,255,255,0.05); border-radius: 10px;
-            padding: 10px; text-align: center;
+            background: rgba(255,255,255,0.05); border-radius: 12px;
+            padding: 12px; text-align: center;
+            transition: transform 0.2s ease;
         }
-        .prize-color { width: 20px; height: 20px; border-radius: 5px; margin: 0 auto 8px; }
-        .prize-value { font-size: 14px; font-weight: bold; color: var(--gold); }
-        .prize-label { font-size: 10px; color: var(--gray); }
+        .prize-item:hover { transform: translateY(-2px); }
+        .prize-color { width: 30px; height: 30px; border-radius: 50%; margin: 0 auto 8px; }
+        .prize-value { font-size: 16px; font-weight: bold; color: var(--gold); }
+        .prize-label { font-size: 10px; color: var(--gray); margin-top: 3px; }
+        
+        /* ============================================
+           ATTRACTIVE INFO BOX - RARITY EXPLANATION
+        ============================================ */
+        .rarity-section {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
+        }
+        
+        .rarity-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--gold);
+        }
+        
+        .rarity-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .rarity-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 15px 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .rarity-card.easy { border-bottom: 3px solid #4CAF50; }
+        .rarity-card.medium { border-bottom: 3px solid #FF9800; }
+        .rarity-card.rare { border-bottom: 3px solid #F44336; }
+        
+        .rarity-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .rarity-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .rarity-name.easy { color: #4CAF50; }
+        .rarity-name.medium { color: #FF9800; }
+        .rarity-name.rare { color: #F44336; }
+        
+        .rarity-values {
+            font-size: 13px;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+        
+        .rarity-chance {
+            font-size: 11px;
+            color: var(--gold);
+            margin-top: 8px;
+        }
+        
+        .tier-multiplier-box {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 16px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: center;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .tier-multiplier-box h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        
+        .tier-multiplier-box p {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .multiplier-example {
+            background: rgba(255,215,0,0.1);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+        
         .info-box {
             background: linear-gradient(135deg, #2196F320, #1976D220);
             border-radius: 15px; padding: 15px; margin: 20px 15px;
@@ -132,16 +235,64 @@
         <div class="last-reward" id="lastRewardText">No spins yet!</div>
         <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
     </div>
+    
+    <!-- Available Prizes Section -->
     <div class="prizes-section">
-        <div class="prizes-title"><i class="fas fa-gift" style="color:var(--gold);"></i> Available Prizes</div>
+        <div class="prizes-title">
+            <i class="fas fa-gift"></i>
+            <span>Available Prizes</span>
+        </div>
         <div class="prizes-grid" id="prizesGrid"></div>
     </div>
+    
+    <!-- ============================================
+         ATTRACTIVE RARITY EXPLANATION SECTION
+    ============================================ -->
+    <div class="rarity-section">
+        <div class="rarity-title">
+            <i class="fas fa-chart-pie"></i>
+            <span>Prize Rarity & Chances</span>
+        </div>
+        <div class="rarity-grid">
+            <div class="rarity-card easy">
+                <div class="rarity-icon">🟢</div>
+                <div class="rarity-name easy">Easy Win</div>
+                <div class="rarity-values">50 - 100 COINS</div>
+                <div class="rarity-chance">🎲 58% Chance</div>
+            </div>
+            <div class="rarity-card medium">
+                <div class="rarity-icon">🟠</div>
+                <div class="rarity-name medium">Medium Win</div>
+                <div class="rarity-values">200 - 500 COINS</div>
+                <div class="rarity-chance">🎲 25% Chance</div>
+            </div>
+            <div class="rarity-card rare">
+                <div class="rarity-icon">🔴</div>
+                <div class="rarity-name rare">Rare Win</div>
+                <div class="rarity-values">1,000 - 2,000 COINS</div>
+                <div class="rarity-chance">🎲 17% Chance</div>
+            </div>
+        </div>
+        
+        <div class="tier-multiplier-box">
+            <h4><i class="fas fa-chart-line"></i> Tier Multiplier Bonus!</h4>
+            <p>Your tier multiplies your winnings! Higher tier = Higher reward!</p>
+            <div class="multiplier-example">
+                <strong>Example:</strong> Spin 100 COINS → 
+                Fresher (1x) = 100 | Brute (1.5x) = 150 | 
+                Silver (2x) = 200 | Gold (2.5x) = 250 | 
+                Platinum (3x) = <span style="color:var(--gold);">300 COINS!</span>
+            </div>
+        </div>
+    </div>
+    
     <div class="info-box">
         <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
-        <p>• Spin every 3 days for free! • Tier multiplier applies!</p>
-        <p>• 🟢 Easy (50, 100) • 🟠 Medium (200, 500) • 🔴 Rare (1,000, 2,000)</p>
-        <p>• 💎 Higher tier = Higher multiplier (Platinum = 3x prize!)</p>
+        <p>• Spin every 3 days for free!</p>
+        <p>• More referrals = Higher tier = Bigger multipliers!</p>
+        <p>• Invite friends to increase your chances of bigger wins!</p>
     </div>
+    
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -150,27 +301,28 @@
         <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
     </div>
     <div class="notification" id="notification"></div>
+    
     <script>
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
 
         // ============================================================
-        // 12 SEGMENT MIXED WHEEL - ALL VALUES MIXED, NO DUPLICATES IN A ROW
+        // 12 SEGMENT MIXED WHEEL - ALL VALUES MIXED
         // Values: 50, 100, 200, 500, 50, 100, 200, 1000, 50, 100, 2000, 500
         // ============================================================
         const PRIZES = [
-            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },      // 1 - Green
-            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },     // 2 - Light Green
-            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },   // 3 - Orange
-            { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },   // 4 - Deep Orange
-            { value: 50, label: '50', color: '#66BB6A', rarity: 'easy' },       // 5 - Light Green
-            { value: 100, label: '100', color: '#9CCC65', rarity: 'easy' },     // 6 - Yellow Green
-            { value: 200, label: '200', color: '#FFA726', rarity: 'medium' },   // 7 - Light Orange
-            { value: 1000, label: '1K', color: '#F44336', rarity: 'rare' },     // 8 - Red
-            { value: 50, label: '50', color: '#81C784', rarity: 'easy' },       // 9 - Green
-            { value: 100, label: '100', color: '#AED581', rarity: 'easy' },     // 10 - Light Green
-            { value: 2000, label: '2K', color: '#D32F2F', rarity: 'rare' },     // 11 - Dark Red
-            { value: 500, label: '500', color: '#E64A19', rarity: 'medium' }    // 12 - Deep Orange
+            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },
+            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },
+            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },
+            { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },
+            { value: 50, label: '50', color: '#66BB6A', rarity: 'easy' },
+            { value: 100, label: '100', color: '#9CCC65', rarity: 'easy' },
+            { value: 200, label: '200', color: '#FFA726', rarity: 'medium' },
+            { value: 1000, label: '1K', color: '#F44336', rarity: 'rare' },
+            { value: 50, label: '50', color: '#81C784', rarity: 'easy' },
+            { value: 100, label: '100', color: '#AED581', rarity: 'easy' },
+            { value: 2000, label: '2K', color: '#D32F2F', rarity: 'rare' },
+            { value: 500, label: '500', color: '#E64A19', rarity: 'medium' }
         ];
 
         let wheelSpinning = false, wheelAnimationFrame = null, wheelCurrentAngle = 0, canSpin = false;
@@ -184,7 +336,6 @@
         }
 
         function renderPrizesGrid() {
-            // Show unique prizes only for display
             const uniquePrizes = [];
             const seen = new Set();
             for (const p of PRIZES) {
@@ -194,7 +345,11 @@
                 }
             }
             document.getElementById('prizesGrid').innerHTML = uniquePrizes.map(p => `
-                <div class="prize-item"><div class="prize-color" style="background:${p.color};"></div><div class="prize-value">${p.label}</div><div class="prize-label">COINS</div></div>
+                <div class="prize-item">
+                    <div class="prize-color" style="background:${p.color};"></div>
+                    <div class="prize-value">${p.label}</div>
+                    <div class="prize-label">COINS</div>
+                </div>
             `).join('');
         }
 
@@ -233,7 +388,6 @@
             ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,18,0,Math.PI*2); ctx.fill();
             ctx.fillStyle='#1a1a2e'; ctx.font='bold 22px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
             ctx.fillText('🎡', center, center);
-            // Add outer ring
             ctx.beginPath();
             ctx.arc(center, center, radius+2, 0, Math.PI*2);
             ctx.strokeStyle = '#FFD700';
@@ -241,7 +395,6 @@
             ctx.stroke();
         }
 
-        // Helper to safely parse reward
         function parseRewardToCoins(value) {
             if (value === undefined || value === null) return 0;
             const num = Number(value);
@@ -301,7 +454,6 @@
             spinBtn.disabled = true;
             spinBtn.textContent = '🎡 SPINNING...';
 
-            // Random number of full rotations (5-10) + random final angle
             const spinAngle = Math.random() * (Math.PI*2*5) + (Math.PI*2*3);
             const startTime = performance.now();
             const duration = 3000;
@@ -354,7 +506,6 @@
             }
         }
 
-        // Initialize
         renderPrizesGrid();
         drawWheel(0);
         setTimeout(loadWheelStatus, 300);
