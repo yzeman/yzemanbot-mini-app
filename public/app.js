@@ -68,8 +68,11 @@ const COIN_ECONOMY = {
     DAILY_BASE_REWARD: 0.2,            // 0.2 COINS
     DAILY_STREAK_BONUS: 0.1,           // 0.1 COINS per streak day
     
-    // Wheel prizes (in COINS)
-    WHEEL_PRIZES: [0.1, 0.2, 0.5, 1, 2, 5, 10, 20],
+    // Wheel prizes (in COINS) - UPDATED: 12 prizes with weighted distribution
+    // Easy: 50 (x4), 100 (x3) = 7 segments (58% chance)
+    // Medium: 200 (x2), 500 (x1) = 3 segments (25% chance)  
+    // Rare: 1000 (x1), 2000 (x1) = 2 segments (17% chance)
+    WHEEL_PRIZES: [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000],
     
     // Social task rewards (one-time, in COINS)
     SOCIAL_TASK_REWARDS: {
