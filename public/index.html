@@ -134,25 +134,52 @@
         .feature-card:hover { background: #1e2a4a; transform: translateY(-2px); }
         .feature-card i { font-size: 28px; margin-bottom: 8px; color: var(--gold); }
         .feature-card span { font-size: 12px; display: block; }
+        
+        /* ============================================
+           ATTRACTIVE TABS DESIGN
+        ============================================ */
         .tabs {
             display: flex;
             background: var(--darker);
-            padding: 5px;
-            border-radius: 30px;
-            margin: 0 15px 20px;
+            padding: 6px;
+            border-radius: 50px;
+            margin: 0 15px 25px;
+            gap: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
         .tab {
             flex: 1;
             text-align: center;
-            padding: 12px;
-            border-radius: 25px;
+            padding: 14px 8px;
+            border-radius: 45px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 700;
             color: var(--gray);
             cursor: pointer;
             transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: transparent;
         }
-        .tab.active { background: var(--primary); color: white; }
+        .tab i {
+            font-size: 18px;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, var(--primary), #2E7D32);
+            color: white;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        }
+        .tab.active i {
+            color: white;
+        }
+        .tab:not(.active):hover {
+            background: rgba(255,255,255,0.08);
+            color: var(--light);
+        }
+        
         .tab-content { display: none; padding: 0 15px; }
         .tab-content.active { display: block; }
         .section-title {
@@ -438,6 +465,60 @@
         .channel-banner-content h4 { font-size: 16px; margin-bottom: 4px; color: white; }
         .channel-banner-content p { font-size: 12px; color: rgba(255,255,255,0.8); }
         .channel-banner .arrow { color: white; font-size: 20px; }
+        
+        /* Tier Benefits List Styles */
+        .tier-benefits-list {
+            margin-top: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 15px;
+        }
+        .tier-benefits-list h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tier-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .tier-item:last-child {
+            border-bottom: none;
+        }
+        .tier-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .tier-name i {
+            margin-right: 6px;
+            font-size: 14px;
+        }
+        .tier-req {
+            font-size: 11px;
+            color: var(--gray);
+        }
+        .tier-reward {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        .info-box {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+            border-left: 4px solid var(--secondary);
+        }
+        .info-box p {
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -482,16 +563,28 @@
         <a href="/team.html" class="feature-card"><i class="fas fa-users"></i><span>Team</span></a>
         <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achieve</span></a>
         <a href="/tournament.html" class="feature-card"><i class="fas fa-crown"></i><span>Tourney</span></a>
-        <!-- Changed from Support button to History button -->
         <a href="/history.html" class="feature-card"><i class="fas fa-history"></i><span>History</span></a>
         <div class="feature-card" onclick="window.location.reload()"><i class="fas fa-sync"></i><span>Refresh</span></div>
     </div>
     
+    <!-- ATTRACTIVE TABS -->
     <div class="tabs">
-        <div class="tab active" data-tab="earn">💰 Earn</div>
-        <div class="tab" data-tab="refer">👥 Refer</div>
-        <div class="tab" data-tab="wallet">💳 Withdraw</div>
-        <div class="tab" data-tab="bonus">🎁 Bonus</div>
+        <div class="tab active" data-tab="earn">
+            <i class="fas fa-coins"></i>
+            <span>Earn</span>
+        </div>
+        <div class="tab" data-tab="refer">
+            <i class="fas fa-users"></i>
+            <span>Refer</span>
+        </div>
+        <div class="tab" data-tab="wallet">
+            <i class="fas fa-wallet"></i>
+            <span>Withdraw</span>
+        </div>
+        <div class="tab" data-tab="bonus">
+            <i class="fas fa-gift"></i>
+            <span>Bonus</span>
+        </div>
     </div>
     
     <!-- Earn Tab -->
@@ -508,14 +601,14 @@
             <div class="daily-progress">
                 <div class="progress-label">
                     <span>📊 Daily Goal: <span id="adsWatchedToday">0</span>/20 ads</span>
-                    <span>+1 COIN</span>
+                    <span>+2 COINS</span>
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="dailyAdProgress" style="width: 0%;"></div></div>
             </div>
             <div class="daily-progress" style="margin-top: 10px;">
                 <div class="progress-label">
                     <span>📈 Weekly Goal: <span id="adsWatchedWeekDisplay">0</span>/100 ads</span>
-                    <span>+10 COINS</span>
+                    <span>+15 COINS</span>
                 </div>
                 <div class="progress-bar"><div class="progress-fill" id="weeklyAdProgress" style="width: 0%;"></div></div>
             </div>
@@ -525,7 +618,7 @@
             <i class="fas fa-play-circle"></i>
             <h3>Watch Ad</h3>
             <p>Watch a short video to earn COINS</p>
-            <div class="ad-reward"><span id="adReward">0.008</span> COINS</div>
+            <div class="ad-reward"><span id="adReward">0.20</span> COINS</div>
         </div>
         
         <div class="section-title"><i class="fas fa-tasks"></i><span>Quick Tasks</span></div>
@@ -575,6 +668,45 @@
                 <div class="task-reward">+100 COINS</div>
             </div>
         </div>
+        
+        <!-- Tier Benefits Display -->
+        <div class="tier-benefits-list">
+            <h4><i class="fas fa-chart-line"></i> Tier Benefits - Higher Tier = Higher Earnings!</h4>
+            <div class="tier-item">
+                <div class="tier-name"><i class="fas fa-seedling"></i> Fresher</div>
+                <div class="tier-req">0 referrals</div>
+                <div class="tier-reward">0.20 COINS/ad</div>
+            </div>
+            <div class="tier-item">
+                <div class="tier-name"><i class="fas fa-fire"></i> Brute</div>
+                <div class="tier-req">150 referrals</div>
+                <div class="tier-reward">0.35 COINS/ad</div>
+            </div>
+            <div class="tier-item">
+                <div class="tier-name"><i class="fas fa-medal"></i> Silver</div>
+                <div class="tier-req">350 referrals</div>
+                <div class="tier-reward">0.50 COINS/ad</div>
+            </div>
+            <div class="tier-item">
+                <div class="tier-name"><i class="fas fa-crown"></i> Gold</div>
+                <div class="tier-req">700 referrals</div>
+                <div class="tier-reward">0.75 COINS/ad</div>
+            </div>
+            <div class="tier-item">
+                <div class="tier-name"><i class="fas fa-gem"></i> Platinum</div>
+                <div class="tier-req">1,500 referrals</div>
+                <div class="tier-reward">1.00 COINS/ad</div>
+            </div>
+        </div>
+        
+        <div class="info-box">
+            <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
+            <p>• Watch ads to earn COINS (amount increases with your tier!)</p>
+            <p>• Invite friends to increase your tier and earn more per ad</p>
+            <p>• Complete 20 ads/day = Daily Bonus (+2 COINS)</p>
+            <p>• Complete 100 ads/week = Weekly Bonus (+15 COINS)</p>
+            <p>• Keep your streak for bonus rewards!</p>
+        </div>
     </div>
     
     <!-- Refer Tab -->
@@ -595,17 +727,35 @@
                 <div class="progress-label"><span>Tier Progress: <span id="currentRefs">0</span>/<span id="nextTierReq">150</span> referrals</span></div>
                 <div class="progress-bar"><div class="progress-fill" id="tierProgressBar" style="width: 0%;"></div></div>
             </div>
-            <div style="margin-top: 20px;">
-                <p style="color: var(--gray); font-size: 13px; margin-bottom: 10px;">Tier Benefits:</p>
-                <div style="display: grid; gap: 8px;">
-                    <div><span>🎯 Fresher (0 refs)</span> <span style="color:var(--gold);float:right;">0.008 COINS/ad</span></div>
-                    <div><span>🔥 Brute (150 refs)</span> <span style="color:var(--gold);float:right;">0.012 COINS/ad</span></div>
-                    <div><span>🥈 Silver (350 refs)</span> <span style="color:var(--gold);float:right;">0.016 COINS/ad</span></div>
-                    <div><span>🥇 Gold (700 refs)</span> <span style="color:var(--gold);float:right;">0.024 COINS/ad</span></div>
-                    <div><span>💎 Platinum (1500 refs)</span> <span style="color:var(--gold);float:right;">0.040 COINS/ad</span></div>
+            <div class="tier-benefits-list" style="margin-top: 20px;">
+                <h4><i class="fas fa-chart-line"></i> Your Earnings Increase With Each Tier!</h4>
+                <div class="tier-item">
+                    <div class="tier-name"><i class="fas fa-seedling"></i> Fresher</div>
+                    <div class="tier-req">0 referrals</div>
+                    <div class="tier-reward">0.20 COINS/ad</div>
                 </div>
-                <p style="margin-top: 15px; color: var(--gold); font-size: 13px;"><i class="fas fa-gift"></i> Each referral gives you <span id="referralPerInvite">5</span> COINS + 2% commission!</p>
+                <div class="tier-item">
+                    <div class="tier-name"><i class="fas fa-fire"></i> Brute</div>
+                    <div class="tier-req">150 referrals</div>
+                    <div class="tier-reward">0.35 COINS/ad</div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name"><i class="fas fa-medal"></i> Silver</div>
+                    <div class="tier-req">350 referrals</div>
+                    <div class="tier-reward">0.50 COINS/ad</div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name"><i class="fas fa-crown"></i> Gold</div>
+                    <div class="tier-req">700 referrals</div>
+                    <div class="tier-reward">0.75 COINS/ad</div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name"><i class="fas fa-gem"></i> Platinum</div>
+                    <div class="tier-req">1,500 referrals</div>
+                    <div class="tier-reward">1.00 COINS/ad</div>
+                </div>
             </div>
+            <p style="margin-top: 15px; color: var(--gold); font-size: 13px;"><i class="fas fa-gift"></i> Each referral gives you <span id="referralPerInvite">5</span> COINS + 2% commission!</p>
         </div>
     </div>
     
@@ -859,7 +1009,7 @@
         window.handleTaskClick = handleTaskClick;
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Tab switching
+            // Tab switching with attractive design
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.onclick = function() {
                     const tabId = this.getAttribute('data-tab');
