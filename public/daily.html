@@ -71,17 +71,23 @@
             z-index: 10;
         }
         
+        /* Stats Cards */
         .stats-container {
             display: flex;
             justify-content: space-around;
-            padding: 20px 15px;
+            padding: 15px;
             background: var(--darker);
             margin: 20px 15px;
             border-radius: 20px;
+            gap: 10px;
         }
         
         .stat-item {
             text-align: center;
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 15px;
         }
         
         .stat-value {
@@ -91,30 +97,51 @@
         }
         
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--gray);
             margin-top: 5px;
         }
         
+        /* Main Reward Card */
         .reward-card {
-            background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
-            border-radius: 20px;
-            padding: 30px;
+            background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
+            border-radius: 25px;
+            padding: 35px 25px;
             margin: 20px 15px;
             text-align: center;
             cursor: pointer;
-            transition: transform 0.2s ease;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .reward-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translate(-30%, -30%); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(30%, 30%); opacity: 0; }
         }
         
         .reward-card:hover {
             transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(76, 175, 80, 0.4);
         }
         
         .reward-card.disabled {
-            background: var(--gray);
+            background: linear-gradient(135deg, var(--gray) 0%, #666 100%);
             cursor: not-allowed;
             pointer-events: none;
-            opacity: 0.7;
+            opacity: 0.8;
         }
         
         .reward-card.disabled:hover {
@@ -122,8 +149,14 @@
         }
         
         .reward-icon {
-            font-size: 50px;
-            margin-bottom: 15px;
+            font-size: 60px;
+            margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
         
         .reward-title {
@@ -133,10 +166,11 @@
         }
         
         .reward-amount {
-            font-size: 36px;
+            font-size: 48px;
             font-weight: bold;
             color: var(--gold);
             margin-bottom: 5px;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
         
         .reward-coin {
@@ -144,6 +178,76 @@
             opacity: 0.9;
         }
         
+        .streak-bonus-badge {
+            display: inline-block;
+            background: rgba(255,215,0,0.2);
+            border-radius: 20px;
+            padding: 5px 12px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        /* Streak Info Section */
+        .streak-info {
+            background: linear-gradient(135deg, #ff6b6b20, #ffa50220);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
+            border: 1px solid var(--gold);
+        }
+        
+        .streak-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .streak-fire {
+            font-size: 48px;
+            animation: flame 0.5s infinite alternate;
+        }
+        
+        @keyframes flame {
+            from { text-shadow: 0 0 5px orange; }
+            to { text-shadow: 0 0 20px red; }
+        }
+        
+        .streak-info-text {
+            flex: 1;
+        }
+        
+        .streak-info-text h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .streak-info-text p {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .bonus-list {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .bonus-chip {
+            background: rgba(255,215,0,0.1);
+            border-radius: 20px;
+            padding: 8px 12px;
+            font-size: 12px;
+            border: 1px solid var(--gold);
+        }
+        
+        .bonus-chip i {
+            color: var(--gold);
+            margin-right: 5px;
+        }
+        
+        /* Calendar Section */
         .calendar-section {
             background: var(--darker);
             border-radius: 20px;
@@ -173,38 +277,33 @@
             align-items: center;
             justify-content: center;
             background: rgba(255,255,255,0.05);
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 12px;
+            transition: all 0.2s ease;
         }
         
         .calendar-day.claimed {
-            background: var(--success);
+            background: linear-gradient(135deg, var(--success), #008C4A);
             color: white;
+            transform: scale(1.02);
         }
         
         .calendar-day.today {
             border: 2px solid var(--gold);
             background: rgba(255, 215, 0, 0.15);
+            box-shadow: 0 0 10px rgba(255,215,0,0.3);
         }
         
-        .streak-info {
-            background: linear-gradient(135deg, #ff6b6b20, #ffa50220);
-            border-radius: 15px;
-            padding: 15px;
-            margin: 20px 15px;
-            border: 1px solid var(--gold);
+        .calendar-day.future {
+            opacity: 0.4;
         }
         
-        .streak-info p {
-            color: var(--gray);
-            font-size: 14px;
-            margin-bottom: 5px;
+        .calendar-day i {
+            font-size: 10px;
+            margin-top: 3px;
         }
         
-        .streak-info strong {
-            color: var(--gold);
-        }
-        
+        /* Bottom Navigation */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -269,6 +368,19 @@
             padding: 40px;
             color: var(--gray);
         }
+        
+        /* Countdown Timer */
+        .countdown {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .countdown span {
+            color: var(--gold);
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -279,6 +391,7 @@
         <p>Login every day to earn COINS and build your streak!</p>
     </div>
     
+    <!-- Stats Cards -->
     <div class="stats-container">
         <div class="stat-item">
             <div class="stat-value" id="streakCount">0</div>
@@ -286,7 +399,7 @@
         </div>
         <div class="stat-item">
             <div class="stat-value" id="totalDays">0</div>
-            <div class="stat-label">Days Active</div>
+            <div class="stat-label">Total Days</div>
         </div>
         <div class="stat-item">
             <div class="stat-value" id="maxStreak">0</div>
@@ -294,29 +407,45 @@
         </div>
     </div>
     
+    <!-- Main Reward Card -->
     <div class="reward-card" id="claimBtn">
-        <div class="reward-icon">🎁</div>
+        <div class="reward-icon" id="rewardIcon">🎁</div>
         <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
         <div class="reward-amount"><span id="todayReward">0.20</span></div>
         <div class="reward-coin">COINS</div>
+        <div class="streak-bonus-badge" id="streakBonusBadge">+0 Streak Bonus</div>
     </div>
     
+    <!-- Streak Info Section -->
     <div class="streak-info">
-        <p><i class="fas fa-fire" style="color: var(--gold);"></i> <strong>Streak Bonus:</strong> +0.1 COINS per day of streak!</p>
-        <p><i class="fas fa-calendar-week"></i> <strong>7-Day Bonus:</strong> Extra 1 COIN every week!</p>
-        <p><i class="fas fa-crown"></i> <strong>30-Day Bonus:</strong> Special achievement (100 COINS)!</p>
+        <div class="streak-header">
+            <div class="streak-fire">🔥</div>
+            <div class="streak-info-text">
+                <h3>Streak Rewards</h3>
+                <p>The longer you play, the more you earn!</p>
+            </div>
+        </div>
+        <div class="bonus-list">
+            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1 COINS/day</div>
+            <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 COINS every 7 days</div>
+            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100 COINS</div>
+            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500 COINS</div>
+        </div>
     </div>
     
+    <!-- Calendar -->
     <div class="calendar-section">
         <div class="calendar-title">
             <i class="fas fa-calendar-alt"></i>
-            <span>Last 7 Days</span>
+            <span>Your Week</span>
         </div>
         <div class="calendar" id="calendar">
             <div class="loading">Loading...</div>
         </div>
+        <div class="countdown" id="countdown">Next reward in: <span>--:--:--</span></div>
     </div>
     
+    <!-- Bottom Navigation -->
     <div class="bottom-nav">
         <a href="/" class="nav-item">
             <i class="fas fa-home"></i>
@@ -344,7 +473,7 @@
     
     <script>
         // ============================================
-        // DAILY PAGE - UPDATED FOR COINS ONLY
+        // DAILY PAGE - EXCITING & GAMIFIED!
         // ============================================
         
         const tg = window.Telegram?.WebApp;
@@ -353,6 +482,8 @@
             tg.expand();
             console.log('✅ Daily page: Telegram WebApp ready');
         }
+        
+        let countdownInterval = null;
         
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -378,6 +509,38 @@
             return response.json();
         }
         
+        function calculateReward(streak) {
+            const baseReward = 0.2;
+            const streakBonus = (streak || 0) * 0.1;
+            let totalReward = baseReward + streakBonus;
+            
+            // 7-day bonus
+            if ((streak || 0) > 0 && (streak % 7 === 0)) {
+                totalReward += 1.0;
+            }
+            
+            return { baseReward, streakBonus, totalReward };
+        }
+        
+        function getRewardIcon(streak) {
+            if (streak >= 100) return '💎';
+            if (streak >= 50) return '👑';
+            if (streak >= 30) return '⭐';
+            if (streak >= 14) return '🌟';
+            if (streak >= 7) return '🔥';
+            return '🎁';
+        }
+        
+        function getRewardTitle(streak, claimed) {
+            if (claimed) return '✅ Already Claimed Today';
+            if (streak >= 100) return '💎 LEGENDARY REWARD!';
+            if (streak >= 50) return '👑 EPIC REWARD!';
+            if (streak >= 30) return '⭐ AMAZING REWARD!';
+            if (streak >= 14) return '🌟 GREAT REWARD!';
+            if (streak >= 7) return '🔥 ON FIRE!';
+            return '🎁 Claim Daily Reward';
+        }
+        
         async function loadDailyStats() {
             if (!tg?.initData) {
                 showNotification('Please open from Telegram', true);
@@ -387,40 +550,41 @@
             try {
                 const data = await apiCall('/api/daily-stats', { initData: tg.initData });
                 updateDailyUI(data);
+                startCountdown();
             } catch (err) {
                 console.error('Failed to load daily stats:', err);
             }
         }
         
         function updateDailyUI(data) {
-            const streakCount = document.getElementById('streakCount');
-            const totalDays = document.getElementById('totalDays');
-            const maxStreak = document.getElementById('maxStreak');
-            const todayReward = document.getElementById('todayReward');
-            const claimBtn = document.getElementById('claimBtn');
+            const currentStreak = data.current_streak || 0;
+            const claimedToday = data.claimed_today || false;
+            
+            // Update stats
+            document.getElementById('streakCount').textContent = currentStreak;
+            document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
+            document.getElementById('maxStreak').textContent = data.max_streak || 0;
+            
+            // Calculate reward
+            const { streakBonus, totalReward } = calculateReward(currentStreak);
+            
+            // Update reward display
+            document.getElementById('todayReward').textContent = totalReward.toFixed(2);
+            document.getElementById('streakBonusBadge').innerHTML = streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus';
+            
+            // Update icon and title based on streak
+            const rewardIcon = document.getElementById('rewardIcon');
             const claimBtnText = document.getElementById('claimBtnText');
+            const claimBtn = document.getElementById('claimBtn');
             
-            if (streakCount) streakCount.textContent = data.current_streak || 0;
-            if (totalDays) totalDays.textContent = data.last_7_days?.length || 0;
-            if (maxStreak) maxStreak.textContent = data.max_streak || 0;
+            if (rewardIcon) rewardIcon.textContent = getRewardIcon(currentStreak);
+            if (claimBtnText) claimBtnText.textContent = getRewardTitle(currentStreak, claimedToday);
             
-            // Calculate today's potential reward (base + streak bonus)
-            const baseReward = 0.2;
-            const streakBonus = (data.current_streak || 0) * 0.1;
-            let totalReward = baseReward + streakBonus;
-            if ((data.current_streak || 0) > 0 && (data.current_streak % 7 === 0)) {
-                totalReward += 1.0; // 7-day bonus
-            }
-            
-            if (todayReward) todayReward.textContent = totalReward.toFixed(2);
-            
-            if (claimBtn && claimBtnText) {
-                if (data.claimed_today) {
+            if (claimBtn) {
+                if (claimedToday) {
                     claimBtn.classList.add('disabled');
-                    claimBtnText.textContent = '✅ Already Claimed Today';
                 } else {
                     claimBtn.classList.remove('disabled');
-                    claimBtnText.textContent = '🎁 Claim Daily Reward';
                 }
             }
             
@@ -449,22 +613,57 @@
                 
                 const dateStr = date.toISOString().split('T')[0];
                 const dayOfWeek = date.getDay();
-                
-                // Day abbreviations: Sun, Mon, Tue, Wed, Thu, Fri, Sat
                 const dayAbbr = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][dayOfWeek];
                 const dayNumber = date.getDate();
                 const isClaimed = claimedDates.has(dateStr);
                 const isToday = dateStr === todayStr;
+                const isFuture = date > today;
                 
                 const dayDiv = document.createElement('div');
-                dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}`;
+                dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''} ${isFuture ? 'future' : ''}`;
+                
+                let checkIcon = '';
+                if (isClaimed) {
+                    checkIcon = '<i class="fas fa-check"></i>';
+                } else if (isToday && !isClaimed) {
+                    checkIcon = '<i class="fas fa-gift"></i>';
+                }
+                
                 dayDiv.innerHTML = `
                     <div>${dayAbbr}</div>
                     <div style="font-size: 10px; margin-top: 5px;">${dayNumber}</div>
-                    ${isClaimed ? '<i class="fas fa-check" style="font-size: 10px; margin-top: 3px;"></i>' : ''}
+                    ${checkIcon}
                 `;
                 calendar.appendChild(dayDiv);
             }
+        }
+        
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            countdownInterval = setInterval(() => {
+                const now = new Date();
+                const tomorrow = new Date(now);
+                tomorrow.setDate(now.getDate() + 1);
+                tomorrow.setHours(0, 0, 0, 0);
+                
+                const diff = tomorrow - now;
+                
+                if (diff <= 0) {
+                    // It's a new day! Reload stats
+                    loadDailyStats();
+                    return;
+                }
+                
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                
+                const countdownEl = document.getElementById('countdown');
+                if (countdownEl) {
+                    countdownEl.innerHTML = `Next reward in: <span>${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</span>`;
+                }
+            }, 1000);
         }
         
         async function claimDailyReward() {
@@ -475,9 +674,15 @@
             
             const claimBtn = document.getElementById('claimBtn');
             if (claimBtn.classList.contains('disabled')) {
-                showNotification('You already claimed your reward today!', true);
+                showNotification('You already claimed your reward today! Come back tomorrow!', true);
                 return;
             }
+            
+            // Animation effect
+            claimBtn.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                claimBtn.style.transform = '';
+            }, 200);
             
             claimBtn.style.pointerEvents = 'none';
             claimBtn.style.opacity = '0.7';
@@ -485,28 +690,38 @@
             try {
                 const data = await apiCall('/api/daily-reward', { initData: tg.initData });
                 
-                // API returns reward in COINS directly
                 const coins = data.reward.toFixed(2);
-                showNotification(`🎁 Daily reward claimed! +${coins} COINS! Streak: ${data.streak} days 🔥`);
+                const streak = data.streak;
                 
+                let message = `🎉 Daily reward claimed! +${coins} COINS!`;
+                if (streak >= 100) message = `💎 LEGENDARY! ${streak} day streak! +${coins} COINS! 💎`;
+                else if (streak >= 50) message = `👑 EPIC! ${streak} day streak! +${coins} COINS! 👑`;
+                else if (streak >= 30) message = `⭐ AMAZING! ${streak} day streak! +${coins} COINS! ⭐`;
+                else if (streak >= 14) message = `🌟 GREAT! ${streak} day streak! +${coins} COINS! 🌟`;
+                else if (streak >= 7) message = `🔥 ON FIRE! ${streak} day streak! +${coins} COINS! 🔥`;
+                else message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
+                
+                showNotification(message);
+                
+                // Refresh UI
                 await loadDailyStats();
                 
             } catch (err) {
                 let errorMsg = err.message;
-                
                 try {
                     const parsed = JSON.parse(errorMsg);
                     errorMsg = parsed.error || errorMsg;
-                } catch (e) {
-                    // Not JSON
-                }
+                } catch (e) {}
                 
                 if (errorMsg.includes('Already claimed')) {
-                    errorMsg = 'You already claimed your reward today!';
+                    errorMsg = 'You already claimed your reward today! Come back tomorrow!';
                 }
                 
                 showNotification(errorMsg, true);
                 await loadDailyStats();
+            } finally {
+                claimBtn.style.pointerEvents = '';
+                claimBtn.style.opacity = '';
             }
         }
         
