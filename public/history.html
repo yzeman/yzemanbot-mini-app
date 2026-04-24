@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Earnings History - YzemanBot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
+            --gold: #FFD700;
+            --success: #00c853;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            padding: 20px 15px 25px;
+            border-radius: 0 0 30px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 { font-size: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .header h1 i { color: var(--gold); }
+        .header p { color: var(--gray); font-size: 13px; }
+        .back-btn-header {
+            position: absolute; top: 20px; left: 20px;
+            color: white; font-size: 22px; text-decoration: none; z-index: 10;
+        }
+        .month-selector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px 15px;
+        }
+        .month-btn {
+            background: var(--darker);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .current-month {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        .summary-card {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 0 15px 15px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .summary-item .amount {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        .summary-item .label {
+            font-size: 11px;
+            color: var(--gray);
+        }
+        .transaction-list {
+            padding: 0 15px 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: var(--darker);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+        .tx-icon {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .tx-icon.ad { background: #2196F3; color: white; }
+        .tx-icon.daily { background: #4CAF50; color: white; }
+        .tx-icon.wheel { background: #FF9800; color: white; }
+        .tx-icon.achievement { background: #9C27B0; color: white; }
+        .tx-icon.task { background: #00BCD4; color: white; }
+        .tx-icon.referral_bonus { background: #E91E63; color: white; }
+        .tx-icon.referral_commission { background: #FF5722; color: white; }
+        .tx-icon.bonus { background: #FFC107; color: var(--dark); }
+        .tx-icon.admin_add { background: #607D8B; color: white; }
+        .tx-icon.tournament_prize { background: #FFD700; color: var(--dark); }
+        .tx-icon.leaderboard_prize { background: #FFD700; color: var(--dark); }
+        .tx-icon.team_prize { background: #FFD700; color: var(--dark); }
+        .tx-icon.weekly_prize { background: #FFD700; color: var(--dark); }
+        .tx-info { flex: 1; }
+        .tx-type { font-weight: 600; font-size: 14px; }
+        .tx-desc { font-size: 11px; color: var(--gray); margin-top: 2px; }
+        .tx-date { font-size: 10px; color: var(--gray); }
+        .tx-amount { font-weight: bold; color: var(--gold); font-size: 16px; }
+        .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--darker); display: flex; padding: 8px 15px;
+            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
+        }
+        .nav-item {
+            flex: 1; text-align: center; color: var(--gray); text-decoration: none;
+            font-size: 10px; padding: 5px; border-radius: 6px;
+            display: flex; flex-direction: column; align-items: center; gap: 2px;
+        }
+        .nav-item i { font-size: 18px; }
+        .nav-item.active { color: var(--primary); background: rgba(76,175,80,0.1); }
+        .notification {
+            position: fixed; bottom: 80px; left: 15px; right: 15px;
+            background: var(--success); color: white; padding: 12px 18px;
+            border-radius: 10px; text-align: center; display: none; z-index: 1000;
+            font-size: 13px;
+        }
+        .loading { text-align: center; padding: 40px; color: var(--gray); }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
+    <div class="header">
+        <h1><i class="fas fa-history"></i> Earnings History</h1>
+        <p>See all your earnings in detail</p>
+    </div>
+
+    <!-- Month Selector -->
+    <div class="month-selector">
+        <button class="month-btn" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+        <span class="current-month" id="currentMonthLabel">April 2026</span>
+        <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+    </div>
+
+    <!-- Monthly Summary -->
+    <div class="summary-card">
+        <div class="summary-item">
+            <div class="amount" id="totalEarnings">0.00</div>
+            <div class="label">Total Earned</div>
+        </div>
+        <div class="summary-item">
+            <div class="amount" id="totalAds">0.00</div>
+            <div class="label">Ads</div>
+        </div>
+        <div class="summary-item">
+            <div class="amount" id="totalReferrals">0.00</div>
+            <div class="label">Referrals</div>
+        </div>
+    </div>
+
+    <!-- Transaction List -->
+    <div class="transaction-list" id="transactionList">
+        <div class="loading">Loading history...</div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav">
+        <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
+        <a href="/wheel.html" class="nav-item"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
+        <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
+        <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
+        <a href="/history.html" class="nav-item active"><i class="fas fa-history"></i><span>History</span></a>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+
+        let currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+                   d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                'ad': 'Watched Ad',
+                'daily': 'Daily Reward',
+                'wheel': 'Wheel Spin',
+                'achievement': 'Achievement',
+                'task': 'Task Completed',
+                'referral_bonus': 'Referral Bonus',
+                'referral_commission': 'Referral Commission',
+                'bonus': 'Bonus Code',
+                'admin_add': 'Admin Added',
+                'tournament_prize': 'Tournament Prize',
+                'leaderboard_prize': 'Leaderboard Prize',
+                'team_prize': 'Team Prize',
+                'weekly_prize': 'Weekly Prize'
+            };
+            return labels[type] || type;
+        }
+
+        function getDescription(tx) {
+            switch(tx.type) {
+                case 'referral_commission': return `2% commission from ${tx.commission_from || 'referral'}`;
+                case 'referral_bonus': return `Bonus for inviting ${tx.referral_name || 'a friend'}`;
+                case 'daily': return `Daily reward`;
+                case 'wheel': return `Wheel spin win`;
+                case 'achievement': return `Achievement unlocked`;
+                case 'task': return `Task completed`;
+                case 'ad': return `Ad watched`;
+                case 'bonus': return `Bonus code redeemed`;
+                case 'admin_add': return `Added by admin`;
+                case 'tournament_prize': return `Tournament prize`;
+                case 'leaderboard_prize': return `Monthly leaderboard prize`;
+                case 'team_prize': return `Team prize`;
+                case 'weekly_prize': return `Weekly referral prize`;
+                default: return '';
+            }
+        }
+
+        async function loadHistory() {
+            if (!tg?.initData) {
+                showNotification('Open from Telegram', true);
+                return;
+            }
+            const container = document.getElementById('transactionList');
+            container.innerHTML = '<div class="loading">Loading history...</div>';
+
+            // Update month label
+            const [year, month] = currentMonth.split('-');
+            const date = new Date(year, month - 1, 1);
+            document.getElementById('currentMonthLabel').textContent = 
+                date.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            try {
+                const res = await fetch('/api/earnings-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData, month: currentMonth })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                // Update summary
+                document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(3);
+                document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(3);
+                document.getElementById('totalReferrals').textContent = 
+                    ((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(3);
+
+                // Render transactions
+                if (!data.transactions || data.transactions.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
+                    return;
+                }
+
+                container.innerHTML = data.transactions.map(tx => {
+                    const amount = parseFloat(tx.amount).toFixed(3);
+                    return `
+                        <div class="transaction-item">
+                            <div class="tx-icon ${tx.type}">
+                                <i class="fas ${getIcon(tx.type)}"></i>
+                            </div>
+                            <div class="tx-info">
+                                <div class="tx-type">${getTypeLabel(tx.type)}</div>
+                                <div class="tx-desc">${getDescription(tx)}</div>
+                                <div class="tx-date">${formatDate(tx.created_at)}</div>
+                            </div>
+                            <div class="tx-amount">+${amount}</div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load history</p><p style="font-size:12px;color:#f44;">${err.message}</p></div>`;
+            }
+        }
+
+        function getIcon(type) {
+            const icons = {
+                'ad': 'fa-play-circle',
+                'daily': 'fa-calendar-check',
+                'wheel': 'fa-dharmachakra',
+                'achievement': 'fa-medal',
+                'task': 'fa-tasks',
+                'referral_bonus': 'fa-user-plus',
+                'referral_commission': 'fa-hand-holding-usd',
+                'bonus': 'fa-gift',
+                'admin_add': 'fa-shield-alt',
+                'tournament_prize': 'fa-trophy',
+                'leaderboard_prize': 'fa-crown',
+                'team_prize': 'fa-users',
+                'weekly_prize': 'fa-star'
+            };
+            return icons[type] || 'fa-coin';
+        }
+
+        function changeMonth(delta) {
+            const [year, month] = currentMonth.split('-').map(Number);
+            const d = new Date(year, month - 1 + delta, 1);
+            currentMonth = d.toISOString().slice(0, 7);
+            loadHistory();
+        }
+
+        document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
+</body>
+</html>
