@@ -87,18 +87,25 @@ const COIN_ECONOMY = {
     // Website task reward
     WEBSITE_TASK_REWARD: 5,
     
-    // Achievement rewards (in COINS)
+    // Achievement rewards (in COINS) - UPDATED with new values
     ACHIEVEMENT_REWARDS: {
-        'Loyal User': 100,
-        'Referral Master': 200,
+        'Loyal User': 500,
+        'Referral Master': 3000,
         'Points Millionaire': 2000,
-        'Social Butterfly': 50,
-        'Tournament Winner': 100,
-        'Platinum Elite': 500,
-        'Wheel Champion': 50,
-        'Daily Streak 7': 10,
-        'Super Referrer': 1000,
-        'Ad Master': 10000
+        'Social Butterfly': 15000,
+        'Tournament Winner': 1500,
+        'Team Player': 200,
+        'Platinum Elite': 10000,
+        'Wheel Champion': 1000,
+        'Daily Streak 7': 1000,
+        'Super Referrer': 7000,
+        'Ad Master': 2500,
+        // NEW ACHIEVEMENTS
+        'Team Winner': 5000,
+        'Leaderboard Winner': 3000,
+        'Ad Master Platinum': 10000,
+        'Referral King': 15000,
+        'Monthly Top Earner': 5000
     },
     
     // Tournament prizes
