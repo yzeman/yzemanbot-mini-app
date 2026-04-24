@@ -11,7 +11,7 @@
             --primary: #4CAF50;
             --secondary: #2196F3;
             --warning: #FF9800;
-            --danger: #44336;
+            --danger: #f44336;
             --dark: #1a1a2e;
             --darker: #16213e;
             --light: #ffffff;
@@ -84,7 +84,7 @@
     
     <div class="stats-container">
         <div class="stat-card"><div class="stat-icon"><i class="fas fa-trophy"></i></div><div class="stat-value" id="achievementsCount">0</div><div class="stat-label">Unlocked</div></div>
-        <div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-value" id="totalAchievements">11</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-value" id="totalAchievements">16</div><div class="stat-label">Total</div></div>
         <div class="stat-card"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value" id="totalCoinsEarned">0</div><div class="stat-label">COINS Earned</div></div>
     </div>
     
@@ -94,6 +94,7 @@
         <div class="progress-item"><div class="progress-label"><span><i class="fas fa-users"></i> Referral Master</span><span id="referralProgressText">0/100</span></div><div class="progress-bar"><div class="progress-fill" id="referralProgressBar" style="width: 0%;"></div></div></div>
         <div class="progress-item"><div class="progress-label"><span><i class="fas fa-calendar-check"></i> Daily Streak</span><span id="streakProgressText">0/30</span></div><div class="progress-bar"><div class="progress-fill" id="streakProgressBar" style="width: 0%;"></div></div></div>
         <div class="progress-item"><div class="progress-label"><span><i class="fas fa-ad"></i> Ad Master</span><span id="adProgressText">0/1000</span></div><div class="progress-bar"><div class="progress-fill" id="adProgressBar" style="width: 0%;"></div></div></div>
+        <div class="progress-item"><div class="progress-label"><span><i class="fas fa-fire"></i> Referral King</span><span id="kingProgressText">0/500</span></div><div class="progress-bar"><div class="progress-fill" id="kingProgressBar" style="width: 0%;"></div></div></div>
     </div>
     
     <div class="achievements-container">
@@ -116,19 +117,25 @@
             const tg = window.Telegram?.WebApp;
             if (tg) { tg.ready(); tg.expand(); }
             
-            // Achievement configuration with correct coin rewards (matching server)
+            // Updated Achievement configuration with NEW coin rewards
             const ACHIEVEMENT_CONFIG = {
-                'Loyal User': { icon: '🔥', coins: 100 },
-                'Referral Master': { icon: '👑', coins: 200 },
-                'Points Millionaire': { icon: '💰', coins: 2000 },
-                'Social Butterfly': { icon: '🦋', coins: 50 },
-                'Tournament Winner': { icon: '🏆', coins: 100 },
-                'Team Player': { icon: '🤝', coins: 20 },
-                'Platinum Elite': { icon: '💎', coins: 500 },
-                'Wheel Champion': { icon: '🎡', coins: 50 },
-                'Daily Streak 7': { icon: '📅', coins: 10 },
-                'Super Referrer': { icon: '⭐', coins: 1000 },
-                'Ad Master': { icon: '📺', coins: 10000 }
+                'Loyal User': { icon: '🔥', coins: 500, requirement: '30 day login streak' },
+                'Referral Master': { icon: '👑', coins: 3000, requirement: 'Get 100 referrals' },
+                'Points Millionaire': { icon: '💰', coins: 2000, requirement: 'Earn 1,000,000 COINS' },
+                'Social Butterfly': { icon: '🦋', coins: 15000, requirement: 'Complete all social tasks' },
+                'Tournament Winner': { icon: '🏆', coins: 1500, requirement: 'Win a weekly tournament' },
+                'Team Player': { icon: '🤝', coins: 200, requirement: 'Join a team' },
+                'Platinum Elite': { icon: '💎', coins: 10000, requirement: 'Reach Platinum tier' },
+                'Wheel Champion': { icon: '🎡', coins: 1000, requirement: 'Win 20 COINS on wheel' },
+                'Daily Streak 7': { icon: '📅', coins: 1000, requirement: '7 day login streak' },
+                'Super Referrer': { icon: '⭐', coins: 7000, requirement: 'Get 500 referrals' },
+                'Ad Master': { icon: '📺', coins: 2500, requirement: 'Watch 1000 ads' },
+                // NEW ACHIEVEMENTS
+                'Team Winner': { icon: '🏅', coins: 5000, requirement: 'Your team wins monthly competition' },
+                'Leaderboard Winner': { icon: '👑', coins: 3000, requirement: 'Finish Top 3 on monthly leaderboard' },
+                'Ad Master Platinum': { icon: '💎', coins: 10000, requirement: 'Watch 5000 ads' },
+                'Referral King': { icon: '👑', coins: 15000, requirement: 'Get 1000 referrals' },
+                'Monthly Top Earner': { icon: '⭐', coins: 5000, requirement: 'Finish #1 on monthly leaderboard' }
             };
             
             function showNotification(msg, isError = false) {
@@ -190,6 +197,11 @@
                 document.getElementById('referralProgressText').textContent = `${referrals}/100`;
                 document.getElementById('referralProgressBar').style.width = `${referralPercent}%`;
                 
+                // Referral King progress (500 referrals)
+                const kingPercent = Math.min((referrals / 500) * 100, 100);
+                document.getElementById('kingProgressText').textContent = `${referrals}/500`;
+                document.getElementById('kingProgressBar').style.width = `${kingPercent}%`;
+                
                 const streak = stats.max_streak || 0;
                 const streakPercent = Math.min((streak / 30) * 100, 100);
                 document.getElementById('streakProgressText').textContent = `${streak}/30`;
@@ -208,7 +220,7 @@
                     return;
                 }
                 container.innerHTML = achievements.map(ach => {
-                    const config = ACHIEVEMENT_CONFIG[ach.name] || { icon: '🏅', coins: 0 };
+                    const config = ACHIEVEMENT_CONFIG[ach.name] || { icon: '🏅', coins: 0, requirement: ach.description || '' };
                     const achieved = ach.achieved;
                     return `
                         <div class="achievement-card ${achieved ? 'unlocked' : 'locked'}">
@@ -217,7 +229,7 @@
                             </div>
                             <div class="achievement-icon">${config.icon}</div>
                             <div class="achievement-name">${ach.name}</div>
-                            <div class="achievement-desc">${ach.description || ''}</div>
+                            <div class="achievement-desc">${config.requirement || ach.description || ''}</div>
                             <div class="achievement-reward">+${formatCoins(config.coins)} COINS</div>
                         </div>
                     `;
