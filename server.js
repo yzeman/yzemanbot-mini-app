@@ -1794,6 +1794,9 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
   } finally { client.release(); }
 });
 
+// ============================================
+// ADMIN: Analytics Dashboard
+// ============================================
 app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
     const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
@@ -1855,6 +1858,144 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   } catch (err) {
     console.error('Analytics error:', err);
     res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// ============================================
+// ADMIN: Tournament Winners
+// ============================================
+app.get('/api/admin/tournament-winners', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        ar.user_id, 
+        u.first_name, 
+        u.username, 
+        u.photo_url,
+        ar.reward_amount as prize_amount, 
+        ar.created_at,
+        ROW_NUMBER() OVER (ORDER BY ar.created_at DESC) as rank
+      FROM ad_rewards ar
+      JOIN users u ON ar.user_id = u.id
+      WHERE ar.ad_type = 'tournament_prize'
+      ORDER BY ar.created_at DESC
+      LIMIT 20
+    `);
+    res.json(result.rows);
+  } catch (err) { 
+    console.error('Tournament winners error:', err);
+    res.json([]); 
+  }
+});
+
+// ============================================
+// ADMIN: Leaderboard Winners (Monthly)
+// ============================================
+app.get('/api/admin/leaderboard-winners', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        ar.user_id, 
+        u.first_name, 
+        u.username, 
+        u.photo_url,
+        ar.reward_amount as prize_amount, 
+        ar.created_at,
+        ROW_NUMBER() OVER (ORDER BY ar.created_at DESC) as rank
+      FROM ad_rewards ar
+      JOIN users u ON ar.user_id = u.id
+      WHERE ar.ad_type = 'leaderboard_prize'
+      ORDER BY ar.created_at DESC
+      LIMIT 20
+    `);
+    res.json(result.rows);
+  } catch (err) { 
+    console.error('Leaderboard winners error:', err);
+    res.json([]); 
+  }
+});
+
+// ============================================
+// ADMIN: Weekly Referral Winners
+// ============================================
+app.get('/api/admin/referral-winners', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        ar.user_id, 
+        u.first_name, 
+        u.username, 
+        u.photo_url,
+        ar.reward_amount as prize_amount, 
+        ar.created_at,
+        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = ar.user_id 
+         AND r.created_at >= CURRENT_DATE - INTERVAL '7 days') as referral_count,
+        ROW_NUMBER() OVER (ORDER BY ar.created_at DESC) as rank
+      FROM ad_rewards ar
+      JOIN users u ON ar.user_id = u.id
+      WHERE ar.ad_type = 'weekly_prize'
+      ORDER BY ar.created_at DESC
+      LIMIT 20
+    `);
+    res.json(result.rows);
+  } catch (err) { 
+    console.error('Referral winners error:', err);
+    res.json([]); 
+  }
+});
+
+// ============================================
+// ADMIN: Team Competition Winners
+// ============================================
+app.get('/api/admin/team-winners', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        t.id, 
+        t.name as team_name, 
+        t.code,
+        COUNT(tm.user_id) as member_count,
+        COALESCE(SUM(u.coins), 0) as total_coins,
+        COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name,
+        ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(u.coins), 0) DESC) as rank
+      FROM teams t
+      JOIN team_members tm ON t.id = tm.team_id
+      JOIN users u ON tm.user_id = u.id
+      GROUP BY t.id
+      ORDER BY total_coins DESC
+      LIMIT 10
+    `);
+    res.json(result.rows);
+  } catch (err) { 
+    console.error('Team winners error:', err);
+    res.json([]); 
+  }
+});
+
+// ============================================
+// ADMIN: Top 10 Earners (All Time - Full List)
+// ============================================
+app.get('/api/admin/top-earners-full', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.first_name,
+        u.username,
+        u.photo_url,
+        u.tier,
+        u.coins as total_coins,
+        u.referrals,
+        ROW_NUMBER() OVER (ORDER BY u.coins DESC) as rank
+      FROM users u
+      WHERE u.coins > 0
+      ORDER BY u.coins DESC
+      LIMIT 10
+    `);
+    res.json(result.rows);
+  } catch (err) { 
+    console.error('Top earners full error:', err);
+    res.json([]); 
   }
 });
 
@@ -1993,84 +2134,7 @@ app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
   }
 });
 
-// ============================================
-// ADMIN: Tournament Winners
-// ============================================
-app.get('/api/admin/tournament-winners', verifyAdmin, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT DISTINCT ON (ar.user_id) 
-                ar.user_id, u.first_name, u.username, 
-                ar.reward_amount as prize_amount, ar.created_at
-            FROM ad_rewards ar
-            JOIN users u ON ar.user_id = u.id
-            WHERE ar.ad_type = 'tournament_prize'
-            ORDER BY ar.user_id, ar.created_at DESC
-            LIMIT 20
-        `);
-        res.json(result.rows);
-    } catch (err) { res.json([]); }
-});
 
-// ============================================
-// ADMIN: Leaderboard Winners
-// ============================================
-app.get('/api/admin/leaderboard-winners', verifyAdmin, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT DISTINCT ON (ar.user_id) 
-                ar.user_id, u.first_name, u.username, 
-                ar.reward_amount as prize_amount, ar.created_at
-            FROM ad_rewards ar
-            JOIN users u ON ar.user_id = u.id
-            WHERE ar.ad_type = 'leaderboard_prize'
-            ORDER BY ar.user_id, ar.created_at DESC
-            LIMIT 20
-        `);
-        res.json(result.rows);
-    } catch (err) { res.json([]); }
-});
-
-// ============================================
-// ADMIN: Weekly Referral Winners
-// ============================================
-app.get('/api/admin/referral-winners', verifyAdmin, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT DISTINCT ON (ar.user_id) 
-                ar.user_id, u.first_name, u.username, 
-                ar.reward_amount as prize_amount, ar.created_at,
-                (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = ar.user_id 
-                 AND r.created_at >= CURRENT_DATE - INTERVAL '7 days') as referral_count
-            FROM ad_rewards ar
-            JOIN users u ON ar.user_id = u.id
-            WHERE ar.ad_type = 'weekly_prize'
-            ORDER BY ar.user_id, ar.created_at DESC
-            LIMIT 20
-        `);
-        res.json(result.rows);
-    } catch (err) { res.json([]); }
-});
-
-// ============================================
-// ADMIN: Team Competition Winners
-// ============================================
-app.get('/api/admin/team-winners', verifyAdmin, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT t.id, t.name as team_name, 
-                   COUNT(tm.user_id) as member_count,
-                   COALESCE(SUM(u.coins), 0) as total_coins
-            FROM teams t
-            JOIN team_members tm ON t.id = tm.team_id
-            JOIN users u ON tm.user_id = u.id
-            GROUP BY t.id
-            ORDER BY total_coins DESC
-            LIMIT 10
-        `);
-        res.json(result.rows);
-    } catch (err) { res.json([]); }
-});
 
 // ============================================
 // ADMIN: Award Monthly Prizes (Based on THIS Month's Earnings)
