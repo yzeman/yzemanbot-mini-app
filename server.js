@@ -1999,9 +1999,16 @@ app.get('/api/admin/top-earners-full', verifyAdmin, async (req, res) => {
   }
 });
 
+// ============================================
+// ADMIN: Bonus Codes Management
+// ============================================
 app.get('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
-  try { res.json(await pool.query('SELECT * FROM bonus_codes ORDER BY created_at DESC').then(r => r.rows)); }
-  catch (err) { res.status(500).json({ error: 'Failed to fetch bonus codes' }); }
+  try { 
+    res.json(await pool.query('SELECT * FROM bonus_codes ORDER BY created_at DESC').then(r => r.rows)); 
+  }
+  catch (err) { 
+    res.status(500).json({ error: 'Failed to fetch bonus codes' }); 
+  }
 });
 
 app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
@@ -2021,8 +2028,13 @@ app.post('/api/admin/bonus-codes', verifyAdmin, async (req, res) => {
 });
 
 app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
-  try { await pool.query('DELETE FROM bonus_codes WHERE code = $1', [req.params.code.toUpperCase()]); res.json({ success: true }); }
-  catch (err) { res.status(500).json({ error: 'Failed to delete' }); }
+  try { 
+    await pool.query('DELETE FROM bonus_codes WHERE code = $1', [req.params.code.toUpperCase()]); 
+    res.json({ success: true }); 
+  }
+  catch (err) { 
+    res.status(500).json({ error: 'Failed to delete' }); 
+  }
 });
 
 // ============================================
@@ -2030,7 +2042,6 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
 // ============================================
 app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
   try {
-    // Use Africa/Lagos timezone
     const result = await pool.query(`
       SELECT 
         u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
@@ -2045,7 +2056,6 @@ app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
       WHERE DATE(u.last_login_date AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
       ORDER BY u.coins DESC
     `);
-    
     res.json(result.rows);
   } catch (err) {
     console.error('Today activity error:', err);
@@ -2059,7 +2069,6 @@ app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
 app.get('/api/admin/today-user-activity', verifyAdmin, async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
-    
     const result = await pool.query(`
       SELECT 
         u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
@@ -2082,7 +2091,6 @@ app.get('/api/admin/today-user-activity', verifyAdmin, async (req, res) => {
       WHERE u.last_login_date = $1
       ORDER BY coins_earned_today DESC, ads_today DESC
     `, [today]);
-    
     res.json(result.rows);
   } catch (err) {
     console.error('Today user activity error:', err);
@@ -2104,7 +2112,6 @@ app.get('/api/admin/top-referrers', verifyAdmin, async (req, res) => {
       ORDER BY u.referrals DESC
       LIMIT 20
     `);
-    
     res.json(result.rows);
   } catch (err) {
     console.error('Top referrers error:', err);
@@ -2113,7 +2120,7 @@ app.get('/api/admin/top-referrers', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Daily Active Users (Last 7 Days) - FIXED
+// ADMIN: Daily Active Users (Last 7 Days)
 // ============================================
 app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
   try {
@@ -2126,15 +2133,12 @@ app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
       GROUP BY last_login_date 
       ORDER BY last_login_date DESC
     `);
-    
     res.json(result.rows);
   } catch (err) {
     console.error('Daily active error:', err);
     res.status(500).json({ error: 'Failed to fetch daily active' });
   }
 });
-
-
 
 // ============================================
 // ADMIN: Award Monthly Prizes (Based on THIS Month's Earnings)
@@ -2163,19 +2167,15 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       const user = topEarners.rows[i];
       const prize = prizes[i];
       if (user.monthly_coins > 0) {
-        // 1. Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
-        
-        // 2. ✅ TRACK LEADERBOARD PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'leaderboard_prize']
         );
-        
-        console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name} (earned ${user.monthly_coins} this month)`);
+        console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name}`);
       }
     }
     
@@ -2223,19 +2223,15 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       const user = topReferrers.rows[i];
       const prize = prizes[i];
       if (user.referral_count > 0) {
-        // 1. Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
-        
-        // 2. ✅ TRACK WEEKLY REFERRAL PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'weekly_prize']
         );
-        
-        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals this week)`);
+        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name}`);
       }
     }
     
@@ -2251,7 +2247,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TOURNAMENT: Auto-Award Weekly Prizes (Every Monday Midnight)
+// ADMIN: Award Tournament Prizes (Every Monday Midnight)
 // ============================================
 app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
@@ -2260,7 +2256,6 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
     
     const now = new Date();
     const dayOfWeek = now.getDay();
-    
     let daysSinceMonday = dayOfWeek - 1;
     if (daysSinceMonday < 0) daysSinceMonday += 7;
     
@@ -2302,34 +2297,23 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
       const user = topParticipants.rows[i];
       const prize = prizes[i];
       if (user.weekly_coins > 0) {
-        // 1. Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
-        
-        // 2. ✅ TRACK TOURNAMENT PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'tournament_prize']
         );
-        
-        // 3. Mark as awarded
         await client.query(
           'UPDATE tournament_participants SET prize_awarded = true, rank = $1 WHERE tournament_id = $2 AND user_id = $3',
           [i + 1, tournamentId, user.id]
         );
-        
         console.log(`🏆 Tournament prize: ${prize} COINS awarded to ${user.first_name} (rank #${i + 1})`);
       }
     }
     
-    // Mark tournament as inactive
-    await client.query(
-      'UPDATE weekly_tournaments SET is_active = false WHERE id = $1',
-      [tournamentId]
-    );
-    
+    await client.query('UPDATE weekly_tournaments SET is_active = false WHERE id = $1', [tournamentId]);
     await client.query('COMMIT');
     res.json({ success: true, awarded: topParticipants.rows.length });
   } catch (err) {
@@ -2352,8 +2336,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     const now = new Date();
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     
-    console.log(`🏆 Awarding team prizes for month starting ${currentMonth}...`);
-    
     const topTeams = await client.query(`
       SELECT 
         t.id, t.name,
@@ -2369,22 +2351,17 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     
     if (topTeams.rows.length === 0) {
       await client.query('ROLLBACK');
-      console.log('ℹ️ No teams found for monthly prize');
       return res.json({ success: true, message: 'No teams to award', awarded: 0 });
     }
     
     const prizes = [2500, 1000, 500];
-    
     let totalAwarded = 0;
     
     for (let i = 0; i < topTeams.rows.length; i++) {
       const team = topTeams.rows[i];
       const prizePerMember = prizes[i];
       
-      if (team.monthly_coins <= 0) {
-        console.log(`⚠️ Team ${team.name} has 0 monthly coins, skipping prize`);
-        continue;
-      }
+      if (team.monthly_coins <= 0) continue;
       
       const members = await client.query(
         `SELECT u.id, u.first_name, u.telegram_id 
@@ -2394,61 +2371,37 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
         [team.id]
       );
       
-      console.log(`🏆 Team "${team.name}" placed #${i + 1} with ${team.monthly_coins} monthly coins`);
-      console.log(`   Awarding ${prizePerMember} COINS to ${members.rows.length} members...`);
-      
       for (const member of members.rows) {
-        // 1. Update member's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prizePerMember, member.id]
         );
-        
-        // 2. ✅ TRACK TEAM PRIZE (EXCLUDED FROM BOTH COMPETITIONS)
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [member.id, prizePerMember, 'team_prize']
         );
-        
         totalAwarded++;
         
         const BOT_TOKEN = process.env.BOT_TOKEN;
         if (BOT_TOKEN && member.telegram_id) {
-          const message = `🎉 *CONGRATULATIONS!* 🎉\n\n` +
-            `Your team *${team.name}* placed *#${i + 1}* in this month's team competition!\n\n` +
-            `🏆 You've been awarded *+${prizePerMember} COINS*!\n\n` +
-            `Keep earning with your team to win again next month! 🚀`;
-          
+          const message = `🎉 *CONGRATULATIONS!* 🎉\n\nYour team *${team.name}* placed *#${i + 1}* in this month's team competition!\n\n🏆 You've been awarded *+${prizePerMember} COINS*!`;
           try {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: member.telegram_id,
-                text: message,
-                parse_mode: 'Markdown'
-              })
+              body: JSON.stringify({ chat_id: member.telegram_id, text: message, parse_mode: 'Markdown' })
             });
-          } catch (e) {
-            console.error(`Failed to notify member ${member.telegram_id}:`, e.message);
-          }
+          } catch (e) {}
         }
       }
     }
     
     await client.query('COMMIT');
-    
-    console.log(`✅ Team prizes awarded successfully! Total members awarded: ${totalAwarded}`);
-    res.json({ 
-      success: true, 
-      awarded: totalAwarded,
-      teams: topTeams.rows.map((t, i) => ({ name: t.name, place: i + 1, prize: prizes[i] }))
-    });
-    
+    res.json({ success: true, awarded: totalAwarded });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('❌ Award team prizes error:', err);
-    res.status(500).json({ error: 'Failed to award team prizes: ' + err.message });
+    console.error('Award team prizes error:', err);
+    res.status(500).json({ error: 'Failed to award team prizes' });
   } finally {
     client.release();
   }
