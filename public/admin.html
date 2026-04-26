@@ -98,17 +98,36 @@
             display: flex; align-items: center; gap: 6px;
         }
         .section-title i { color: var(--gold); }
-        .user-list, .withdrawal-list, .team-list, .bonus-list, .activity-list {
+        .user-list, .withdrawal-list, .team-list, .bonus-list, .activity-list, .winners-list {
             max-height: 400px;
             overflow-y: auto;
         }
-        .user-item, .withdrawal-item, .team-item, .bonus-item, .activity-item {
+        .user-item, .withdrawal-item, .team-item, .bonus-item, .activity-item, .winner-item {
             background: var(--darker);
             border-radius: 12px;
             padding: 12px;
             margin-bottom: 8px;
             transition: all 0.2s;
         }
+        .winner-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .winner-rank {
+            font-size: 20px;
+            font-weight: bold;
+            min-width: 40px;
+        }
+        .rank-1 { color: #FFD700; }
+        .rank-2 { color: #C0C0C0; }
+        .rank-3 { color: #CD7F32; }
+        .winner-info { flex: 1; }
+        .winner-name { font-weight: 600; font-size: 14px; }
+        .winner-value { color: var(--gold); font-weight: bold; font-size: 14px; }
+        .winner-date { font-size: 10px; color: var(--gray); }
         .user-item:hover, .withdrawal-item:hover, .team-item:hover, .activity-item:hover { background: rgba(255,255,255,0.08); }
         .user-header {
             display: flex;
@@ -329,7 +348,7 @@
         }
         .activity-info { flex: 1; }
         .activity-name { font-weight: 600; font-size: 13px; }
-        .activity-stats { display: flex; gap: 12px; margin-top: 4px; }
+        .activity-stats { display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap; }
         .activity-stat { font-size: 10px; color: var(--gray); }
         .activity-stat i { margin-right: 3px; }
         .activity-coins { font-weight: bold; color: var(--gold); font-size: 13px; }
@@ -394,6 +413,49 @@
             cursor: pointer;
             margin-top: 10px;
         }
+        .winners-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .winners-card {
+            background: var(--darker);
+            border-radius: 16px;
+            padding: 15px;
+        }
+        .winners-card h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--gold);
+        }
+        .top-earner-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .top-earner-item:last-child {
+            border-bottom: none;
+        }
+        .top-earner-rank {
+            font-size: 14px;
+            font-weight: bold;
+            width: 30px;
+        }
+        .top-earner-name {
+            flex: 1;
+            font-size: 13px;
+        }
+        .top-earner-coins {
+            color: var(--gold);
+            font-weight: bold;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -422,6 +484,7 @@
         <div class="tab" data-tab="withdrawals"><i class="fas fa-wallet"></i> Withdrawals</div>
         <div class="tab" data-tab="teams"><i class="fas fa-user-group"></i> Teams</div>
         <div class="tab" data-tab="bonus"><i class="fas fa-gift"></i> Bonus</div>
+        <div class="tab" data-tab="winners"><i class="fas fa-trophy"></i> Winners</div>
         <div class="tab" data-tab="analytics"><i class="fas fa-chart-bar"></i> Analytics</div>
     </div>
     
@@ -469,6 +532,39 @@
         </div>
         <div class="section-title"><i class="fas fa-list"></i><span>Active Bonus Codes</span><button class="refresh-btn" onclick="loadBonusCodesDB()"><i class="fas fa-sync"></i> Refresh</button></div>
         <div class="bonus-list" id="bonusList"><div class="loading">Loading bonus codes...</div></div>
+    </div>
+    
+    <!-- Winners Tab -->
+    <div class="tab-content" id="winnersTab">
+        <div class="winners-grid">
+            <!-- Monthly Leaderboard Winners -->
+            <div class="winners-card">
+                <h4><i class="fas fa-chart-line"></i> Monthly Leaderboard Winners</h4>
+                <div id="leaderboardWinnersList"><div class="loading">Loading...</div></div>
+            </div>
+            
+            <!-- Tournament Winners -->
+            <div class="winners-card">
+                <h4><i class="fas fa-trophy"></i> Tournament Winners</h4>
+                <div id="tournamentWinnersList"><div class="loading">Loading...</div></div>
+            </div>
+            
+            <!-- Weekly Referral Winners -->
+            <div class="winners-card">
+                <h4><i class="fas fa-users"></i> Weekly Referral Winners</h4>
+                <div id="referralWinnersList"><div class="loading">Loading...</div></div>
+            </div>
+            
+            <!-- Team Competition Winners -->
+            <div class="winners-card">
+                <h4><i class="fas fa-user-group"></i> Team Competition Winners</h4>
+                <div id="teamWinnersList"><div class="loading">Loading...</div></div>
+            </div>
+        </div>
+        
+        <!-- Top 10 Earners (All Time) -->
+        <div class="section-title"><i class="fas fa-crown"></i><span>🏆 Top 10 Earners (All Time)</span></div>
+        <div id="topEarnersFullList" style="background:var(--darker);border-radius:14px;padding:15px;margin-bottom:15px;"><div class="loading">Loading...</div></div>
     </div>
     
     <!-- Analytics Tab -->
@@ -558,7 +654,7 @@
             const num = parseFloat(amount) || 0;
             if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
             if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
-            return num.toFixed(3);
+            return num.toFixed(2);
         }
         
         async function apiCall(endpoint, method = 'GET', body = null) {
@@ -578,12 +674,88 @@
             if (tabId === 'withdrawals') loadWithdrawals();
             if (tabId === 'teams') loadTeams();
             if (tabId === 'bonus') loadBonusCodesDB();
+            if (tabId === 'winners') loadWinnersData();
             if (tabId === 'analytics') loadAnalytics();
         }
         
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => switchTab(tab.dataset.tab));
         });
+        
+        async function loadWinnersData() {
+            try {
+                // Load Top 10 Earners with their main balance
+                const topEarners = await apiCall('/api/leaderboard/top-earners');
+                const top10Earners = (topEarners || []).slice(0, 10);
+                const topEarnersHtml = top10Earners.map((user, idx) => `
+                    <div class="top-earner-item">
+                        <div class="top-earner-rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx+1}</div>
+                        <div class="top-earner-name">${user.first_name || user.username || 'User'}</div>
+                        <div class="top-earner-coins">${formatCoins(user.total_coins || user.coins || 0)} COINS</div>
+                    </div>
+                `).join('');
+                document.getElementById('topEarnersFullList').innerHTML = topEarnersHtml || '<div class="empty-state">No data</div>';
+                
+                // Load Tournament Winners (from ad_rewards with tournament_prize type)
+                const tournamentWinners = await apiCall('/api/admin/tournament-winners');
+                const tournamentHtml = (tournamentWinners || []).slice(0, 5).map((w, i) => `
+                    <div class="winner-item">
+                        <div class="winner-rank rank-${i+1}">#${i+1}</div>
+                        <div class="winner-info">
+                            <div class="winner-name">${w.first_name || w.username || 'User'}</div>
+                            <div class="winner-date">${w.prize_amount || '0'} COINS</div>
+                        </div>
+                        <div class="winner-value">🏆 Winner</div>
+                    </div>
+                `).join('');
+                document.getElementById('tournamentWinnersList').innerHTML = tournamentHtml || '<div class="empty-state">No tournament winners yet</div>';
+                
+                // Load Leaderboard Winners
+                const leaderboardWinners = await apiCall('/api/admin/leaderboard-winners');
+                const leaderboardHtml = (leaderboardWinners || []).slice(0, 5).map((w, i) => `
+                    <div class="winner-item">
+                        <div class="winner-rank rank-${i+1}">#${i+1}</div>
+                        <div class="winner-info">
+                            <div class="winner-name">${w.first_name || w.username || 'User'}</div>
+                            <div class="winner-date">Monthly Top ${i+1}</div>
+                        </div>
+                        <div class="winner-value">${formatCoins(w.prize_amount || 0)} COINS</div>
+                    </div>
+                `).join('');
+                document.getElementById('leaderboardWinnersList').innerHTML = leaderboardHtml || '<div class="empty-state">No leaderboard winners yet</div>';
+                
+                // Load Weekly Referral Winners
+                const referralWinners = await apiCall('/api/admin/referral-winners');
+                const referralHtml = (referralWinners || []).slice(0, 5).map((w, i) => `
+                    <div class="winner-item">
+                        <div class="winner-rank rank-${i+1}">#${i+1}</div>
+                        <div class="winner-info">
+                            <div class="winner-name">${w.first_name || w.username || 'User'}</div>
+                            <div class="winner-date">${w.referral_count || 0} referrals this week</div>
+                        </div>
+                        <div class="winner-value">${formatCoins(w.prize_amount || 0)} COINS</div>
+                    </div>
+                `).join('');
+                document.getElementById('referralWinnersList').innerHTML = referralHtml || '<div class="empty-state">No referral winners yet</div>';
+                
+                // Load Team Competition Winners
+                const teamWinners = await apiCall('/api/admin/team-winners');
+                const teamHtml = (teamWinners || []).slice(0, 5).map((w, i) => `
+                    <div class="winner-item">
+                        <div class="winner-rank rank-${i+1}">#${i+1}</div>
+                        <div class="winner-info">
+                            <div class="winner-name">${w.team_name || 'Team'}</div>
+                            <div class="winner-date">${w.member_count || 0} members</div>
+                        </div>
+                        <div class="winner-value">${formatCoins(w.total_coins || 0)} COINS</div>
+                    </div>
+                `).join('');
+                document.getElementById('teamWinnersList').innerHTML = teamHtml || '<div class="empty-state">No team winners yet</div>';
+                
+            } catch (err) {
+                console.error('Winners data error:', err);
+            }
+        }
         
         async function updateTopStats() {
             document.getElementById('totalUsers').textContent = users.length;
@@ -593,7 +765,6 @@
             const totalRefs = users.reduce((s,u) => s + (u.referrals||0), 0);
             document.getElementById('totalReferrals').textContent = totalRefs;
             
-            // Fetch dynamic stats from analytics API
             try {
                 const data = await apiCall('/api/admin/analytics');
                 document.getElementById('totalAdsWatched').textContent = data.totalAds || 0;
@@ -610,6 +781,7 @@
             await loadUsers();
             await loadWithdrawals();
             await loadTeams();
+            await loadWinnersData();
             await updateTopStats();
             showNotification('✅ Stats refreshed!');
         }
@@ -768,17 +940,22 @@
                 document.getElementById('analyticsTotalUsers').textContent = data.totalUsers || 0;
                 document.getElementById('analyticsTotalReferrals').textContent = data.totalReferrals || 0;
                 document.getElementById('analyticsTotalAds').textContent = data.totalAds || 0;
+                document.getElementById('analyticsAdsToday').textContent = data.adsToday || 0;
                 document.getElementById('analyticsTotalCoins').textContent = formatCoins(data.totalCoins || 0);
                 document.getElementById('analyticsPendingW').textContent = data.pendingWithdrawals || 0;
+                document.getElementById('analyticsActiveToday').textContent = data.activeToday || 0;
+                document.getElementById('analyticsActiveWeek').textContent = data.activeWeek || 0;
                 
                 const tierDiv = document.getElementById('tierDistribution');
                 if (data.tierDistribution && data.tierDistribution.length) {
                     tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
                 } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
                 
+                // Daily Active - LIMIT TO LAST 7 DAYS ONLY
                 const dailyDiv = document.getElementById('dailyActive');
                 if (data.dailyActive && data.dailyActive.length) {
-                    dailyDiv.innerHTML = data.dailyActive.map(d => {
+                    const last7Days = data.dailyActive.slice(0, 7);
+                    dailyDiv.innerHTML = last7Days.map(d => {
                         const date = new Date(d.activity_date);
                         const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                         return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
@@ -791,7 +968,7 @@
                     const topEarners = await apiCall('/api/leaderboard/top-earners');
                     const topDiv = document.getElementById('topEarnersList');
                     if (topEarners && topEarners.length) {
-                        topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${formatCoins(user.coins || user.monthly_coins || 0)} COINS</span></div>`).join('');
+                        topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${formatCoins(user.monthly_coins || 0)} COINS</span></div>`).join('');
                     } else topDiv.innerHTML = '<div class="empty-state">No data</div>';
                 } catch(e) { document.getElementById('topEarnersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
                 
