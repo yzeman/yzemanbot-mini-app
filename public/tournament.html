@@ -82,7 +82,7 @@
             font-weight: bold;
         }
         
-        /* Prize Banner - Only Top 3 */
+        /* Prize Banner */
         .prize-banner {
             background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
             color: var(--dark);
@@ -441,7 +441,7 @@
         <div class="timer" id="tournamentTimer">--d --h --m</div>
     </div>
     
-    <!-- Prize Banner - Updated with new coin prizes -->
+    <!-- Prize Banner -->
     <div class="prize-banner">
         <h3><i class="fas fa-crown"></i> Prize Pool</h3>
         <div class="prize-grid">
@@ -513,7 +513,8 @@
         <p><i class="fas fa-ad"></i> Watch ads — earn COINS</p>
         <p><i class="fas fa-user-plus"></i> Refer friends — bonus COINS</p>
         <p><i class="fas fa-calendar-check"></i> Daily rewards count toward tournament</p>
-        <p><i class="fas fa-clock"></i> Tournament resets every Monday</p>
+        <p><i class="fas fa-clock"></i> Tournament runs Monday 00:00 – Sunday 23:59 (Lagos time)</p>
+        <p><i class="fas fa-gift"></i> Prizes awarded automatically at Monday 00:01</p>
     </div>
     
     <!-- Bottom Navigation -->
@@ -533,21 +534,75 @@
     
     let hasJoined = false;
     
-    function shouldShowInfoBox() {
-        const dismissedWeek = localStorage.getItem('tournamentInfoDismissedWeek');
-        const currentWeek = getWeekNumber(new Date());
-        return dismissedWeek !== currentWeek.toString();
+    // Helper: Get current time in Africa/Lagos timezone
+    function getLagosTime() {
+        const now = new Date();
+        // Convert to Lagos time (UTC+1)
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        return new Date(utc + (3600000)); // Lagos is UTC+1
     }
     
-    function getWeekNumber(date) {
-        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-        return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    // Calculate end of current tournament week (Sunday 23:59:59 Lagos time)
+    function getTournamentEndDate() {
+        const lagosNow = getLagosTime();
+        const endOfWeek = new Date(lagosNow);
+        const dayOfWeek = lagosNow.getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
+        
+        // Tournament runs Monday (day 1) to Sunday (day 0)
+        if (dayOfWeek === 0) {
+            // It's Sunday: tournament ends today at 23:59:59
+            endOfWeek.setHours(23, 59, 59, 999);
+        } else {
+            // Go to next Sunday
+            const daysUntilSunday = 7 - dayOfWeek;
+            endOfWeek.setDate(lagosNow.getDate() + daysUntilSunday);
+            endOfWeek.setHours(23, 59, 59, 999);
+        }
+        return endOfWeek;
+    }
+    
+    // Format time remaining
+    function formatTimeRemaining(ms) {
+        if (ms <= 0) return "Tournament Ended";
+        const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+        return `${days}d ${hours}h ${minutes}m`;
+    }
+    
+    function updateTimer() {
+        const endDate = getTournamentEndDate();
+        const now = getLagosTime();
+        const remaining = endDate - now;
+        
+        const timerElement = document.getElementById('tournamentTimer');
+        if (remaining <= 0) {
+            timerElement.textContent = "Rewards Given!";
+            timerElement.style.fontSize = "20px";
+        } else {
+            timerElement.textContent = formatTimeRemaining(remaining);
+            timerElement.style.fontSize = "28px";
+        }
+        
+        // Also update banner message if tournament is over
+        if (remaining <= 0) {
+            document.querySelector('.timer-banner h3').innerHTML = '<i class="fas fa-gift"></i> Tournament Ended – Prizes Awarded';
+        } else {
+            document.querySelector('.timer-banner h3').innerHTML = '<i class="fas fa-hourglass-half"></i> Tournament Ends In';
+        }
+    }
+    
+    function shouldShowInfoBox() {
+        const dismissedWeek = localStorage.getItem('tournamentInfoDismissedWeek');
+        const lagosNow = getLagosTime();
+        const weekNumber = Math.ceil((lagosNow - new Date(lagosNow.getFullYear(), 0, 1)) / (7 * 86400000));
+        return dismissedWeek !== weekNumber.toString();
     }
     
     function dismissInfoBox() {
-        const currentWeek = getWeekNumber(new Date());
-        localStorage.setItem('tournamentInfoDismissedWeek', currentWeek);
+        const lagosNow = getLagosTime();
+        const weekNumber = Math.ceil((lagosNow - new Date(lagosNow.getFullYear(), 0, 1)) / (7 * 86400000));
+        localStorage.setItem('tournamentInfoDismissedWeek', weekNumber);
         document.getElementById('infoBox').classList.add('dismissed');
         showNotification('Info hidden until next Monday');
     }
@@ -581,32 +636,13 @@
         return response.json();
     }
     
-    function updateTimer() {
-        const now = new Date();
-        const endOfWeek = new Date();
-        endOfWeek.setDate(now.getDate() + (7 - now.getDay()));
-        endOfWeek.setHours(23, 59, 59, 999);
-        
-        const diff = endOfWeek - now;
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        document.getElementById('tournamentTimer').textContent = `${days}d ${hours}h ${minutes}m`;
-    }
-    
-    // Format coins - handles both points (old) and coins (new)
+    // Format coins – handles both points (old) and coins
     function formatCoins(amount) {
         const num = parseFloat(amount) || 0;
-        // If number is very large (>10000), assume it's points and convert to coins
         const coins = num > 10000 ? num / 1000000 : num;
-        
-        if (coins >= 1000000) {
-            return (coins / 1000000).toFixed(2) + 'M';
-        } else if (coins >= 1000) {
-            return (coins / 1000).toFixed(2) + 'K';
-        } else {
-            return coins.toFixed(2);
-        }
+        if (coins >= 1000000) return (coins / 1000000).toFixed(2) + 'M';
+        if (coins >= 1000) return (coins / 1000).toFixed(2) + 'K';
+        return coins.toFixed(2);
     }
     
     function renderStandings(standings) {
@@ -708,6 +744,7 @@
         }
     }
     
+    // Initialize timer and refresh every minute
     document.addEventListener('DOMContentLoaded', () => {
         updateTimer();
         setInterval(updateTimer, 60000);
