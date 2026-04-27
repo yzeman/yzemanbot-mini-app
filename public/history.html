@@ -114,7 +114,8 @@
         .tx-icon.tournament_prize { background: linear-gradient(135deg, #FFD700, #FFA000); color: var(--dark); }
         .tx-icon.leaderboard_prize { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: var(--dark); }
         .tx-icon.team_prize { background: linear-gradient(135deg, #CD7F32, #B87333); color: white; }
-        .tx-icon.weekly_prize { background: linear-gradient(135deg, #2196F3, #1976D2); color: white; }
+        /* Distinct purple/gold gradient for Weekly Referral Prize */
+        .tx-icon.weekly_prize { background: linear-gradient(135deg, #8E44AD, #E74C3C, #F39C12); color: white; }
         .tx-info { flex: 1; }
         .tx-type { font-weight: 600; font-size: 14px; }
         .tx-desc { font-size: 11px; color: var(--gray); margin-top: 2px; }
@@ -225,7 +226,7 @@
                 'tournament_prize': '🏆 Tournament Prize',
                 'leaderboard_prize': '🥇 Monthly Leaderboard Prize',
                 'team_prize': '👥 Team Competition Prize',
-                'weekly_prize': '📅 Weekly Referral Prize'
+                'weekly_prize': '⭐ Weekly Referral Prize'
             };
             return labels[type] || type;
         }
@@ -257,7 +258,7 @@
                 'tournament_prize': 'fa-trophy',
                 'leaderboard_prize': 'fa-crown',
                 'team_prize': 'fa-users',
-                'weekly_prize': 'fa-star'
+                'weekly_prize': 'fa-trophy'
             };
             return icons[type] || 'fa-coin';
         }
