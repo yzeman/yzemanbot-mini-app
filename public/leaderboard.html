@@ -83,7 +83,7 @@
         <h1><i class="fas fa-trophy"></i> Leaderboard</h1>
         <p>Compete with others and climb the ranks!</p>
         <div class="prize-label" id="prizeLabel">
-            <span><i class="fas fa-gift"></i> Monthly Prizes: 🥇1000 • 🥈500 • 🥉200 COINS</span>
+            <span><i class="fas fa-gift"></i> Monthly Prizes: 🥇5000 • 🥈3000 • 🥉1000 COINS</span>
         </div>
     </div>
     <div class="reward-info" id="rewardInfo">
@@ -139,6 +139,23 @@
         let currentView = 'earnings', currentTier = 'all';
         let topEarnersData = [], topReferrersData = [];
 
+        // Helper: Get user's local date in YYYY-MM-DD format
+        function getLocalDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        // Helper: Get user's local month start (YYYY-MM-01)
+        function getLocalMonthStart() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}-01`;
+        }
+
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
@@ -147,12 +164,23 @@
             setTimeout(() => notif.style.display = 'none', 3000);
         }
 
-        async function apiCall(endpoint) {
+        async function apiCall(endpoint, extraData = null) {
             if (!tg?.initData) throw new Error('Not in Telegram');
+            
+            const localDate = getLocalDate();
+            const localMonthStart = getLocalMonthStart();
+            
+            const body = { 
+                initData: tg.initData,
+                localDate: localDate,
+                localMonthStart: localMonthStart,
+                ...extraData 
+            };
+            
             const res = await fetch(endpoint, { 
                 method: 'POST', 
                 headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ initData: tg.initData }) 
+                body: JSON.stringify(body) 
             });
             if (!res.ok) throw new Error(await res.text());
             return res.json();
@@ -193,19 +221,16 @@
                 const tierClass = 'tier-' + (user.tier || 'Fresher');
                 const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
                 
-                // Determine score based on view type
                 let score, scoreLabel;
                 if (type === 'referrals') {
                     score = user.referral_count || 0;
                     scoreLabel = 'refs';
                 } else {
-                    // For earnings view, use monthly_coins
                     const monthlyCoins = parseFloat(user.monthly_coins) || 0;
                     score = formatCoins(monthlyCoins);
                     scoreLabel = 'COINS';
                 }
                 
-                // Total coins for display in stats row
                 const totalCoins = parseFloat(user.coins) || parseFloat(user.total_coins) || 0;
                 
                 return `<div class="leaderboard-item ${tierClass}">
@@ -257,7 +282,7 @@
             const rewardInfo = document.getElementById('rewardInfoText');
             
             if (currentView === 'earnings') {
-                document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-gift"></i> Monthly Prizes: 🥇1000 • 🥈500 • 🥉200 COINS</span>';
+                document.getElementById('prizeLabel').innerHTML = '<span><i class="fas fa-gift"></i> Monthly Prizes: 🥇5000 • 🥈3000 • 🥉1000 COINS</span>';
                 rewardInfo.innerHTML = '<strong>Monthly Rewards:</strong> Distributed on the 1st of every month to top 3 earners.';
                 listTitle.innerHTML = '<i class="fas fa-list-ol"></i> Monthly Rankings';
                 tierSel.classList.remove('show');
