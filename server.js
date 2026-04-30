@@ -1048,15 +1048,12 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
   }
 });
 
-// ============================================
-// LEADERBOARD: Monthly Top Earners (FAIR SYSTEM)
-// ============================================
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
-    const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    // Use the month start sent from user's local timezone
+    const monthStart = req.body.localMonthStart || new Date().toISOString().split('T')[0];
     
-    console.log(`📊 Fetching monthly leaderboard for month starting: ${firstOfMonth}`);
+    console.log(`📊 Fetching monthly leaderboard for month starting: ${monthStart}`);
     
     const result = await pool.query(`
       SELECT 
@@ -1066,7 +1063,7 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
         u.coins as total_coins
       FROM users u
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
-        AND ar.created_at >= $1
+        AND ar.created_at::date >= $1::date
         AND ar.ad_type IN (
           'ad', 'daily', 'wheel', 'achievement', 'task',
           'referral_bonus', 'referral_commission', 'bonus', 'admin_add'
@@ -1074,9 +1071,7 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
       GROUP BY u.id
       ORDER BY monthly_coins DESC
       LIMIT 50
-    `, [firstOfMonth]);
-    
-    console.log(`✅ Found ${result.rows.length} users with earnings`);
+    `, [monthStart]);
     
     res.json(result.rows || []);
   } catch (err) {
