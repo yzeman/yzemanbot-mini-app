@@ -553,7 +553,7 @@
         <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achieve</span></a>
         <a href="/tournament.html" class="feature-card"><i class="fas fa-crown"></i><span>Tourney</span></a>
         <a href="/history.html" class="feature-card"><i class="fas fa-history"></i><span>History</span></a>
-        <div class="feature-card" onclick="window.location.reload()"><i class="fas fa-sync"></i><span>Refresh</span></div>
+        <a href="/faq.html" class="feature-card<i class="fas fa-faq"></i><span>About</span></div>
     </div>
     
     <div class="tabs">
@@ -715,7 +715,25 @@
     <div class="notification" id="notification"></div>
 
     <script src="/app.js"></script>
-    
+    <script>
+
+// Check URL for tab parameter
+function checkUrlForTab() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    if (tab) {
+        const tabElement = document.querySelector(`.tab[data-tab="${tab}"]`);
+        if (tabElement) {
+            setTimeout(() => tabElement.click(), 300);
+        }
+    }
+}
+
+// Call this after DOM loads
+document.addEventListener('DOMContentLoaded', () => {
+    checkUrlForTab();
+});
+</script>
     <script>
     (function() {
         const tg = window.Telegram?.WebApp;
