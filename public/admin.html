@@ -95,7 +95,9 @@
         .search-input:focus { outline: none; border-color: var(--danger); }
         .section-title {
             font-size: 14px; font-weight: 600; margin: 15px 0 10px;
-            display: flex; align-items: center; gap: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .section-title i { color: var(--gold); }
         .user-list, .withdrawal-list, .team-list, .bonus-list, .activity-list, .winners-list {
@@ -456,6 +458,31 @@
             font-weight: bold;
             font-size: 13px;
         }
+        
+        /* Broadcast Section Styles */
+        .broadcast-section {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .broadcast-preview {
+            background: var(--dark);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .broadcast-stats {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        textarea.form-input {
+            font-family: monospace;
+            resize: vertical;
+            min-height: 100px;
+        }
     </style>
 </head>
 <body>
@@ -486,6 +513,7 @@
         <div class="tab" data-tab="bonus"><i class="fas fa-gift"></i> Bonus</div>
         <div class="tab" data-tab="winners"><i class="fas fa-trophy"></i> Winners</div>
         <div class="tab" data-tab="analytics"><i class="fas fa-chart-bar"></i> Analytics</div>
+        <div class="tab" data-tab="broadcast"><i class="fas fa-bullhorn"></i> Broadcast</div>
     </div>
     
     <!-- Users Tab -->
@@ -537,32 +565,24 @@
     <!-- Winners Tab -->
     <div class="tab-content" id="winnersTab">
         <div class="winners-grid">
-            <!-- Monthly Leaderboard Winners -->
             <div class="winners-card">
                 <h4><i class="fas fa-chart-line"></i> Monthly Leaderboard Winners</h4>
                 <div id="leaderboardWinnersList"><div class="loading">Loading...</div></div>
             </div>
-            
-            <!-- Tournament Winners -->
             <div class="winners-card">
                 <h4><i class="fas fa-trophy"></i> Tournament Winners</h4>
                 <div id="tournamentWinnersList"><div class="loading">Loading...</div></div>
             </div>
-            
-            <!-- Weekly Referral Winners -->
             <div class="winners-card">
                 <h4><i class="fas fa-users"></i> Weekly Referral Winners</h4>
                 <div id="referralWinnersList"><div class="loading">Loading...</div></div>
             </div>
-            
-            <!-- Team Competition Winners -->
             <div class="winners-card">
                 <h4><i class="fas fa-user-group"></i> Team Competition Winners</h4>
                 <div id="teamWinnersList"><div class="loading">Loading...</div></div>
             </div>
         </div>
         
-        <!-- Top 10 Earners (All Time) -->
         <div class="section-title"><i class="fas fa-crown"></i><span>🏆 Top 10 Earners (All Time)</span></div>
         <div id="topEarnersFullList" style="background:var(--darker);border-radius:14px;padding:15px;margin-bottom:15px;"><div class="loading">Loading...</div></div>
     </div>
@@ -594,6 +614,65 @@
         
         <div class="section-title"><i class="fas fa-users"></i><span>Top Referrers (All Time)</span></div>
         <div id="topReferrersList" style="background:var(--darker);border-radius:14px;padding:15px;"><div class="loading">Loading...</div></div>
+    </div>
+    
+    <!-- Broadcast Tab -->
+    <div class="tab-content" id="broadcastTab">
+        <div class="broadcast-section">
+            <div class="section-title"><i class="fas fa-bullhorn"></i><span>📢 Broadcast Message</span></div>
+            
+            <div class="broadcast-preview" id="broadcastPreview" style="display: none;">
+                <div style="font-size: 12px; color: var(--gray); margin-bottom: 10px;">Preview:</div>
+                <div id="previewContent" style="background: var(--darker); border-radius: 12px; padding: 15px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Message Text (supports Markdown)</label>
+                <textarea class="form-input" id="broadcastMessage" rows="4" placeholder="Enter your message here...&#10;&#10;You can use:&#10;*bold* text&#10;_italic_ text&#10;[link](https://example.com)&#10;&#10;# Header&#10;## Subheader"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Image URL (optional)</label>
+                <input type="text" class="form-input" id="broadcastImageUrl" placeholder="https://example.com/image.jpg">
+                <div style="font-size: 11px; color: var(--gray); margin-top: 5px;">
+                    <i class="fas fa-info-circle"></i> Upload image to Imgur or any image hosting service and paste the direct URL
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Test Telegram ID (optional)</label>
+                <input type="text" class="form-input" id="testTelegramId" placeholder="Your Telegram ID to test first">
+                <div style="font-size: 11px; color: var(--gray); margin-top: 5px;">
+                    <i class="fas fa-info-circle"></i> Find your Telegram ID from @userinfobot
+                </div>
+            </div>
+            
+            <div class="broadcast-stats" id="broadcastStats" style="display: none;">
+                <div id="statsContent"></div>
+            </div>
+            
+            <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="modal-btn btn-secondary" id="previewBtn" style="flex: 1; background: var(--secondary);">
+                    <i class="fas fa-eye"></i> Preview
+                </button>
+                <button class="modal-btn btn-warning" id="testBroadcastBtn" style="flex: 1;">
+                    <i class="fas fa-vial"></i> Test Send
+                </button>
+                <button class="modal-btn btn-primary" id="sendBroadcastBtn" style="flex: 1;">
+                    <i class="fas fa-paper-plane"></i> Send to All
+                </button>
+            </div>
+            
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="font-size: 12px; color: var(--gray);">
+                    <i class="fas fa-chart-bar"></i> <strong>Quick Stats:</strong>
+                    <span id="userCount">Loading...</span> total users
+                </div>
+                <div style="font-size: 11px; color: var(--gray); margin-top: 8px;">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> This will send a message to ALL users. Use responsibly!
+                </div>
+            </div>
+        </div>
     </div>
     
     <!-- User Detail Modal -->
@@ -682,9 +761,176 @@
             tab.addEventListener('click', () => switchTab(tab.dataset.tab));
         });
         
+        // ============================================
+        // BROADCAST FUNCTIONS
+        // ============================================
+        
+        async function loadUserCount() {
+            try {
+                const data = await apiCall('/api/admin/analytics');
+                document.getElementById('userCount').textContent = data.totalUsers || 0;
+            } catch (err) {
+                document.getElementById('userCount').textContent = '?';
+            }
+        }
+        
+        function previewBroadcast() {
+            const message = document.getElementById('broadcastMessage').value;
+            const imageUrl = document.getElementById('broadcastImageUrl').value;
+            const previewDiv = document.getElementById('broadcastPreview');
+            const previewContent = document.getElementById('previewContent');
+            
+            if (!message.trim()) {
+                showNotification('Please enter a message first', true);
+                return;
+            }
+            
+            // Convert markdown to HTML for preview
+            let htmlMessage = message
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: var(--gold);">$1</a>')
+                .replace(/\n/g, '<br>');
+            
+            let previewHtml = `<div style="background: #1e3a5f; border-radius: 12px; padding: 12px; max-width: 300px; margin: 0 auto;">`;
+            
+            if (imageUrl) {
+                previewHtml += `<img src="${imageUrl}" style="width: 100%; border-radius: 12px; margin-bottom: 10px;" onerror="this.style.display='none'">`;
+            }
+            
+            previewHtml += `<div style="font-size: 14px; color: white;">${htmlMessage}</div>`;
+            previewHtml += `<div style="font-size: 10px; color: var(--gray); margin-top: 8px;">— YzemanBot</div>`;
+            previewHtml += `</div>`;
+            
+            previewContent.innerHTML = previewHtml;
+            previewDiv.style.display = 'block';
+        }
+        
+        async function testBroadcast() {
+            const message = document.getElementById('broadcastMessage').value;
+            const imageUrl = document.getElementById('broadcastImageUrl').value;
+            const testTelegramId = document.getElementById('testTelegramId').value;
+            
+            if (!message.trim()) {
+                showNotification('Please enter a message', true);
+                return;
+            }
+            
+            if (!testTelegramId) {
+                showNotification('Please enter your Telegram ID to test', true);
+                return;
+            }
+            
+            const testBtn = document.getElementById('testBroadcastBtn');
+            const originalText = testBtn.innerHTML;
+            testBtn.disabled = true;
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            
+            try {
+                const response = await fetch('/api/admin/test-broadcast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': ADMIN_TOKEN
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        imageUrl: imageUrl || null,
+                        testTelegramId: parseInt(testTelegramId)
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('✅ Test message sent! Check your Telegram.');
+                } else {
+                    showNotification('❌ Failed: ' + (result.error || 'Unknown error'), true);
+                }
+            } catch (err) {
+                showNotification('❌ Error: ' + err.message, true);
+            } finally {
+                testBtn.disabled = false;
+                testBtn.innerHTML = originalText;
+            }
+        }
+        
+        async function sendBroadcast() {
+            const message = document.getElementById('broadcastMessage').value;
+            const imageUrl = document.getElementById('broadcastImageUrl').value;
+            
+            if (!message.trim()) {
+                showNotification('Please enter a message', true);
+                return;
+            }
+            
+            const confirmMsg = `⚠️ WARNING!\n\nYou are about to send a message to ALL users.\n\nMessage: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\n\nAre you absolutely sure?`;
+            
+            if (!confirm(confirmMsg)) return;
+            
+            const sendBtn = document.getElementById('sendBroadcastBtn');
+            const statsDiv = document.getElementById('broadcastStats');
+            const originalText = sendBtn.innerHTML;
+            
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            statsDiv.style.display = 'block';
+            document.getElementById('statsContent').innerHTML = '<div style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Sending messages...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/broadcast', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': ADMIN_TOKEN
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        imageUrl: imageUrl || null
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('statsContent').innerHTML = `
+                        <div style="text-align: center;">
+                            <div style="color: var(--success); font-size: 24px; margin-bottom: 10px;">✓</div>
+                            <div><strong>${result.sent}</strong> messages sent successfully</div>
+                            <div><strong>${result.failed}</strong> failed</div>
+                            <div>Total users: <strong>${result.total}</strong></div>
+                            ${result.failedUsers && result.failedUsers.length > 0 ? `<div style="margin-top: 10px; font-size: 11px;">Failed IDs: ${result.failedUsers.join(', ')}</div>` : ''}
+                            <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
+                        </div>
+                    `;
+                    showNotification(`✅ Broadcast completed! Sent: ${result.sent}, Failed: ${result.failed}`);
+                    document.getElementById('broadcastMessage').value = '';
+                    document.getElementById('broadcastImageUrl').value = '';
+                    document.getElementById('broadcastPreview').style.display = 'none';
+                } else {
+                    document.getElementById('statsContent').innerHTML = `
+                        <div style="text-align: center; color: var(--danger);">
+                            <div>❌ Failed to send broadcast</div>
+                            <div style="font-size: 12px; margin-top: 5px;">${result.error || 'Unknown error'}</div>
+                            <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                document.getElementById('statsContent').innerHTML = `
+                    <div style="text-align: center; color: var(--danger);">
+                        <div>❌ Error: ${err.message}</div>
+                        <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
+                    </div>
+                `;
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = originalText;
+            }
+        }
+        
         async function loadWinnersData() {
             try {
-                // Load Top 10 Earners with their main balance
                 const topEarners = await apiCall('/api/leaderboard/top-earners');
                 const top10Earners = (topEarners || []).slice(0, 10);
                 const topEarnersHtml = top10Earners.map((user, idx) => `
@@ -696,7 +942,6 @@
                 `).join('');
                 document.getElementById('topEarnersFullList').innerHTML = topEarnersHtml || '<div class="empty-state">No data</div>';
                 
-                // Load Tournament Winners (from ad_rewards with tournament_prize type)
                 const tournamentWinners = await apiCall('/api/admin/tournament-winners');
                 const tournamentHtml = (tournamentWinners || []).slice(0, 5).map((w, i) => `
                     <div class="winner-item">
@@ -710,7 +955,6 @@
                 `).join('');
                 document.getElementById('tournamentWinnersList').innerHTML = tournamentHtml || '<div class="empty-state">No tournament winners yet</div>';
                 
-                // Load Leaderboard Winners
                 const leaderboardWinners = await apiCall('/api/admin/leaderboard-winners');
                 const leaderboardHtml = (leaderboardWinners || []).slice(0, 5).map((w, i) => `
                     <div class="winner-item">
@@ -724,7 +968,6 @@
                 `).join('');
                 document.getElementById('leaderboardWinnersList').innerHTML = leaderboardHtml || '<div class="empty-state">No leaderboard winners yet</div>';
                 
-                // Load Weekly Referral Winners
                 const referralWinners = await apiCall('/api/admin/referral-winners');
                 const referralHtml = (referralWinners || []).slice(0, 5).map((w, i) => `
                     <div class="winner-item">
@@ -738,7 +981,6 @@
                 `).join('');
                 document.getElementById('referralWinnersList').innerHTML = referralHtml || '<div class="empty-state">No referral winners yet</div>';
                 
-                // Load Team Competition Winners
                 const teamWinners = await apiCall('/api/admin/team-winners');
                 const teamHtml = (teamWinners || []).slice(0, 5).map((w, i) => `
                     <div class="winner-item">
@@ -951,7 +1193,6 @@
                     tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
                 } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
                 
-                // Daily Active - LIMIT TO LAST 7 DAYS ONLY
                 const dailyDiv = document.getElementById('dailyActive');
                 if (data.dailyActive && data.dailyActive.length) {
                     const last7Days = data.dailyActive.slice(0, 7);
@@ -1015,8 +1256,19 @@
         document.getElementById('withdrawalSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderWithdrawalList(withdrawals.filter(w => (w.first_name||'').toLowerCase().includes(q) || (w.username||'').toLowerCase().includes(q) || (w.wallet_address||'').toLowerCase().includes(q))); });
         document.getElementById('teamSearch').addEventListener('input', e => { const q = e.target.value.toLowerCase(); renderTeamList(teams.filter(t => t.name.toLowerCase().includes(q) || (t.leader_name||'').toLowerCase().includes(q))); });
         
+        // Add event listeners for broadcast buttons
+        document.getElementById('previewBtn')?.addEventListener('click', previewBroadcast);
+        document.getElementById('testBroadcastBtn')?.addEventListener('click', testBroadcast);
+        document.getElementById('sendBroadcastBtn')?.addEventListener('click', sendBroadcast);
+        
         window.onclick = e => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; if (e.target.classList.contains('user-detail-modal')) e.target.style.display = 'none'; };
-        document.addEventListener('DOMContentLoaded', () => { loadUsers(); loadWithdrawals(); loadTeams(); loadBonusCodesDB(); });
+        document.addEventListener('DOMContentLoaded', () => { 
+            loadUsers(); 
+            loadWithdrawals(); 
+            loadTeams(); 
+            loadBonusCodesDB();
+            loadUserCount();
+        });
     </script>
 </body>
 </html>
