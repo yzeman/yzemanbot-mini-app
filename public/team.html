@@ -81,20 +81,44 @@
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
         
-        /* Info banner */
+        /* Dismissible Info Banner */
         .info-banner {
             background: rgba(33, 150, 243, 0.15);
             border-radius: 12px;
-            padding: 10px;
+            padding: 10px 12px;
             margin-bottom: 12px;
             font-size: 11px;
             color: var(--gray);
-            text-align: center;
             border-left: 3px solid var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
         }
-        .info-banner i {
+        .info-banner.dismissed {
+            display: none;
+        }
+        .info-banner-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-banner-content i {
             color: var(--secondary);
-            margin-right: 6px;
+            font-size: 14px;
+        }
+        .close-banner-btn {
+            background: transparent;
+            border: none;
+            color: var(--gray);
+            font-size: 14px;
+            cursor: pointer;
+            padding: 5px;
+            line-height: 1;
+        }
+        .close-banner-btn:hover {
+            color: var(--light);
         }
         
         /* Skeleton Loading Styles */
@@ -120,7 +144,7 @@
         .skeleton-team-name { width: 60%; height: 14px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
         .skeleton-team-code { width: 40%; height: 10px; background: rgba(255,255,255,0.06); border-radius: 4px; }
         .skeleton-team-rank { width: 40px; height: 20px; background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .skeleton-team-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
+        .skeleton-team-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 10px; }
         .skeleton-team-stat { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 2px; text-align: center; }
         .skeleton-team-stat-value { width: 30px; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; margin: 0 auto; }
         
@@ -202,10 +226,15 @@
             border-radius: 12px; font-size: 11px; font-weight: bold;
         }
         .team-stats {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px;
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
         }
         .team-stat {
-            background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 2px; text-align: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 8px 4px;
+            text-align: center;
         }
         .team-stat-value { font-size: 13px; font-weight: bold; color: var(--gold); }
         .team-stat-label { font-size: 8px; color: var(--gray); }
@@ -281,11 +310,13 @@
         
         .prize-info-box {
             background: rgba(255,215,0,0.08); border: 1px solid var(--gold);
-            border-radius: 10px; padding: 10px; margin-bottom: 12px;
+            border-radius: 10px; padding: 10px;
+            margin-bottom: 12px;
         }
         .prize-info-box.dismissed { display: none; }
         .prize-info-header {
-            display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 6px;
         }
         .prize-info-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
         .prize-info-title i { color: var(--gold); }
@@ -428,9 +459,13 @@
             <div class="prize-info-row"><i class="fas fa-calendar-check"></i><span>Awarded 1st of every month</span></div>
         </div>
         
-        <!-- Info banner explaining Monthly Competition -->
-        <div class="info-banner">
-            <i class="fas fa-chart-line"></i> <strong>How it works:</strong> Teams are ranked by COINS earned <strong>this month only</strong>. Resets on the 1st of every month! Top 3 teams win prizes for EVERY member!
+        <!-- Dismissible Info Banner -->
+        <div class="info-banner" id="monthlyInfoBanner">
+            <div class="info-banner-content">
+                <i class="fas fa-chart-line"></i>
+                <span>Teams ranked by COINS earned <strong>this month only</strong>. Resets on the 1st! Top 3 teams win prizes for EVERY member!</span>
+            </div>
+            <button class="close-banner-btn" onclick="dismissMonthlyBanner()">✕</button>
         </div>
         
         <div id="monthlyContent"></div>
@@ -491,6 +526,7 @@
     
     let monthlyCache = null;
     let monthlyLastFetch = 0;
+    let teamRankCache = null;
     const CACHE_TTL = 60000;
     
     let pendingCreate = false;
@@ -498,6 +534,23 @@
     let optimisticTeamData = null;
     
     const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
+    
+    // Dismiss banner functions
+    function dismissMonthlyBanner() {
+        localStorage.setItem('monthlyBannerDismissed', 'true');
+        document.getElementById('monthlyInfoBanner').classList.add('dismissed');
+    }
+    
+    function shouldShowMonthlyBanner() {
+        return localStorage.getItem('monthlyBannerDismissed') !== 'true';
+    }
+    
+    function updateBannerVisibility() {
+        const banner = document.getElementById('monthlyInfoBanner');
+        if (banner && !shouldShowMonthlyBanner()) {
+            banner.classList.add('dismissed');
+        }
+    }
     
     // ============================================
     // SKELETON LOADING FUNCTIONS
@@ -516,7 +569,6 @@
                     <div class="skeleton-team-rank"></div>
                 </div>
                 <div class="skeleton-team-stats">
-                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
                     <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
                     <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
                     <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
@@ -632,9 +684,8 @@
                 </div>
                 <div class="team-stats">
                     <div class="team-stat"><div class="team-stat-value">1</div><div class="team-stat-label">Members</div></div>
-                    <div class="team-stat"><div class="team-stat-value">0.0</div><div class="team-stat-label">COINS</div></div>
+                    <div class="team-stat"><div class="team-stat-value">0.0</div><div class="team-stat-label">This Month</div></div>
                     <div class="team-stat"><div class="team-stat-value">0</div><div class="team-stat-label">Refs</div></div>
-                    <div class="team-stat"><div class="team-stat-value">--</div><div class="team-stat-label">Rank</div></div>
                 </div>
                 <div class="team-actions">
                     <button class="team-btn copy" onclick="copyTeamCode('${escapeHtml(teamCode)}')"><i class="fas fa-copy"></i> Copy Code</button>
@@ -654,6 +705,22 @@
                 <span class="loading-spinner"></span> Fetching team details...
             </div>
         `;
+    }
+    
+    // Function to get team's current rank in monthly competition
+    async function getTeamRank(teamId) {
+        if (!teamId) return '--';
+        try {
+            // Fetch monthly standings
+            const data = await apiCall('/api/team/monthly-competition');
+            if (data && data.standings) {
+                const index = data.standings.findIndex(t => t.id == teamId);
+                return index >= 0 ? `#${index + 1}` : '--';
+            }
+        } catch (err) {
+            console.error('Failed to get team rank:', err);
+        }
+        return '--';
     }
     
     function renderMyTeam(data) {
@@ -676,6 +743,7 @@
         const team = data.team;
         const members = data.members || [];
         const monthlyCoins = parseFloat(team.monthly_coins) || 0;
+        const teamRank = team.rank || '--';
         
         container.innerHTML = `
             <div class="team-card">
@@ -685,11 +753,21 @@
                         <h3>${escapeHtml(team.name)}</h3>
                         <span class="team-code"><i class="fas fa-key"></i> ${team.code}</span>
                     </div>
+                    <div class="team-rank">${teamRank}</div>
                 </div>
                 <div class="team-stats">
-                    <div class="team-stat"><div class="team-stat-value">${team.member_count || 0}</div><div class="team-stat-label">Members</div></div>
-                    <div class="team-stat"><div class="team-stat-value">${formatCoinsFull(monthlyCoins)}</div><div class="team-stat-label">This Month</div></div>
-                    <div class="team-stat"><div class="team-stat-value">${team.total_referrals || 0}</div><div class="team-stat-label">Refs</div></div>
+                    <div class="team-stat">
+                        <div class="team-stat-value">${team.member_count || 0}</div>
+                        <div class="team-stat-label">Members</div>
+                    </div>
+                    <div class="team-stat">
+                        <div class="team-stat-value">${formatCoinsFull(monthlyCoins)}</div>
+                        <div class="team-stat-label">This Month</div>
+                    </div>
+                    <div class="team-stat">
+                        <div class="team-stat-value">${team.total_referrals || 0}</div>
+                        <div class="team-stat-label">Refs</div>
+                    </div>
                 </div>
                 <div class="team-actions">
                     <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
@@ -756,6 +834,24 @@
         if (showSkeleton) showMyTeamSkeleton();
         try {
             const data = await apiCall('/api/team/info');
+            
+            // If user has a team, fetch the current rank
+            if (data && data.has_team && data.team && data.team.id) {
+                try {
+                    const monthlyData = await apiCall('/api/team/monthly-competition');
+                    if (monthlyData && monthlyData.standings) {
+                        const rankIndex = monthlyData.standings.findIndex(t => t.id == data.team.id);
+                        if (rankIndex >= 0) {
+                            data.team.rank = `#${rankIndex + 1}`;
+                        } else {
+                            data.team.rank = '--';
+                        }
+                    }
+                } catch (err) {
+                    data.team.rank = '--';
+                }
+            }
+            
             renderMyTeam(data);
             optimisticTeamData = null;
         } catch (err) {
@@ -976,6 +1072,7 @@
             loadMonthlyCompetition(false, true);
         });
         updatePrizeInfoVisibility();
+        updateBannerVisibility();
     });
 </script>
 </body>
