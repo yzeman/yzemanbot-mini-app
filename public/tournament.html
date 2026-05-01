@@ -29,7 +29,26 @@
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
+            overflow-x: hidden;
         }
+        
+        /* Refresh Indicator */
+        .refresh-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .refresh-indicator.show { transform: translateY(0); }
+        .refresh-indicator i { margin-right: 5px; }
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
@@ -315,6 +334,47 @@
             font-weight: normal;
         }
         
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes skeleton-wave { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        .skeleton-standings-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: var(--darker);
+            border-radius: 12px;
+            margin-bottom: 6px;
+        }
+        .skeleton-rank { width: 32px; height: 32px; background: rgba(255,255,255,0.08); border-radius: 8px; margin-right: 10px; }
+        .skeleton-avatar { width: 35px; height: 35px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 10px; }
+        .skeleton-info { flex: 1; }
+        .skeleton-name { width: 40%; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
+        .skeleton-username { width: 30%; height: 10px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .skeleton-coins { width: 60px; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; }
+        
+        .skeleton-my-rank-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 15px 18px;
+            margin: 16px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .skeleton-my-rank-left { display: flex; align-items: center; gap: 15px; }
+        .skeleton-my-rank-icon { width: 50px; height: 50px; background: rgba(255,255,255,0.08); border-radius: 50%; }
+        .skeleton-my-rank-info { flex: 1; }
+        .skeleton-my-rank-title { width: 60px; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
+        .skeleton-my-rank-value { width: 40px; height: 28px; background: rgba(255,255,255,0.08); border-radius: 4px; }
+        .skeleton-my-rank-coins { width: 60px; height: 22px; background: rgba(255,255,255,0.08); border-radius: 4px; }
+        .skeleton-my-rank-label { width: 40px; height: 11px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-top: 4px; }
+        
         /* Collapsible Info Box */
         .info-box {
             background: rgba(33, 150, 243, 0.1);
@@ -428,6 +488,11 @@
     </style>
 </head>
 <body>
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-arrow-down"></i> Pull to refresh
+    </div>
+    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
@@ -442,25 +507,25 @@
     </div>
     
     <div class="prize-banner">
-    <h3><i class="fas fa-crown"></i> Prize Pool</h3>
-    <div class="prize-grid">
-        <div class="prize-card">
-            <div class="prize-position">🥇</div>
-            <div class="prize-amount">2000</div>
-            <div class="prize-label">COINS</div>
-        </div>
-        <div class="prize-card">
-            <div class="prize-position">🥈</div>
-            <div class="prize-amount">1000</div>
-            <div class="prize-label">COINS</div>
-        </div>
-        <div class="prize-card">
-            <div class="prize-position">🥉</div>
-            <div class="prize-amount">500</div>
-            <div class="prize-label">COINS</div>
+        <h3><i class="fas fa-crown"></i> Prize Pool</h3>
+        <div class="prize-grid">
+            <div class="prize-card">
+                <div class="prize-position">🥇</div>
+                <div class="prize-amount">2000</div>
+                <div class="prize-label">COINS</div>
+            </div>
+            <div class="prize-card">
+                <div class="prize-position">🥈</div>
+                <div class="prize-amount">1000</div>
+                <div class="prize-label">COINS</div>
+            </div>
+            <div class="prize-card">
+                <div class="prize-position">🥉</div>
+                <div class="prize-amount">500</div>
+                <div class="prize-label">COINS</div>
+            </div>
         </div>
     </div>
-</div>
     
     <!-- Join Section -->
     <div class="join-section">
@@ -472,20 +537,8 @@
         </div>
     </div>
     
-    <!-- My Rank Card -->
-    <div class="my-rank-card" id="myRankCard">
-        <div class="my-rank-header">
-            <div class="my-rank-title">
-                <i class="fas fa-user"></i>
-                <span>Your Current Rank</span>
-            </div>
-            <div class="my-rank-value" id="myRank">--</div>
-        </div>
-        <div class="my-rank-stats">
-            <span><i class="fas fa-coins"></i> <span id="myCoins">0.00</span> COINS</span>
-            <span><i class="fas fa-users"></i> <span id="myReferrals">0</span> refs</span>
-        </div>
-    </div>
+    <!-- My Rank Container -->
+    <div id="myRankContainer"></div>
     
     <!-- Standings Section -->
     <div class="standings-section">
@@ -493,9 +546,7 @@
             <i class="fas fa-list-ol"></i>
             <span>Current Standings</span>
         </div>
-        <div class="standings-list" id="standingsList">
-            <div class="loading">Loading standings...</div>
-        </div>
+        <div class="standings-list" id="standingsList"></div>
     </div>
     
     <!-- Collapsible Info Box -->
@@ -532,11 +583,55 @@
     if (tg) { tg.ready(); tg.expand(); }
     
     let hasJoined = false;
+    let isRefreshing = false;
+    let touchStartY = 0;
+    const refreshIndicator = document.getElementById('refreshIndicator');
+    
+    // ============================================
+    // SKELETON LOADING FUNCTIONS
+    // ============================================
+    
+    function showStandingsSkeleton() {
+        const container = document.getElementById('standingsList');
+        let items = '';
+        for (let i = 0; i < 5; i++) {
+            items += `
+                <div class="skeleton-standings-item">
+                    <div class="skeleton-rank"></div>
+                    <div class="skeleton-avatar"></div>
+                    <div class="skeleton-info">
+                        <div class="skeleton-name"></div>
+                        <div class="skeleton-username"></div>
+                    </div>
+                    <div class="skeleton-coins"></div>
+                </div>
+            `;
+        }
+        container.innerHTML = items;
+    }
+    
+    function showMyRankSkeleton() {
+        const container = document.getElementById('myRankContainer');
+        container.innerHTML = `
+            <div class="skeleton-my-rank-card">
+                <div class="skeleton-my-rank-left">
+                    <div class="skeleton-my-rank-icon"></div>
+                    <div class="skeleton-my-rank-info">
+                        <div class="skeleton-my-rank-title"></div>
+                        <div class="skeleton-my-rank-value"></div>
+                    </div>
+                </div>
+                <div class="skeleton-my-rank-right">
+                    <div class="skeleton-my-rank-coins"></div>
+                    <div class="skeleton-my-rank-label"></div>
+                </div>
+            </div>
+        `;
+    }
     
     // Helper: Get current time in Africa/Lagos timezone
     function getLagosTime() {
         const now = new Date();
-        // Convert to Lagos time (UTC+1)
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         return new Date(utc + (3600000)); // Lagos is UTC+1
     }
@@ -545,14 +640,11 @@
     function getTournamentEndDate() {
         const lagosNow = getLagosTime();
         const endOfWeek = new Date(lagosNow);
-        const dayOfWeek = lagosNow.getDay(); // 0 = Sunday, 1 = Monday ... 6 = Saturday
+        const dayOfWeek = lagosNow.getDay();
         
-        // Tournament runs Monday (day 1) to Sunday (day 0)
         if (dayOfWeek === 0) {
-            // It's Sunday: tournament ends today at 23:59:59
             endOfWeek.setHours(23, 59, 59, 999);
         } else {
-            // Go to next Sunday
             const daysUntilSunday = 7 - dayOfWeek;
             endOfWeek.setDate(lagosNow.getDate() + daysUntilSunday);
             endOfWeek.setHours(23, 59, 59, 999);
@@ -583,7 +675,6 @@
             timerElement.style.fontSize = "28px";
         }
         
-        // Also update banner message if tournament is over
         if (remaining <= 0) {
             document.querySelector('.timer-banner h3').innerHTML = '<i class="fas fa-gift"></i> Tournament Ended – Prizes Awarded';
         } else {
@@ -635,7 +726,7 @@
         return response.json();
     }
     
-    // Format coins – handles both points (old) and coins
+    // Format coins
     function formatCoins(amount) {
         const num = parseFloat(amount) || 0;
         const coins = num > 10000 ? num / 1000000 : num;
@@ -677,7 +768,7 @@
     }
     
     function updateMyRank(data) {
-        const myRankCard = document.getElementById('myRankCard');
+        const container = document.getElementById('myRankContainer');
         const joinBtn = document.getElementById('joinBtn');
         const joinedBadge = document.getElementById('joinedBadge');
         
@@ -688,23 +779,36 @@
             joinedBadge.style.display = 'inline-flex';
             
             if (data.my_rank) {
-                myRankCard.style.display = 'block';
-                document.getElementById('myRank').textContent = `#${data.my_rank}`;
-                document.getElementById('myCoins').textContent = formatCoins(data.my_coins);
-                
-                const myData = data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id);
-                document.getElementById('myReferrals').textContent = myData?.referral_count || 0;
+                container.innerHTML = `
+                    <div class="my-rank-card">
+                        <div class="my-rank-header">
+                            <div class="my-rank-title">
+                                <i class="fas fa-user"></i>
+                                <span>Your Current Rank</span>
+                            </div>
+                            <div class="my-rank-value" id="myRank">#${data.my_rank}</div>
+                        </div>
+                        <div class="my-rank-stats">
+                            <span><i class="fas fa-coins"></i> <span id="myCoins">${formatCoins(data.my_coins)}</span> COINS</span>
+                            <span><i class="fas fa-users"></i> <span id="myReferrals">${data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id)?.referral_count || 0}</span> refs</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = '';
             }
         } else {
             joinBtn.style.display = 'flex';
             joinedBadge.style.display = 'none';
-            myRankCard.style.display = 'none';
+            container.innerHTML = '';
         }
     }
     
-    async function loadTournament() {
-        const container = document.getElementById('standingsList');
-        container.innerHTML = '<div class="loading">Loading tournament...</div>';
+    async function loadTournament(showSkeleton = true) {
+        if (showSkeleton) {
+            showStandingsSkeleton();
+            showMyRankSkeleton();
+        }
         
         try {
             const data = await apiCall('/api/tournament/standings');
@@ -714,7 +818,7 @@
             console.error('Tournament error:', err);
             let errorMsg = err.message;
             try { errorMsg = JSON.parse(err.message).error || errorMsg; } catch(e) {}
-            container.innerHTML = `
+            document.getElementById('standingsList').innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-circle"></i>
                     <p>Failed to load tournament</p>
@@ -733,7 +837,7 @@
         try {
             await apiCall('/api/tournament/join');
             showNotification('You joined the tournament! 🏆');
-            await loadTournament();
+            await loadTournament(false);
         } catch (err) {
             let msg = err.message;
             try { msg = JSON.parse(msg).error; } catch(e) {}
@@ -743,11 +847,50 @@
         }
     }
     
+    // ============================================
+    // PULL TO REFRESH
+    // ============================================
+    
+    function showRefreshIndicator(text, isError = false) {
+        refreshIndicator.textContent = text;
+        refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+        refreshIndicator.classList.add('show');
+        setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+    }
+    
+    async function refreshData() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        try {
+            await loadTournament(false);
+            updateTimer();
+            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+            showNotification('Tournament refreshed!', false);
+        } catch (err) {
+            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+    
+    document.addEventListener('touchstart', (e) => {
+        if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
+    });
+    document.addEventListener('touchmove', (e) => {
+        if (window.scrollY === 0 && !isRefreshing) {
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 60) { e.preventDefault(); refreshData(); }
+        }
+    });
+    
     // Initialize timer and refresh every minute
     document.addEventListener('DOMContentLoaded', () => {
         updateTimer();
         setInterval(updateTimer, 60000);
-        loadTournament();
+        showStandingsSkeleton();
+        showMyRankSkeleton();
+        loadTournament(true);
         updateInfoBoxVisibility();
         document.getElementById('joinBtn').addEventListener('click', joinTournament);
     });
