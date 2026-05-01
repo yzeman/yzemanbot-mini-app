@@ -328,10 +328,12 @@
         .btn-secondary { background: var(--secondary); color: white; }
         
         /* ============================================
-           ATTRACTIVE BONUS SECTION STYLES
+           ATTRACTIVE BONUS SECTION STYLES - FIXED INPUT
         ============================================ */
         .bonus-section {
             margin-top: 20px;
+            position: relative;
+            z-index: 1;
         }
         .bonus-card {
             background: linear-gradient(135deg, #FF9800, #F44336);
@@ -379,6 +381,9 @@
             text-align: center;
             font-weight: bold;
             letter-spacing: 1px;
+            pointer-events: auto !important;
+            z-index: 10;
+            position: relative;
         }
         .bonus-input::placeholder {
             color: rgba(255,255,255,0.7);
@@ -399,6 +404,9 @@
             font-weight: bold;
             cursor: pointer;
             transition: transform 0.2s ease;
+            pointer-events: auto !important;
+            z-index: 10;
+            position: relative;
         }
         .redeem-btn:hover {
             transform: scale(1.02);
@@ -472,6 +480,32 @@
         .bonus-info-note i {
             color: var(--secondary);
             margin-right: 6px;
+        }
+        
+        /* Timer Popup - Make sure it doesn't block inputs */
+        .timer-popup {
+            position: fixed;
+            bottom: 100px;
+            left: 20px;
+            right: 20px;
+            background: var(--darker);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            z-index: 2000;
+            border: 1px solid var(--gold);
+            display: none;
+        }
+        .timer-popup.active { display: block; }
+        .timer-popup .time-left { font-size: 36px; font-weight: bold; color: var(--gold); margin: 10px 0; }
+        .timer-popup button {
+            background: var(--danger);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            color: white;
+            margin-top: 10px;
+            cursor: pointer;
         }
         
         .history-list {
@@ -578,30 +612,6 @@
             border-left: 4px solid var(--secondary);
         }
         .info-box p { font-size: 12px; margin-bottom: 5px; }
-        .timer-popup {
-            position: fixed;
-            bottom: 100px;
-            left: 20px;
-            right: 20px;
-            background: var(--darker);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            z-index: 2000;
-            border: 1px solid var(--gold);
-            display: none;
-        }
-        .timer-popup.active { display: block; }
-        .timer-popup .time-left { font-size: 36px; font-weight: bold; color: var(--gold); margin: 10px 0; }
-        .timer-popup button {
-            background: var(--danger);
-            border: none;
-            padding: 8px 20px;
-            border-radius: 20px;
-            color: white;
-            margin-top: 10px;
-            cursor: pointer;
-        }
         .channel-banner {
             background: linear-gradient(135deg, #2196F3, #1976D2);
             border-radius: 15px;
@@ -799,7 +809,7 @@
         </div>
     </div>
     
-    <!-- Bonus Tab - FIXED & ATTRACTIVE -->
+    <!-- Bonus Tab - FIXED INPUT FIELD -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-section">
             <!-- Channel Banner -->
@@ -817,8 +827,8 @@
                 <h3><i class="fas fa-gift"></i> Redeem Bonus Code</h3>
                 <p>Enter a special code to earn extra COINS!</p>
                 <div class="bonus-input-group">
-                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code here" autocomplete="off" />
-                    <button class="redeem-btn" id="redeemBonusBtn">Redeem</button>
+                    <input type="text" class="bonus-input" id="bonusCodeInput" placeholder="Enter code here" autocomplete="off" style="pointer-events: auto; z-index: 100; position: relative;" />
+                    <button class="redeem-btn" id="redeemBonusBtn" style="pointer-events: auto; z-index: 100; position: relative;">Redeem</button>
                 </div>
             </div>
             
@@ -1096,13 +1106,22 @@
             });
             document.getElementById('cancelTaskBtn')?.addEventListener('click', () => cancelTask());
             
+            // Fix: Redeem bonus button event listener - Make sure it's properly attached
             const redeemBtn = document.getElementById('redeemBonusBtn');
             if (redeemBtn) {
-                redeemBtn.addEventListener('click', async function(e) {
+                // Remove any existing listeners by cloning
+                const newRedeemBtn = redeemBtn.cloneNode(true);
+                redeemBtn.parentNode.replaceChild(newRedeemBtn, redeemBtn);
+                newRedeemBtn.addEventListener('click', async function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
                     const input = document.getElementById('bonusCodeInput');
+                    if (!input) return;
                     const code = input.value.trim().toUpperCase();
-                    if (!code) { showNotification('Enter a bonus code', true); return; }
+                    if (!code) { 
+                        showNotification('Enter a bonus code', true); 
+                        return; 
+                    }
                     try {
                         const initData = tg?.initData || '';
                         const res = await fetch('/api/redeem-bonus', {
@@ -1111,13 +1130,18 @@
                             body: JSON.stringify({ initData, code })
                         });
                         const data = await res.json();
-                        if (!res.ok) { showNotification(data.error || 'Failed to redeem', true); return; }
+                        if (!res.ok) { 
+                            showNotification(data.error || 'Failed to redeem', true); 
+                            return; 
+                        }
                         if (data.success) {
                             showNotification(`🎉 Code redeemed! +${data.coins} COINS`);
                             input.value = '';
                             if (window.refreshUser) await window.refreshUser();
                         }
-                    } catch (err) { showNotification('Network error', true); }
+                    } catch (err) { 
+                        showNotification('Network error', true); 
+                    }
                 });
             }
         });
