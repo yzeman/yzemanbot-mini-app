@@ -2156,7 +2156,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       LIMIT 3
     `, [firstOfMonth]);
     
-    const prizes = [1000, 500, 200];
+    const prizes = [5000, 3000, 1000];
     
     for (let i = 0; i < topEarners.rows.length; i++) {
       const user = topEarners.rows[i];
@@ -2212,7 +2212,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       LIMIT 3
     `, [lastSundayStr]);
     
-    const prizes = [100, 50, 25];
+    const prizes = [3500, 2000, 1000];
     
     for (let i = 0; i < topReferrers.rows.length; i++) {
       const user = topReferrers.rows[i];
@@ -2286,7 +2286,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
       LIMIT 3
     `, [tournamentId, lastMondayStr, now.toISOString()]);
     
-    const prizes = [1000, 500, 200];
+    const prizes = [2000, 1000, 500];
     
     for (let i = 0; i < topParticipants.rows.length; i++) {
       const user = topParticipants.rows[i];
