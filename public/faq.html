@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>How It Works - YzemanBot</title>
+    <title>About & FAQ - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -46,32 +46,6 @@
         .content-container {
             padding: 20px 15px;
         }
-        .hero-section {
-            background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-            text-align: center;
-            border: 1px solid rgba(33,150,243,0.3);
-        }
-        .hero-section h2 {
-            font-size: 22px;
-            margin-bottom: 10px;
-            color: var(--gold);
-        }
-        .hero-section p {
-            color: var(--gray);
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        .value-badge {
-            background: var(--primary);
-            border-radius: 30px;
-            padding: 8px 20px;
-            display: inline-block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
         
         /* Info Cards */
         .info-card {
@@ -91,123 +65,37 @@
         .info-card h3 i {
             font-size: 22px;
         }
-        .info-card p {
-            color: var(--gray);
-            font-size: 14px;
-            line-height: 1.5;
-            margin-bottom: 10px;
-        }
         
-        /* Steps Grid */
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .step-item {
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-        }
-        .step-number {
-            width: 35px;
-            height: 35px;
-            background: var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 10px;
-            font-weight: bold;
-            font-size: 18px;
-        }
-        .step-title {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-        .step-desc {
-            font-size: 11px;
-            color: var(--gray);
-        }
-        
-        /* Earnings Table */
-        .earnings-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .earnings-table th, .earnings-table td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .earnings-table th {
-            color: var(--gold);
-            font-weight: 600;
-            font-size: 13px;
-        }
-        .earnings-table td {
-            font-size: 13px;
-            color: var(--gray);
-        }
-        .highlight {
-            color: var(--gold);
-            font-weight: bold;
-        }
-        
-        /* Prize Grid */
-        .prize-grid-small {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .prize-card-small {
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            padding: 12px;
-            text-align: center;
-        }
-        .prize-medal-small {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-        .prize-amount-small {
-            font-size: 14px;
-            font-weight: bold;
-            color: var(--gold);
-        }
-        
-        /* FAQ Section */
+        /* FAQ Section - ANSWERS VISIBLE BY DEFAULT */
         .faq-item {
             border-bottom: 1px solid rgba(255,255,255,0.1);
             padding: 15px 0;
         }
+        .faq-item:last-child {
+            border-bottom: none;
+        }
         .faq-question {
-            font-weight: 600;
-            font-size: 15px;
+            font-weight: 700;
+            font-size: 16px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            margin-bottom: 8px;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: var(--gold);
         }
         .faq-question i {
-            color: var(--gold);
-            transition: transform 0.3s;
+            color: var(--primary);
+            font-size: 18px;
+            width: 24px;
         }
         .faq-answer {
             color: var(--gray);
             font-size: 13px;
-            line-height: 1.5;
-            padding-left: 28px;
-            display: none;
+            line-height: 1.6;
+            padding-left: 34px;
         }
-        .faq-answer.show {
-            display: block;
+        .faq-answer strong {
+            color: var(--gold);
         }
         
         /* Bottom Navigation */
@@ -230,20 +118,47 @@
             border-radius: 10px; text-align: center; display: none; z-index: 1000;
             font-size: 13px;
         }
+        
+        .value-badge {
+            background: var(--primary);
+            border-radius: 30px;
+            padding: 8px 20px;
+            display: inline-block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #2196F320, #1976D220);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+            border: 1px solid rgba(33,150,243,0.3);
+        }
+        .hero-section h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: var(--gold);
+        }
+        .hero-section p {
+            color: var(--gray);
+            font-size: 14px;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
-        <h1><i class="fas fa-question-circle"></i> How It Works</h1>
+        <h1><i class="fas fa-question-circle"></i> About & FAQ</h1>
         <p>Everything you need to know about YzemanBot</p>
     </div>
     
     <div class="content-container">
         <!-- Hero Section -->
         <div class="hero-section">
-            <h2>💰 Earn COINS, Win Prizes, Withdraw Value!</h2>
+            <h2>💰 Welcome to YzemanBot!</h2>
             <p>YzemanBot is a Telegram Mini App that rewards you with COINS for watching ads, referring friends, completing daily tasks, and competing in tournaments. The more active you are, the more you earn!</p>
             <div class="value-badge">
                 <i class="fas fa-chart-line"></i> 100,000 COINS = Dynamic USD Value
@@ -251,297 +166,193 @@
         </div>
         
         <!-- ============================================ -->
-        <!-- DYNAMIC VALUE EXPLANATION - UPDATED -->
-        <!-- ============================================ -->
-        <div class="info-card">
-            <h3><i class="fas fa-dollar-sign"></i> 💎 The Value of Your COINS</h3>
-            <p><strong>100,000 COINS is currently estimated at $2,000 USD!</strong> But here's the exciting part...</p>
-            <p style="background: rgba(76,175,80,0.1); padding: 15px; border-radius: 12px; margin: 10px 0;">
-                <i class="fas fa-chart-line" style="color: var(--gold); font-size: 20px;"></i>
-                <strong>The value is DYNAMIC and can INCREASE!</strong><br><br>
-                As more users join YzemanBot and watch more ads, the platform generates more revenue. A portion of that revenue backs the value of your COINS. This means:
-            </p>
-            <ul style="color: var(--gray); font-size: 13px; line-height: 1.8; padding-left: 20px;">
-                <li>✅ <strong>More active users</strong> = Higher ad revenue = Higher COINS value</li>
-                <li>✅ <strong>Your 100,000 COINS could be worth $2,000, $5,000, or even $10,000+</strong> as the app grows!</li>
-                <li>✅ <strong>The value is determined by:</strong> Total ads watched × Ad revenue ÷ Total COINS in circulation</li>
-                <li>✅ <strong>Early adopters benefit the most</strong> - the more you earn now, the more you'll have when value increases!</li>
-            </ul>
-            <p style="margin-top: 12px; font-size: 12px; color: var(--gray);">⚠️ Note: The value fluctuates based on platform activity. Withdrawals are processed at the current value at the time of request.</p>
-        </div>
-        
-        <!-- How It Works -->
-        <div class="info-card">
-            <h3><i class="fas fa-play-circle"></i> How to Earn COINS</h3>
-            <div class="steps-grid">
-                <div class="step-item">
-                    <div class="step-number">1</div>
-                    <div class="step-title">Watch Ads</div>
-                    <div class="step-desc">Earn 0.2 - 1.0 COINS per ad. Higher tier = more COINS!</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">2</div>
-                    <div class="step-title">Refer Friends</div>
-                    <div class="step-desc">Get 5-25 COINS per referral + 2% lifetime commission</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">3</div>
-                    <div class="step-title">Daily Rewards</div>
-                    <div class="step-desc">Claim daily bonuses. Streak = bigger rewards!</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">4</div>
-                    <div class="step-title">Spin the Wheel</div>
-                    <div class="step-desc">Win 50 - 2,000 COINS every 3 days!</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">5</div>
-                    <div class="step-title">Complete Achievements</div>
-                    <div class="step-desc">Unlock badges for bonus COINS (up to 15,000!)</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">6</div>
-                    <div class="step-title">Join Tournaments</div>
-                    <div class="step-desc">Compete weekly for 2,000 / 1,000 / 500 COINS prizes</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">7</div>
-                    <div class="step-title">Team Battles</div>
-                    <div class="step-desc">Join a team and win monthly prizes (2,500 each member!)</div>
-                </div>
-                <div class="step-item">
-                    <div class="step-number">8</div>
-                    <div class="step-title">Bonus Codes</div>
-                    <div class="step-desc">Redeem special codes for extra COINS</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Tier System -->
-        <div class="info-card">
-            <h3><i class="fas fa-chart-line"></i> Tier System - Earn More by Referring!</h3>
-            <p>Your tier determines how many COINS you earn per ad. Increase your tier by referring friends!</p>
-            <table class="earnings-table">
-                <thead>
-                    <tr><th>Tier</th><th>Referrals Needed</th><th>Reward per Ad</th></tr>
-                </thead>
-                <tbody>
-                    <tr><td>🌱 Fresher</td><td>0</td><td class="highlight">0.20 COINS</td></tr>
-                    <tr><td>🔥 Brute</td><td>150</td><td class="highlight">0.35 COINS</td></tr>
-                    <tr><td>🥈 Silver</td><td>350</td><td class="highlight">0.50 COINS</td></tr>
-                    <tr><td>🥇 Gold</td><td>700</td><td class="highlight">0.75 COINS</td></tr>
-                    <tr><td>💎 Platinum</td><td>1,500</td><td class="highlight">1.00 COINS</td></tr>
-                </tbody>
-            </table>
-            <p style="margin-top: 10px; font-size: 12px;"><i class="fas fa-gift"></i> <strong>Plus:</strong> Each referral gives you tier-based COINS + 2% lifetime commission on their earnings!</p>
-        </div>
-        
-        <!-- Monthly Competition -->
-        <div class="info-card">
-            <h3><i class="fas fa-trophy"></i> Monthly Leaderboard Competition</h3>
-            <p>Every month, the top 3 earners win BIG prizes! Your monthly earnings reset on the 1st, giving everyone a fair chance!</p>
-            <div class="prize-grid-small">
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥇</div>
-                    <div class="prize-amount-small">5,000 COINS</div>
-                    <div style="font-size: 10px; color: var(--gray);">1st Place</div>
-                </div>
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥈</div>
-                    <div class="prize-amount-small">3,000 COINS</div>
-                    <div style="font-size: 10px; color: var(--gray);">2nd Place</div>
-                </div>
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥉</div>
-                    <div class="prize-amount-small">1,000 COINS</div>
-                    <div style="font-size: 10px; color: var(--gray);">3rd Place</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Weekly Tournaments -->
-        <div class="info-card">
-            <h3><i class="fas fa-calendar-week"></i> Weekly Tournament</h3>
-            <p>Join the weekly tournament (Monday - Sunday). All your COINS earned during the week count toward your tournament score! Top 3 winners receive:</p>
-            <div class="prize-grid-small">
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥇</div>
-                    <div class="prize-amount-small">2,000 COINS</div>
-                </div>
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥈</div>
-                    <div class="prize-amount-small">1,000 COINS</div>
-                </div>
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥉</div>
-                    <div class="prize-amount-small">500 COINS</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Team Competition -->
-        <div class="info-card">
-            <h3><i class="fas fa-users"></i> Team Battles</h3>
-            <p>Create or join a team! Every member's monthly earnings contribute to the team's total. Top 3 teams win prizes for EVERY member!</p>
-            <div class="prize-grid-small">
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥇</div>
-                    <div class="prize-amount-small">2,500 COINS</div>
-                    <div style="font-size: 10px; color: var(--gray);">per member</div>
-                </div>
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥈</div>
-                    <div class="prize-amount-small">1,000 COINS</div>
-                    <div style="font-size: 10px; color: var(--gray);">per member</div>
-                </div>
-                <div class="prize-card-small">
-                    <div class="prize-medal-small">🥉</div>
-                    <div class="prize-amount-small">500 COINS</div>
-                    <div style="font-size: 10px; color: var(--gray);">per member</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Bonus Features -->
-        <div class="info-card">
-            <h3><i class="fas fa-star"></i> Bonus Features</h3>
-            <table class="earnings-table">
-                <thead><tr><th>Feature</th><th>Reward</th><th>How to Get</th></tr></thead>
-                <tbody>
-                    <tr><td>Daily Streak</td><td>+0.1 COINS/day</td><td>Claim daily without missing</td></tr>
-                    <tr><td>Weekly Bonus</td><td>+1 COINS</td><td>7-day streak</td></tr>
-                    <tr><td>Daily Goal</td><td>+2 COINS</td><td>Watch 20 ads/day</td></tr>
-                    <tr><td>Weekly Goal</td><td>+15 COINS</td><td>Watch 100 ads/week</td></tr>
-                    <tr><td>Random Bonus</td><td>2x, 5x, 10x, 25x</td><td>Lucky ad watch!</td></tr>
-                    <tr><td>Ad Milestones</td><td>10 - 2,500 COINS</td><td>Reach 100, 250, 500, etc. ads</td></tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Achievements -->
-        <div class="info-card">
-            <h3><i class="fas fa-medal"></i> Achievements & Rewards</h3>
-            <p>Unlock achievements to earn bonus COINS! Here are some of the achievements you can complete:</p>
-            <div class="steps-grid">
-                <div class="step-item"><div class="step-title">🔥 Loyal User</div><div class="step-desc">30-day streak → +500 COINS</div></div>
-                <div class="step-item"><div class="step-title">👑 Referral Master</div><div class="step-desc">100 referrals → +3,000 COINS</div></div>
-                <div class="step-item"><div class="step-title">🦋 Social Butterfly</div><div class="step-desc">All social tasks → +15,000 COINS</div></div>
-                <div class="step-item"><div class="step-title">🎡 Wheel Champion</div><div class="step-desc">Win 20+ COINS on wheel → +1,000 COINS</div></div>
-                <div class="step-item"><div class="step-title">👑 Referral King</div><div class="step-desc">1,000 referrals → +15,000 COINS</div></div>
-                <div class="step-item"><div class="step-title">🏅 Team Winner</div><div class="step-desc">Team wins monthly → +5,000 COINS</div></div>
-            </div>
-        </div>
-        
-        <!-- ============================================ -->
-        <!-- FAQ SECTION - ALL QUESTIONS ANSWERED -->
+        <!-- FAQ SECTION - ALL ANSWERS VISIBLE -->
         <!-- ============================================ -->
         <div class="info-card">
             <h3><i class="fas fa-question-circle"></i> Frequently Asked Questions</h3>
             
+            <!-- Question 1 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How do I get my referral link?
+                <div class="faq-question">
+                    <i class="fas fa-link"></i> How do I get my referral link?
                 </div>
-                <div class="faq-answer">Go to the "Refer" tab in the app. Your unique referral link will be displayed there. Share it with friends! When they join using your link, you both earn COINS. You'll earn tier-based COINS (5-25 per referral) plus 2% lifetime commission on everything they earn!</div>
+                <div class="faq-answer">
+                    Go to the <strong>"Refer" tab</strong> in the app. Your unique referral link will be displayed there. Share it with friends! When they join using your link, you both earn COINS. You'll earn tier-based COINS (5-25 per referral) plus <strong>2% lifetime commission</strong> on everything they earn!
+                </div>
             </div>
             
+            <!-- Question 2 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How often can I spin the wheel?
+                <div class="faq-question">
+                    <i class="fas fa-dharmachakra"></i> How often can I spin the wheel?
                 </div>
-                <div class="faq-answer">You can spin the wheel once every 3 days. The timer on the wheel page shows exactly when your next spin is available. Prizes range from 50 to 2,000 COINS, and your tier multiplier applies (up to 3x for Platinum users)!</div>
+                <div class="faq-answer">
+                    You can spin the wheel <strong>once every 3 days</strong>. The timer on the wheel page shows exactly when your next spin is available. Prizes range from <strong>50 to 2,000 COINS</strong>, and your tier multiplier applies (up to 3x for Platinum users)! That means a Platinum user could win up to 6,000 COINS in one spin!
+                </div>
             </div>
             
+            <!-- Question 3 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> What happens if I miss a day of daily reward?
+                <div class="faq-question">
+                    <i class="fas fa-calendar-check"></i> What happens if I miss a day of daily reward?
                 </div>
-                <div class="faq-answer">If you miss a day, your streak resets to 1. But don't worry - you can always start building your streak again! The longer your streak, the more COINS you earn per day (up to +0.1 COINS per day, plus +1 COINS every 7 days).</div>
+                <div class="faq-answer">
+                    If you miss a day, your <strong>streak resets to 1</strong>. But don't worry - you can always start building your streak again! The longer your streak, the more COINS you earn per day (up to +0.1 COINS per day, plus +1 COINS every 7 days). A 30-day streak earns you 7.20 COINS per day!
+                </div>
             </div>
             
+            <!-- Question 4 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How do I increase my tier?
+                <div class="faq-question">
+                    <i class="fas fa-chart-line"></i> How do I increase my tier?
                 </div>
-                <div class="faq-answer">Your tier increases automatically when you reach the required number of referrals. More referrals = Higher tier = More COINS per ad! For example, a Platinum user (1,500+ referrals) earns 1.0 COINS per ad, while a Fresher earns only 0.2 COINS per ad. That's 5x more earnings!</div>
+                <div class="faq-answer">
+                    Your tier increases <strong>automatically</strong> when you reach the required number of referrals:
+                    <br>• <strong>Brute:</strong> 150 referrals → 0.35 COINS/ad
+                    <br>• <strong>Silver:</strong> 350 referrals → 0.50 COINS/ad
+                    <br>• <strong>Gold:</strong> 700 referrals → 0.75 COINS/ad
+                    <br>• <strong>Platinum:</strong> 1,500 referrals → 1.00 COINS/ad
+                    <br><strong>More referrals = Higher tier = More COINS per ad (up to 5x more!)</strong>
+                </div>
             </div>
             
+            <!-- Question 5 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How do I withdraw my COINS?
+                <div class="faq-question">
+                    <i class="fas fa-wallet"></i> How do I withdraw my COINS?
                 </div>
-                <div class="faq-answer">Go to the "Withdraw" tab, save your USDT (TRC-20) wallet address, and click "Request Withdrawal" once you have at least 100,000 COINS. Withdrawals are processed manually and reviewed by admins. The value of your COINS is dynamic and based on overall platform activity!</div>
+                <div class="faq-answer">
+                    Go to the <strong>"Withdraw" tab</strong>, save your <strong>USDT (TRC-20)</strong> wallet address, and click "Request Withdrawal" once you have at least <strong>100,000 COINS</strong>. Withdrawals are processed manually and reviewed by admins. The value of your COINS is dynamic and based on overall platform activity!
+                </div>
             </div>
             
+            <!-- Question 6 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> What are bonus codes and how do I get them?
+                <div class="faq-question">
+                    <i class="fas fa-gift"></i> What are bonus codes and how do I get them?
                 </div>
-                <div class="faq-answer">Bonus codes are special codes that give you extra COINS! Join our Telegram channel (@YzemanEarnBotChannel) to get notified about new bonus codes. Codes are also sometimes shared in the app's broadcast messages. Enter them in the "Bonus" tab to redeem instantly!</div>
+                <div class="faq-answer">
+                    Bonus codes are special codes that give you <strong>extra COINS</strong>! Join our Telegram channel (<strong>@YzemanEarnBotChannel</strong>) to get notified about new bonus codes. Codes are also sometimes shared in the app's broadcast messages. Enter them in the <strong>"Bonus" tab</strong> to redeem instantly!
+                </div>
             </div>
             
+            <!-- Question 7 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> Is there a limit to how many ads I can watch?
+                <div class="faq-question">
+                    <i class="fas fa-play-circle"></i> Is there a limit to how many ads I can watch?
                 </div>
-                <div class="faq-answer">No! You can watch unlimited ads. The more you watch, the more COINS you earn! There's no daily limit, no hourly limit - watch as many as you want. Every ad gives you base COINS plus random bonus chances (2x, 5x, 10x, or even 25x!).</div>
+                <div class="faq-answer">
+                    <strong>NO!</strong> You can watch <strong>unlimited ads</strong>. The more you watch, the more COINS you earn! There's no daily limit, no hourly limit - watch as many as you want. Every ad gives you base COINS plus random bonus chances (<strong>2x, 5x, 10x, or even 25x!</strong>).
+                </div>
             </div>
             
+            <!-- Question 8 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How does the 2% referral commission work?
+                <div class="faq-question">
+                    <i class="fas fa-hand-holding-usd"></i> How does the 2% referral commission work?
                 </div>
-                <div class="faq-answer">When someone you referred earns COINS (from ads, wheel spins, daily rewards, etc.), you automatically get 2% of their earnings. This is LIFETIME commission - you keep earning as long as they keep earning. The more successful your referrals are, the more you earn passively!</div>
+                <div class="faq-answer">
+                    When someone you referred earns COINS (from ads, wheel spins, daily rewards, etc.), you <strong>automatically get 2% of their earnings</strong>. This is <strong>LIFETIME commission</strong> - you keep earning as long as they keep earning. The more successful your referrals are, the more you earn <strong>passively</strong>!
+                </div>
             </div>
             
+            <!-- Question 9 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> What is the value of 100,000 COINS?
+                <div class="faq-question">
+                    <i class="fas fa-dollar-sign"></i> What is the value of 100,000 COINS?
                 </div>
-                <div class="faq-answer">Currently, 100,000 COINS is valued at approximately $2,000 USD. However, the value is DYNAMIC and can INCREASE as more users join and the platform grows! The value is determined by total ad revenue divided by total COINS in circulation. Early adopters benefit the most!</div>
+                <div class="faq-answer">
+                    Currently, <strong>100,000 COINS is valued at approximately $2,000 USD</strong>. However, the value is <strong>DYNAMIC</strong> and can <strong>INCREASE</strong> as more users join and the platform grows! The value is determined by total ad revenue divided by total COINS in circulation. <strong>Early adopters benefit the most!</strong>
+                </div>
             </div>
             
+            <!-- Question 10 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How do I join a team?
+                <div class="faq-question">
+                    <i class="fas fa-users"></i> How do I join a team?
                 </div>
-                <div class="faq-answer">Go to the "Team" tab in the app. You can either create your own team (costs nothing!) or join an existing team using a 6-character team code. Teams compete monthly for prizes - top 3 teams give EVERY member 2,500/1,000/500 COINS!</div>
+                <div class="faq-answer">
+                    Go to the <strong>"Team" tab</strong> in the app. You can either:
+                    <br>• <strong>Create your own team</strong> (costs nothing!)
+                    <br>• <strong>Join an existing team</strong> using a 6-character team code
+                    <br>Teams compete monthly for prizes - <strong>top 3 teams give EVERY member 2,500/1,000/500 COINS!</strong>
+                </div>
             </div>
             
+            <!-- Question 11 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> How do I win tournament prizes?
+                <div class="faq-question">
+                    <i class="fas fa-trophy"></i> How do I win tournament prizes?
                 </div>
-                <div class="faq-answer">First, join the tournament in the "Tournament" tab. Then simply earn COINS as you normally would - every COINS you earn during the week counts toward your tournament score. Top 3 at the end of the week (Sunday) win 2,000/1,000/500 COINS. Prizes are awarded automatically on Monday!</div>
+                <div class="faq-answer">
+                    First, <strong>join the tournament</strong> in the "Tournament" tab. Then simply earn COINS as you normally would - every COINS you earn during the week counts toward your tournament score. <strong>Top 3 at the end of the week (Sunday)</strong> win <strong>2,000/1,000/500 COINS</strong>. Prizes are awarded automatically on Monday!
+                </div>
             </div>
             
+            <!-- Question 12 -->
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFAQ(this)">
-                    <i class="fas fa-chevron-right"></i> What are the random ad bonuses?
+                <div class="faq-question">
+                    <i class="fas fa-star"></i> What are the random ad bonuses?
                 </div>
-                <div class="faq-answer">Every ad you watch has a chance to give you a random multiplier:
-                    - 15% chance for 2x (Lucky Ad)
-                    - 5% chance for 5x (Golden Ad)
-                    - 1% chance for 10x (MEGA Ad)
-                    - 0.2% chance for 25x (EPIC Ad!)
-                This means you could earn 25x your normal reward from a single ad! Keep watching - you never know when you'll get lucky!</div>
+                <div class="faq-answer">
+                    Every ad you watch has a chance to give you a random multiplier:
+                    <br>• <strong>15% chance</strong> for <strong>2x</strong> (Lucky Ad) ✨
+                    <br>• <strong>5% chance</strong> for <strong>5x</strong> (Golden Ad) ⭐
+                    <br>• <strong>1% chance</strong> for <strong>10x</strong> (MEGA Ad) 🌟
+                    <br>• <strong>0.2% chance</strong> for <strong>25x</strong> (EPIC Ad!) 🔥
+                    <br>This means you could earn <strong>25x your normal reward from a single ad!</strong> Keep watching - you never know when you'll get lucky!
+                </div>
+            </div>
+            
+            <!-- Question 13 -->
+            <div class="faq-item">
+                <div class="faq-question">
+                    <i class="fas fa-chart-simple"></i> How is the 100,000 COINS value calculated?
+                </div>
+                <div class="faq-answer">
+                    The value is calculated using this formula:
+                    <br><strong>Value = (Total Ad Revenue × 0.7) ÷ Total COINS in Circulation</strong>
+                    <br>• <strong>70%</strong> of ad revenue goes to the reward pool
+                    <br>• <strong>30%</strong> goes to platform operations and growth
+                    <br>As more users join and watch ads, both revenue and COINS increase, but the value can go UP or DOWN based on activity!
+                </div>
+            </div>
+            
+            <!-- Question 14 -->
+            <div class="faq-item">
+                <div class="faq-question">
+                    <i class="fas fa-clock"></i> When do monthly leaderboards reset?
+                </div>
+                <div class="faq-answer">
+                    Monthly leaderboards reset on the <strong>1st day of every month at 00:00 UTC</strong>. Everyone starts at zero, giving you a <strong>fresh chance to win every month!</strong> Top 3 earners each month win <strong>5,000 / 3,000 / 1,000 COINS</strong>.
+                </div>
+            </div>
+            
+            <!-- Question 15 -->
+            <div class="faq-item">
+                <div class="faq-question">
+                    <i class="fas fa-shield-alt"></i> Is my data safe?
+                </div>
+                <div class="faq-answer">
+                    <strong>YES!</strong> Your data is securely stored and never shared with third parties. We only use your Telegram ID, name, and username to identify you in the app. Your wallet address is stored securely and only used for withdrawals.
+                </div>
             </div>
         </div>
         
         <!-- Pro Tips -->
         <div class="info-card">
             <h3><i class="fas fa-lightbulb"></i> Pro Tips to Maximize Your Earnings</h3>
-            <ul style="color: var(--gray); font-size: 13px; line-height: 1.8; padding-left: 20px;">
-                <li>✅ <strong>Don't break your daily streak!</strong> Streak bonuses add up significantly over time.</li>
-                <li>✅ <strong>Refer as many friends as possible.</strong> Higher tier = more COINS per ad (up to 5x more!).</li>
-                <li>✅ <strong>Watch ads consistently.</strong> Random bonuses (2x, 5x, 10x, 25x) can boost your earnings dramatically.</li>
-                <li>✅ <strong>Join a team.</strong> Team prizes give every member COINS, boosting your monthly total.</li>
-                <li>✅ <strong>Complete achievements.</strong> They give one-time bonus COINS that count toward your monthly earnings.</li>
-                <li>✅ <strong>Spin the wheel every 3 days.</strong> You could win up to 2,000 COINS!</li>
-                <li>✅ <strong>Check leaderboard regularly.</strong> Know your rank and push for top 3 at month-end!</li>
-                <li>✅ <strong>Join the weekly tournament.</strong> It's free and you could win 2,000 COINS!</li>
-                <li>✅ <strong>Follow our Telegram channel</strong> for exclusive bonus codes!</li>
-            </ul>
+            <div class="faq-answer" style="padding-left: 0;">
+                <p>✅ <strong>Don't break your daily streak!</strong> Streak bonuses add up significantly over time.</p>
+                <p>✅ <strong>Refer as many friends as possible.</strong> Higher tier = more COINS per ad (up to 5x more!).</p>
+                <p>✅ <strong>Watch ads consistently.</strong> Random bonuses (2x, 5x, 10x, 25x) can boost your earnings dramatically.</p>
+                <p>✅ <strong>Join a team.</strong> Team prizes give every member COINS, boosting your monthly total.</p>
+                <p>✅ <strong>Complete achievements.</strong> They give one-time bonus COINS that count toward your monthly earnings.</p>
+                <p>✅ <strong>Spin the wheel every 3 days.</strong> You could win up to 2,000 COINS!</p>
+                <p>✅ <strong>Check leaderboard regularly.</strong> Know your rank and push for top 3 at month-end!</p>
+                <p>✅ <strong>Join the weekly tournament.</strong> It's free and you could win 2,000 COINS!</p>
+                <p>✅ <strong>Follow our Telegram channel</strong> for exclusive bonus codes!</p>
+            </div>
         </div>
     </div>
     
@@ -560,17 +371,6 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        function toggleFAQ(element) {
-            const answer = element.nextElementSibling;
-            const icon = element.querySelector('i');
-            answer.classList.toggle('show');
-            if (answer.classList.contains('show')) {
-                icon.style.transform = 'rotate(90deg)';
-            } else {
-                icon.style.transform = 'rotate(0deg)';
-            }
-        }
-        
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
             notif.textContent = msg;
@@ -578,10 +378,6 @@
             notif.style.display = 'block';
             setTimeout(() => notif.style.display = 'none', 3000);
         }
-        
-        document.querySelectorAll('.faq-question').forEach(q => {
-            q.addEventListener('click', () => toggleFAQ(q));
-        });
     </script>
 </body>
 </html>
