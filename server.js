@@ -860,13 +860,14 @@ app.post('/api/earnings-history', verifyTelegramData, async (req, res) => {
 
 
 // ============================================
-// DAILY REWARD ENDPOINT (WITH TRACKING)
+// DAILY REWARD ENDPOINT (WITH TRACKING) - FIXED
 // ============================================
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
     const telegramId = req.telegramUser.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     
     const userResult = await client.query('SELECT id, last_login_date FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
@@ -874,17 +875,27 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     const userId = userResult.rows[0].id;
     const lastLogin = userResult.rows[0].last_login_date;
     
-    const existing = await client.query('SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2', [userId, today]);
+    const existing = await client.query('SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2', [userId, todayStr]);
     if (existing.rows.length > 0) return res.status(400).json({ error: 'Already claimed today' });
     
     let streak = 1;
+    
+    // Calculate yesterday's date
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    // Check if last_login_date is yesterday (as DATE type)
     if (lastLogin) {
-      const yesterday = new Date(); 
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      // Convert last_login_date to string for comparison
+      const lastLoginStr = lastLogin instanceof Date ? lastLogin.toISOString().split('T')[0] : lastLogin;
       
-      if (lastLogin.toISOString().split('T')[0] === yesterdayStr) {
-        const lastStreak = await client.query('SELECT streak_count FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 1', [userId]);
+      if (lastLoginStr === yesterdayStr) {
+        // Get last streak count
+        const lastStreak = await client.query(
+          'SELECT streak_count FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 1',
+          [userId]
+        );
         streak = (lastStreak.rows[0]?.streak_count || 0) + 1;
       }
     }
@@ -900,19 +911,24 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    // Insert into daily_rewards (handles both old and new column structure)
+    // Insert into daily_rewards
     await client.query(
-      'INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins, reward_points) VALUES ($1, $2, $3, $4, $5)',
-      [userId, today, streak, finalReward, Math.floor(finalReward * 1000000)]
+      `INSERT INTO daily_rewards (user_id, reward_date, streak_count, reward_coins) 
+       VALUES ($1, $2, $3, $4)`,
+      [userId, todayStr, streak, finalReward]
     );
     
-    // Update user balance
+    // Update user balance AND last_login_date
     await client.query(
-      'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1, last_login_date = $2 WHERE id = $3',
-      [finalReward, today, userId]
+      `UPDATE users 
+       SET coins = coins + $1, 
+           total_coins_earned = total_coins_earned + $1, 
+           last_login_date = $2 
+       WHERE id = $3`,
+      [finalReward, todayStr, userId]
     );
     
-    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    // Track in ad_rewards for tournament/leaderboard
     await client.query(
       'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
       [userId, finalReward, 'daily']
@@ -936,33 +952,64 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   }
 });
 
+// ============================================
+// DAILY STATS ENDPOINT (FIXED)
+// ============================================
 app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
   try {
     const telegramId = req.telegramUser.id;
     const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.json({ claimed_today: false, last_7_days: [], max_streak: 0, current_streak: 0 });
+    
     const userId = userResult.rows[0].id;
-    const today = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
     
-    const claimedToday = await pool.query('SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2', [userId, today]);
-    const last7Days = await pool.query(`SELECT reward_date, streak_count, reward_coins FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 7`, [userId]);
-    const maxStreak = await pool.query(`SELECT COALESCE(MAX(streak_count), 0) as max_streak FROM daily_rewards WHERE user_id = $1`, [userId]);
+    // Check if claimed today
+    const claimedToday = await pool.query(
+      'SELECT * FROM daily_rewards WHERE user_id = $1 AND reward_date = $2',
+      [userId, todayStr]
+    );
     
+    // Get last 7 days
+    const last7Days = await pool.query(
+      `SELECT reward_date, streak_count, reward_coins 
+       FROM daily_rewards 
+       WHERE user_id = $1 
+       ORDER BY reward_date DESC 
+       LIMIT 7`,
+      [userId]
+    );
+    
+    // Get max streak
+    const maxStreak = await pool.query(
+      `SELECT COALESCE(MAX(streak_count), 0) as max_streak 
+       FROM daily_rewards 
+       WHERE user_id = $1`,
+      [userId]
+    );
+    
+    // Calculate current streak from last entry
     let currentStreak = 0;
     if (last7Days.rows.length > 0) {
-      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-      if (last7Days.rows[0].reward_date === today || last7Days.rows[0].reward_date === yesterday.toISOString().split('T')[0]) {
-        currentStreak = last7Days.rows[0].streak_count;
+      const lastEntry = last7Days.rows[0];
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      
+      // If last claim was today or yesterday, streak continues
+      if (lastEntry.reward_date === todayStr || lastEntry.reward_date === yesterdayStr) {
+        currentStreak = lastEntry.streak_count;
       }
     }
     
     res.json({
       claimed_today: claimedToday.rows.length > 0,
       last_7_days: last7Days.rows,
-      max_streak: maxStreak.rows[0].max_streak,
+      max_streak: parseInt(maxStreak.rows[0].max_streak) || 0,
       current_streak: currentStreak
     });
   } catch (err) {
+    console.error('Daily stats error:', err);
     res.status(500).json({ error: err.message });
   }
 });
