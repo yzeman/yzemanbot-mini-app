@@ -379,5 +379,24 @@
             setTimeout(() => notif.style.display = 'none', 3000);
         }
     </script>
+    <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
+    
+    function toggleFAQ(element) {
+        const answer = element.nextElementSibling;
+        const icon = element.querySelector('i');
+        answer.classList.toggle('show');
+        if (answer.classList.contains('show')) {
+            icon.style.transform = 'rotate(90deg)';
+        } else {
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+    
+    document.querySelectorAll('.faq-question').forEach(q => {
+        q.addEventListener('click', () => toggleFAQ(q));
+    });
+</script>
 </body>
 </html>
