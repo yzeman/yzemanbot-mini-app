@@ -29,6 +29,29 @@
             overflow-x: hidden;
             width: 100%;
         }
+        
+        /* Refresh Indicator */
+        .refresh-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .refresh-indicator.show {
+            transform: translateY(0);
+        }
+        .refresh-indicator i {
+            margin-right: 5px;
+        }
+        
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
             padding: 20px 15px 30px;
@@ -43,43 +66,174 @@
             position: absolute; top: 20px; left: 20px;
             color: white; font-size: 24px; text-decoration: none; z-index: 10;
         }
-        .wheel-container { display: flex; justify-content: center; margin: 20px 15px; }
-        .wheel-wrapper { position: relative; width: 100%; max-width: 350px; margin: 0 auto; }
-        #wheelCanvas { width: 100%; height: auto; display: block; }
+        
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes skeleton-wave {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .skeleton-wheel {
+            width: 100%;
+            max-width: 350px;
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+        .skeleton-wheel::after {
+            content: "🎡";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            opacity: 0.3;
+        }
+        .skeleton-prizes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .skeleton-prize-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+        }
+        .skeleton-prize-color {
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            margin: 0 auto 8px;
+        }
+        .skeleton-prize-value {
+            width: 40px;
+            height: 16px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        .skeleton-status-card {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
+            text-align: center;
+        }
+        .skeleton-status-text {
+            width: 60%;
+            height: 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto 10px;
+        }
+        .skeleton-timer-text {
+            width: 40%;
+            height: 32px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 10px auto;
+        }
+        .skeleton-last-reward {
+            width: 50%;
+            height: 14px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        
+        .wheel-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 15px;
+            position: relative;
+        }
+        .wheel-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+        #wheelCanvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 50%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: box-shadow 0.3s ease;
+        }
+        #wheelCanvas.spinning {
+            box-shadow: 0 0 20px rgba(255,215,0,0.5);
+        }
         .wheel-pointer {
-            position: absolute; top: -15px; left: 50%;
-            transform: translateX(-50%); font-size: 40px;
-            color: var(--gold); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            color: var(--gold);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
             z-index: 10;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
         }
         .spin-btn-container { text-align: center; margin: 20px 15px; }
         .spin-btn {
             background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
-            color: white; border: none; padding: 18px 50px;
-            border-radius: 50px; font-size: 20px; font-weight: bold;
-            cursor: pointer; box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-            width: 100%; max-width: 300px;
-            transition: transform 0.2s ease;
+            color: white;
+            border: none;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            width: 100%;
+            max-width: 300px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .spin-btn:active { transform: scale(0.98); }
+        .spin-btn:active { transform: scale(0.96); }
         .spin-btn:disabled { background: var(--gray); box-shadow: none; cursor: not-allowed; opacity: 0.7; transform: none; }
+        
         .status-card {
-            background: var(--darker); border-radius: 20px;
-            padding: 20px; margin: 20px 15px; text-align: center;
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
+            text-align: center;
         }
         .status-text { font-size: 18px; margin-bottom: 10px; }
         .timer-text { font-size: 32px; font-weight: bold; color: var(--gold); margin: 10px 0; }
         .last-reward { color: var(--gray); font-size: 14px; }
+        
         .prizes-section {
-            background: var(--darker); border-radius: 20px;
-            padding: 20px; margin: 20px 15px;
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 15px;
         }
-        .prizes-title { font-size: 18px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .prizes-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         .prizes-title i { color: var(--gold); }
         .prizes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .prize-item {
-            background: rgba(255,255,255,0.05); border-radius: 12px;
-            padding: 12px; text-align: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
             transition: transform 0.2s ease;
         }
         .prize-item:hover { transform: translateY(-2px); }
@@ -87,16 +241,12 @@
         .prize-value { font-size: 16px; font-weight: bold; color: var(--gold); }
         .prize-label { font-size: 10px; color: var(--gray); margin-top: 3px; }
         
-        /* ============================================
-           ATTRACTIVE INFO BOX - RARITY EXPLANATION
-        ============================================ */
         .rarity-section {
             background: var(--darker);
             border-radius: 20px;
             padding: 20px;
             margin: 20px 15px;
         }
-        
         .rarity-title {
             font-size: 16px;
             font-weight: 600;
@@ -106,14 +256,12 @@
             gap: 8px;
             color: var(--gold);
         }
-        
         .rarity-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
             margin-bottom: 15px;
         }
-        
         .rarity-card {
             background: rgba(255,255,255,0.05);
             border-radius: 16px;
@@ -121,37 +269,16 @@
             text-align: center;
             transition: all 0.3s ease;
         }
-        
         .rarity-card.easy { border-bottom: 3px solid #4CAF50; }
         .rarity-card.medium { border-bottom: 3px solid #FF9800; }
         .rarity-card.rare { border-bottom: 3px solid #F44336; }
-        
-        .rarity-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
-        }
-        
-        .rarity-name {
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
+        .rarity-icon { font-size: 32px; margin-bottom: 8px; }
+        .rarity-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
         .rarity-name.easy { color: #4CAF50; }
         .rarity-name.medium { color: #FF9800; }
         .rarity-name.rare { color: #F44336; }
-        
-        .rarity-values {
-            font-size: 13px;
-            color: var(--gray);
-            margin-top: 5px;
-        }
-        
-        .rarity-chance {
-            font-size: 11px;
-            color: var(--gold);
-            margin-top: 8px;
-        }
+        .rarity-values { font-size: 13px; color: var(--gray); margin-top: 5px; }
+        .rarity-chance { font-size: 11px; color: var(--gold); margin-top: 8px; }
         
         .tier-multiplier-box {
             background: linear-gradient(135deg, #2196F320, #1976D220);
@@ -161,7 +288,6 @@
             text-align: center;
             border-left: 4px solid var(--secondary);
         }
-        
         .tier-multiplier-box h4 {
             font-size: 14px;
             margin-bottom: 8px;
@@ -170,12 +296,7 @@
             justify-content: center;
             gap: 6px;
         }
-        
-        .tier-multiplier-box p {
-            font-size: 12px;
-            color: var(--gray);
-        }
-        
+        .tier-multiplier-box p { font-size: 12px; color: var(--gray); }
         .multiplier-example {
             background: rgba(255,215,0,0.1);
             border-radius: 12px;
@@ -183,71 +304,93 @@
             margin-top: 10px;
             font-size: 11px;
         }
-        
         .info-box {
             background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 15px; padding: 15px; margin: 20px 15px;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 20px 15px;
             border-left: 4px solid var(--secondary);
         }
         .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: var(--darker); display: flex; padding: 10px 20px;
-            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            display: flex;
+            padding: 10px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
         }
         .nav-item {
-            flex: 1; text-align: center; color: var(--gray);
-            text-decoration: none; font-size: 12px; padding: 8px;
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 12px;
+            padding: 8px;
             border-radius: 10px;
         }
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
         .notification {
-            position: fixed; bottom: 90px; left: 20px; right: 20px;
-            background: var(--success); color: white; padding: 15px 20px;
-            border-radius: 12px; text-align: center; display: none; z-index: 1000;
+            position: fixed;
+            bottom: 90px;
+            left: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
         }
         .notification.error { background: var(--danger); }
         .retry-btn {
-            background: var(--secondary); color: white; border: none;
-            padding: 10px 20px; border-radius: 20px; font-size: 14px;
-            cursor: pointer; margin-top: 10px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-arrow-down"></i> Pull to refresh
+    </div>
+    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     <div class="header">
         <h1><i class="fas fa-dharmachakra"></i> Wheel of Fortune</h1>
         <p>Spin every 3 days to win COINS!</p>
     </div>
+    
+    <!-- Wheel Container -->
     <div class="wheel-container">
         <div class="wheel-wrapper">
             <div class="wheel-pointer">▼</div>
             <canvas id="wheelCanvas" width="400" height="400"></canvas>
         </div>
     </div>
+    
+    <!-- Spin Button -->
     <div class="spin-btn-container">
         <button class="spin-btn" id="spinBtn" disabled>🎡 SPIN NOW</button>
     </div>
-    <div class="status-card">
-        <div class="status-text" id="statusText">Loading...</div>
-        <div class="timer-text" id="timerText"></div>
-        <div class="last-reward" id="lastRewardText">No spins yet!</div>
-        <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
-    </div>
     
-    <!-- Available Prizes Section -->
-    <div class="prizes-section">
-        <div class="prizes-title">
-            <i class="fas fa-gift"></i>
-            <span>Available Prizes</span>
-        </div>
-        <div class="prizes-grid" id="prizesGrid"></div>
-    </div>
+    <!-- Status Card Container -->
+    <div id="statusCardContainer"></div>
     
-    <!-- ============================================
-         ATTRACTIVE RARITY EXPLANATION SECTION
-    ============================================ -->
+    <!-- Prizes Section Container -->
+    <div id="prizesSectionContainer"></div>
+    
+    <!-- Rarity Section -->
     <div class="rarity-section">
         <div class="rarity-title">
             <i class="fas fa-chart-pie"></i>
@@ -305,10 +448,14 @@
     <script>
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
+        
+        // Pull to refresh variables
+        let touchStartY = 0;
+        let isRefreshing = false;
+        const refreshIndicator = document.getElementById('refreshIndicator');
 
         // ============================================================
         // 12 SEGMENT MIXED WHEEL - ALL VALUES MIXED
-        // Values: 50, 100, 200, 500, 50, 100, 200, 1000, 50, 100, 2000, 500
         // ============================================================
         const PRIZES = [
             { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },
@@ -335,6 +482,56 @@
             setTimeout(() => n.style.display = 'none', 4000);
         }
 
+        // ============================================
+        // SKELETON LOADING FUNCTIONS
+        // ============================================
+        
+        function showSkeleton() {
+            // Status card skeleton
+            document.getElementById('statusCardContainer').innerHTML = `
+                <div class="skeleton-status-card">
+                    <div class="skeleton-status-text"></div>
+                    <div class="skeleton-timer-text"></div>
+                    <div class="skeleton-last-reward"></div>
+                </div>
+            `;
+            
+            // Prizes section skeleton
+            let prizeItems = '';
+            for (let i = 0; i < 6; i++) {
+                prizeItems += `
+                    <div class="skeleton-prize-item">
+                        <div class="skeleton-prize-color"></div>
+                        <div class="skeleton-prize-value"></div>
+                    </div>
+                `;
+            }
+            document.getElementById('prizesSectionContainer').innerHTML = `
+                <div class="prizes-section">
+                    <div class="prizes-title">
+                        <i class="fas fa-gift"></i>
+                        <span>Available Prizes</span>
+                    </div>
+                    <div class="skeleton-prizes-grid">
+                        ${prizeItems}
+                    </div>
+                </div>
+            `;
+            
+            // Wheel canvas skeleton
+            const canvas = document.getElementById('wheelCanvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.font = "16px 'Segoe UI'";
+                ctx.textAlign = 'center';
+                ctx.fillText('🎡', canvas.width/2, canvas.height/2);
+            }
+        }
+        
         function renderPrizesGrid() {
             const uniquePrizes = [];
             const seen = new Set();
@@ -344,13 +541,40 @@
                     uniquePrizes.push(p);
                 }
             }
-            document.getElementById('prizesGrid').innerHTML = uniquePrizes.map(p => `
-                <div class="prize-item">
-                    <div class="prize-color" style="background:${p.color};"></div>
-                    <div class="prize-value">${p.label}</div>
-                    <div class="prize-label">COINS</div>
+            document.getElementById('prizesSectionContainer').innerHTML = `
+                <div class="prizes-section">
+                    <div class="prizes-title">
+                        <i class="fas fa-gift"></i>
+                        <span>Available Prizes</span>
+                    </div>
+                    <div class="prizes-grid">
+                        ${uniquePrizes.map(p => `
+                            <div class="prize-item">
+                                <div class="prize-color" style="background:${p.color};"></div>
+                                <div class="prize-value">${p.label}</div>
+                                <div class="prize-label">COINS</div>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
-            `).join('');
+            `;
+        }
+        
+        function renderStatusCard(canSpinData, daysLeft, lastReward) {
+            document.getElementById('statusCardContainer').innerHTML = `
+                <div class="status-card">
+                    <div class="status-text" id="statusText">${canSpinData ? '<span style="color:var(--success);">✅ Ready to spin!</span>' : '<span style="color:var(--warning);">⏳ Next spin available in:</span>'}</div>
+                    <div class="timer-text" id="timerText">${!canSpinData && daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''}` : ''}</div>
+                    <div class="last-reward" id="lastRewardText">${lastReward > 0 ? `Last spin: ${lastReward.toFixed(2)} COINS!` : 'No spins yet!'}</div>
+                    <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
+                </div>
+            `;
+            
+            // Re-attach retry button event
+            const retryBtn = document.getElementById('retryBtn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', loadWheelStatus);
+            }
         }
 
         function drawWheel(angle) {
@@ -401,19 +625,23 @@
             return num;
         }
 
-        async function loadWheelStatus() {
+        async function loadWheelStatus(showSkeletonLoader = true) {
             if (!tg?.initData) {
-                document.getElementById('statusText').textContent = '❌ Not in Telegram';
-                document.getElementById('retryBtn').style.display = 'block';
+                document.getElementById('statusCardContainer').innerHTML = `
+                    <div class="status-card">
+                        <div class="status-text">❌ Not in Telegram</div>
+                        <button class="retry-btn" id="retryBtn">🔄 Retry</button>
+                    </div>
+                `;
+                const retryBtn = document.getElementById('retryBtn');
+                if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
                 return;
             }
-            const statusDiv = document.getElementById('statusText');
-            const spinBtn = document.getElementById('spinBtn');
-            const retryBtn = document.getElementById('retryBtn');
-            statusDiv.textContent = 'Loading...';
-            spinBtn.disabled = true;
-            retryBtn.style.display = 'none';
-
+            
+            if (showSkeletonLoader) {
+                showSkeleton();
+            }
+            
             try {
                 const res = await fetch('/api/wheel-status', {
                     method: 'POST',
@@ -425,24 +653,26 @@
                 console.log('Wheel status:', data);
 
                 canSpin = data.can_spin;
-                statusDiv.innerHTML = data.can_spin 
-                    ? '<span style="color:var(--success);">✅ Ready to spin!</span>'
-                    : '<span style="color:var(--warning);">⏳ Next spin available in:</span>';
-                
-                const timerDiv = document.getElementById('timerText');
-                timerDiv.innerHTML = data.can_spin ? '' : `${data.days_left || 0} day${data.days_left !== 1 ? 's' : ''}`;
-                
+                const daysLeft = data.days_left || 0;
                 const lastReward = parseRewardToCoins(data.last_reward);
-                document.getElementById('lastRewardText').innerHTML = lastReward > 0 
-                    ? `Last spin: ${lastReward.toFixed(2)} COINS!` 
-                    : 'No spins yet!';
                 
-                spinBtn.disabled = !data.can_spin;
+                renderStatusCard(data.can_spin, daysLeft, lastReward);
+                
+                const spinBtn = document.getElementById('spinBtn');
+                if (spinBtn) spinBtn.disabled = !data.can_spin;
+                
                 drawWheel(wheelCurrentAngle);
+                renderPrizesGrid();
             } catch(err) {
                 console.error('Status error:', err);
-                statusDiv.textContent = '❌ Failed to load';
-                retryBtn.style.display = 'block';
+                document.getElementById('statusCardContainer').innerHTML = `
+                    <div class="status-card">
+                        <div class="status-text">❌ Failed to load</div>
+                        <button class="retry-btn" id="retryBtn">🔄 Retry</button>
+                    </div>
+                `;
+                const retryBtn = document.getElementById('retryBtn');
+                if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
                 showNotification('Could not load wheel status', true);
             }
         }
@@ -453,23 +683,36 @@
             const spinBtn = document.getElementById('spinBtn');
             spinBtn.disabled = true;
             spinBtn.textContent = '🎡 SPINNING...';
+            
+            // Add spinning class to canvas for glow effect
+            const canvas = document.getElementById('wheelCanvas');
+            if (canvas) canvas.classList.add('spinning');
 
-            const spinAngle = Math.random() * (Math.PI*2*5) + (Math.PI*2*3);
+            const spinAngle = Math.random() * (Math.PI*2*8) + (Math.PI*2*4);
             const startTime = performance.now();
-            const duration = 3000;
+            const duration = 3500;
 
             function animateSpin(now) {
-                const progress = Math.min(1, (now - startTime) / duration);
-                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const elapsed = now - startTime;
+                const progress = Math.min(1, elapsed / duration);
+                const easeOut = 1 - Math.pow(1 - progress, 4);
                 wheelCurrentAngle = (wheelCurrentAngle + spinAngle * easeOut) % (Math.PI*2);
                 drawWheel(wheelCurrentAngle);
                 if (progress < 1) {
                     wheelAnimationFrame = requestAnimationFrame(animateSpin);
                 } else {
                     wheelAnimationFrame = null;
-                    const finalAngle = wheelCurrentAngle % (Math.PI*2);
-                    const segIdx = Math.floor(((Math.PI*2) - finalAngle) / ((Math.PI*2)/PRIZES.length)) % PRIZES.length;
+                    if (canvas) canvas.classList.remove('spinning');
+                    
+                    // Calculate which segment the pointer is pointing to
+                    // The pointer is at top (angle -90 degrees / -PI/2)
+                    const pointerAngle = -Math.PI / 2;
+                    let finalAngle = wheelCurrentAngle % (Math.PI*2);
+                    let angleDiff = (pointerAngle - finalAngle + Math.PI*2) % (Math.PI*2);
+                    const segIdx = Math.floor(angleDiff / ((Math.PI*2)/PRIZES.length)) % PRIZES.length;
                     const prize = PRIZES[segIdx].value;
+                    
+                    console.log(`Wheel stopped on segment ${segIdx}, prize: ${prize}`);
                     wheelSpinning = false;
                     submitSpin(prize);
                 }
@@ -492,26 +735,72 @@
                     if (reward >= 1000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
                     else if (reward >= 500) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
                     showNotification(celebrationMsg, false);
-                    await loadWheelStatus();
+                    
+                    // Play sound if available
+                    if (window.AudioManager) {
+                        window.AudioManager.playSound('reward');
+                    }
+                    
+                    await loadWheelStatus(false);
                 } else {
                     showNotification(data.error || 'Spin failed', true);
-                    await loadWheelStatus();
+                    await loadWheelStatus(false);
                 }
             } catch(err) {
                 showNotification('Network error', true);
-                await loadWheelStatus();
+                await loadWheelStatus(false);
             } finally {
                 const spinBtn = document.getElementById('spinBtn');
                 if (spinBtn) spinBtn.textContent = '🎡 SPIN NOW';
             }
         }
+        
+        // ============================================
+        // PULL TO REFRESH
+        // ============================================
+        
+        function showRefreshIndicator(text, isError = false) {
+            refreshIndicator.textContent = text;
+            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            refreshIndicator.classList.add('show');
+            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+        }
+        
+        async function refreshData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+            try {
+                await loadWheelStatus(true);
+                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+                showNotification('Wheel status refreshed!', false);
+            } catch (err) {
+                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+        
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (window.scrollY === 0 && !isRefreshing) {
+                const diff = e.touches[0].clientY - touchStartY;
+                if (diff > 60) {
+                    e.preventDefault();
+                    refreshData();
+                }
+            }
+        });
 
-        renderPrizesGrid();
-        drawWheel(0);
-        setTimeout(loadWheelStatus, 300);
+        // Initialize
+        showSkeleton();
+        setTimeout(() => {
+            loadWheelStatus(true);
+        }, 100);
 
         document.getElementById('spinBtn').addEventListener('click', spinWheel);
-        document.getElementById('retryBtn').addEventListener('click', loadWheelStatus);
     </script>
 </body>
 </html>
