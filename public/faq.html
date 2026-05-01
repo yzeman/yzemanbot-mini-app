@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>About & FAQ - YzemanBot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --warning: #FF9800;
+            --danger: #f44336;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
+            --success: #00c853;
+            --gold: #FFD700;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            padding: 20px 15px 25px;
+            border-radius: 0 0 30px 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .header h1 i { color: var(--gold); }
+        .header p { color: var(--gray); font-size: 13px; }
+        
+        .back-btn-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 22px;
+            text-decoration: none;
+            z-index: 10;
+        }
+        
+        /* Search & Category Tabs */
+        .search-container {
+            padding: 15px;
+            margin: 0 15px;
+        }
+        
+        .search-box {
+            background: var(--darker);
+            border-radius: 30px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .search-box i {
+            color: var(--gray);
+            font-size: 16px;
+        }
+        
+        .search-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--light);
+            font-size: 14px;
+            outline: none;
+        }
+        
+        .search-box input::placeholder {
+            color: var(--gray);
+        }
+        
+        .category-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 0 15px;
+            margin-bottom: 20px;
+        }
+        
+        .category-btn {
+            background: var(--darker);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--gray);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .category-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .category-btn:hover {
+            background: rgba(76, 175, 80, 0.2);
+            color: var(--light);
+        }
+        
+        /* FAQ Sections */
+        .faq-section {
+            padding: 0 15px 20px;
+            display: none;
+        }
+        
+        .faq-section.active {
+            display: block;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--gold);
+        }
+        
+        .faq-card {
+            background: var(--darker);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .faq-question {
+            padding: 16px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .faq-question:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        
+        .faq-question i {
+            color: var(--gold);
+            transition: transform 0.3s ease;
+        }
+        
+        .faq-question.open i {
+            transform: rotate(180deg);
+        }
+        
+        .faq-answer {
+            padding: 0 18px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            color: var(--gray);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        .faq-answer.show {
+            padding: 0 18px 18px 18px;
+            max-height: 500px;
+        }
+        
+        .faq-answer p {
+            margin-bottom: 10px;
+        }
+        
+        .faq-answer ul, .faq-answer ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .faq-answer li {
+            margin-bottom: 5px;
+        }
+        
+        .highlight {
+            color: var(--gold);
+            font-weight: bold;
+        }
+        
+        .info-badge {
+            background: rgba(33, 150, 243, 0.15);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-left: 3px solid var(--secondary);
+            font-size: 13px;
+        }
+        
+        .warning-badge {
+            background: rgba(255, 152, 0, 0.15);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-left: 3px solid var(--warning);
+            font-size: 13px;
+        }
+        
+        .success-badge {
+            background: rgba(76, 175, 80, 0.15);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-left: 3px solid var(--success);
+            font-size: 13px;
+        }
+        
+        .value-card {
+            background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .value-card h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        
+        .value-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .value-card .note {
+            font-size: 11px;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+        
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--darker);
+            display: flex;
+            padding: 8px 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
+        }
+        
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            color: var(--gray);
+            text-decoration: none;
+            font-size: 11px;
+            padding: 5px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+        
+        .nav-item i {
+            font-size: 20px;
+        }
+        
+        .nav-item.active {
+            color: var(--primary);
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            right: 15px;
+            background: var(--success);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+            font-size: 13px;
+        }
+        
+        .notification.error {
+            background: var(--danger);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .faq-card {
+            animation: fadeIn 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
+    
+    <div class="header">
+        <h1><i class="fas fa-question-circle"></i> About & FAQ</h1>
+        <p>Everything you need to know about YzemanBot</p>
+    </div>
+    
+    <!-- Search Box -->
+    <div class="search-container">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Search questions...">
+        </div>
+    </div>
+    
+    <!-- Category Tabs -->
+    <div class="category-tabs">
+        <button class="category-btn active" data-category="getting-started">🚀 Getting Started</button>
+        <button class="category-btn" data-category="earning">💰 Earning COINS</button>
+        <button class="category-btn" data-category="withdrawal">💳 Withdrawal</button>
+        <button class="category-btn" data-category="referral">👥 Referrals</button>
+        <button class="category-btn" data-category="competitions">🏆 Competitions</button>
+        <button class="category-btn" data-category="teams">👥 Teams</button>
+        <button class="category-btn" data-category="account">⚙️ Account</button>
+    </div>
+    
+    <!-- Value Card - COINS Value -->
+    <div class="value-card" style="margin: 0 15px 20px 15px;">
+        <h3><i class="fas fa-chart-line"></i> Current COINS Value</h3>
+        <div class="value">100,000 COINS ≈ $2,000 USD</div>
+        <div class="note">*Value may increase based on app activity and ad revenue. The more active users, the higher the value!</div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- GETTING STARTED SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section active" id="getting-started">
+        <div class="section-title">
+            <i class="fas fa-rocket"></i>
+            <span>Getting Started</span>
+        </div>
+        
+        <div class="success-badge">
+            <i class="fas fa-star"></i> Welcome to YzemanBot! Your journey to earning COINS starts here.
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🤔 What is YzemanBot?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>YzemanBot is a Telegram-based mini-app that allows you to earn <span class="highlight">COINS</span> by watching ads, referring friends, completing daily tasks, spinning the wheel, and participating in competitions.</p>
+                <p>COINS can be withdrawn to your <span class="highlight">USDT (TRC-20)</span> wallet once you reach the minimum withdrawal amount.</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🎮 How do I start earning?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Getting started is easy! Just follow these steps:</p>
+                <ol>
+                    <li>Open the YzemanBot mini-app from Telegram</li>
+                    <li>Your account is automatically created</li>
+                    <li>Go to the <span class="highlight">Earn tab</span> and click "Watch Ad"</li>
+                    <li>Watch a short video to earn your first COINS</li>
+                    <li>Invite friends to earn bonus COINS</li>
+                    <li>Check in daily for streak bonuses</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>💰 What are COINS worth?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Currently, <span class="highlight">100,000 COINS = approximately $2,000 USD</span>.</p>
+                <p>The value is determined by:</p>
+                <ul>
+                    <li>Total ad revenue generated by the app</li>
+                    <li>Number of active users</li>
+                    <li>Overall app engagement</li>
+                </ul>
+                <p><span class="highlight">Important:</span> The value may increase as the app grows and more users join. The more active the community, the higher the potential value!</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- EARNING COINS SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section" id="earning">
+        <div class="section-title">
+            <i class="fas fa-coins"></i>
+            <span>Earning COINS</span>
+        </div>
+        
+        <div class="info-badge">
+            <i class="fas fa-info-circle"></i> There are <strong>8 ways</strong> to earn COINS in YzemanBot!
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🎬 How much do I earn per ad?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Your ad earnings depend on your <span class="highlight">Tier level</span>:</p>
+                <ul>
+                    <li><strong>Fresher</strong> (0 referrals) → 0.20 COINS/ad</li>
+                    <li><strong>Brute</strong> (150 referrals) → 0.35 COINS/ad</li>
+                    <li><strong>Silver</strong> (350 referrals) → 0.50 COINS/ad</li>
+                    <li><strong>Gold</strong> (700 referrals) → 0.75 COINS/ad</li>
+                    <li><strong>Platinum</strong> (1,500 referrals) → 1.00 COINS/ad</li>
+                </ul>
+                <p>Plus random bonuses: Lucky (2x), Golden (5x), MEGA (10x), EPIC (25x)!</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🔥 What are ad streaks and bonuses?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Watch ads consistently to build your streak and earn bonuses:</p>
+                <ul>
+                    <li>5 days streak → +1 COIN</li>
+                    <li>10 days streak → +3 COINS</li>
+                    <li>25 days streak → +10 COINS</li>
+                    <li>50 days streak → +25 COINS</li>
+                    <li>100 days streak → +100 COINS</li>
+                </ul>
+                <p>Daily Goal: Watch 20 ads/day → +2 COINS bonus</p>
+                <p>Weekly Goal: Watch 100 ads/week → +15 COINS bonus</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🎡 How does the Wheel of Fortune work?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Spin the wheel every <span class="highlight">3 days</span> for free! Prizes include:</p>
+                <ul>
+                    <li><strong>Easy wins (58% chance):</strong> 50 - 100 COINS</li>
+                    <li><strong>Medium wins (25% chance):</strong> 200 - 500 COINS</li>
+                    <li><strong>Rare wins (17% chance):</strong> 1,000 - 2,000 COINS</li>
+                </ul>
+                <p>Your tier multiplier applies to wheel winnings! Platinum users get <span class="highlight">3x</span> the spin value!</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>📅 How do daily rewards work?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Claim daily rewards to build your streak:</p>
+                <ul>
+                    <li>Base reward: 0.20 COINS</li>
+                    <li>Streak bonus: +0.10 COINS per day</li>
+                    <li>Weekly bonus: +1 COIN every 7 days</li>
+                    <li>30-day streak: Achievement (500 COINS!)</li>
+                </ul>
+                <p><span class="highlight">Don't miss a day!</span> Your streak resets if you skip claiming.</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🏆 What are achievements?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Complete challenges to unlock achievements and earn bonus COINS:</p>
+                <ul>
+                    <li>⭐⭐ Loyal User (30-day streak) → +500 COINS</li>
+                    <li>👑 Referral Master (100 referrals) → +3,000 COINS</li>
+                    <li>🦋 Social Butterfly (all social tasks) → +15,000 COINS</li>
+                    <li>🏆 Tournament Winner → +1,500 COINS</li>
+                    <li>💎 Platinum Elite → +10,000 COINS</li>
+                    <li>🎡 Wheel Champion → +1,000 COINS</li>
+                    <li>⭐ Super Referrer (500 referrals) → +7,000 COINS</li>
+                    <li>📺 Ad Master (1,000 ads) → +2,500 COINS</li>
+                    <li>🏅 Team Winner → +5,000 COINS</li>
+                    <li>👑 Leaderboard Winner → +3,000 COINS</li>
+                    <li>👑 Referral King (1,000 referrals) → +15,000 COINS</li>
+                    <li>⭐ Monthly Top Earner → +5,000 COINS</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- WITHDRAWAL SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section" id="withdrawal">
+        <div class="section-title">
+            <i class="fas fa-wallet"></i>
+            <span>Withdrawal</span>
+        </div>
+        
+        <div class="warning-badge">
+            <i class="fas fa-exclamation-triangle"></i> Minimum withdrawal: <strong>100,000 COINS</strong> (≈ $2,000 USD)
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>💸 How do I withdraw my COINS?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Follow these steps to withdraw:</p>
+                <ol>
+                    <li>Go to the <span class="highlight">Withdraw tab</span></li>
+                    <li>Enter your <strong>USDT (TRC-20)</strong> wallet address</li>
+                    <li>Click "Save Wallet"</li>
+                    <li>Once you have 100,000+ COINS, click "Request Withdrawal"</li>
+                    <li>Your request will be processed by the admin</li>
+                </ol>
+                <p><span class="highlight">Note:</span> Withdrawals are processed manually. Please allow up to 48 hours.</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>📈 Can the COINS value increase?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p><span class="highlight">YES!</span> The value of COINS is directly tied to the app's success:</p>
+                <ul>
+                    <li>More active users = higher ad revenue</li>
+                    <li>Higher ad revenue = higher COINS value</li>
+                    <li>As the community grows, so does your earning potential!</li>
+                </ul>
+                <p>Currently 100,000 COINS = $2,000 USD. This value may increase as the app becomes more popular.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- REFERRAL SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section" id="referral">
+        <div class="section-title">
+            <i class="fas fa-user-plus"></i>
+            <span>Referrals</span>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>👥 How does the referral system work?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Share your unique referral link with friends. When they join:</p>
+                <ul>
+                    <li>You earn COINS based on your tier (5 - 25 COINS per referral)</li>
+                    <li>Your friend gets <span class="highlight">2,000 COINS bonus</span></li>
+                    <li>You earn <span class="highlight">2% lifetime commission</span> on everything they earn!</li>
+                </ul>
+                <p>The more referrals you get, the higher your tier, and the more you earn per ad!</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>📊 What are the tier benefits?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <ul>
+                    <li><strong>Fresher</strong> (0 refs) → 0.20 COINS/ad, 5 COINS/referral</li>
+                    <li><strong>Brute</strong> (150 refs) → 0.35 COINS/ad, 10 COINS/referral</li>
+                    <li><strong>Silver</strong> (350 refs) → 0.50 COINS/ad, 15 COINS/referral</li>
+                    <li><strong>Gold</strong> (700 refs) → 0.75 COINS/ad, 20 COINS/referral</li>
+                    <li><strong>Platinum</strong> (1,500 refs) → 1.00 COINS/ad, 25 COINS/referral</li>
+                </ul>
+                <p>Higher tier = higher earnings = faster withdrawals!</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- COMPETITIONS SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section" id="competitions">
+        <div class="section-title">
+            <i class="fas fa-trophy"></i>
+            <span>Competitions</span>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🏆 How does the monthly leaderboard work?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Every month, the leaderboard resets to zero. Compete to earn the most COINS and win:</p>
+                <ul>
+                    <li><span class="highlight">🥇 1st Place:</span> 5,000 COINS</li>
+                    <li><span class="highlight">🥈 2nd Place:</span> 3,000 COINS</li>
+                    <li><span class="highlight">🥉 3rd Place:</span> 1,000 COINS</li>
+                </ul>
+                <p>Your monthly earnings come from:</p>
+                <ul>
+                    <li>Ads watched</li>
+                    <li>Referral bonuses</li>
+                    <li>Daily rewards</li>
+                    <li>Wheel spins</li>
+                    <li>Achievements</li>
+                </ul>
+                <p><span class="highlight">The more you earn, the higher you climb!</span></p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>⚔️ How does the weekly tournament work?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Join the weekly tournament (Monday - Sunday):</p>
+                <ul>
+                    <li>🥇 1st Place: 2,000 COINS</li>
+                    <li>🥈 2nd Place: 1,000 COINS</li>
+                    <li>🥉 3rd Place: 500 COINS</li>
+                </ul>
+                <p>Prizes are awarded automatically every Monday at 00:01.</p>
+                <p><span class="highlight">Click "JOIN TOURNAMENT" to participate!</span></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- TEAMS SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section" id="teams">
+        <div class="section-title">
+            <i class="fas fa-users"></i>
+            <span>Teams</span>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🤝 How do teams work?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Join or create a team to compete in monthly competitions:</p>
+                <ul>
+                    <li>🏅 1st Place Team → Every member gets 2,500 COINS</li>
+                    <li>🏅 2nd Place Team → Every member gets 1,000 COINS</li>
+                    <li>🏅 3rd Place Team → Every member gets 500 COINS</li>
+                </ul>
+                <p>Team rankings are based on <span class="highlight">monthly COINS earned</span> by all members combined.</p>
+                <p>Use the Team Code to invite friends to join your team!</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🏅 What is the Team Player achievement?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>When you join or create a team, you automatically unlock the <span class="highlight">Team Player achievement</span> and earn <span class="highlight">200 COINS</span>!</p>
+                <p>If your team wins the monthly competition, everyone gets the <span class="highlight">Team Winner achievement</span> (+5,000 COINS)!</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ============================================ -->
+    <!-- ACCOUNT SECTION -->
+    <!-- ============================================ -->
+    <div class="faq-section" id="account">
+        <div class="section-title">
+            <i class="fas fa-cog"></i>
+            <span>Account</span>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>🔐 Is my account secure?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Yes! Your account is tied to your Telegram ID. All transactions are recorded in our secure database.</p>
+                <p>Your wallet address is encrypted and only used for withdrawals.</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>📊 How can I see my earnings history?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Go to the <span class="highlight">History page</span> to view:</p>
+                <ul>
+                    <li>All your earnings by month</li>
+                    <li>Breakdown by type (ads, referrals, wheel, achievements, etc.)</li>
+                    <li>Tournament and competition winnings</li>
+                </ul>
+                <p>You can switch between months to see your complete earning history!</p>
+            </div>
+        </div>
+        
+        <div class="faq-card">
+            <div class="faq-question">
+                <span>❓ I have a problem. Who do I contact?</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>For support, please contact:</p>
+                <ul>
+                    <li>Telegram Support: <span class="highlight">@yzemanreal</span></li>
+                    <li>Join our channel: <span class="highlight">@YzemanEarnBotChannel</span> for updates</li>
+                </ul>
+                <p>We're here to help 24/7!</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
+        <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
+        <a href="/wheel.html" class="nav-item"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
+        <a href="/leaderboard.html" class="nav-item"><i class="fas fa-trophy"></i><span>Ranks</span></a>
+        <a href="/team.html" class="nav-item"><i class="fas fa-users"></i><span>Team</span></a>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+    
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+        
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+        
+        // FAQ Accordion
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const isOpen = question.classList.contains('open');
+                
+                // Close all other FAQs
+                document.querySelectorAll('.faq-question').forEach(q => {
+                    if (q !== question) {
+                        q.classList.remove('open');
+                        q.nextElementSibling.classList.remove('show');
+                    }
+                });
+                
+                // Toggle current
+                if (!isOpen) {
+                    question.classList.add('open');
+                    question.nextElementSibling.classList.add('show');
+                } else {
+                    question.classList.remove('open');
+                    question.nextElementSibling.classList.remove('show');
+                }
+            });
+        });
+        
+        // Category Switching
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                
+                // Update active button
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Show selected section
+                document.querySelectorAll('.faq-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                document.getElementById(category).classList.add('active');
+            });
+        });
+        
+        // Search Functionality
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', () => {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (searchTerm === '') {
+                // Show all sections and reset
+                document.querySelectorAll('.faq-section').forEach(section => {
+                    section.classList.add('active');
+                });
+                document.querySelectorAll('.faq-card').forEach(card => {
+                    card.style.display = 'block';
+                });
+                return;
+            }
+            
+            // Show all sections
+            document.querySelectorAll('.faq-section').forEach(section => {
+                section.classList.add('active');
+            });
+            
+            // Filter FAQ cards
+            document.querySelectorAll('.faq-card').forEach(card => {
+                const question = card.querySelector('.faq-question span').textContent.toLowerCase();
+                const answer = card.querySelector('.faq-answer').textContent.toLowerCase();
+                
+                if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+        
+        // Open relevant section based on URL hash
+        if (window.location.hash) {
+            const hash = window.location.hash.substring(1);
+            const categoryBtn = document.querySelector(`.category-btn[data-category="${hash}"]`);
+            if (categoryBtn) {
+                categoryBtn.click();
+            }
+        }
+        
+        console.log('📚 FAQ Page Loaded');
+    </script>
+</body>
+</html>
