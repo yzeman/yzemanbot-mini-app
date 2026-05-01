@@ -45,12 +45,8 @@
             transition: transform 0.3s ease;
             z-index: 1000;
         }
-        .refresh-indicator.show {
-            transform: translateY(0);
-        }
-        .refresh-indicator i {
-            margin-right: 5px;
-        }
+        .refresh-indicator.show { transform: translateY(0); }
+        .refresh-indicator i { margin-right: 5px; }
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
@@ -159,125 +155,6 @@
         .feature-card i { font-size: 28px; margin-bottom: 8px; color: var(--gold); }
         .feature-card span { font-size: 12px; display: block; }
         
-        /* Skeleton Loading Styles */
-        .skeleton {
-            background: linear-gradient(90deg, 
-                rgba(255,255,255,0.05) 25%, 
-                rgba(255,255,255,0.1) 50%, 
-                rgba(255,255,255,0.05) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-wave 1.5s infinite;
-            border-radius: 8px;
-        }
-        
-        @keyframes skeleton-wave {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        
-        .skeleton-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.08);
-        }
-        .skeleton-name {
-            width: 120px;
-            height: 18px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 4px;
-            margin-bottom: 6px;
-        }
-        .skeleton-id {
-            width: 80px;
-            height: 12px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 4px;
-        }
-        .skeleton-tier {
-            width: 70px;
-            height: 24px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 20px;
-        }
-        .skeleton-balance-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 20px;
-            margin-top: 10px;
-        }
-        .skeleton-balance-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-        }
-        .skeleton-balance-label {
-            width: 80px;
-            height: 14px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 4px;
-        }
-        .skeleton-balance-value {
-            width: 100px;
-            height: 32px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 4px;
-        }
-        .skeleton-progress {
-            width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-        .skeleton-stat-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 12px;
-            text-align: center;
-        }
-        .skeleton-stat-value {
-            width: 40px;
-            height: 20px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 4px;
-            margin: 0 auto;
-        }
-        .skeleton-stat-label {
-            width: 50px;
-            height: 11px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 4px;
-            margin: 5px auto 0;
-        }
-        .skeleton-feature-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            padding: 20px 15px;
-        }
-        .skeleton-feature-card {
-            background: var(--darker);
-            border-radius: 15px;
-            padding: 15px 10px;
-            text-align: center;
-        }
-        .skeleton-feature-icon {
-            width: 28px;
-            height: 28px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 8px;
-            margin: 0 auto 8px;
-        }
-        .skeleton-feature-text {
-            width: 50px;
-            height: 12px;
-            background: rgba(255,255,255,0.06);
-            border-radius: 4px;
-            margin: 0 auto;
-        }
-        
-        /* Tabs */
         .tabs {
             display: flex;
             background: var(--darker);
@@ -475,10 +352,6 @@
             border-radius: 10px;
             margin-bottom: 8px;
         }
-        .bonus-code-display { font-weight: bold; color: var(--gold); font-family: monospace; font-size: 16px; }
-        .bonus-reward-display { color: var(--success); font-weight: bold; }
-        .bonus-expiry { font-size: 11px; color: var(--gray); }
-        .bonus-used-badge { background: var(--success); color: white; padding: 3px 8px; border-radius: 5px; font-size: 10px; }
         .history-list {
             max-height: 300px;
             overflow-y: auto;
@@ -549,16 +422,40 @@
         }
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
-        .loading { text-align: center; padding: 40px; color: var(--gray); }
-        .bonus-info-note {
+        .tier-benefits-list {
+            margin-top: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 15px;
+        }
+        .tier-benefits-list h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: var(--gold);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tier-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .tier-item:last-child { border-bottom: none; }
+        .tier-name { font-size: 13px; font-weight: 500; }
+        .tier-name i { margin-right: 6px; font-size: 14px; }
+        .tier-req { font-size: 11px; color: var(--gray); }
+        .tier-reward { font-size: 13px; font-weight: bold; color: var(--gold); }
+        .info-box {
             background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 15px;
-            text-align: center;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
             border-left: 4px solid var(--secondary);
         }
-        .bonus-info-note i { color: var(--secondary); margin-right: 5px; }
+        .info-box p { font-size: 12px; margin-bottom: 5px; }
         .timer-popup {
             position: fixed;
             bottom: 100px;
@@ -601,40 +498,11 @@
         .channel-banner-content p { font-size: 12px; color: rgba(255,255,255,0.8); }
         .channel-banner .arrow { color: white; font-size: 20px; }
         
-        .tier-benefits-list {
-            margin-top: 20px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 15px;
-            padding: 15px;
-        }
-        .tier-benefits-list h4 {
+        /* Loading placeholder - very light, no animation delay */
+        .loading-text {
+            color: var(--gray);
             font-size: 14px;
-            margin-bottom: 12px;
-            color: var(--gold);
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
-        .tier-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .tier-item:last-child { border-bottom: none; }
-        .tier-name { font-size: 13px; font-weight: 500; }
-        .tier-name i { margin-right: 6px; font-size: 14px; }
-        .tier-req { font-size: 11px; color: var(--gray); }
-        .tier-reward { font-size: 13px; font-weight: bold; color: var(--gold); }
-        .info-box {
-            background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 15px;
-            border-left: 4px solid var(--secondary);
-        }
-        .info-box p { font-size: 12px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -644,38 +512,59 @@
     </div>
     
     <div class="header">
-        <!-- User Section - Will be populated by JS -->
-        <div id="userSection"></div>
-        
-        <!-- Balance Card - Will be populated by JS -->
-        <div id="balanceCard"></div>
+        <div class="user-section">
+            <div class="avatar" id="userAvatar"><i class="fas fa-user"></i></div>
+            <div class="user-info">
+                <div id="userName" class="user-name">Loading...</div>
+                <div id="userId" class="user-id"></div>
+            </div>
+            <div id="tier" class="tier-badge-header">Fresher</div>
+        </div>
+        <div class="balance-card">
+            <div class="balance-row">
+                <span class="balance-label">Your Balance</span>
+                <div>
+                    <span id="coins" class="balance-value">0.00</span>
+                    <span class="balance-coin">COINS</span>
+                </div>
+            </div>
+            <div class="progress-section">
+                <div class="progress-label">
+                    <span>Withdrawal Progress</span>
+                    <span id="progressAmount">0 / 100,000 COINS</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressBar" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card"><div id="referralCount" class="stat-value">0</div><div class="stat-label">Referrals</div></div>
+                <div class="stat-card"><div id="totalAdsWatched" class="stat-value">0</div><div class="stat-label">Ads Watched</div></div>
+                <div class="stat-card"><div id="adStreak" class="stat-value">0</div><div class="stat-label">Ad Streak 🔥</div></div>
+            </div>
+        </div>
     </div>
     
-    <div id="featureGrid"></div>
+    <div class="feature-grid">
+        <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
+        <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
+        <a href="/leaderboard.html" class="feature-card"><i class="fas fa-trophy"></i><span>Ranks</span></a>
+        <a href="/team.html" class="feature-card"><i class="fas fa-users"></i><span>Team</span></a>
+        <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achieve</span></a>
+        <a href="/tournament.html" class="feature-card"><i class="fas fa-crown"></i><span>Tourney</span></a>
+        <a href="/history.html" class="feature-card"><i class="fas fa-history"></i><span>History</span></a>
+        <div class="feature-card" onclick="window.location.reload()"><i class="fas fa-sync"></i><span>Refresh</span></div>
+    </div>
     
-    <!-- TABS -->
     <div class="tabs">
-        <div class="tab active" data-tab="earn">
-            <i class="fas fa-coins"></i>
-            <span>Earn</span>
-        </div>
-        <div class="tab" data-tab="refer">
-            <i class="fas fa-users"></i>
-            <span>Refer</span>
-        </div>
-        <div class="tab" data-tab="wallet">
-            <i class="fas fa-wallet"></i>
-            <span>Withdraw</span>
-        </div>
-        <div class="tab" data-tab="bonus">
-            <i class="fas fa-gift"></i>
-            <span>Bonus</span>
-        </div>
+        <div class="tab active" data-tab="earn"><i class="fas fa-coins"></i><span>Earn</span></div>
+        <div class="tab" data-tab="refer"><i class="fas fa-users"></i><span>Refer</span></div>
+        <div class="tab" data-tab="wallet"><i class="fas fa-wallet"></i><span>Withdraw</span></div>
+        <div class="tab" data-tab="bonus"><i class="fas fa-gift"></i><span>Bonus</span></div>
     </div>
     
-    <!-- Tab Contents (Keep existing structure) -->
+    <!-- Earn Tab -->
     <div class="tab-content active" id="earnTab">
-        <!-- Earn Tab Content - Same as before -->
         <div class="ad-streak-section">
             <div class="streak-header">
                 <span class="streak-fire">🔥</span>
@@ -743,6 +632,7 @@
         </div>
     </div>
     
+    <!-- Refer Tab -->
     <div class="tab-content" id="referTab">
         <div class="referral-section">
             <div class="section-title"><i class="fas fa-users"></i><span>Referral Program</span></div>
@@ -772,6 +662,7 @@
         </div>
     </div>
     
+    <!-- Wallet Tab -->
     <div class="tab-content" id="walletTab">
         <div class="wallet-section">
             <div class="section-title"><i class="fas fa-wallet"></i><span>Withdrawal</span></div>
@@ -787,6 +678,7 @@
         </div>
     </div>
     
+    <!-- Bonus Tab -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-section">
             <div class="channel-banner" onclick="window.open('https://t.me/YzemanEarnBotChannel', '_blank')">
@@ -829,177 +721,43 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        // Pull to refresh variables
+        // Pull to refresh
         let touchStartY = 0;
         let isRefreshing = false;
         const refreshIndicator = document.getElementById('refreshIndicator');
         
-        // ============================================
-        // SKELETON LOADING FUNCTIONS
-        // ============================================
-        
-        function showSkeleton() {
-            // User section skeleton
-            document.getElementById('userSection').innerHTML = `
-                <div class="user-section">
-                    <div class="skeleton-avatar"></div>
-                    <div class="user-info">
-                        <div class="skeleton-name"></div>
-                        <div class="skeleton-id"></div>
-                    </div>
-                    <div class="skeleton-tier"></div>
-                </div>
-            `;
-            
-            // Balance card skeleton
-            document.getElementById('balanceCard').innerHTML = `
-                <div class="skeleton-balance-card">
-                    <div class="skeleton-balance-row">
-                        <div class="skeleton-balance-label"></div>
-                        <div class="skeleton-balance-value"></div>
-                    </div>
-                    <div class="skeleton-progress"></div>
-                    <div class="stats-grid">
-                        <div class="skeleton-stat-card"><div class="skeleton-stat-value"></div><div class="skeleton-stat-label"></div></div>
-                        <div class="skeleton-stat-card"><div class="skeleton-stat-value"></div><div class="skeleton-stat-label"></div></div>
-                        <div class="skeleton-stat-card"><div class="skeleton-stat-value"></div><div class="skeleton-stat-label"></div></div>
-                    </div>
-                </div>
-            `;
-            
-            // Feature grid skeleton
-            document.getElementById('featureGrid').innerHTML = `
-                <div class="skeleton-feature-grid">
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                    <div class="skeleton-feature-card"><div class="skeleton-feature-icon"></div><div class="skeleton-feature-text"></div></div>
-                </div>
-            `;
+        function showRefreshIndicator(text, isError = false) {
+            refreshIndicator.textContent = text;
+            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            refreshIndicator.classList.add('show');
+            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
         }
         
-        function updateUserUI(user) {
-            const initial = (user.first_name || 'U')[0].toUpperCase();
-            document.getElementById('userSection').innerHTML = `
-                <div class="user-section">
-                    <div class="avatar" id="userAvatar">${user.photo_url ? `<img src="${user.photo_url}" alt="${user.first_name}">` : `<i class="fas fa-user"></i>`}</div>
-                    <div class="user-info">
-                        <div class="user-name" id="userName">${user.first_name || 'User'}</div>
-                        <div class="user-id" id="userId">ID: ${user.telegram_id || ''}</div>
-                    </div>
-                    <div class="tier-badge-header" id="tier">${user.tier || 'Fresher'}</div>
-                </div>
-            `;
-        }
-        
-        function updateBalanceUI(coins, referrals, totalAds, adStreak, progressPercent) {
-            document.getElementById('balanceCard').innerHTML = `
-                <div class="balance-card">
-                    <div class="balance-row">
-                        <span class="balance-label">Your Balance</span>
-                        <div>
-                            <span class="balance-value" id="coins">${coins.toFixed(2)}</span>
-                            <span class="balance-coin">COINS</span>
-                        </div>
-                    </div>
-                    <div class="progress-section">
-                        <div class="progress-label">
-                            <span>Withdrawal Progress</span>
-                            <span id="progressAmount">${coins.toFixed(2)} / 100,000 COINS</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progressBar" style="width: ${progressPercent}%;"></div>
-                        </div>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-value" id="referralCount">${referrals}</div><div class="stat-label">Referrals</div></div>
-                        <div class="stat-card"><div class="stat-value" id="totalAdsWatched">${totalAds}</div><div class="stat-label">Ads Watched</div></div>
-                        <div class="stat-card"><div class="stat-value" id="adStreak">${adStreak}</div><div class="stat-label">Ad Streak 🔥</div></div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        function updateFeatureGrid() {
-            document.getElementById('featureGrid').innerHTML = `
-                <div class="feature-grid">
-                    <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
-                    <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
-                    <a href="/leaderboard.html" class="feature-card"><i class="fas fa-trophy"></i><span>Ranks</span></a>
-                    <a href="/team.html" class="feature-card"><i class="fas fa-users"></i><span>Team</span></a>
-                    <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achieve</span></a>
-                    <a href="/tournament.html" class="feature-card"><i class="fas fa-crown"></i><span>Tourney</span></a>
-                    <a href="/history.html" class="feature-card"><i class="fas fa-history"></i><span>History</span></a>
-                    <div class="feature-card" onclick="window.location.reload()"><i class="fas fa-sync"></i><span>Refresh</span></div>
-                </div>
-            `;
-        }
-        
-        // Refresh function for pull to refresh
         async function refreshPage() {
             if (isRefreshing) return;
             isRefreshing = true;
-            refreshIndicator.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
-            refreshIndicator.classList.add('show');
-            
+            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
             try {
-                if (window.refreshUser) {
-                    await window.refreshUser();
-                }
-                refreshIndicator.innerHTML = '<i class="fas fa-check-circle"></i> Updated!';
-                setTimeout(() => refreshIndicator.classList.remove('show'), 1000);
+                if (window.refreshUser) await window.refreshUser();
+                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
             } catch (err) {
-                refreshIndicator.innerHTML = '<i class="fas fa-exclamation-circle"></i> Failed to refresh';
-                setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
             } finally {
                 isRefreshing = false;
             }
         }
         
-        // Touch events for pull to refresh
         document.addEventListener('touchstart', (e) => {
-            if (window.scrollY === 0) {
-                touchStartY = e.touches[0].clientY;
-            }
+            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
         });
-        
         document.addEventListener('touchmove', (e) => {
             if (window.scrollY === 0 && !isRefreshing) {
-                const touchY = e.touches[0].clientY;
-                const diff = touchY - touchStartY;
-                if (diff > 60) {
-                    e.preventDefault();
-                    refreshPage();
-                }
+                const diff = e.touches[0].clientY - touchStartY;
+                if (diff > 60) { e.preventDefault(); refreshPage(); }
             }
         });
         
-        // Wait for app.js to load and then show skeletons until data is ready
-        document.addEventListener('DOMContentLoaded', () => {
-            showSkeleton();
-            
-            // Check periodically for user data
-            const checkInterval = setInterval(() => {
-                if (window.currentUser) {
-                    clearInterval(checkInterval);
-                    const user = window.currentUser;
-                    const coins = parseFloat(user.coins) || 0;
-                    const progressPercent = Math.min((coins / 100000) * 100, 100);
-                    updateUserUI(user);
-                    updateBalanceUI(coins, user.referrals || 0, 0, 0, progressPercent);
-                    updateFeatureGrid();
-                }
-            }, 100);
-            
-            // Timeout after 5 seconds
-            setTimeout(() => clearInterval(checkInterval), 5000);
-        });
-        
-        // Task configuration and handlers (same as before)
+        // Task configuration
         const TASK_CONFIG = {
             game: { name: 'game', coins: 200, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false, onceOnly: true },
             website: { name: 'website', coins: 5, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: false, onceOnly: false },
