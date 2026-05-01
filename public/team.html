@@ -81,6 +81,22 @@
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
         
+        /* Info banner */
+        .info-banner {
+            background: rgba(33, 150, 243, 0.15);
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: var(--gray);
+            text-align: center;
+            border-left: 3px solid var(--secondary);
+        }
+        .info-banner i {
+            color: var(--secondary);
+            margin-right: 6px;
+        }
+        
         /* Skeleton Loading Styles */
         .skeleton {
             background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
@@ -107,7 +123,6 @@
         .skeleton-team-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
         .skeleton-team-stat { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 2px; text-align: center; }
         .skeleton-team-stat-value { width: 30px; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; margin: 0 auto; }
-        .skeleton-team-stat-label { width: 25px; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; margin: 5px auto 0; }
         
         .skeleton-member-item {
             display: flex; align-items: center; padding: 6px 10px;
@@ -134,32 +149,27 @@
             background: var(--darker); border-radius: 15px; padding: 20px 12px;
             text-align: center; margin-bottom: 12px;
         }
-        
         .no-team-icon { font-size: 40px; color: var(--gray); margin-bottom: 10px; }
         .no-team-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
         .no-team-text { color: var(--gray); font-size: 12px; margin-bottom: 18px; }
         
         .action-buttons { display: flex; gap: 10px; justify-content: center; }
-        
         .action-btn {
             flex: 1; max-width: 130px; background: var(--primary); color: white;
             border: none; padding: 12px 8px; border-radius: 12px; font-size: 12px;
             font-weight: 600; cursor: pointer; display: flex; flex-direction: column;
             align-items: center; gap: 4px; transition: all 0.2s ease;
         }
-        
         .action-btn i { font-size: 20px; }
         .action-btn.secondary { background: var(--secondary); }
         
         .team-card {
             background: var(--darker); border-radius: 14px; padding: 12px; margin-bottom: 10px;
         }
-        
         .team-card.pending {
             border: 1px dashed var(--gold);
             position: relative;
         }
-        
         .team-card.pending::after {
             content: "⏳ Syncing...";
             position: absolute;
@@ -171,54 +181,40 @@
             padding: 2px 6px;
             border-radius: 10px;
         }
-        
         .team-header {
             display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
         }
-        
         .team-avatar {
             width: 38px; height: 38px; border-radius: 50%;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex; align-items: center; justify-content: center;
             font-size: 18px; color: white;
         }
-        
         .team-info { flex: 1; }
         .team-info h3 { font-size: 14px; margin-bottom: 2px; }
-        
         .team-code {
             background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 12px;
             font-size: 10px; display: inline-block;
         }
-        
         .team-code i { margin-right: 3px; color: var(--gold); font-size: 9px; }
-        
         .team-rank {
             background: var(--gold); color: var(--dark); padding: 3px 8px;
             border-radius: 12px; font-size: 11px; font-weight: bold;
         }
-        
         .team-stats {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px;
         }
-        
         .team-stat {
             background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 2px; text-align: center;
         }
-        
         .team-stat-value { font-size: 13px; font-weight: bold; color: var(--gold); }
         .team-stat-label { font-size: 8px; color: var(--gray); }
-        
-        .team-actions {
-            display: flex; gap: 6px;
-        }
-        
+        .team-actions { display: flex; gap: 6px; }
         .team-btn {
             flex: 1; background: transparent; border: 1px solid var(--gray); color: var(--gray);
             padding: 6px; border-radius: 8px; font-size: 10px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 3px;
         }
-        
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
         
@@ -226,45 +222,37 @@
             font-size: 13px; font-weight: 600; margin: 10px 0 6px;
             display: flex; align-items: center; gap: 5px;
         }
-        
         .member-item {
             display: flex; align-items: center; padding: 6px 10px;
             background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 5px;
         }
-        
         .member-avatar {
             width: 28px; height: 28px; border-radius: 50%; background: var(--primary);
             display: flex; align-items: center; justify-content: center; font-size: 12px;
             margin-right: 8px; color: white; font-weight: bold;
             overflow: hidden;
         }
-        
         .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .member-info { flex: 1; }
         .member-name { font-weight: 600; font-size: 12px; }
         .member-role { font-size: 9px; color: var(--gray); }
         .member-coins { font-weight: bold; color: var(--gold); font-size: 11px; }
-        
         .leader-badge {
             background: var(--gold); color: var(--dark); padding: 2px 6px;
             border-radius: 12px; font-size: 8px; margin-left: 4px;
         }
-        
         .leader-badge i { font-size: 9px; margin-right: 2px; }
         
         .leaderboard-list { max-height: 350px; overflow-y: auto; }
-        
         .leaderboard-item {
             display: flex; align-items: center; padding: 8px 10px;
             background: var(--darker); border-radius: 10px; margin-bottom: 5px;
         }
-        
         .rank {
             width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
             font-weight: bold; font-size: 11px; margin-right: 8px; border-radius: 6px;
             background: rgba(255,255,255,0.05);
         }
-        
         .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA000); color: var(--dark); }
         .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: var(--dark); }
         .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: var(--dark); }
@@ -274,7 +262,6 @@
             display: flex; align-items: center; justify-content: center; font-size: 12px;
             margin-right: 8px; color: white;
         }
-        
         .info { flex: 1; }
         .name { font-weight: 600; font-size: 12px; }
         .members { font-size: 9px; color: var(--gray); }
@@ -285,7 +272,6 @@
             color: var(--dark); padding: 12px; border-radius: 14px;
             text-align: center; margin-bottom: 12px;
         }
-        
         .prize-banner h3 { font-size: 14px; margin-bottom: 6px; }
         .prize-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
         .prize-card { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 8px 3px; text-align: center; }
@@ -297,57 +283,45 @@
             background: rgba(255,215,0,0.08); border: 1px solid var(--gold);
             border-radius: 10px; padding: 10px; margin-bottom: 12px;
         }
-        
         .prize-info-box.dismissed { display: none; }
-        
         .prize-info-header {
             display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
         }
-        
         .prize-info-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
         .prize-info-title i { color: var(--gold); }
-        
         .close-info-btn {
             background: transparent; border: none; color: var(--gray);
             font-size: 14px; cursor: pointer; padding: 2px;
         }
-        
         .prize-info-row {
             display: flex; align-items: center; padding: 3px 0;
             color: var(--gray); font-size: 10px;
         }
-        
         .prize-info-row i { width: 16px; color: var(--success); font-size: 9px; }
         
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;
         }
-        
         .modal-content {
             background: var(--darker); border-radius: 18px; padding: 18px;
             width: 90%; max-width: 300px;
         }
-        
         .modal-title {
             font-size: 16px; font-weight: bold; margin-bottom: 15px;
             display: flex; align-items: center; gap: 6px;
         }
-        
         .modal-input {
             width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--gray);
             background: rgba(0,0,0,0.3); color: white; font-size: 13px; margin-bottom: 15px;
         }
-        
         .modal-input:focus { outline: none; border-color: var(--primary); }
         .modal-actions { display: flex; gap: 6px; }
-        
         .modal-btn {
             flex: 1; padding: 10px; border-radius: 10px; border: none;
             font-size: 13px; font-weight: 600; cursor: pointer;
             transition: opacity 0.2s;
         }
-        
         .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .modal-btn.primary { background: var(--primary); color: white; }
         .modal-btn.secondary { background: var(--gray); color: white; }
@@ -361,13 +335,11 @@
             background: var(--darker); display: flex; padding: 6px 12px;
             border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
         }
-        
         .nav-item {
             flex: 1; text-align: center; color: var(--gray); text-decoration: none;
             font-size: 10px; padding: 4px; border-radius: 6px;
             display: flex; flex-direction: column; align-items: center; gap: 1px;
         }
-        
         .nav-item i { font-size: 18px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
         
@@ -376,7 +348,6 @@
             background: #00c853; color: white; padding: 10px 15px;
             border-radius: 8px; text-align: center; display: none; z-index: 1000; font-size: 12px;
         }
-        
         .notification.error { background: var(--danger); }
         
         .loading-spinner {
@@ -390,7 +361,6 @@
             margin-right: 6px;
             vertical-align: middle;
         }
-        
         @keyframes spin { to { transform: rotate(360deg); } }
         
         .sync-error {
@@ -402,7 +372,6 @@
             text-align: center;
             font-size: 11px;
         }
-        
         .sync-error button {
             background: var(--danger);
             border: none;
@@ -412,15 +381,6 @@
             margin-top: 6px;
             font-size: 10px;
             cursor: pointer;
-        }
-        
-        .monthly-badge {
-            background: var(--secondary);
-            color: white;
-            font-size: 8px;
-            padding: 2px 6px;
-            border-radius: 10px;
-            margin-left: 5px;
         }
     </style>
 </head>
@@ -439,16 +399,12 @@
     
     <div class="tabs">
         <div class="tab active" data-tab="myteam"><i class="fas fa-user-group"></i> My Team</div>
-        <div class="tab" data-tab="leaderboard"><i class="fas fa-trophy"></i> Leaderboard</div>
-        <div class="tab" data-tab="monthly"><i class="fas fa-calendar"></i> Monthly</div>
+        <div class="tab" data-tab="monthly"><i class="fas fa-calendar"></i> Monthly Competition</div>
+        <div class="tab" data-tab="leaderboard"><i class="fas fa-chart-line"></i> All-Time Rankings</div>
     </div>
     
     <div class="tab-content active" id="myteamTab">
         <div id="myTeamContent"></div>
-    </div>
-    
-    <div class="tab-content" id="leaderboardTab">
-        <div class="leaderboard-list" id="teamLeaderboardList"></div>
     </div>
     
     <div class="tab-content" id="monthlyTab">
@@ -473,7 +429,21 @@
             <div class="prize-info-row"><i class="fas fa-calendar-check"></i><span>Awarded 1st of every month</span></div>
         </div>
         
+        <!-- Info banner explaining Monthly Competition -->
+        <div class="info-banner">
+            <i class="fas fa-chart-line"></i> <strong>Monthly Competition:</strong> Teams are ranked by COINS earned <strong>this month only</strong>. Resets on the 1st of every month!
+        </div>
+        
         <div id="monthlyContent"></div>
+    </div>
+    
+    <div class="tab-content" id="leaderboardTab">
+        <!-- Info banner explaining All-Time Rankings -->
+        <div class="info-banner">
+            <i class="fas fa-history"></i> <strong>All-Time Rankings:</strong> Teams ranked by TOTAL COINS earned <strong>since team was created</strong>. This never resets!
+        </div>
+        
+        <div class="leaderboard-list" id="teamLeaderboardList"></div>
     </div>
     
     <div class="bottom-nav">
@@ -558,10 +528,10 @@
                     <div class="skeleton-team-rank"></div>
                 </div>
                 <div class="skeleton-team-stats">
-                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
-                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
-                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
-                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div></div>
                 </div>
             </div>
             <div class="members-title"><i class="fas fa-user-friends"></i><span>Members</span></div>
