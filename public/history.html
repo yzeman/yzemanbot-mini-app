@@ -26,7 +26,31 @@
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
+            overflow-x: hidden;
         }
+        
+        /* Refresh Indicator */
+        .refresh-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .refresh-indicator.show {
+            transform: translateY(0);
+        }
+        .refresh-indicator i {
+            margin-right: 5px;
+        }
+        
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
             padding: 20px 15px 25px;
@@ -114,7 +138,6 @@
         .tx-icon.tournament_prize { background: linear-gradient(135deg, #FFD700, #FFA000); color: var(--dark); }
         .tx-icon.leaderboard_prize { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: var(--dark); }
         .tx-icon.team_prize { background: linear-gradient(135deg, #CD7F32, #B87333); color: white; }
-        /* Distinct purple/gold gradient for Weekly Referral Prize */
         .tx-icon.weekly_prize { background: linear-gradient(135deg, #8E44AD, #E74C3C, #F39C12); color: white; }
         .tx-info { flex: 1; }
         .tx-type { font-weight: 600; font-size: 14px; }
@@ -122,6 +145,95 @@
         .tx-date { font-size: 10px; color: var(--gray); }
         .tx-amount { font-weight: bold; color: var(--gold); font-size: 16px; }
         .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0.05) 25%, 
+                rgba(255,255,255,0.1) 50%, 
+                rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes skeleton-wave {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .skeleton-summary-card {
+            background: var(--darker);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 0 15px 15px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+        }
+        .skeleton-summary-item {
+            text-align: center;
+        }
+        .skeleton-amount {
+            width: 60px;
+            height: 24px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        .skeleton-label {
+            width: 50px;
+            height: 11px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin: 8px auto 0;
+        }
+        
+        .skeleton-transaction-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: var(--darker);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+        .skeleton-tx-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .skeleton-tx-info {
+            flex: 1;
+        }
+        .skeleton-tx-type {
+            width: 40%;
+            height: 14px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .skeleton-tx-desc {
+            width: 60%;
+            height: 11px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+        .skeleton-tx-date {
+            width: 30%;
+            height: 10px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+        }
+        .skeleton-tx-amount {
+            width: 50px;
+            height: 16px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+        }
+        
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--darker); display: flex; padding: 8px 15px;
@@ -134,6 +246,7 @@
         }
         .nav-item i { font-size: 18px; }
         .nav-item.active { color: var(--primary); background: rgba(76,175,80,0.1); }
+        
         .notification {
             position: fixed; bottom: 80px; left: 15px; right: 15px;
             background: var(--success); color: white; padding: 12px 18px;
@@ -145,6 +258,11 @@
     </style>
 </head>
 <body>
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-arrow-down"></i> Pull to refresh
+    </div>
+    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     <div class="header">
         <h1><i class="fas fa-history"></i> Earnings History</h1>
@@ -158,26 +276,11 @@
         <button class="month-btn" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
     </div>
 
-    <!-- Monthly Summary -->
-    <div class="summary-card">
-        <div class="summary-item">
-            <div class="amount" id="totalEarnings">0.00</div>
-            <div class="label">Total Earned</div>
-        </div>
-        <div class="summary-item">
-            <div class="amount" id="totalAds">0.00</div>
-            <div class="label">Ads</div>
-        </div>
-        <div class="summary-item">
-            <div class="amount" id="totalReferrals">0.00</div>
-            <div class="label">Referrals</div>
-        </div>
-    </div>
+    <!-- Summary Card Container -->
+    <div id="summaryContainer"></div>
 
     <!-- Transaction List -->
-    <div class="transaction-list" id="transactionList">
-        <div class="loading">Loading history...</div>
-    </div>
+    <div class="transaction-list" id="transactionList"></div>
 
     <!-- Bottom Nav -->
     <div class="bottom-nav">
@@ -195,8 +298,10 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
 
-        const now = new Date();
-        let currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        let currentMonth = '';
+        let isRefreshing = false;
+        let touchStartY = 0;
+        const refreshIndicator = document.getElementById('refreshIndicator');
 
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -263,13 +368,104 @@
             return icons[type] || 'fa-coin';
         }
 
-        async function loadHistory() {
+        // ============================================
+        // SKELETON LOADING FUNCTIONS
+        // ============================================
+        
+        function showSkeleton() {
+            // Summary skeleton
+            document.getElementById('summaryContainer').innerHTML = `
+                <div class="skeleton-summary-card">
+                    <div class="skeleton-summary-item"><div class="skeleton-amount"></div><div class="skeleton-label"></div></div>
+                    <div class="skeleton-summary-item"><div class="skeleton-amount"></div><div class="skeleton-label"></div></div>
+                    <div class="skeleton-summary-item"><div class="skeleton-amount"></div><div class="skeleton-label"></div></div>
+                </div>
+            `;
+            
+            // Transaction list skeleton (5 items)
+            let skeletonItems = '';
+            for (let i = 0; i < 5; i++) {
+                skeletonItems += `
+                    <div class="skeleton-transaction-item">
+                        <div class="skeleton-tx-icon"></div>
+                        <div class="skeleton-tx-info">
+                            <div class="skeleton-tx-type"></div>
+                            <div class="skeleton-tx-desc"></div>
+                            <div class="skeleton-tx-date"></div>
+                        </div>
+                        <div class="skeleton-tx-amount"></div>
+                    </div>
+                `;
+            }
+            document.getElementById('transactionList').innerHTML = skeletonItems;
+        }
+        
+        function updateSummary(data) {
+            document.getElementById('summaryContainer').innerHTML = `
+                <div class="summary-card">
+                    <div class="summary-item">
+                        <div class="amount" id="totalEarnings">${data.overallTotal.toFixed(2)}</div>
+                        <div class="label">Total Earned</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="amount" id="totalAds">${(data.totals['ad'] || 0).toFixed(2)}</div>
+                        <div class="label">Ads</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="amount" id="totalReferrals">${((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(2)}</div>
+                        <div class="label">Referrals</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderTransactions(transactions) {
+            const container = document.getElementById('transactionList');
+            
+            if (!transactions || transactions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
+                return;
+            }
+
+            const visibleTransactions = transactions.filter(tx => parseFloat(tx.amount) >= 0.001);
+
+            if (visibleTransactions.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
+                return;
+            }
+
+            container.innerHTML = visibleTransactions.map(tx => {
+                const amount = parseFloat(tx.amount).toFixed(3);
+                return `
+                    <div class="transaction-item">
+                        <div class="tx-icon ${tx.type}">
+                            <i class="fas ${getIcon(tx.type)}"></i>
+                        </div>
+                        <div class="tx-info">
+                            <div class="tx-type">${getTypeLabel(tx.type)}</div>
+                            <div class="tx-desc">${getDescription(tx)}</div>
+                            <div class="tx-date">${formatDate(tx.created_at)}</div>
+                        </div>
+                        <div class="tx-amount">+${amount}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadHistory(showSkeletonLoader = true) {
             if (!tg?.initData) {
                 showNotification('Open from Telegram', true);
                 return;
             }
-            const container = document.getElementById('transactionList');
-            container.innerHTML = '<div class="loading">Loading history...</div>';
+            
+            if (showSkeletonLoader) {
+                showSkeleton();
+            }
+
+            const now = new Date();
+            if (!currentMonth) {
+                currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            }
 
             const [year, month] = currentMonth.split('-').map(Number);
             const date = new Date(year, month - 1, 1);
@@ -285,42 +481,11 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
 
-                document.getElementById('totalEarnings').textContent = data.overallTotal.toFixed(2);
-                document.getElementById('totalAds').textContent = (data.totals['ad'] || 0).toFixed(2);
-                document.getElementById('totalReferrals').textContent = 
-                    ((data.totals['referral_bonus'] || 0) + (data.totals['referral_commission'] || 0)).toFixed(2);
-
-                if (!data.transactions || data.transactions.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
-                    return;
-                }
-
-                const visibleTransactions = data.transactions.filter(tx => parseFloat(tx.amount) >= 0.001);
-
-                if (visibleTransactions.length === 0) {
-                    container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No earnings this month</p></div>';
-                    return;
-                }
-
-                container.innerHTML = visibleTransactions.map(tx => {
-                    const amount = parseFloat(tx.amount).toFixed(3);
-                    return `
-                        <div class="transaction-item">
-                            <div class="tx-icon ${tx.type}">
-                                <i class="fas ${getIcon(tx.type)}"></i>
-                            </div>
-                            <div class="tx-info">
-                                <div class="tx-type">${getTypeLabel(tx.type)}</div>
-                                <div class="tx-desc">${getDescription(tx)}</div>
-                                <div class="tx-date">${formatDate(tx.created_at)}</div>
-                            </div>
-                            <div class="tx-amount">+${amount}</div>
-                        </div>
-                    `;
-                }).join('');
+                updateSummary(data);
+                renderTransactions(data.transactions);
 
             } catch (err) {
-                container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load history</p><p style="font-size:12px;color:#f44;">${err.message}</p></div>`;
+                document.getElementById('transactionList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load history</p><p style="font-size:12px;color:#f44;">${err.message}</p></div>`;
             }
         }
 
@@ -331,10 +496,63 @@
             if (newMonth > 12) { newMonth = 1; newYear++; }
             if (newMonth < 1) { newMonth = 12; newYear--; }
             currentMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
-            loadHistory();
+            loadHistory(true);
         }
 
-        document.addEventListener('DOMContentLoaded', loadHistory);
+        // ============================================
+        // PULL TO REFRESH FUNCTIONALITY
+        // ============================================
+        
+        function showRefreshIndicator(text, isError = false) {
+            refreshIndicator.textContent = text;
+            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            refreshIndicator.classList.add('show');
+            setTimeout(() => {
+                refreshIndicator.classList.remove('show');
+            }, 1500);
+        }
+        
+        async function refreshData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+            
+            try {
+                await loadHistory(false);
+                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+                showNotification('History refreshed!', false);
+            } catch (err) {
+                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+        
+        // Touch events for pull to refresh
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) {
+                touchStartY = e.touches[0].clientY;
+            }
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (window.scrollY === 0 && !isRefreshing) {
+                const touchY = e.touches[0].clientY;
+                const diff = touchY - touchStartY;
+                if (diff > 60) {
+                    e.preventDefault();
+                    refreshData();
+                }
+            }
+        });
+
+        // Initialize current month
+        const now = new Date();
+        currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistory(true);
+        });
     </script>
 </body>
 </html>
