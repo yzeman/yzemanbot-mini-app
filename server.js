@@ -2259,16 +2259,25 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       const rank = i + 1;
       
       if (user.monthly_coins > 0) {
+        // Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
+        
+        // Track in ad_rewards
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'leaderboard_prize']
         );
         
-        // ✅ SEND TELEGRAM NOTIFICATION
+        // ✅ AWARD ACHIEVEMENTS
+        await awardAchievement(user.id, 'Leaderboard Winner', client);
+        if (rank === 1) {
+          await awardAchievement(user.id, 'Monthly Top Earner', client);
+        }
+        
+        // Send notification
         await sendPrizeNotification(user.telegram_id, 'leaderboard', prize, rank);
         
         console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name} (rank #${rank})`);
@@ -2420,7 +2429,12 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
           [rank, tournamentId, user.id]
         );
         
-        // ✅ SEND TELEGRAM NOTIFICATION
+        // ✅ AWARD ACHIEVEMENT
+        if (rank === 1) {
+          await awardAchievement(user.id, 'Tournament Winner', client);
+        }
+        
+        // Send notification
         await sendPrizeNotification(user.telegram_id, 'tournament', prize, rank);
         
         console.log(`🏆 Tournament prize: ${prize} COINS awarded to ${user.first_name} (rank #${rank})`);
@@ -2454,7 +2468,7 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     
     console.log(`🏆 Awarding team prizes for month starting ${currentMonth}...`);
     
-    // Get top 3 teams based on THIS month's earnings (from user_monthly_earnings)
+    // Get top 3 teams based on THIS month's earnings
     const topTeams = await client.query(`
       SELECT 
         t.id, t.name,
@@ -2480,13 +2494,14 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     for (let i = 0; i < topTeams.rows.length; i++) {
       const team = topTeams.rows[i];
       const prizePerMember = prizes[i];
+      const rank = i + 1;
       
       if (team.monthly_coins <= 0) {
         console.log(`⚠️ Team ${team.name} has 0 monthly coins, skipping prize`);
         continue;
       }
       
-      // Get all current team members (NOT deleted – team stays intact)
+      // Get all current team members
       const members = await client.query(
         `SELECT u.id, u.first_name, u.telegram_id 
          FROM team_members tm 
@@ -2495,7 +2510,7 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
         [team.id]
       );
       
-      console.log(`🏆 Team "${team.name}" placed #${i + 1} with ${team.monthly_coins} monthly coins`);
+      console.log(`🏆 Team "${team.name}" placed #${rank} with ${team.monthly_coins} monthly coins`);
       console.log(`   Awarding ${prizePerMember} COINS to ${members.rows.length} members...`);
       
       for (const member of members.rows) {
@@ -2511,15 +2526,19 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
           [member.id, prizePerMember, 'team_prize']
         );
         
+        // ✅ AWARD ACHIEVEMENT
+        await awardAchievement(member.id, 'Team Winner', client);
+        
         totalAwarded++;
         
         // Send Telegram notification
         const BOT_TOKEN = process.env.BOT_TOKEN;
         if (BOT_TOKEN && member.telegram_id) {
           const message = `🎉 *CONGRATULATIONS!* 🎉\n\n` +
-            `Your team *${team.name}* placed *#${i + 1}* in this month's team competition!\n\n` +
+            `Your team *${team.name}* placed *#${rank}* in this month's team competition!\n\n` +
             `🏆 You've been awarded *+${prizePerMember} COINS*!\n\n` +
-            `Your team's monthly earnings have reset to 0. Keep earning to win again next month! 🚀`;
+            `🏅 Achievement Unlocked: *Team Winner* (+5,000 COINS)\n\n` +
+            `Keep earning with your team to win again next month! 🚀`;
           
           try {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
@@ -2538,10 +2557,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
       }
     }
     
-    // IMPORTANT: DO NOT delete teams or members!
-    // Monthly coins are tracked in user_monthly_earnings table
-    // The new month will automatically start at 0
-    
     await client.query('COMMIT');
     
     console.log(`✅ Team prizes awarded successfully! Total members awarded: ${totalAwarded}`);
@@ -2559,7 +2574,6 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     client.release();
   }
 });
-
 // ============================================
 // HEALTH CHECK
 // ============================================
