@@ -27,7 +27,26 @@
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 75px;
+            overflow-x: hidden;
         }
+        
+        /* Refresh Indicator */
+        .refresh-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .refresh-indicator.show { transform: translateY(0); }
+        .refresh-indicator i { margin-right: 5px; }
         
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
@@ -61,6 +80,55 @@
         .tab.active { background: var(--primary); color: white; }
         .tab-content { display: none; padding: 0 12px; }
         .tab-content.active { display: block; }
+        
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 8px;
+        }
+        @keyframes skeleton-wave { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        .skeleton-team-card {
+            background: var(--darker);
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        .skeleton-team-header {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+        }
+        .skeleton-team-avatar { width: 38px; height: 38px; background: rgba(255,255,255,0.08); border-radius: 50%; }
+        .skeleton-team-info { flex: 1; }
+        .skeleton-team-name { width: 60%; height: 14px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
+        .skeleton-team-code { width: 40%; height: 10px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .skeleton-team-rank { width: 40px; height: 20px; background: rgba(255,255,255,0.08); border-radius: 4px; }
+        .skeleton-team-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 10px; }
+        .skeleton-team-stat { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 2px; text-align: center; }
+        .skeleton-team-stat-value { width: 30px; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; margin: 0 auto; }
+        .skeleton-team-stat-label { width: 25px; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; margin: 5px auto 0; }
+        
+        .skeleton-member-item {
+            display: flex; align-items: center; padding: 6px 10px;
+            background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 5px;
+        }
+        .skeleton-member-avatar { width: 28px; height: 28px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 8px; }
+        .skeleton-member-info { flex: 1; }
+        .skeleton-member-name { width: 40%; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 4px; }
+        .skeleton-member-role { width: 30%; height: 9px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .skeleton-member-coins { width: 50px; height: 11px; background: rgba(255,255,255,0.08); border-radius: 4px; }
+        
+        .skeleton-leaderboard-item {
+            display: flex; align-items: center; padding: 8px 10px;
+            background: var(--darker); border-radius: 10px; margin-bottom: 5px;
+        }
+        .skeleton-leaderboard-rank { width: 28px; height: 28px; background: rgba(255,255,255,0.08); border-radius: 6px; margin-right: 8px; }
+        .skeleton-leaderboard-avatar { width: 28px; height: 28px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 8px; }
+        .skeleton-leaderboard-info { flex: 1; }
+        .skeleton-leaderboard-name { width: 50%; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 4px; }
+        .skeleton-leaderboard-members { width: 35%; height: 9px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .skeleton-leaderboard-score { width: 40px; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; }
         
         .no-team-card {
             background: var(--darker); border-radius: 15px; padding: 20px 12px;
@@ -280,11 +348,7 @@
             transition: opacity 0.2s;
         }
         
-        .modal-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-        
+        .modal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .modal-btn.primary { background: var(--primary); color: white; }
         .modal-btn.secondary { background: var(--gray); color: white; }
         .modal-btn.danger { background: var(--danger); color: white; }
@@ -327,9 +391,7 @@
             vertical-align: middle;
         }
         
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         
         .sync-error {
             background: rgba(244,67,54,0.1);
@@ -352,7 +414,6 @@
             cursor: pointer;
         }
         
-        /* Monthly coin indicator */
         .monthly-badge {
             background: var(--secondary);
             color: white;
@@ -364,6 +425,11 @@
     </style>
 </head>
 <body>
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-arrow-down"></i> Pull to refresh
+    </div>
+    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
@@ -378,15 +444,11 @@
     </div>
     
     <div class="tab-content active" id="myteamTab">
-        <div id="myTeamContent">
-            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
-        </div>
+        <div id="myTeamContent"></div>
     </div>
     
     <div class="tab-content" id="leaderboardTab">
-        <div class="leaderboard-list" id="teamLeaderboardList">
-            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
-        </div>
+        <div class="leaderboard-list" id="teamLeaderboardList"></div>
     </div>
     
     <div class="tab-content" id="monthlyTab">
@@ -411,9 +473,7 @@
             <div class="prize-info-row"><i class="fas fa-calendar-check"></i><span>Awarded 1st of every month</span></div>
         </div>
         
-        <div id="monthlyContent">
-            <div class="loading"><span class="loading-spinner"></span> Loading...</div>
-        </div>
+        <div id="monthlyContent"></div>
     </div>
     
     <div class="bottom-nav">
@@ -464,6 +524,11 @@
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
     
+    // Pull to refresh variables
+    let touchStartY = 0;
+    let isRefreshing = false;
+    const refreshIndicator = document.getElementById('refreshIndicator');
+    
     let teamLeaderboardCache = [];
     let monthlyCache = null;
     let leaderboardLastFetch = 0;
@@ -475,6 +540,74 @@
     let optimisticTeamData = null;
     
     const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
+    
+    // ============================================
+    // SKELETON LOADING FUNCTIONS
+    // ============================================
+    
+    function showMyTeamSkeleton() {
+        const container = document.getElementById('myTeamContent');
+        container.innerHTML = `
+            <div class="skeleton-team-card">
+                <div class="skeleton-team-header">
+                    <div class="skeleton-team-avatar"></div>
+                    <div class="skeleton-team-info">
+                        <div class="skeleton-team-name"></div>
+                        <div class="skeleton-team-code"></div>
+                    </div>
+                    <div class="skeleton-team-rank"></div>
+                </div>
+                <div class="skeleton-team-stats">
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
+                    <div class="skeleton-team-stat"><div class="skeleton-team-stat-value"></div><div class="skeleton-team-stat-label"></div></div>
+                </div>
+            </div>
+            <div class="members-title"><i class="fas fa-user-friends"></i><span>Members</span></div>
+            <div class="skeleton-member-item"><div class="skeleton-member-avatar"></div><div class="skeleton-member-info"><div class="skeleton-member-name"></div><div class="skeleton-member-role"></div></div><div class="skeleton-member-coins"></div></div>
+            <div class="skeleton-member-item"><div class="skeleton-member-avatar"></div><div class="skeleton-member-info"><div class="skeleton-member-name"></div><div class="skeleton-member-role"></div></div><div class="skeleton-member-coins"></div></div>
+            <div class="skeleton-member-item"><div class="skeleton-member-avatar"></div><div class="skeleton-member-info"><div class="skeleton-member-name"></div><div class="skeleton-member-role"></div></div><div class="skeleton-member-coins"></div></div>
+        `;
+    }
+    
+    function showLeaderboardSkeleton() {
+        const container = document.getElementById('teamLeaderboardList');
+        let items = '';
+        for (let i = 0; i < 5; i++) {
+            items += `
+                <div class="skeleton-leaderboard-item">
+                    <div class="skeleton-leaderboard-rank"></div>
+                    <div class="skeleton-leaderboard-avatar"></div>
+                    <div class="skeleton-leaderboard-info">
+                        <div class="skeleton-leaderboard-name"></div>
+                        <div class="skeleton-leaderboard-members"></div>
+                    </div>
+                    <div class="skeleton-leaderboard-score"></div>
+                </div>
+            `;
+        }
+        container.innerHTML = items;
+    }
+    
+    function showMonthlySkeleton() {
+        const container = document.getElementById('monthlyContent');
+        let items = '';
+        for (let i = 0; i < 3; i++) {
+            items += `
+                <div class="skeleton-leaderboard-item">
+                    <div class="skeleton-leaderboard-rank"></div>
+                    <div class="skeleton-leaderboard-avatar"></div>
+                    <div class="skeleton-leaderboard-info">
+                        <div class="skeleton-leaderboard-name"></div>
+                        <div class="skeleton-leaderboard-members"></div>
+                    </div>
+                    <div class="skeleton-leaderboard-score"></div>
+                </div>
+            `;
+        }
+        container.innerHTML = `<div class="members-title" style="margin-top:6px;"><i class="fas fa-chart-line"></i><span>Monthly Standings</span></div>${items}`;
+    }
     
     function shouldShowPrizeInfo() {
         return localStorage.getItem('prizeInfoDismissedMonth') !== new Date().toISOString().slice(0, 7);
@@ -525,7 +658,6 @@
         }
     }
     
-    // Format for public display (K, M)
     function formatCoinsShort(amount) {
         const num = parseFloat(amount) || 0;
         if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
@@ -533,7 +665,6 @@
         return num.toFixed(2);
     }
     
-    // Format for team members (full amount with 3 decimals for small values)
     function formatCoinsFull(amount) {
         const num = parseFloat(amount) || 0;
         if (num >= 1000) return num.toFixed(2);
@@ -611,7 +742,6 @@
         
         const team = data.team;
         const members = data.members || [];
-        // Show monthly coins for team total
         const monthlyCoins = parseFloat(team.monthly_coins) || 0;
         const rank = getTeamRank(team.id);
         
@@ -639,7 +769,7 @@
             <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span></div>
             ${members.map(m => {
                 const personalCoins = parseFloat(m.coins) || 0;
-                const monthlyCoins = parseFloat(m.monthly_coins) || 0;
+                const monthlyCoinsMember = parseFloat(m.monthly_coins) || 0;
                 const initial = (m.first_name || m.username || 'U')[0].toUpperCase();
                 const photoUrl = m.photo_url || '';
                 return `
@@ -654,8 +784,8 @@
                             </div>
                             <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} refs</div>
                         </div>
-                        <div class="member-coins" title="Total: ${formatCoinsFull(personalCoins)} | This Month: ${formatCoinsFull(monthlyCoins)}">
-                            ${formatCoinsFull(monthlyCoins)}
+                        <div class="member-coins" title="Total: ${formatCoinsFull(personalCoins)} | This Month: ${formatCoinsFull(monthlyCoinsMember)}">
+                            ${formatCoinsFull(monthlyCoinsMember)}
                             <span style="font-size:8px;color:var(--gray);"> (${formatCoinsFull(personalCoins)})</span>
                         </div>
                     </div>
@@ -684,7 +814,7 @@
                 </div>
             `;
         }).join('');
-        if (document.getElementById('myteamTab').classList.contains('active')) loadMyTeamOnly();
+        if (document.getElementById('myteamTab').classList.contains('active')) loadMyTeamOnly(false);
     }
     
     function renderMonthlyCompetition(data) {
@@ -711,7 +841,8 @@
             }).join('');
     }
     
-    async function loadMyTeamOnly() {
+    async function loadMyTeamOnly(showSkeleton = true) {
+        if (showSkeleton) showMyTeamSkeleton();
         try {
             const data = await apiCall('/api/team/info');
             renderMyTeam(data);
@@ -736,23 +867,18 @@
         if (optimisticTeamData) {
             const errorDiv = document.querySelector('.sync-error');
             if (errorDiv) errorDiv.remove();
-            const container = document.getElementById('myTeamContent');
-            const spinner = document.createElement('div');
-            spinner.style.textAlign = 'center';
-            spinner.style.marginTop = '10px';
-            spinner.innerHTML = '<span class="loading-spinner"></span> Syncing...';
-            container.querySelector('.team-card').appendChild(spinner);
-            await loadMyTeamOnly();
+            await loadMyTeamOnly(true);
         }
     };
     
-    async function loadTeamLeaderboard(force = false) {
+    async function loadTeamLeaderboard(force = false, showSkeleton = true) {
         const container = document.getElementById('teamLeaderboardList');
         const now = Date.now();
         if (!force && teamLeaderboardCache.length > 0 && (now - leaderboardLastFetch) < CACHE_TTL) {
             renderTeamLeaderboard(teamLeaderboardCache);
             return;
         }
+        if (showSkeleton) showLeaderboardSkeleton();
         try {
             const response = await fetch('/api/team/leaderboard');
             const data = await response.json();
@@ -768,13 +894,14 @@
         }
     }
     
-    async function loadMonthlyCompetition(force = false) {
+    async function loadMonthlyCompetition(force = false, showSkeleton = true) {
         const container = document.getElementById('monthlyContent');
         const now = Date.now();
         if (!force && monthlyCache && (now - monthlyLastFetch) < CACHE_TTL) {
             renderMonthlyCompetition(monthlyCache);
             return;
         }
+        if (showSkeleton) showMonthlySkeleton();
         try {
             const data = await apiCall('/api/team/monthly-competition');
             monthlyCache = data;
@@ -790,8 +917,8 @@
     }
     
     function preloadOtherTabs() {
-        loadTeamLeaderboard().catch(e => {});
-        loadMonthlyCompetition().catch(e => {});
+        loadTeamLeaderboard(false, false).catch(e => {});
+        loadMonthlyCompetition(false, false).catch(e => {});
     }
     
     async function createTeam() {
@@ -820,9 +947,9 @@
             renderOptimisticTeam(name, optimisticTeamData.code);
             closeCreateModal();
             showNotification(`✅ Team "${name}" created!`, false);
-            await loadMyTeamOnly();
+            await loadMyTeamOnly(true);
             showNotification(`🎉 Welcome to your new team!`, false);
-            loadTeamLeaderboard(true).catch(e => {});
+            loadTeamLeaderboard(true, false).catch(e => {});
         } catch (err) {
             showNotification(err.message || 'Failed to create team', true);
         } finally {
@@ -859,9 +986,9 @@
             renderOptimisticTeam(checkResult.teamName || 'Team', code);
             closeJoinModal();
             showNotification(`✅ Joined ${checkResult.teamName || 'team'}!`, false);
-            await loadMyTeamOnly();
+            await loadMyTeamOnly(true);
             showNotification(`🎉 Welcome to your new team!`, false);
-            loadTeamLeaderboard(true).catch(e => {});
+            loadTeamLeaderboard(true, false).catch(e => {});
         } catch (err) {
             showNotification(err.message || 'Failed to join team', true);
         } finally {
@@ -884,7 +1011,7 @@
             showNotification('Left team. Your coins are no longer contributing to the team.', false);
             closeLeaveModal();
             optimisticTeamData = null;
-            await loadMyTeamOnly();
+            await loadMyTeamOnly(true);
         } catch (err) {
             showNotification(err.message || 'Failed to leave team', true);
         } finally {
@@ -899,6 +1026,44 @@
         showNotification('Team code copied!');
     }
     
+    // ============================================
+    // PULL TO REFRESH
+    // ============================================
+    
+    function showRefreshIndicator(text, isError = false) {
+        refreshIndicator.textContent = text;
+        refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+        refreshIndicator.classList.add('show');
+        setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+    }
+    
+    async function refreshAllData() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        try {
+            await loadMyTeamOnly(true);
+            await loadTeamLeaderboard(true, false);
+            await loadMonthlyCompetition(true, false);
+            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+            showNotification('Team data refreshed!', false);
+        } catch (err) {
+            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+    
+    document.addEventListener('touchstart', (e) => {
+        if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
+    });
+    document.addEventListener('touchmove', (e) => {
+        if (window.scrollY === 0 && !isRefreshing) {
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 60) { e.preventDefault(); refreshAllData(); }
+        }
+    });
+    
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -906,8 +1071,8 @@
             tab.classList.add('active');
             const tabName = tab.dataset.tab;
             document.getElementById(tabName + 'Tab').classList.add('active');
-            if (tabName === 'leaderboard') loadTeamLeaderboard();
-            if (tabName === 'monthly') { loadMonthlyCompetition(); updatePrizeInfoVisibility(); }
+            if (tabName === 'leaderboard') loadTeamLeaderboard(false, true);
+            if (tabName === 'monthly') { loadMonthlyCompetition(false, true); updatePrizeInfoVisibility(); }
         });
     });
     
@@ -926,7 +1091,10 @@
     if (codeInput) codeInput.addEventListener('input', function() { this.value = this.value.toUpperCase(); });
     
     document.addEventListener('DOMContentLoaded', () => {
-        loadMyTeamOnly().then(() => preloadOtherTabs());
+        showMyTeamSkeleton();
+        showLeaderboardSkeleton();
+        showMonthlySkeleton();
+        loadMyTeamOnly(true).then(() => preloadOtherTabs());
         updatePrizeInfoVisibility();
     });
 </script>
