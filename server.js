@@ -2231,6 +2231,138 @@ app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// ADMIN: Broadcast Message to All Users (with optional image)
+// ============================================
+app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
+  const { message, imageUrl } = req.body;
+  
+  if (!message || message.trim().length === 0) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+  
+  try {
+    // Get all users with telegram_id
+    const users = await pool.query('SELECT telegram_id, first_name FROM users WHERE telegram_id IS NOT NULL');
+    
+    if (users.rows.length === 0) {
+      return res.json({ success: true, sent: 0, message: 'No users found' });
+    }
+    
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    if (!BOT_TOKEN) {
+      return res.status(500).json({ error: 'Bot token not configured' });
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    const failedUsers = [];
+    
+    // Send message to each user
+    for (const user of users.rows) {
+      try {
+        if (imageUrl) {
+          // Send with image
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: user.telegram_id,
+              photo: imageUrl,
+              caption: message,
+              parse_mode: 'Markdown'
+            })
+          });
+        } else {
+          // Send text only
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: user.telegram_id,
+              text: message,
+              parse_mode: 'Markdown'
+            })
+          });
+        }
+        successCount++;
+      } catch (err) {
+        failCount++;
+        failedUsers.push(user.telegram_id);
+        console.error(`Failed to send to ${user.telegram_id}:`, err.message);
+      }
+      
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    
+    console.log(`📢 Broadcast completed: ${successCount} sent, ${failCount} failed`);
+    
+    res.json({
+      success: true,
+      sent: successCount,
+      failed: failCount,
+      failedUsers: failedUsers,
+      total: users.rows.length,
+      message: `Broadcast sent to ${successCount} users`
+    });
+    
+  } catch (err) {
+    console.error('Broadcast error:', err);
+    res.status(500).json({ error: 'Failed to send broadcast: ' + err.message });
+  }
+});
+
+// ============================================
+// ADMIN: Test Broadcast (send to yourself first)
+// ============================================
+app.post('/api/admin/test-broadcast', verifyAdmin, async (req, res) => {
+  const { message, imageUrl, testTelegramId } = req.body;
+  
+  if (!message || message.trim().length === 0) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+  
+  if (!testTelegramId) {
+    return res.status(400).json({ error: 'Test Telegram ID is required' });
+  }
+  
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  if (!BOT_TOKEN) {
+    return res.status(500).json({ error: 'Bot token not configured' });
+  }
+  
+  try {
+    if (imageUrl) {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: testTelegramId,
+          photo: imageUrl,
+          caption: message,
+          parse_mode: 'Markdown'
+        })
+      });
+    } else {
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: testTelegramId,
+          text: message,
+          parse_mode: 'Markdown'
+        })
+      });
+    }
+    
+    res.json({ success: true, message: 'Test message sent successfully!' });
+  } catch (err) {
+    console.error('Test broadcast error:', err);
+    res.status(500).json({ error: 'Failed to send test: ' + err.message });
+  }
+});
+
+// ============================================
 // ADMIN: Award Monthly Prizes (Based on THIS Month's Earnings)
 // ============================================
 app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
