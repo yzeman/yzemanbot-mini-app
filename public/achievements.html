@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Achievements - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -26,6 +26,7 @@
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
+            overflow-x: hidden;
         }
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
@@ -38,11 +39,15 @@
         .header h1 i { color: var(--gold); }
         .header p { color: var(--gray); font-size: 13px; }
         .back-btn-header { position: absolute; top: 20px; left: 20px; color: white; font-size: 22px; text-decoration: none; z-index: 10; }
+        
+        /* Stats Container */
         .stats-container { display: flex; padding: 20px 15px; gap: 12px; }
         .stat-card { flex: 1; background: var(--darker); border-radius: 18px; padding: 18px 10px; text-align: center; }
         .stat-icon { font-size: 28px; color: var(--gold); margin-bottom: 8px; }
         .stat-value { font-size: 28px; font-weight: bold; color: var(--light); }
         .stat-label { font-size: 11px; color: var(--gray); margin-top: 4px; }
+        
+        /* Progress Section */
         .progress-section { padding: 0 15px 20px; }
         .progress-title { font-size: 15px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         .progress-title i { color: var(--gold); }
@@ -50,6 +55,8 @@
         .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--gray); margin-bottom: 6px; }
         .progress-bar { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 4px; width: 0%; transition: width 0.3s ease; }
+        
+        /* Achievements Grid */
         .achievements-container { padding: 0 15px 20px; }
         .section-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         .section-title i { color: var(--gold); }
@@ -64,17 +71,154 @@
         .achievement-badge { position: absolute; top: 8px; right: 8px; }
         .unlocked-badge { background: var(--success); color: white; padding: 4px 8px; border-radius: 20px; font-size: 9px; font-weight: bold; }
         .locked-badge { background: var(--gray); color: white; padding: 4px 8px; border-radius: 20px; font-size: 9px; }
+        
+        /* ============================================
+           SKELETON LOADING ANIMATIONS
+        ============================================ */
+        .skeleton {
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0.05) 25%, 
+                rgba(255,255,255,0.1) 50%, 
+                rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes skeleton-wave {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Stat card skeleton */
+        .skeleton-stat-card {
+            flex: 1;
+            background: var(--darker);
+            border-radius: 18px;
+            padding: 18px 10px;
+            text-align: center;
+        }
+        .skeleton-stat-icon {
+            width: 28px;
+            height: 28px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            margin: 0 auto 8px;
+        }
+        .skeleton-stat-value {
+            width: 40px;
+            height: 28px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        .skeleton-stat-label {
+            width: 50px;
+            height: 11px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin: 5px auto 0;
+        }
+        
+        /* Progress item skeleton */
+        .skeleton-progress-item {
+            margin-bottom: 18px;
+        }
+        .skeleton-progress-label {
+            width: 40%;
+            height: 13px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .skeleton-progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 4px;
+        }
+        
+        /* Achievement card skeleton */
+        .skeleton-achievement-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .skeleton-achievement-card {
+            background: var(--darker);
+            border-radius: 18px;
+            padding: 18px 12px;
+            text-align: center;
+        }
+        .skeleton-achievement-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            margin: 0 auto 10px;
+        }
+        .skeleton-achievement-name {
+            width: 70%;
+            height: 14px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto 5px;
+        }
+        .skeleton-achievement-desc {
+            width: 80%;
+            height: 10px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin: 0 auto 10px;
+        }
+        .skeleton-achievement-reward {
+            width: 50%;
+            height: 13px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        
+        /* Refresh indicator */
+        .refresh-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .refresh-indicator.show {
+            transform: translateY(0);
+        }
+        .refresh-indicator i {
+            margin-right: 5px;
+        }
+        
         .loading, .empty-state { text-align: center; padding: 40px; color: var(--gray); }
         .retry-btn { background: var(--secondary); color: white; border: none; padding: 10px 20px; border-radius: 20px; font-size: 13px; cursor: pointer; margin-top: 15px; }
+        
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--darker); display: flex; padding: 8px 15px; border-top: 1px solid rgba(255,255,255,0.1); z-index: 100; }
         .nav-item { flex: 1; text-align: center; color: var(--gray); text-decoration: none; font-size: 11px; padding: 5px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
+        
         .notification { position: fixed; bottom: 80px; left: 15px; right: 15px; background: #00c853; color: white; padding: 12px 18px; border-radius: 10px; text-align: center; display: none; z-index: 1000; font-size: 13px; }
         .notification.error { background: var(--danger); }
     </style>
 </head>
 <body>
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-arrow-down"></i> Pull to refresh
+    </div>
+    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
@@ -82,24 +226,15 @@
         <p>Complete challenges to earn COINS and badges!</p>
     </div>
     
-    <div class="stats-container">
-        <div class="stat-card"><div class="stat-icon"><i class="fas fa-trophy"></i></div><div class="stat-value" id="achievementsCount">0</div><div class="stat-label">Unlocked</div></div>
-        <div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-value" id="totalAchievements">16</div><div class="stat-label">Total</div></div>
-        <div class="stat-card"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value" id="totalCoinsEarned">0</div><div class="stat-label">COINS Earned</div></div>
-    </div>
+    <!-- Stats Container - Will be populated by JS -->
+    <div class="stats-container" id="statsContainer"></div>
     
-    <div class="progress-section">
-        <div class="progress-title"><i class="fas fa-chart-line"></i><span>Your Progress</span></div>
-        <div class="progress-item"><div class="progress-label"><span><i class="fas fa-medal"></i> Overall Completion</span><span id="overallProgressText">0%</span></div><div class="progress-bar"><div class="progress-fill" id="overallProgressBar" style="width: 0%;"></div></div></div>
-        <div class="progress-item"><div class="progress-label"><span><i class="fas fa-users"></i> Referral Master</span><span id="referralProgressText">0/100</span></div><div class="progress-bar"><div class="progress-fill" id="referralProgressBar" style="width: 0%;"></div></div></div>
-        <div class="progress-item"><div class="progress-label"><span><i class="fas fa-calendar-check"></i> Daily Streak</span><span id="streakProgressText">0/30</span></div><div class="progress-bar"><div class="progress-fill" id="streakProgressBar" style="width: 0%;"></div></div></div>
-        <div class="progress-item"><div class="progress-label"><span><i class="fas fa-ad"></i> Ad Master</span><span id="adProgressText">0/1000</span></div><div class="progress-bar"><div class="progress-fill" id="adProgressBar" style="width: 0%;"></div></div></div>
-        <div class="progress-item"><div class="progress-label"><span><i class="fas fa-fire"></i> Referral King</span><span id="kingProgressText">0/500</span></div><div class="progress-bar"><div class="progress-fill" id="kingProgressBar" style="width: 0%;"></div></div></div>
-    </div>
+    <!-- Progress Section - Will be populated by JS -->
+    <div class="progress-section" id="progressSection"></div>
     
     <div class="achievements-container">
         <div class="section-title"><i class="fas fa-list"></i><span>All Achievements</span></div>
-        <div class="achievements-grid" id="achievementsGrid"><div class="loading">Loading achievements...</div></div>
+        <div class="achievements-grid" id="achievementsGrid"></div>
     </div>
     
     <div class="bottom-nav">
@@ -117,7 +252,12 @@
             const tg = window.Telegram?.WebApp;
             if (tg) { tg.ready(); tg.expand(); }
             
-            // Updated Achievement configuration with NEW coin rewards
+            // Pull to refresh variables
+            let touchStartY = 0;
+            let isRefreshing = false;
+            const refreshIndicator = document.getElementById('refreshIndicator');
+            
+            // Achievement configuration
             const ACHIEVEMENT_CONFIG = {
                 'Loyal User': { icon: '🔥', coins: 500, requirement: '30 day login streak' },
                 'Referral Master': { icon: '👑', coins: 3000, requirement: 'Get 100 referrals' },
@@ -130,7 +270,6 @@
                 'Daily Streak 7': { icon: '📅', coins: 1000, requirement: '7 day login streak' },
                 'Super Referrer': { icon: '⭐', coins: 7000, requirement: 'Get 500 referrals' },
                 'Ad Master': { icon: '📺', coins: 2500, requirement: 'Watch 1000 ads' },
-                // NEW ACHIEVEMENTS
                 'Team Winner': { icon: '🏅', coins: 5000, requirement: 'Your team wins monthly competition' },
                 'Leaderboard Winner': { icon: '👑', coins: 3000, requirement: 'Finish Top 3 on monthly leaderboard' },
                 'Ad Master Platinum': { icon: '💎', coins: 10000, requirement: 'Watch 5000 ads' },
@@ -162,7 +301,6 @@
                 return response.json();
             }
             
-            // Format coins with appropriate decimals
             function formatCoins(amount) {
                 const num = parseFloat(amount) || 0;
                 if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
@@ -170,11 +308,61 @@
                 return num.toFixed(0);
             }
             
+            // ============================================
+            // SKELETON LOADING FUNCTIONS
+            // ============================================
+            
+            function showSkeleton() {
+                // Stats skeleton
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="skeleton-stat-card">
+                        <div class="skeleton-stat-icon"></div>
+                        <div class="skeleton-stat-value"></div>
+                        <div class="skeleton-stat-label"></div>
+                    </div>
+                    <div class="skeleton-stat-card">
+                        <div class="skeleton-stat-icon"></div>
+                        <div class="skeleton-stat-value"></div>
+                        <div class="skeleton-stat-label"></div>
+                    </div>
+                    <div class="skeleton-stat-card">
+                        <div class="skeleton-stat-icon"></div>
+                        <div class="skeleton-stat-value"></div>
+                        <div class="skeleton-stat-label"></div>
+                    </div>
+                `;
+                
+                // Progress skeleton
+                document.getElementById('progressSection').innerHTML = `
+                    <div class="progress-title"><i class="fas fa-chart-line"></i><span>Your Progress</span></div>
+                    <div class="skeleton-progress-item"><div class="skeleton-progress-label"></div><div class="skeleton-progress-bar"></div></div>
+                    <div class="skeleton-progress-item"><div class="skeleton-progress-label"></div><div class="skeleton-progress-bar"></div></div>
+                    <div class="skeleton-progress-item"><div class="skeleton-progress-label"></div><div class="skeleton-progress-bar"></div></div>
+                    <div class="skeleton-progress-item"><div class="skeleton-progress-label"></div><div class="skeleton-progress-bar"></div></div>
+                    <div class="skeleton-progress-item"><div class="skeleton-progress-label"></div><div class="skeleton-progress-bar"></div></div>
+                `;
+                
+                // Achievements skeleton
+                document.getElementById('achievementsGrid').innerHTML = `
+                    <div class="skeleton-achievement-card"><div class="skeleton-achievement-icon"></div><div class="skeleton-achievement-name"></div><div class="skeleton-achievement-desc"></div><div class="skeleton-achievement-reward"></div></div>
+                    <div class="skeleton-achievement-card"><div class="skeleton-achievement-icon"></div><div class="skeleton-achievement-name"></div><div class="skeleton-achievement-desc"></div><div class="skeleton-achievement-reward"></div></div>
+                    <div class="skeleton-achievement-card"><div class="skeleton-achievement-icon"></div><div class="skeleton-achievement-name"></div><div class="skeleton-achievement-desc"></div><div class="skeleton-achievement-reward"></div></div>
+                    <div class="skeleton-achievement-card"><div class="skeleton-achievement-icon"></div><div class="skeleton-achievement-name"></div><div class="skeleton-achievement-desc"></div><div class="skeleton-achievement-reward"></div></div>
+                    <div class="skeleton-achievement-card"><div class="skeleton-achievement-icon"></div><div class="skeleton-achievement-name"></div><div class="skeleton-achievement-desc"></div><div class="skeleton-achievement-reward"></div></div>
+                    <div class="skeleton-achievement-card"><div class="skeleton-achievement-icon"></div><div class="skeleton-achievement-name"></div><div class="skeleton-achievement-desc"></div><div class="skeleton-achievement-reward"></div></div>
+                `;
+            }
+            
             function updateStats(data) {
                 const stats = data.userStats;
                 const achievements = data.achievements;
                 
-                document.getElementById('achievementsCount').textContent = stats.achievements_count || 0;
+                // Build stats HTML
+                document.getElementById('statsContainer').innerHTML = `
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-trophy"></i></div><div class="stat-value" id="achievementsCount">${stats.achievements_count || 0}</div><div class="stat-label">Unlocked</div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-value" id="totalAchievements">${achievements.length}</div><div class="stat-label">Total</div></div>
+                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value" id="totalCoinsEarned">0</div><div class="stat-label">COINS Earned</div></div>
+                `;
                 
                 // Calculate total coins earned from achievements
                 let totalCoinsEarned = 0;
@@ -189,28 +377,24 @@
                 const totalAchievements = achievements.length;
                 const unlockedCount = achievements.filter(a => a.achieved).length;
                 const overallPercent = Math.round((unlockedCount / totalAchievements) * 100);
-                document.getElementById('overallProgressText').textContent = `${overallPercent}%`;
-                document.getElementById('overallProgressBar').style.width = `${overallPercent}%`;
                 
                 const referrals = stats.referrals || 0;
                 const referralPercent = Math.min((referrals / 100) * 100, 100);
-                document.getElementById('referralProgressText').textContent = `${referrals}/100`;
-                document.getElementById('referralProgressBar').style.width = `${referralPercent}%`;
-                
-                // Referral King progress (500 referrals)
                 const kingPercent = Math.min((referrals / 500) * 100, 100);
-                document.getElementById('kingProgressText').textContent = `${referrals}/500`;
-                document.getElementById('kingProgressBar').style.width = `${kingPercent}%`;
-                
                 const streak = stats.max_streak || 0;
                 const streakPercent = Math.min((streak / 30) * 100, 100);
-                document.getElementById('streakProgressText').textContent = `${streak}/30`;
-                document.getElementById('streakProgressBar').style.width = `${streakPercent}%`;
-                
                 const totalAds = parseInt(localStorage.getItem('totalAdsWatched') || '0');
                 const adPercent = Math.min((totalAds / 1000) * 100, 100);
-                document.getElementById('adProgressText').textContent = `${totalAds}/1000`;
-                document.getElementById('adProgressBar').style.width = `${adPercent}%`;
+                
+                // Build progress HTML
+                document.getElementById('progressSection').innerHTML = `
+                    <div class="progress-title"><i class="fas fa-chart-line"></i><span>Your Progress</span></div>
+                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-medal"></i> Overall Completion</span><span id="overallProgressText">${overallPercent}%</span></div><div class="progress-bar"><div class="progress-fill" id="overallProgressBar" style="width: ${overallPercent}%;"></div></div></div>
+                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-users"></i> Referral Master</span><span id="referralProgressText">${referrals}/100</span></div><div class="progress-bar"><div class="progress-fill" id="referralProgressBar" style="width: ${referralPercent}%;"></div></div></div>
+                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-calendar-check"></i> Daily Streak</span><span id="streakProgressText">${streak}/30</span></div><div class="progress-bar"><div class="progress-fill" id="streakProgressBar" style="width: ${streakPercent}%;"></div></div></div>
+                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-ad"></i> Ad Master</span><span id="adProgressText">${totalAds}/1000</span></div><div class="progress-bar"><div class="progress-fill" id="adProgressBar" style="width: ${adPercent}%;"></div></div></div>
+                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-fire"></i> Referral King</span><span id="kingProgressText">${referrals}/500</span></div><div class="progress-bar"><div class="progress-fill" id="kingProgressBar" style="width: ${kingPercent}%;"></div></div></div>
+                `;
             }
             
             function renderAchievements(achievements) {
@@ -236,9 +420,11 @@
                 }).join('');
             }
             
-            async function loadAchievements() {
-                const container = document.getElementById('achievementsGrid');
-                container.innerHTML = '<div class="loading">Loading achievements...</div>';
+            async function loadAchievements(showSkeletonLoader = true) {
+                if (showSkeletonLoader) {
+                    showSkeleton();
+                }
+                
                 try {
                     console.log('📡 Fetching achievements...');
                     const data = await apiCall('/api/achievements');
@@ -247,24 +433,71 @@
                     renderAchievements(data.achievements);
                 } catch (err) {
                     console.error('❌ Achievements error:', err);
-                    container.innerHTML = `
+                    document.getElementById('achievementsGrid').innerHTML = `
                         <div class="empty-state" style="grid-column: 1/-1;">
                             <i class="fas fa-exclamation-circle"></i>
                             <p>Failed to load achievements</p>
                             <p style="font-size:12px;margin-top:8px;">${err.message}</p>
-                            <button class="retry-btn" onclick="loadAchievements()">Retry</button>
+                            <button class="retry-btn" onclick="window.loadAchievements()">Retry</button>
                         </div>
                     `;
                     showNotification(err.message, true);
                 }
             }
             
+            // ============================================
+            // PULL TO REFRESH FUNCTIONALITY
+            // ============================================
+            
+            function showRefreshIndicator(text, isError = false) {
+                refreshIndicator.textContent = text;
+                refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+                refreshIndicator.classList.add('show');
+                setTimeout(() => {
+                    refreshIndicator.classList.remove('show');
+                }, 1500);
+            }
+            
+            async function refreshData() {
+                if (isRefreshing) return;
+                isRefreshing = true;
+                showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+                
+                try {
+                    await loadAchievements(false);
+                    showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+                    showNotification('Achievements refreshed!', false);
+                } catch (err) {
+                    showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+                } finally {
+                    isRefreshing = false;
+                }
+            }
+            
+            // Touch events for pull to refresh
+            document.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    touchStartY = e.touches[0].clientY;
+                }
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (window.scrollY === 0 && !isRefreshing) {
+                    const touchY = e.touches[0].clientY;
+                    const diff = touchY - touchStartY;
+                    if (diff > 60) {
+                        e.preventDefault();
+                        refreshData();
+                    }
+                }
+            });
+            
             // Expose loadAchievements globally for retry button
-            window.loadAchievements = loadAchievements;
+            window.loadAchievements = () => loadAchievements(true);
             
             document.addEventListener('DOMContentLoaded', () => {
                 console.log('🏆 Achievements page ready');
-                loadAchievements();
+                loadAchievements(true);
             });
         })();
     </script>
