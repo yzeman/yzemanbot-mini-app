@@ -1684,7 +1684,7 @@ app.post('/api/team/check-code', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// BONUS CODE REDEMPTION (WITH TRACKING)
+// BONUS CODE REDEMPTION (WITH TRACKING) - FIXED ERROR MESSAGES
 // ============================================
 app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
   const { code } = req.body;
@@ -1693,20 +1693,47 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
   try {
     await client.query('BEGIN');
     const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) throw new Error('User not found');
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '❌ User not found. Please restart the app.' });
+    }
     const userId = userResult.rows[0].id;
     
-    const existing = await client.query('SELECT * FROM user_bonus_redemptions WHERE user_id = $1 AND bonus_code = $2', [userId, code.toUpperCase()]);
-    if (existing.rows.length > 0) throw new Error('Code already redeemed');
+    // Check if already redeemed
+    const existing = await client.query(
+      'SELECT * FROM user_bonus_redemptions WHERE user_id = $1 AND bonus_code = $2', 
+      [userId, code.toUpperCase()]
+    );
+    if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '❌ You have already redeemed this bonus code!' });
+    }
     
-    const bonus = await client.query('SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true', [code.toUpperCase()]);
-    if (bonus.rows.length === 0) throw new Error('Invalid or expired code');
+    // Check if bonus code exists and is active
+    const bonus = await client.query(
+      'SELECT * FROM bonus_codes WHERE code = $1 AND is_active = true', 
+      [code.toUpperCase()]
+    );
+    if (bonus.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: '❌ Invalid or expired bonus code!' });
+    }
     
     const coins = bonus.rows[0].coins;
-    await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [coins, userId]);
-    await client.query('INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)', [userId, code.toUpperCase()]);
     
-    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    // Update user balance
+    await client.query(
+      'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+      [coins, userId]
+    );
+    
+    // Record redemption
+    await client.query(
+      'INSERT INTO user_bonus_redemptions (user_id, bonus_code) VALUES ($1, $2)', 
+      [userId, code.toUpperCase()]
+    );
+    
+    // Track in ad_rewards for leaderboard
     await client.query(
       'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
       [userId, coins, 'bonus']
@@ -1716,10 +1743,19 @@ app.post('/api/redeem-bonus', verifyTelegramData, async (req, res) => {
     await trackMonthlyEarnings(client, userId, coins);
     
     await client.query('COMMIT');
-    res.json({ success: true, coins, message: `🎉 You redeemed ${coins} COINS!` });
+    res.json({ success: true, coins, message: `🎉 Success! +${coins} COINS added!` });
+    
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(400).json({ error: err.message });
+    console.error('Bonus redemption error:', err);
+    
+    // Catch any other database errors
+    let errorMessage = '❌ Failed to redeem code. Please try again.';
+    if (err.message && err.message.includes('duplicate')) {
+      errorMessage = '❌ You have already redeemed this bonus code!';
+    }
+    
+    res.status(400).json({ error: errorMessage });
   } finally {
     client.release();
   }
