@@ -144,6 +144,101 @@ const COIN_ECONOMY = {
 
 const POINT_ECONOMY = COIN_ECONOMY;
 
+// ============================================
+// DEEP LINK NAVIGATION - Open specific pages
+// ============================================
+
+function handleDeepLink() {
+    // Check for startapp parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    let startApp = urlParams.get('startapp');
+    
+    // Also check for regular page parameter
+    const page = urlParams.get('page');
+    
+    if (startApp) {
+        navigateToPage(startApp);
+    } else if (page) {
+        navigateToPage(page);
+    }
+}
+
+function navigateToPage(page) {
+    console.log(`🔗 Navigating to: ${page}`);
+    
+    // Map page names to URLs
+    const pageMap = {
+        'leaderboard': '/leaderboard.html',
+        'daily': '/daily.html',
+        'wheel': '/wheel.html',
+        'team': '/team.html',
+        'achievements': '/achievements.html',
+        'tournament': '/tournament.html',
+        'history': '/history.html',
+        'refer': null,  // Special case - switch to refer tab on home page
+        'bonus': null,   // Special case - switch to bonus tab on home page
+        'wallet': null    // Special case - switch to wallet tab on home page
+    };
+    
+    const targetUrl = pageMap[page.toLowerCase()];
+    
+    if (targetUrl) {
+        // Navigate to specific page
+        window.location.href = targetUrl;
+    } else if (['refer', 'bonus', 'wallet', 'earn'].includes(page.toLowerCase())) {
+        // Stay on home page but switch tab
+        switchHomeTab(page.toLowerCase());
+    } else {
+        // Default to home
+        window.location.href = '/';
+    }
+}
+
+function switchHomeTab(tabName) {
+    // Map tab names to data-tab values
+    const tabMap = {
+        'earn': 'earn',
+        'refer': 'refer',
+        'wallet': 'wallet',
+        'bonus': 'bonus'
+    };
+    
+    const targetTab = tabMap[tabName];
+    if (targetTab) {
+        // Store in sessionStorage to apply after page loads
+        sessionStorage.setItem('openTab', targetTab);
+        
+        // If already on home page, switch tab immediately
+        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+            const tabElement = document.querySelector(`.tab[data-tab="${targetTab}"]`);
+            if (tabElement) {
+                tabElement.click();
+            }
+        } else {
+            // Navigate to home page and then switch tab
+            window.location.href = '/?tab=' + targetTab;
+        }
+    }
+}
+
+// Check sessionStorage for tab to open when home page loads
+function checkStoredTab() {
+    const storedTab = sessionStorage.getItem('openTab');
+    if (storedTab) {
+        sessionStorage.removeItem('openTab');
+        const tabElement = document.querySelector(`.tab[data-tab="${storedTab}"]`);
+        if (tabElement) {
+            setTimeout(() => tabElement.click(), 500);
+        }
+    }
+}
+
+// Run deep link handler when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    handleDeepLink();
+    checkStoredTab();
+});
+
 // ============================================================
 // REFERRAL CODE DETECTION
 // ============================================================
