@@ -73,6 +73,28 @@
             z-index: 10;
         }
         
+        /* Refresh Indicator */
+        .refresh-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        .refresh-indicator.show {
+            transform: translateY(0);
+        }
+        .refresh-indicator i {
+            margin-right: 5px;
+        }
+        
         /* Stats Cards */
         .stats-container {
             display: flex;
@@ -238,7 +260,7 @@
             margin-right: 4px;
         }
         
-        /* Calendar Section - COMPLETELY FIXED */
+        /* Calendar Section */
         .calendar-section {
             background: var(--darker);
             border-radius: 20px;
@@ -312,6 +334,137 @@
         
         .calendar-day.today .day-number {
             color: var(--gold);
+        }
+        
+        /* Skeleton Loading Styles */
+        .skeleton {
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0.05) 25%, 
+                rgba(255,255,255,0.1) 50%, 
+                rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-wave 1.5s infinite;
+            border-radius: 8px;
+        }
+        
+        @keyframes skeleton-wave {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .skeleton-stat-item {
+            flex: 1;
+            text-align: center;
+            background: rgba(255,255,255,0.05);
+            padding: 12px 8px;
+            border-radius: 15px;
+        }
+        .skeleton-stat-value {
+            width: 40px;
+            height: 28px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        .skeleton-stat-label {
+            width: 50px;
+            height: 11px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin: 8px auto 0;
+        }
+        
+        .skeleton-reward-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 25px;
+            padding: 25px 20px;
+            margin: 15px;
+            text-align: center;
+        }
+        .skeleton-reward-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+            margin: 0 auto 10px;
+        }
+        .skeleton-reward-title {
+            width: 60%;
+            height: 18px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto 8px;
+        }
+        .skeleton-reward-amount {
+            width: 40%;
+            height: 42px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto 5px;
+        }
+        .skeleton-reward-coin {
+            width: 30%;
+            height: 13px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+            margin: 0 auto;
+        }
+        
+        .skeleton-streak-info {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 15px;
+            margin: 15px;
+        }
+        .skeleton-streak-fire {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+        .skeleton-streak-text {
+            flex: 1;
+        }
+        .skeleton-streak-title {
+            width: 60%;
+            height: 16px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .skeleton-streak-subtitle {
+            width: 40%;
+            height: 11px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 4px;
+        }
+        
+        .skeleton-calendar {
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+        }
+        .skeleton-calendar-day {
+            flex: 1;
+            min-width: 44px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 10px 4px;
+            text-align: center;
+        }
+        .skeleton-calendar-letter {
+            width: 20px;
+            height: 13px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto 6px;
+        }
+        .skeleton-calendar-number {
+            width: 25px;
+            height: 16px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 4px;
+            margin: 0 auto;
         }
         
         /* Countdown Timer */
@@ -393,6 +546,11 @@
     </style>
 </head>
 <body>
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator" id="refreshIndicator">
+        <i class="fas fa-arrow-down"></i> Pull to refresh
+    </div>
+    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
@@ -400,52 +558,16 @@
         <p>Login every day to earn COINS and build your streak!</p>
     </div>
     
-    <!-- Stats Cards -->
-    <div class="stats-container">
-        <div class="stat-item">
-            <div class="stat-value" id="streakCount">0</div>
-            <div class="stat-label">Current Streak 🔥</div>
-            <div class="stat-help">Days in a row</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="maxStreak">0</div>
-            <div class="stat-label">Best Streak 🏆</div>
-            <div class="stat-help">Your highest ever</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="totalDays">0</div>
-            <div class="stat-label">Total Days</div>
-            <div class="stat-help">Total claims</div>
-        </div>
-    </div>
+    <!-- Stats Container - Will be populated by JS -->
+    <div class="stats-container" id="statsContainer"></div>
     
-    <!-- Main Reward Card -->
-    <div class="reward-card" id="claimBtn">
-        <div class="reward-icon" id="rewardIcon">🎁</div>
-        <div class="reward-title" id="claimBtnText">Claim Daily Reward</div>
-        <div class="reward-amount"><span id="todayReward">0.20</span></div>
-        <div class="reward-coin">COINS</div>
-        <div class="streak-bonus-badge" id="streakBonusBadge">+0 Streak Bonus</div>
-    </div>
+    <!-- Main Reward Card - Will be populated by JS -->
+    <div id="rewardCardContainer"></div>
     
-    <!-- Streak Info Section -->
-    <div class="streak-info">
-        <div class="streak-header">
-            <div class="streak-fire">🔥</div>
-            <div class="streak-info-text">
-                <h3>How Streak Works</h3>
-                <p>Claim daily without missing a day to increase your streak!</p>
-            </div>
-        </div>
-        <div class="bonus-list">
-            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
-            <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
-            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
-            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
-        </div>
-    </div>
+    <!-- Streak Info Section - Will be populated by JS -->
+    <div id="streakInfoContainer"></div>
     
-    <!-- Calendar Section - FIXED with horizontal scroll if needed -->
+    <!-- Calendar Section -->
     <div class="calendar-section">
         <div class="calendar-title">
             <i class="fas fa-calendar-alt"></i>
@@ -487,7 +609,7 @@
     
     <script>
         // ============================================
-        // DAILY PAGE - COMPLETELY FIXED CALENDAR
+        // DAILY PAGE - WITH SKELETONS & PULL TO REFRESH
         // ============================================
         
         const tg = window.Telegram?.WebApp;
@@ -498,6 +620,9 @@
         }
         
         let countdownInterval = null;
+        let isRefreshing = false;
+        let touchStartY = 0;
+        const refreshIndicator = document.getElementById('refreshIndicator');
         
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -554,18 +679,64 @@
             return '🎁 Claim Daily Reward';
         }
         
-        async function loadDailyStats() {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
-                return;
-            }
+        // ============================================
+        // SKELETON LOADING FUNCTIONS
+        // ============================================
+        
+        function showSkeleton() {
+            // Stats skeleton
+            document.getElementById('statsContainer').innerHTML = `
+                <div class="skeleton-stat-item">
+                    <div class="skeleton-stat-value"></div>
+                    <div class="skeleton-stat-label"></div>
+                </div>
+                <div class="skeleton-stat-item">
+                    <div class="skeleton-stat-value"></div>
+                    <div class="skeleton-stat-label"></div>
+                </div>
+                <div class="skeleton-stat-item">
+                    <div class="skeleton-stat-value"></div>
+                    <div class="skeleton-stat-label"></div>
+                </div>
+            `;
             
-            try {
-                const data = await apiCall('/api/daily-stats', { initData: tg.initData });
-                updateDailyUI(data);
-                startCountdown();
-            } catch (err) {
-                console.error('Failed to load daily stats:', err);
+            // Reward card skeleton
+            document.getElementById('rewardCardContainer').innerHTML = `
+                <div class="skeleton-reward-card">
+                    <div class="skeleton-reward-icon"></div>
+                    <div class="skeleton-reward-title"></div>
+                    <div class="skeleton-reward-amount"></div>
+                    <div class="skeleton-reward-coin"></div>
+                </div>
+            `;
+            
+            // Streak info skeleton
+            document.getElementById('streakInfoContainer').innerHTML = `
+                <div class="skeleton-streak-info">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="skeleton-streak-fire"></div>
+                        <div class="skeleton-streak-text">
+                            <div class="skeleton-streak-title"></div>
+                            <div class="skeleton-streak-subtitle"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Calendar skeleton
+            const calendar = document.getElementById('calendar');
+            if (calendar) {
+                calendar.innerHTML = `
+                    <div class="skeleton-calendar">
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    </div>
+                `;
             }
         }
         
@@ -573,28 +744,66 @@
             const currentStreak = data.current_streak || 0;
             const claimedToday = data.claimed_today || false;
             
-            document.getElementById('streakCount').textContent = currentStreak;
-            document.getElementById('maxStreak').textContent = data.max_streak || 0;
-            document.getElementById('totalDays').textContent = data.last_7_days?.length || 0;
+            // Build stats HTML
+            document.getElementById('statsContainer').innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-value" id="streakCount">${currentStreak}</div>
+                    <div class="stat-label">Current Streak 🔥</div>
+                    <div class="stat-help">Days in a row</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="maxStreak">${data.max_streak || 0}</div>
+                    <div class="stat-label">Best Streak 🏆</div>
+                    <div class="stat-help">Your highest ever</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalDays">${data.last_7_days?.length || 0}</div>
+                    <div class="stat-label">Total Days</div>
+                    <div class="stat-help">Total claims</div>
+                </div>
+            `;
             
             const { streakBonus, totalReward } = calculateReward(currentStreak);
             
-            document.getElementById('todayReward').textContent = totalReward.toFixed(2);
-            document.getElementById('streakBonusBadge').innerHTML = streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus';
+            // Build reward card HTML
+            document.getElementById('rewardCardContainer').innerHTML = `
+                <div class="reward-card" id="claimBtn">
+                    <div class="reward-icon" id="rewardIcon">${getRewardIcon(currentStreak)}</div>
+                    <div class="reward-title" id="claimBtnText">${getRewardTitle(currentStreak, claimedToday)}</div>
+                    <div class="reward-amount"><span id="todayReward">${totalReward.toFixed(2)}</span></div>
+                    <div class="reward-coin">COINS</div>
+                    <div class="streak-bonus-badge" id="streakBonusBadge">${streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus'}</div>
+                </div>
+            `;
             
-            const rewardIcon = document.getElementById('rewardIcon');
-            const claimBtnText = document.getElementById('claimBtnText');
+            // Build streak info HTML
+            document.getElementById('streakInfoContainer').innerHTML = `
+                <div class="streak-info">
+                    <div class="streak-header">
+                        <div class="streak-fire">🔥</div>
+                        <div class="streak-info-text">
+                            <h3>How Streak Works</h3>
+                            <p>Claim daily without missing a day to increase your streak!</p>
+                        </div>
+                    </div>
+                    <div class="bonus-list">
+                        <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
+                        <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
+                        <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
+                        <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
+                    </div>
+                </div>
+            `;
+            
+            // Re-attach event listener to the new claim button
             const claimBtn = document.getElementById('claimBtn');
-            
-            if (rewardIcon) rewardIcon.textContent = getRewardIcon(currentStreak);
-            if (claimBtnText) claimBtnText.textContent = getRewardTitle(currentStreak, claimedToday);
-            
             if (claimBtn) {
                 if (claimedToday) {
                     claimBtn.classList.add('disabled');
                 } else {
                     claimBtn.classList.remove('disabled');
                 }
+                claimBtn.addEventListener('click', claimDailyReward);
             }
             
             renderCalendar(data);
@@ -660,7 +869,7 @@
                 const diff = tomorrow - now;
                 
                 if (diff <= 0) {
-                    loadDailyStats();
+                    loadDailyStats(false);
                     return;
                 }
                 
@@ -673,6 +882,26 @@
                     countdownEl.innerHTML = `Next reward in: <span>${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</span>`;
                 }
             }, 1000);
+        }
+        
+        async function loadDailyStats(showSkeletonLoader = true) {
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                return;
+            }
+            
+            if (showSkeletonLoader) {
+                showSkeleton();
+            }
+            
+            try {
+                const data = await apiCall('/api/daily-stats', { initData: tg.initData });
+                updateDailyUI(data);
+                startCountdown();
+            } catch (err) {
+                console.error('Failed to load daily stats:', err);
+                document.getElementById('statsContainer').innerHTML = '<div class="loading">Failed to load stats</div>';
+            }
         }
         
         async function claimDailyReward() {
@@ -710,7 +939,7 @@
                 else message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
                 
                 showNotification(message);
-                await loadDailyStats();
+                await loadDailyStats(false);
                 
             } catch (err) {
                 let errorMsg = err.message;
@@ -724,23 +953,63 @@
                 }
                 
                 showNotification(errorMsg, true);
-                await loadDailyStats();
+                await loadDailyStats(false);
             } finally {
                 claimBtn.style.pointerEvents = '';
                 claimBtn.style.opacity = '';
             }
         }
         
+        // ============================================
+        // PULL TO REFRESH FUNCTIONALITY
+        // ============================================
+        
+        function showRefreshIndicator(text, isError = false) {
+            refreshIndicator.textContent = text;
+            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            refreshIndicator.classList.add('show');
+            setTimeout(() => {
+                refreshIndicator.classList.remove('show');
+            }, 1500);
+        }
+        
+        async function refreshData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+            
+            try {
+                await loadDailyStats(false);
+                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+                showNotification('Daily stats refreshed!', false);
+            } catch (err) {
+                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+        
+        // Touch events for pull to refresh
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) {
+                touchStartY = e.touches[0].clientY;
+            }
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (window.scrollY === 0 && !isRefreshing) {
+                const touchY = e.touches[0].clientY;
+                const diff = touchY - touchStartY;
+                if (diff > 60) {
+                    e.preventDefault();
+                    refreshData();
+                }
+            }
+        });
+        
         document.addEventListener('DOMContentLoaded', () => {
             console.log('📅 Daily page loading...');
-            loadDailyStats();
-            
-            const claimBtn = document.getElementById('claimBtn');
-            if (claimBtn) {
-                const newClaimBtn = claimBtn.cloneNode(true);
-                claimBtn.parentNode.replaceChild(newClaimBtn, claimBtn);
-                newClaimBtn.addEventListener('click', claimDailyReward);
-            }
+            loadDailyStats(true);
         });
     </script>
 </body>
