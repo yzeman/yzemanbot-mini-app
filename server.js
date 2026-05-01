@@ -393,6 +393,54 @@ async function awardReferralCommission(client, referredUserId, coinsEarned) {
 }
 
 // ============================================
+// HELPER: Send Prize Notification to User via Telegram Bot
+// ============================================
+async function sendPrizeNotification(telegramId, prizeType, prizeAmount, rank, extraInfo = '') {
+    if (!telegramId || !process.env.BOT_TOKEN) return;
+    
+    let title, message, icon;
+    
+    switch(prizeType) {
+        case 'tournament':
+            icon = '🏆';
+            title = 'Weekly Tournament Winner!';
+            message = `You placed *#${rank}* in the weekly tournament!\n\n🏆 You've been awarded *+${prizeAmount} COINS*!${extraInfo}`;
+            break;
+        case 'leaderboard':
+            icon = '👑';
+            title = 'Monthly Leaderboard Winner!';
+            message = `You finished *#${rank}* on the monthly leaderboard!\n\n👑 You've been awarded *+${prizeAmount} COINS*!${extraInfo}`;
+            break;
+        case 'referral':
+            icon = '⭐';
+            title = 'Weekly Referral Champion!';
+            message = `You were the #${rank} top referrer this week!\n\n⭐ You've been awarded *+${prizeAmount} COINS*!${extraInfo}`;
+            break;
+        default:
+            icon = '🎉';
+            title = 'Prize Awarded!';
+            message = `You've been awarded *+${prizeAmount} COINS*!${extraInfo}`;
+    }
+    
+    const fullMessage = `${icon} *${title}* ${icon}\n\n${message}\n\nKeep up the great work! 🚀`;
+    
+    try {
+        await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: telegramId,
+                text: fullMessage,
+                parse_mode: 'Markdown'
+            })
+        });
+        console.log(`📨 Prize notification sent to ${telegramId} for ${prizeType} (${prizeAmount} COINS)`);
+    } catch (err) {
+        console.error(`Failed to send notification to ${telegramId}:`, err.message);
+    }
+}
+
+// ============================================
 // HELPER: Award Achievement (UPDATED FOR COINS WITH TRACKING)
 // ============================================
 async function awardAchievement(userId, achievementName, clientParam = null) {
@@ -2147,7 +2195,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     
     const topEarners = await client.query(`
-      SELECT u.id, u.first_name, COALESCE(SUM(ar.reward_amount), 0) as monthly_coins
+      SELECT u.id, u.first_name, u.telegram_id, COALESCE(SUM(ar.reward_amount), 0) as monthly_coins
       FROM users u
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $1
@@ -2161,6 +2209,8 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
     for (let i = 0; i < topEarners.rows.length; i++) {
       const user = topEarners.rows[i];
       const prize = prizes[i];
+      const rank = i + 1;
+      
       if (user.monthly_coins > 0) {
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
@@ -2170,7 +2220,11 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'leaderboard_prize']
         );
-        console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name}`);
+        
+        // ✅ SEND TELEGRAM NOTIFICATION
+        await sendPrizeNotification(user.telegram_id, 'leaderboard', prize, rank);
+        
+        console.log(`🏆 Monthly prize: ${prize} COINS awarded to ${user.first_name} (rank #${rank})`);
       }
     }
     
@@ -2203,7 +2257,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
     const lastSundayStr = lastSunday.toISOString();
     
     const topReferrers = await client.query(`
-      SELECT u.id, u.first_name, COUNT(r.id) as referral_count
+      SELECT u.id, u.first_name, u.telegram_id, COUNT(r.id) as referral_count
       FROM users u
       LEFT JOIN referrals r ON u.id = r.referrer_id 
         AND r.created_at >= $1
@@ -2217,6 +2271,8 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
     for (let i = 0; i < topReferrers.rows.length; i++) {
       const user = topReferrers.rows[i];
       const prize = prizes[i];
+      const rank = i + 1;
+      
       if (user.referral_count > 0) {
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
@@ -2226,7 +2282,12 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'weekly_prize']
         );
-        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name}`);
+        
+        // ✅ SEND TELEGRAM NOTIFICATION
+        const extraInfo = `\n\n📊 You referred *${user.referral_count} friends* this week!`;
+        await sendPrizeNotification(user.telegram_id, 'referral', prize, rank, extraInfo);
+        
+        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals this week)`);
       }
     }
     
@@ -2273,7 +2334,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
     
     const topParticipants = await client.query(`
       SELECT 
-        u.id, u.first_name,
+        u.id, u.first_name, u.telegram_id,
         COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
       FROM tournament_participants tp
       JOIN users u ON tp.user_id = u.id
@@ -2291,23 +2352,35 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
     for (let i = 0; i < topParticipants.rows.length; i++) {
       const user = topParticipants.rows[i];
       const prize = prizes[i];
+      const rank = i + 1;
+      
       if (user.weekly_coins > 0) {
+        // Update user's coin balance
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prize, user.id]
         );
+        
+        // Track in ad_rewards
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [user.id, prize, 'tournament_prize']
         );
+        
+        // Mark as awarded
         await client.query(
           'UPDATE tournament_participants SET prize_awarded = true, rank = $1 WHERE tournament_id = $2 AND user_id = $3',
-          [i + 1, tournamentId, user.id]
+          [rank, tournamentId, user.id]
         );
-        console.log(`🏆 Tournament prize: ${prize} COINS awarded to ${user.first_name} (rank #${i + 1})`);
+        
+        // ✅ SEND TELEGRAM NOTIFICATION
+        await sendPrizeNotification(user.telegram_id, 'tournament', prize, rank);
+        
+        console.log(`🏆 Tournament prize: ${prize} COINS awarded to ${user.first_name} (rank #${rank})`);
       }
     }
     
+    // Mark tournament as inactive
     await client.query('UPDATE weekly_tournaments SET is_active = false WHERE id = $1', [tournamentId]);
     await client.query('COMMIT');
     res.json({ success: true, awarded: topParticipants.rows.length });
