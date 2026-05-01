@@ -2322,6 +2322,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
 
 // ============================================
 // ADMIN: Award Team Monthly Prizes (1st of Month @ Midnight)
+// Teams stay intact – only monthly coins reset
 // ============================================
 app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
@@ -2331,6 +2332,9 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     const now = new Date();
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     
+    console.log(`🏆 Awarding team prizes for month starting ${currentMonth}...`);
+    
+    // Get top 3 teams based on THIS month's earnings (from user_monthly_earnings)
     const topTeams = await client.query(`
       SELECT 
         t.id, t.name,
@@ -2346,6 +2350,7 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
     
     if (topTeams.rows.length === 0) {
       await client.query('ROLLBACK');
+      console.log('ℹ️ No teams found for monthly prize');
       return res.json({ success: true, message: 'No teams to award', awarded: 0 });
     }
     
@@ -2356,8 +2361,12 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
       const team = topTeams.rows[i];
       const prizePerMember = prizes[i];
       
-      if (team.monthly_coins <= 0) continue;
+      if (team.monthly_coins <= 0) {
+        console.log(`⚠️ Team ${team.name} has 0 monthly coins, skipping prize`);
+        continue;
+      }
       
+      // Get all current team members (NOT deleted – team stays intact)
       const members = await client.query(
         `SELECT u.id, u.first_name, u.telegram_id 
          FROM team_members tm 
@@ -2366,37 +2375,66 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
         [team.id]
       );
       
+      console.log(`🏆 Team "${team.name}" placed #${i + 1} with ${team.monthly_coins} monthly coins`);
+      console.log(`   Awarding ${prizePerMember} COINS to ${members.rows.length} members...`);
+      
       for (const member of members.rows) {
+        // Award prize to each member
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
           [prizePerMember, member.id]
         );
+        
+        // Track prize in ad_rewards
         await client.query(
           'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
           [member.id, prizePerMember, 'team_prize']
         );
+        
         totalAwarded++;
         
+        // Send Telegram notification
         const BOT_TOKEN = process.env.BOT_TOKEN;
         if (BOT_TOKEN && member.telegram_id) {
-          const message = `🎉 *CONGRATULATIONS!* 🎉\n\nYour team *${team.name}* placed *#${i + 1}* in this month's team competition!\n\n🏆 You've been awarded *+${prizePerMember} COINS*!`;
+          const message = `🎉 *CONGRATULATIONS!* 🎉\n\n` +
+            `Your team *${team.name}* placed *#${i + 1}* in this month's team competition!\n\n` +
+            `🏆 You've been awarded *+${prizePerMember} COINS*!\n\n` +
+            `Your team's monthly earnings have reset to 0. Keep earning to win again next month! 🚀`;
+          
           try {
             await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: member.telegram_id, text: message, parse_mode: 'Markdown' })
+              body: JSON.stringify({
+                chat_id: member.telegram_id,
+                text: message,
+                parse_mode: 'Markdown'
+              })
             });
-          } catch (e) {}
+          } catch (e) {
+            console.error(`Failed to notify member ${member.telegram_id}:`, e.message);
+          }
         }
       }
     }
     
+    // IMPORTANT: DO NOT delete teams or members!
+    // Monthly coins are tracked in user_monthly_earnings table
+    // The new month will automatically start at 0
+    
     await client.query('COMMIT');
-    res.json({ success: true, awarded: totalAwarded });
+    
+    console.log(`✅ Team prizes awarded successfully! Total members awarded: ${totalAwarded}`);
+    res.json({ 
+      success: true, 
+      awarded: totalAwarded,
+      teams: topTeams.rows.map((t, i) => ({ name: t.name, place: i + 1, prize: prizes[i] }))
+    });
+    
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Award team prizes error:', err);
-    res.status(500).json({ error: 'Failed to award team prizes' });
+    console.error('❌ Award team prizes error:', err);
+    res.status(500).json({ error: 'Failed to award team prizes: ' + err.message });
   } finally {
     client.release();
   }
