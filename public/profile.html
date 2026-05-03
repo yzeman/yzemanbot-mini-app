@@ -78,6 +78,12 @@
             font-size: 32px;
             margin: 0 auto 10px;
             color: white;
+            overflow: hidden;
+        }
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .profile-name {
             font-size: 18px;
@@ -236,6 +242,12 @@
             font-weight: bold;
             flex-shrink: 0;
             cursor: pointer;
+            overflow: hidden;
+        }
+        .request-avatar img, .friend-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         .request-info, .friend-info {
             flex: 1;
@@ -366,33 +378,46 @@
             margin-top: 10px;
         }
         
-        /* Unread Message Badge */
-        .unread-badge {
+        /* Notification Bell Icon for Messages */
+        .notification-bell {
             position: fixed;
             bottom: 70px;
             right: 20px;
+            background: var(--secondary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 200;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .notification-bell:hover {
+            transform: scale(1.05);
+        }
+        .notification-bell .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
             background: var(--danger);
             color: white;
             border-radius: 50%;
-            min-width: 22px;
-            height: 22px;
-            font-size: 11px;
+            min-width: 20px;
+            height: 20px;
+            font-size: 10px;
             font-weight: bold;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 0 5px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            z-index: 200;
-            cursor: pointer;
-            animation: bounce 0.5s ease;
+            padding: 0 4px;
         }
-        .unread-badge.hidden {
+        .notification-bell .badge.hidden {
             display: none;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
         }
     </style>
 </head>
@@ -428,9 +453,10 @@
         </div>
     </div>
     
-    <!-- Floating Unread Message Badge -->
-    <div class="unread-badge hidden" id="unreadBadge" onclick="window.location.href='/messages.html'">
-        0
+    <!-- Notification Bell Icon for Messages -->
+    <div class="notification-bell" id="notificationBell" onclick="openMessages()">
+        <i class="fas fa-bell"></i>
+        <span class="badge hidden" id="notificationBadge">0</span>
     </div>
     
     <div class="bottom-nav">
@@ -508,29 +534,69 @@
             }
         }
         
-        // ============================================
-        // LOAD UNREAD MESSAGE COUNT FOR BADGE
-        // ============================================
-        async function loadUnreadCount() {
+        // Get avatar HTML with photo if available
+        function getAvatarHtml(photoUrl, firstName, size = '44px') {
+            if (photoUrl && photoUrl.startsWith('http')) {
+                return `<img src="${photoUrl}" alt="${escapeHtml(firstName)}" style="width:100%;height:100%;object-fit:cover;">`;
+            }
+            return escapeHtml(getInitials(firstName));
+        }
+        
+        // Open messages - show friend requests and chat list
+        function openMessages() {
+            // Switch to requests tab to show friend requests
+            const requestsTab = document.querySelector('.tab[data-tab="requests"]');
+            if (requestsTab) {
+                requestsTab.click();
+            }
+            // Also highlight the bell briefly
+            const bell = document.getElementById('notificationBell');
+            bell.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                bell.style.transform = '';
+            }, 200);
+        }
+        
+        // Load notification count (friend requests + unread messages)
+        async function loadNotificationCount() {
             try {
-                const data = await apiCall('/api/private/messages/unread');
-                const unreadCount = data.unread_count || 0;
-                const badge = document.getElementById('unreadBadge');
+                // Fetch friend requests count
+                let pendingRequests = 0;
+                try {
+                    const requestsData = await apiCall('/api/friends/requests');
+                    pendingRequests = requestsData.requests?.length || 0;
+                } catch (e) {
+                    console.log('Friend requests endpoint not available');
+                }
+                
+                // Fetch unread messages count
+                let unreadMessages = 0;
+                try {
+                    const messagesData = await apiCall('/api/private/messages/unread');
+                    unreadMessages = messagesData.unread_count || 0;
+                } catch (e) {
+                    console.log('Private messages endpoint not available');
+                }
+                
+                const totalNotifications = pendingRequests + unreadMessages;
+                const badge = document.querySelector('#notificationBell .badge');
+                
                 if (badge) {
-                    if (unreadCount > 0) {
-                        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                    if (totalNotifications > 0) {
+                        badge.textContent = totalNotifications > 99 ? '99+' : totalNotifications;
                         badge.classList.remove('hidden');
                         // Add bounce animation
-                        badge.style.animation = 'none';
+                        const bell = document.getElementById('notificationBell');
+                        bell.style.animation = 'none';
                         setTimeout(() => {
-                            badge.style.animation = 'bounce 0.5s ease';
+                            bell.style.animation = 'bounce 0.5s ease';
                         }, 10);
                     } else {
                         badge.classList.add('hidden');
                     }
                 }
             } catch (err) {
-                console.error('Failed to load unread count:', err);
+                console.error('Failed to load notifications:', err);
             }
         }
         
@@ -565,12 +631,12 @@
                     setupSearch();
                 }
                 
-                // Start loading unread count after user is loaded
-                await loadUnreadCount();
+                // Start loading notification count
+                await loadNotificationCount();
                 
-                // Set up interval to check for new messages every 30 seconds
+                // Set up interval to check for new notifications every 30 seconds
                 if (unreadInterval) clearInterval(unreadInterval);
-                unreadInterval = setInterval(loadUnreadCount, 30000);
+                unreadInterval = setInterval(loadNotificationCount, 30000);
                 
             } catch (err) {
                 console.error('Profile error:', err);
@@ -580,7 +646,7 @@
         
         function renderOwnProfile(user) {
             const container = document.getElementById('profileContainer');
-            const initials = getInitials(user.first_name || user.username || 'U');
+            const avatarHtml = getAvatarHtml(user.photo_url, user.first_name || user.username || 'U', '70px');
             const tier = user.tier || 'Fresher';
             const trustScore = calculateTrustScore(user);
             const trustPercent = Math.min((trustScore / 100) * 100, 100);
@@ -588,7 +654,7 @@
             
             container.innerHTML = `
                 <div class="profile-card">
-                    <div class="profile-avatar">${escapeHtml(initials)}</div>
+                    <div class="profile-avatar">${avatarHtml}</div>
                     <div class="profile-name">${escapeHtml(user.first_name || user.username || 'User')}</div>
                     <div class="profile-tier">${escapeHtml(tier)} Tier</div>
                     <div class="profile-stats">
@@ -623,14 +689,14 @@
         
         function renderOtherUserProfile(user, relationship) {
             const container = document.getElementById('profileContainer');
-            const initials = getInitials(user.first_name || user.username || 'U');
+            const avatarHtml = getAvatarHtml(user.photo_url, user.first_name || user.username || 'U', '70px');
             const tier = user.tier || 'Fresher';
             const trustScore = calculateTrustScore(user);
             const trustPercent = Math.min((trustScore / 100) * 100, 100);
             
             container.innerHTML = `
                 <div class="profile-card">
-                    <div class="profile-avatar">${escapeHtml(initials)}</div>
+                    <div class="profile-avatar">${avatarHtml}</div>
                     <div class="profile-name">${escapeHtml(user.first_name || user.username || 'User')}</div>
                     <div class="profile-tier">${escapeHtml(tier)} Tier</div>
                     <div class="profile-stats">
@@ -738,11 +804,11 @@
             }
             
             container.innerHTML = friends.map(friend => {
-                const initials = getInitials(friend.first_name || friend.username || 'U');
+                const avatarHtml = getAvatarHtml(friend.photo_url, friend.first_name || friend.username || 'U');
                 const firstName = getFirstName(friend.first_name || 'User');
                 return `
                     <div class="friend-item" onclick="viewUserProfile(${friend.id})">
-                        <div class="friend-avatar">${escapeHtml(initials)}</div>
+                        <div class="friend-avatar">${avatarHtml}</div>
                         <div class="friend-info">
                             <div class="friend-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${friend.tier || 'Fresher'} Tier</div>
@@ -767,6 +833,8 @@
             try {
                 const data = await apiCall('/api/friends/requests');
                 renderRequests(data.requests);
+                // Refresh notification badge after loading requests
+                loadNotificationCount();
             } catch (err) {
                 container.innerHTML = '<div class="empty-state">Failed to load requests</div>';
             }
@@ -780,14 +848,14 @@
             }
             
             container.innerHTML = requests.map(req => {
-                const initials = getInitials(req.first_name || req.username || 'U');
+                const avatarHtml = getAvatarHtml(req.photo_url, req.first_name || req.username || 'U');
                 const firstName = getFirstName(req.first_name || 'User');
                 const blocksReceived = req.total_blocks_received || 0;
                 const blockWarning = blocksReceived >= 5 ? '<div class="trust-badge warning"><i class="fas fa-ban"></i> Blocked by ' + blocksReceived + ' users</div>' : '';
                 
                 return `
                     <div class="request-item">
-                        <div class="request-avatar" onclick="viewUserProfile(${req.id})">${escapeHtml(initials)}</div>
+                        <div class="request-avatar" onclick="viewUserProfile(${req.id})">${avatarHtml}</div>
                         <div class="request-info" onclick="viewUserProfile(${req.id})">
                             <div class="request-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${req.tier || 'Fresher'} Tier</div>
@@ -834,7 +902,7 @@
             }
             
             container.innerHTML = users.map(user => {
-                const initials = getInitials(user.first_name || user.username || 'U');
+                const avatarHtml = getAvatarHtml(user.photo_url, user.first_name || user.username || 'U');
                 const firstName = getFirstName(user.first_name || 'User');
                 const relationship = user.relationship || 'none';
                 let actionButton = '';
@@ -853,7 +921,7 @@
                 
                 return `
                     <div class="request-item">
-                        <div class="request-avatar" onclick="viewUserProfile(${user.id})">${escapeHtml(initials)}</div>
+                        <div class="request-avatar" onclick="viewUserProfile(${user.id})">${avatarHtml}</div>
                         <div class="request-info" onclick="viewUserProfile(${user.id})">
                             <div class="request-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${user.tier || 'Fresher'} Tier</div>
@@ -891,7 +959,7 @@
                 showNotification(result.message || 'Friend request accepted!');
                 loadRequests();
                 loadFriends();
-                // Refresh own profile to update friends count
+                loadNotificationCount();
                 const user = await apiCall('/api/user');
                 renderOwnProfile(user);
             } catch (err) {
@@ -904,6 +972,7 @@
                 const result = await apiCall('/api/friends/reject', { friendId: userId });
                 showNotification(result.message || 'Friend request rejected');
                 loadRequests();
+                loadNotificationCount();
             } catch (err) {
                 showNotification(err.message, true);
             }
@@ -922,6 +991,7 @@
                     loadSearch(document.getElementById('searchInput')?.value || '');
                     const user = await apiCall('/api/user');
                     renderOwnProfile(user);
+                    loadNotificationCount();
                 }
             } catch (err) {
                 showNotification(err.message, true);
