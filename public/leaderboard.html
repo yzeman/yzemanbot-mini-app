@@ -31,24 +31,6 @@
             overflow-x: hidden;
         }
         
-        /* Refresh Indicator */
-        .refresh-indicator {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: var(--primary);
-            color: white;
-            text-align: center;
-            padding: 10px;
-            font-size: 12px;
-            transform: translateY(-100%);
-            transition: transform 0.3s ease;
-            z-index: 1000;
-        }
-        .refresh-indicator.show { transform: translateY(0); }
-        .refresh-indicator i { margin-right: 5px; }
-        
         .header {
             background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
             padding: 20px 15px 25px;
@@ -259,9 +241,14 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
         
+        .leaderboard-item.current-user {
+            background: linear-gradient(135deg, rgba(76,175,80,0.2), rgba(0,200,83,0.1));
+            border: 1px solid var(--gold);
+        }
+        
         .rank-badge {
             width: 38px;
-            font-size: 18px;
+            font-size: 15px;
             font-weight: bold;
             text-align: center;
             margin-right: 8px;
@@ -317,6 +304,14 @@
             font-size: 8px;
             font-weight: 600;
             color: var(--dark);
+        }
+        .you-badge {
+            background: var(--gold);
+            color: var(--dark);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 8px;
+            font-weight: bold;
         }
         .tier-Fresher .tier-badge { background: #888; }
         .tier-Brute .tier-badge { background: #FF9800; }
@@ -446,11 +441,6 @@
     </style>
 </head>
 <body>
-    <!-- Refresh Indicator -->
-    <div class="refresh-indicator" id="refreshIndicator">
-        <i class="fas fa-arrow-down"></i> Pull to refresh
-    </div>
-    
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
@@ -547,11 +537,6 @@
         let currentTier = 'all';
         let topEarnersData = [];
         let topReferrersData = [];
-        
-        // Pull to refresh
-        let isRefreshing = false;
-        let touchStartY = 0;
-        const refreshIndicator = document.getElementById('refreshIndicator');
         
         // Collapsible banner state
         let prizeBannerCollapsed = localStorage.getItem('leaderboardBannerCollapsed') === 'true';
@@ -674,8 +659,11 @@
             return tier === 'all' ? data : data.filter(u => (u.tier || 'Fresher') === tier);
         }
 
-        function getMedalForRank(r) {
-            return r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : '#';
+        function getRankDisplay(rank) {
+            if (rank === 1) return '🥇';
+            if (rank === 2) return '🥈';
+            if (rank === 3) return '🥉';
+            return `#${rank}`;
         }
 
         function getAvatarInitials(name) {
@@ -695,6 +683,7 @@
 
         function renderLeaderboard(data, type) {
             const container = document.getElementById('leaderboardList');
+            const currentUserId = tg?.initDataUnsafe?.user?.id;
             
             if (!data || data.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No users yet.</p></div>';
@@ -717,11 +706,13 @@
 
             container.innerHTML = sorted.map((user, idx) => {
                 const rank = idx + 1;
-                const rankDisplay = rank <= 3 ? getMedalForRank(rank) : rank;
+                const rankDisplay = getRankDisplay(rank);
                 const tierClass = 'tier-' + (user.tier || 'Fresher');
                 const displayName = user.first_name || 'Anonymous User';
                 const shortName = displayName.length > 15 ? displayName.substring(0, 12) + '...' : displayName;
                 const avatarInitial = getAvatarInitials(displayName);
+                const isCurrentUser = currentUserId && user.telegram_id == currentUserId;
+                const currentUserClass = isCurrentUser ? 'current-user' : '';
                 
                 let score, scoreLabel;
                 if (type === 'referrals') {
@@ -736,7 +727,7 @@
                 const totalCoins = parseFloat(user.coins) || parseFloat(user.total_coins) || 0;
                 
                 return `
-                    <div class="leaderboard-item ${tierClass}">
+                    <div class="leaderboard-item ${tierClass} ${currentUserClass}">
                         <div class="${rank <= 3 ? 'medal-badge' : 'rank-badge'}">${rankDisplay}</div>
                         <div class="avatar">
                             ${user.photo_url ? `<img src="${user.photo_url}" alt="${escapeHtml(shortName)}">` : avatarInitial}
@@ -745,6 +736,7 @@
                             <div class="name-row">
                                 <span class="name">${escapeHtml(shortName)}</span>
                                 <span class="tier-badge">${user.tier || 'Fresher'}</span>
+                                ${isCurrentUser ? '<span class="you-badge">YOU</span>' : ''}
                             </div>
                             <div class="stats-row">
                                 <span><i class="fas fa-user-plus"></i> ${(user.referrals || 0).toLocaleString()}</span>
@@ -764,12 +756,20 @@
             if (!userId || !myRankContainer) return;
             
             const filtered = filterByTier(data, currentTier);
-            const myIndex = filtered.findIndex(u => u.telegram_id == userId);
+            // Sort same as renderLeaderboard
+            let sorted = [...filtered];
+            if (type === 'referrals') {
+                sorted.sort((a, b) => (b.referral_count || 0) - (a.referral_count || 0));
+            } else {
+                sorted.sort((a, b) => (parseFloat(b.monthly_coins) || 0) - (parseFloat(a.monthly_coins) || 0));
+            }
+            
+            const myIndex = sorted.findIndex(u => u.telegram_id == userId);
             
             if (myIndex !== -1) {
-                const myData = filtered[myIndex];
+                const myData = sorted[myIndex];
                 const rank = myIndex + 1;
-                const rankDisplay = rank <= 3 ? getMedalForRank(rank) : `#${rank}`;
+                const rankDisplay = getRankDisplay(rank);
                 
                 let score, scoreLabel;
                 if (type === 'referrals') {
@@ -840,7 +840,7 @@
             } catch (err) {
                 console.error('Top earners error:', err);
                 if (currentView === 'earnings') {
-                    document.getElementById('leaderboardList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load</p><button class="retry-btn" onclick="loadTopEarners()">Retry</button></div>`;
+                    document.getElementById('leaderboardList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load</p><button class="retry-btn" onclick="location.reload()">Retry</button></div>`;
                 }
             }
         }
@@ -854,7 +854,7 @@
             } catch (err) {
                 console.error('Top referrers error:', err);
                 if (currentView === 'referrals') {
-                    document.getElementById('leaderboardList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load</p><button class="retry-btn" onclick="loadTopReferrers()">Retry</button></div>`;
+                    document.getElementById('leaderboardList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load</p><button class="retry-btn" onclick="location.reload()">Retry</button></div>`;
                 }
             }
         }
@@ -878,42 +878,6 @@
             document.getElementById('tierDropdown').classList.remove('show');
             refreshDisplay();
         }
-
-        // Pull to refresh
-        function showRefreshIndicator(text, isError = false) {
-            refreshIndicator.textContent = text;
-            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
-            refreshIndicator.classList.add('show');
-            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
-        }
-        
-        async function refreshData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
-            try {
-                await Promise.all([loadTopEarners(), loadTopReferrers()]);
-                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-                showNotification('Leaderboard refreshed!', false);
-            } catch (err) {
-                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
-            } finally {
-                isRefreshing = false;
-            }
-        }
-        
-        document.addEventListener('touchstart', (e) => {
-            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
-        });
-        document.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && !isRefreshing) {
-                const diff = e.touches[0].clientY - touchStartY;
-                if (diff > 60) {
-                    e.preventDefault();
-                    refreshData();
-                }
-            }
-        });
 
         // Event listeners
         document.querySelectorAll('.action-btn').forEach(btn => {
