@@ -164,6 +164,16 @@
             margin: 5px 0;
         }
         
+        .warning-message {
+            text-align: center;
+            font-size: 11px;
+            color: var(--danger);
+            padding: 5px;
+            margin: 5px 0;
+            background: rgba(244,67,54,0.1);
+            border-radius: 8px;
+        }
+        
         .typing-indicator {
             padding: 8px 15px;
             font-size: 11px;
@@ -225,6 +235,10 @@
             justify-content: center;
         }
         .send-btn:active { transform: scale(0.95); }
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
         
         .loading-messages {
             text-align: center;
@@ -284,7 +298,71 @@
         let typingTimeout = null;
         let selectedMessageId = null;
         let selectedMessageElement = null;
-        let pendingMessages = []; // Store messages that are waiting for user ID confirmation
+        
+        // ============================================
+        // PROFANITY FILTER - Add more words as needed
+        // ============================================
+        const PROFANITY_WORDS = [
+            // Common English profanity
+            'fuck', 'shit', 'asshole', 'bitch', 'cunt', 'dick', 'pussy',
+            'bastard', 'whore', 'slut', 'damn', 'hell', 'crap',
+            // Variations with common substitutions
+            'fuk', 'fck', 'sh1t', 'b1tch', 'a55hole', 'd1ck',
+            // Violence related
+            'kill', 'murder', 'death', 'die', 'blood', 'violence',
+            'terrorist', 'bomb', 'shoot', 'attack', 'hurt', 'injury',
+            // Hate speech
+            'nigger', 'faggot', 'retard', 'tranny',
+            // Add more in your language as needed
+        ];
+        
+        // Add common variations with numbers and symbols
+        const PROFANITY_PATTERNS = [
+            /f[u\*@]c?k/i,
+            /s[h\*@]i?t/i,
+            /a[s\$][s\$]h?o?l?e/i,
+            /b[i1!]tch/i,
+            /c[u\*@]nt/i,
+            /d[i1!]ck/i,
+            /k[i1!]ll/i,
+            /m[u\*@]rd[e3]r/i,
+            /d[i1!][e3]/i,
+        ];
+        
+        function containsProfanity(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Check exact words
+            for (const word of PROFANITY_WORDS) {
+                // Check for whole word or word with common substitutions
+                const regex = new RegExp(`\\b${word.replace(/[aeiou]/gi, '[aeiou]')}\\b`, 'i');
+                if (regex.test(lowerText)) {
+                    return true;
+                }
+                if (lowerText.includes(word)) {
+                    return true;
+                }
+            }
+            
+            // Check patterns
+            for (const pattern of PROFANITY_PATTERNS) {
+                if (pattern.test(lowerText)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // Censor message (optional - replace with ***)
+        function censorMessage(text) {
+            let censored = text;
+            for (const word of PROFANITY_WORDS) {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                censored = censored.replace(regex, '***');
+            }
+            return censored;
+        }
         
         const urlParams = new URLSearchParams(window.location.search);
         const teamId = urlParams.get('teamId');
@@ -329,14 +407,6 @@
             return fullName.split(' ')[0];
         }
         
-        // Get user's display name (first name only)
-        function getUserDisplayName() {
-            if (currentUser && currentUser.first_name) {
-                return getFirstName(currentUser.first_name);
-            }
-            return 'You';
-        }
-        
         function hideMessageActions() {
             const menu = document.getElementById('messageActions');
             menu.style.display = 'none';
@@ -362,10 +432,24 @@
             }, 100);
         }
         
+        function showWarningMessage(text) {
+            const container = document.getElementById('messagesContainer');
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'warning-message';
+            warningDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${escapeHtml(text)}`;
+            container.appendChild(warningDiv);
+            setTimeout(() => warningDiv.remove(), 3000);
+            scrollToBottom();
+        }
+        
         async function editMessage() {
             if (!selectedMessageId) return;
             const newMessage = prompt('Edit your message:');
             if (newMessage && newMessage.trim()) {
+                if (containsProfanity(newMessage)) {
+                    showWarningMessage('Message contains inappropriate language and cannot be sent.');
+                    return;
+                }
                 socket.emit('edit-message', {
                     messageId: selectedMessageId,
                     newMessage: newMessage.trim(),
@@ -388,7 +472,6 @@
             hideMessageActions();
         }
         
-        // Add message to chat - FIXED: correctly identifies own messages
         function addMessageToChat(msg) {
             const container = document.getElementById('messagesContainer');
             
@@ -397,10 +480,8 @@
             }
             
             const time = formatTime(msg.created_at);
-            // Check if this message is from the current user
             const isOwn = currentUser && msg.user_id === currentUser.id;
             
-            // Get sender name: use the name from the message, or fallback
             let senderName = 'User';
             if (msg.first_name) {
                 senderName = getFirstName(msg.first_name);
@@ -415,17 +496,19 @@
             messageDiv.dataset.messageId = msg.id;
             messageDiv.dataset.userId = msg.user_id;
             
-            // For own messages, don't show sender name (only for others)
             let senderHtml = '';
             if (!isOwn) {
                 senderHtml = `<div class="message-sender">${escapeHtml(senderName)}</div>`;
             }
             
+            // Check if message contains profanity (for warning on received messages)
+            const displayMessage = escapeHtml(msg.message);
+            
             messageDiv.innerHTML = `
                 <div class="message-avatar">${escapeHtml(initial)}</div>
                 <div class="message-bubble">
                     ${senderHtml}
-                    <div class="message-text">${escapeHtml(msg.message)}</div>
+                    <div class="message-text">${displayMessage}</div>
                     <div class="message-time">
                         ${time}
                         ${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}
@@ -433,7 +516,6 @@
                 </div>
             `;
             
-            // Add long press menu for own messages
             if (isOwn) {
                 messageDiv.addEventListener('contextmenu', (e) => {
                     showMessageActions(e, msg.id, messageDiv, true);
@@ -450,55 +532,6 @@
             
             container.appendChild(messageDiv);
             scrollToBottom();
-        }
-        
-        // Add temporary message (optimistic update)
-        function addTempMessage(message, tempId) {
-            const container = document.getElementById('messagesContainer');
-            
-            if (container.querySelector('.loading-messages')) {
-                container.innerHTML = '';
-            }
-            
-            const time = 'Sending...';
-            const senderName = getUserDisplayName();
-            const initial = getInitials(senderName);
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message message-own';
-            messageDiv.dataset.tempId = tempId;
-            
-            messageDiv.innerHTML = `
-                <div class="message-avatar">${escapeHtml(initial)}</div>
-                <div class="message-bubble">
-                    <div class="message-text">${escapeHtml(message)}</div>
-                    <div class="message-time">
-                        ${time}
-                        <span style="font-size:8px; margin-left:5px;">⏳</span>
-                    </div>
-                </div>
-            `;
-            
-            container.appendChild(messageDiv);
-            scrollToBottom();
-            return messageDiv;
-        }
-        
-        function replaceTempMessage(tempId, realMessage) {
-            const tempDiv = document.querySelector(`.message[data-temp-id="${tempId}"]`);
-            if (tempDiv) {
-                tempDiv.removeAttribute('data-temp-id');
-                tempDiv.dataset.messageId = realMessage.id;
-                tempDiv.dataset.userId = realMessage.user_id;
-                
-                const timeSpan = tempDiv.querySelector('.message-time');
-                if (timeSpan) {
-                    timeSpan.innerHTML = `${formatTime(realMessage.created_at)}`;
-                }
-                
-                const sendingSpan = timeSpan?.querySelector('span');
-                if (sendingSpan) sendingSpan.remove();
-            }
         }
         
         function updateMessageInChat(messageId, newMessage) {
@@ -586,7 +619,7 @@
                     body: JSON.stringify({ initData: tg.initData })
                 });
                 currentUser = await userRes.json();
-                console.log('Current user loaded:', currentUser);
+                console.log('Current user:', currentUser);
                 
                 const teamRes = await fetch('/api/team/info', {
                     method: 'POST',
@@ -684,19 +717,32 @@
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
+            
             if (!message) return;
             
-            const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-            addTempMessage(message, tempId);
+            // Check for profanity before sending
+            if (containsProfanity(message)) {
+                showWarningMessage('⚠️ Message contains inappropriate language and cannot be sent.');
+                input.value = '';
+                return;
+            }
+            
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
             
             socket.emit('send-message', {
                 teamId: parseInt(teamId),
                 message: message,
-                userId: currentUser.id,
-                firstName: currentUser.first_name || 'User'
+                userId: currentUser.id
+                // Note: firstName is NOT sent - server will get it from database
             });
             
             input.value = '';
+            
+            // Re-enable button after short delay
+            setTimeout(() => {
+                sendBtn.disabled = false;
+            }, 500);
         }
         
         function handleTyping() {
