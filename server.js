@@ -1426,7 +1426,7 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// TOURNAMENT: Current Week Standings (FAIR SYSTEM)
+// TOURNAMENT: Current Week Standings (PRIVACY FIXED)
 // ============================================
 app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
   try {
@@ -1463,10 +1463,14 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     );
     const hasJoined = userJoined.rows.length > 0;
     
+    // IMPORTANT: Do NOT send username, telegram_id, or any contact info
     const standings = await pool.query(`
       SELECT 
-        u.id, u.username, u.first_name, u.photo_url,
-        COALESCE(SUM(ar.reward_amount), 0) as weekly_coins, u.tier,
+        u.id,
+        -- Use first_name only, no username, no telegram_id
+        u.first_name,
+        COALESCE(SUM(ar.reward_amount), 0) as weekly_coins,
+        u.tier,
         ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ar.reward_amount), 0) DESC) as rank
       FROM tournament_participants tp
       JOIN users u ON tp.user_id = u.id
