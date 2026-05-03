@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>My Profile - YzemanBot</title>
+    <title>Profile - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -113,6 +113,61 @@
             color: var(--gray);
         }
         
+        /* Private Profile Card (for non-friends) */
+        .private-card {
+            background: rgba(22, 33, 62, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 25px;
+            padding: 40px 25px;
+            margin: 20px 15px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .private-icon {
+            font-size: 60px;
+            color: var(--gray);
+            margin-bottom: 15px;
+        }
+        .private-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .private-text {
+            font-size: 13px;
+            color: var(--gray);
+            margin-bottom: 20px;
+        }
+        .friend-action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        .friend-btn {
+            padding: 10px 25px;
+            border-radius: 30px;
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .friend-btn.primary {
+            background: linear-gradient(135deg, var(--primary), #2E7D32);
+            color: white;
+        }
+        .friend-btn.secondary {
+            background: var(--gray);
+            color: white;
+        }
+        .friend-btn.danger {
+            background: var(--danger);
+            color: white;
+        }
+        .friend-btn:active {
+            transform: scale(0.96);
+        }
+        
         /* Trust Score */
         .trust-section {
             background: rgba(22, 33, 62, 0.8);
@@ -152,7 +207,7 @@
             margin-top: 8px;
         }
         
-        /* Tabs */
+        /* Tabs (only visible for own profile) */
         .tabs {
             display: flex;
             background: rgba(22, 33, 62, 0.8);
@@ -187,7 +242,7 @@
             display: block;
         }
         
-        /* Friend Requests List */
+        /* Friend Lists */
         .request-item, .friend-item {
             display: flex;
             align-items: center;
@@ -208,9 +263,11 @@
             margin-right: 12px;
             font-weight: bold;
             flex-shrink: 0;
+            cursor: pointer;
         }
         .request-info, .friend-info {
             flex: 1;
+            cursor: pointer;
         }
         .request-name, .friend-name {
             font-weight: 600;
@@ -301,36 +358,43 @@
         .notification.error { background: var(--danger); }
         
         .loading { text-align: center; padding: 30px; color: var(--gray); }
+        
+        /* Hide tabs wrapper when not needed */
+        .tabs-wrapper.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <a href="/" class="back-btn-header"><i class="fas fa-arrow-left"></i></a>
     
     <div class="header">
-        <h1><i class="fas fa-user-circle"></i> My Profile</h1>
+        <h1><i class="fas fa-user-circle"></i> <span id="headerTitle">Profile</span></h1>
     </div>
     
     <div id="profileContainer"></div>
     
-    <div class="tabs">
-        <div class="tab active" data-tab="friends"><i class="fas fa-users"></i> Friends</div>
-        <div class="tab" data-tab="requests"><i class="fas fa-user-plus"></i> Requests</div>
-        <div class="tab" data-tab="search"><i class="fas fa-search"></i> Find</div>
-    </div>
-    
-    <div class="tab-content active" id="friendsTab">
-        <div id="friendsList"></div>
-    </div>
-    
-    <div class="tab-content" id="requestsTab">
-        <div id="requestsList"></div>
-    </div>
-    
-    <div class="tab-content" id="searchTab">
-        <div class="search-box">
-            <input type="text" class="search-input" id="searchInput" placeholder="Search by name...">
+    <div id="tabsWrapper" class="tabs-wrapper">
+        <div class="tabs">
+            <div class="tab active" data-tab="friends"><i class="fas fa-users"></i> Friends</div>
+            <div class="tab" data-tab="requests"><i class="fas fa-user-plus"></i> Requests</div>
+            <div class="tab" data-tab="search"><i class="fas fa-search"></i> Find</div>
         </div>
-        <div id="searchResults"></div>
+        
+        <div class="tab-content active" id="friendsTab">
+            <div id="friendsList"></div>
+        </div>
+        
+        <div class="tab-content" id="requestsTab">
+            <div id="requestsList"></div>
+        </div>
+        
+        <div class="tab-content" id="searchTab">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search by name...">
+            </div>
+            <div id="searchResults"></div>
+        </div>
     </div>
     
     <div class="bottom-nav">
@@ -348,6 +412,13 @@
         if (tg) { tg.ready(); tg.expand(); }
         
         let currentUser = null;
+        let viewedUserId = null;
+        let isOwnProfile = true;
+        let viewedUserProfile = null;
+        
+        // Get userId from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetUserId = urlParams.get('userId');
         
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -403,16 +474,49 @@
         
         async function loadProfile() {
             try {
+                // First get current user
                 const user = await apiCall('/api/user');
                 currentUser = user;
-                renderProfile(user);
+                
+                // Determine if viewing own profile or someone else's
+                if (targetUserId && parseInt(targetUserId) !== currentUser.id) {
+                    isOwnProfile = false;
+                    viewedUserId = parseInt(targetUserId);
+                    document.getElementById('headerTitle').textContent = 'User Profile';
+                    
+                    // Check if they are friends
+                    const relationship = await apiCall('/api/friends/relationship', { friendId: viewedUserId });
+                    
+                    if (relationship.is_friend) {
+                        // Can view full profile
+                        viewedUserProfile = await apiCall('/api/user/profile', { userId: viewedUserId });
+                        renderOtherUserProfile(viewedUserProfile, relationship);
+                        // Hide tabs for other user profiles (can't see their friends/requests)
+                        document.getElementById('tabsWrapper').classList.add('hidden');
+                    } else {
+                        // Show private/profile not visible
+                        renderPrivateProfile(relationship);
+                        document.getElementById('tabsWrapper').classList.add('hidden');
+                    }
+                } else {
+                    // Own profile
+                    isOwnProfile = true;
+                    document.getElementById('headerTitle').textContent = 'My Profile';
+                    renderOwnProfile(user);
+                    document.getElementById('tabsWrapper').classList.remove('hidden');
+                    // Load friends and requests only for own profile
+                    loadFriends();
+                    loadRequests();
+                    setupTabs();
+                    setupSearch();
+                }
             } catch (err) {
                 console.error('Profile error:', err);
                 showNotification('Failed to load profile', true);
             }
         }
         
-        function renderProfile(user) {
+        function renderOwnProfile(user) {
             const container = document.getElementById('profileContainer');
             const initials = getInitials(user.first_name || user.username || 'U');
             const tier = user.tier || 'Fresher';
@@ -454,11 +558,85 @@
             `;
         }
         
+        function renderOtherUserProfile(user, relationship) {
+            const container = document.getElementById('profileContainer');
+            const initials = getInitials(user.first_name || user.username || 'U');
+            const tier = user.tier || 'Fresher';
+            const trustScore = calculateTrustScore(user);
+            const trustPercent = Math.min((trustScore / 100) * 100, 100);
+            
+            container.innerHTML = `
+                <div class="profile-card">
+                    <div class="profile-avatar">${escapeHtml(initials)}</div>
+                    <div class="profile-name">${escapeHtml(user.first_name || user.username || 'User')}</div>
+                    <div class="profile-tier">${escapeHtml(tier)} Tier</div>
+                    <div class="profile-stats">
+                        <div class="stat">
+                            <div class="stat-value">${formatNumber(user.coins)}</div>
+                            <div class="stat-label">COINS</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${user.referrals || 0}</div>
+                            <div class="stat-label">Referrals</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="trust-section">
+                    <div class="trust-header">
+                        <i class="fas fa-shield-alt" style="color: var(--gold);"></i>
+                        <strong>Trust Score</strong>
+                        <span class="trust-score">${trustScore}</span>
+                    </div>
+                    <div class="trust-bar">
+                        <div class="trust-fill" style="width: ${trustPercent}%;"></div>
+                    </div>
+                    ${trustScore < 30 ? '<div class="trust-warning"><i class="fas fa-exclamation-triangle"></i> Low trust score. Be respectful to improve!</div>' : ''}
+                    ${trustScore >= 70 ? '<div class="trust-warning" style="color:var(--success);"><i class="fas fa-check-circle"></i> High trust score! Great community member!</div>' : ''}
+                </div>
+                <div class="friend-action-buttons" style="margin: 15px; justify-content: center;">
+                    <button class="friend-btn chat" onclick="startChat(${user.id}, '${escapeHtml(getFirstName(user.first_name || 'User'))}')">
+                        <i class="fas fa-comment"></i> Send Message
+                    </button>
+                    <button class="friend-btn danger" onclick="blockUser(${user.id})">
+                        <i class="fas fa-ban"></i> Block
+                    </button>
+                </div>
+            `;
+        }
+        
+        function renderPrivateProfile(relationship) {
+            const container = document.getElementById('profileContainer');
+            let actionButton = '';
+            
+            if (relationship.status === 'pending_sent') {
+                actionButton = '<button class="friend-btn secondary" disabled><i class="fas fa-clock"></i> Request Pending</button>';
+            } else if (relationship.status === 'pending_received') {
+                actionButton = `
+                    <button class="friend-btn primary" onclick="acceptRequest(${viewedUserId})"><i class="fas fa-check"></i> Accept</button>
+                    <button class="friend-btn danger" onclick="rejectRequest(${viewedUserId})"><i class="fas fa-times"></i> Decline</button>
+                `;
+            } else if (relationship.status === 'blocked') {
+                actionButton = '<button class="friend-btn secondary" disabled><i class="fas fa-ban"></i> Blocked</button>';
+            } else {
+                actionButton = '<button class="friend-btn primary" onclick="sendFriendRequest(' + viewedUserId + ')"><i class="fas fa-user-plus"></i> Add Friend</button>';
+            }
+            
+            container.innerHTML = `
+                <div class="private-card">
+                    <div class="private-icon"><i class="fas fa-lock"></i></div>
+                    <div class="private-title">Profile Private</div>
+                    <div class="private-text">This profile is only visible to friends. Send a friend request to view their profile.</div>
+                    <div class="friend-action-buttons">
+                        ${actionButton}
+                        <button class="friend-btn danger" onclick="blockUser(${viewedUserId})"><i class="fas fa-ban"></i> Block</button>
+                    </div>
+                </div>
+            `;
+        }
+        
         function calculateTrustScore(user) {
-            // Base score 50
             let score = 50;
             
-            // Positive factors
             if (user.referrals >= 50) score += 20;
             else if (user.referrals >= 20) score += 10;
             else if (user.referrals >= 5) score += 5;
@@ -471,11 +649,9 @@
             else if (user.tier === 'Silver') score += 10;
             else if (user.tier === 'Brute') score += 5;
             
-            // Negative factors (blocks received)
             const blocksReceived = user.total_blocks_received || 0;
             score -= blocksReceived * 5;
             
-            // Cap at 0-100
             return Math.max(0, Math.min(100, score));
         }
         
@@ -501,19 +677,14 @@
             container.innerHTML = friends.map(friend => {
                 const initials = getInitials(friend.first_name || friend.username || 'U');
                 const firstName = getFirstName(friend.first_name || 'User');
-                const trustScore = friend.trust_score || 50;
-                const trustClass = trustScore >= 70 ? 'good' : (trustScore <= 30 ? 'bad' : '');
-                const trustText = trustScore >= 70 ? '✓ High Trust' : (trustScore <= 30 ? '⚠️ Low Trust' : '');
-                
                 return `
-                    <div class="friend-item" data-user-id="${friend.id}">
+                    <div class="friend-item" onclick="viewUserProfile(${friend.id})">
                         <div class="friend-avatar">${escapeHtml(initials)}</div>
                         <div class="friend-info">
                             <div class="friend-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${friend.tier || 'Fresher'} Tier</div>
-                            ${trustText ? `<div class="trust-badge ${trustClass}">${trustText}</div>` : ''}
                         </div>
-                        <div class="friend-actions">
+                        <div class="friend-actions" onclick="event.stopPropagation()">
                             <div class="action-icon chat" onclick="startChat(${friend.id}, '${escapeHtml(firstName)}')">
                                 <i class="fas fa-comment"></i>
                             </div>
@@ -548,30 +719,27 @@
             container.innerHTML = requests.map(req => {
                 const initials = getInitials(req.first_name || req.username || 'U');
                 const firstName = getFirstName(req.first_name || 'User');
-                const trustScore = req.trust_score || 50;
-                const trustWarning = trustScore <= 30 ? '<span class="trust-badge" style="background:rgba(244,67,54,0.2); color:var(--danger);"><i class="fas fa-exclamation-triangle"></i> Low trust score</span>' : '';
                 const blocksReceived = req.total_blocks_received || 0;
                 const blockWarning = blocksReceived >= 5 ? '<span class="trust-badge" style="background:rgba(244,67,54,0.2); color:var(--danger);"><i class="fas fa-ban"></i> Blocked by ' + blocksReceived + ' users</span>' : '';
                 
                 return `
-                    <div class="request-item" data-user-id="${req.id}">
-                        <div class="request-avatar">${escapeHtml(initials)}</div>
-                        <div class="request-info">
+                    <div class="request-item">
+                        <div class="request-avatar" onclick="viewUserProfile(${req.id})">${escapeHtml(initials)}</div>
+                        <div class="request-info" onclick="viewUserProfile(${req.id})">
                             <div class="request-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${req.tier || 'Fresher'} Tier</div>
                             <div style="display: flex; gap: 5px; margin-top: 5px;">
-                                ${trustWarning}
                                 ${blockWarning}
                             </div>
                         </div>
                         <div class="request-actions">
-                            <div class="action-icon accept" onclick="acceptRequest(${req.id})">
+                            <div class="action-icon accept" onclick="event.stopPropagation(); acceptRequest(${req.id})">
                                 <i class="fas fa-check"></i>
                             </div>
-                            <div class="action-icon reject" onclick="rejectRequest(${req.id})">
+                            <div class="action-icon reject" onclick="event.stopPropagation(); rejectRequest(${req.id})">
                                 <i class="fas fa-times"></i>
                             </div>
-                            <div class="action-icon block" onclick="blockUser(${req.id})">
+                            <div class="action-icon block" onclick="event.stopPropagation(); blockUser(${req.id})">
                                 <i class="fas fa-ban"></i>
                             </div>
                         </div>
@@ -607,8 +775,6 @@
             container.innerHTML = users.map(user => {
                 const initials = getInitials(user.first_name || user.username || 'U');
                 const firstName = getFirstName(user.first_name || 'User');
-                const trustScore = user.trust_score || 50;
-                const trustWarning = trustScore <= 30 ? '<span class="trust-badge" style="background:rgba(244,67,54,0.2); color:var(--danger);">⚠️ Low trust</span>' : '';
                 const relationship = user.relationship || 'none';
                 let actionButton = '';
                 
@@ -626,13 +792,12 @@
                 
                 return `
                     <div class="request-item">
-                        <div class="request-avatar">${escapeHtml(initials)}</div>
-                        <div class="request-info">
+                        <div class="request-avatar" onclick="viewUserProfile(${user.id})">${escapeHtml(initials)}</div>
+                        <div class="request-info" onclick="viewUserProfile(${user.id})">
                             <div class="request-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${user.tier || 'Fresher'} Tier</div>
-                            ${trustWarning}
                         </div>
-                        <div class="request-actions">
+                        <div class="request-actions" onclick="event.stopPropagation()">
                             ${actionButton}
                             <div class="action-icon block" onclick="blockUser(${user.id})"><i class="fas fa-ban"></i></div>
                         </div>
@@ -641,11 +806,20 @@
             }).join('');
         }
         
+        function viewUserProfile(userId) {
+            window.location.href = `/profile.html?userId=${userId}`;
+        }
+        
         async function sendFriendRequest(userId) {
             try {
                 const result = await apiCall('/api/friends/request', { friendId: userId });
                 showNotification(result.message || 'Friend request sent!');
-                loadSearch(document.getElementById('searchInput').value);
+                if (!isOwnProfile) {
+                    // Refresh the page to show updated status
+                    window.location.reload();
+                } else {
+                    loadSearch(document.getElementById('searchInput')?.value || '');
+                }
             } catch (err) {
                 showNotification(err.message, true);
             }
@@ -677,10 +851,15 @@
             try {
                 const result = await apiCall('/api/friends/block', { friendId: userId });
                 showNotification(result.message || 'User blocked');
-                loadFriends();
-                loadRequests();
-                loadSearch(document.getElementById('searchInput').value);
-                loadProfile(); // Refresh trust score
+                if (!isOwnProfile) {
+                    // Redirect to home after blocking
+                    window.location.href = '/';
+                } else {
+                    loadFriends();
+                    loadRequests();
+                    loadSearch(document.getElementById('searchInput')?.value || '');
+                    loadProfile();
+                }
             } catch (err) {
                 showNotification(err.message, true);
             }
@@ -690,34 +869,37 @@
             window.location.href = `/private-chat.html?userId=${userId}&userName=${encodeURIComponent(userName)}`;
         }
         
-        // Tab switching
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tab.classList.add('active');
-                const tabName = tab.dataset.tab;
-                document.getElementById(tabName + 'Tab').classList.add('active');
-                
-                if (tabName === 'friends') loadFriends();
-                if (tabName === 'requests') loadRequests();
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    const tabName = tab.dataset.tab;
+                    document.getElementById(tabName + 'Tab').classList.add('active');
+                    
+                    if (tabName === 'friends') loadFriends();
+                    if (tabName === 'requests') loadRequests();
+                });
             });
-        });
+        }
         
-        // Search with debounce
-        let searchTimeout;
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                loadSearch(e.target.value);
-            }, 500);
-        });
+        function setupSearch() {
+            let searchTimeout;
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        loadSearch(e.target.value);
+                    }, 500);
+                });
+            }
+        }
         
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             await loadProfile();
-            loadFriends();
-            loadRequests();
         });
     </script>
 </body>
