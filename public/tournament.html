@@ -581,143 +581,38 @@
 <script>
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); }
-    
-    let hasJoined = false;
+
+    let countdownInterval = null;
     let isRefreshing = false;
     let touchStartY = 0;
     const refreshIndicator = document.getElementById('refreshIndicator');
-    
-    // ============================================
-    // SKELETON LOADING FUNCTIONS
-    // ============================================
-    
-    function showStandingsSkeleton() {
-        const container = document.getElementById('standingsList');
-        let items = '';
-        for (let i = 0; i < 5; i++) {
-            items += `
-                <div class="skeleton-standings-item">
-                    <div class="skeleton-rank"></div>
-                    <div class="skeleton-avatar"></div>
-                    <div class="skeleton-info">
-                        <div class="skeleton-name"></div>
-                        <div class="skeleton-username"></div>
-                    </div>
-                    <div class="skeleton-coins"></div>
-                </div>
-            `;
-        }
-        container.innerHTML = items;
-    }
-    
-    function showMyRankSkeleton() {
-        const container = document.getElementById('myRankContainer');
-        container.innerHTML = `
-            <div class="skeleton-my-rank-card">
-                <div class="skeleton-my-rank-left">
-                    <div class="skeleton-my-rank-icon"></div>
-                    <div class="skeleton-my-rank-info">
-                        <div class="skeleton-my-rank-title"></div>
-                        <div class="skeleton-my-rank-value"></div>
-                    </div>
-                </div>
-                <div class="skeleton-my-rank-right">
-                    <div class="skeleton-my-rank-coins"></div>
-                    <div class="skeleton-my-rank-label"></div>
-                </div>
-            </div>
-        `;
-    }
-    
-    // Helper: Get current time in Africa/Lagos timezone
-    function getLagosTime() {
-        const now = new Date();
-        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-        return new Date(utc + (3600000)); // Lagos is UTC+1
-    }
-    
-    // Calculate end of current tournament week (Sunday 23:59:59 Lagos time)
-    function getTournamentEndDate() {
-        const lagosNow = getLagosTime();
-        const endOfWeek = new Date(lagosNow);
-        const dayOfWeek = lagosNow.getDay();
-        
-        if (dayOfWeek === 0) {
-            endOfWeek.setHours(23, 59, 59, 999);
-        } else {
-            const daysUntilSunday = 7 - dayOfWeek;
-            endOfWeek.setDate(lagosNow.getDate() + daysUntilSunday);
-            endOfWeek.setHours(23, 59, 59, 999);
-        }
-        return endOfWeek;
-    }
-    
-    // Format time remaining
-    function formatTimeRemaining(ms) {
-        if (ms <= 0) return "Tournament Ended";
-        const days = Math.floor(ms / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-        return `${days}d ${hours}h ${minutes}m`;
-    }
-    
-    function updateTimer() {
-        const endDate = getTournamentEndDate();
-        const now = getLagosTime();
-        const remaining = endDate - now;
-        
-        const timerElement = document.getElementById('tournamentTimer');
-        if (remaining <= 0) {
-            timerElement.textContent = "Rewards Given!";
-            timerElement.style.fontSize = "20px";
-        } else {
-            timerElement.textContent = formatTimeRemaining(remaining);
-            timerElement.style.fontSize = "28px";
-        }
-        
-        if (remaining <= 0) {
-            document.querySelector('.timer-banner h3').innerHTML = '<i class="fas fa-gift"></i> Tournament Ended – Prizes Awarded';
-        } else {
-            document.querySelector('.timer-banner h3').innerHTML = '<i class="fas fa-hourglass-half"></i> Tournament Ends In';
-        }
-    }
-    
-    function shouldShowInfoBox() {
-        const dismissedWeek = localStorage.getItem('tournamentInfoDismissedWeek');
-        const lagosNow = getLagosTime();
-        const weekNumber = Math.ceil((lagosNow - new Date(lagosNow.getFullYear(), 0, 1)) / (7 * 86400000));
-        return dismissedWeek !== weekNumber.toString();
-    }
-    
-    function dismissInfoBox() {
-        const lagosNow = getLagosTime();
-        const weekNumber = Math.ceil((lagosNow - new Date(lagosNow.getFullYear(), 0, 1)) / (7 * 86400000));
-        localStorage.setItem('tournamentInfoDismissedWeek', weekNumber);
-        document.getElementById('infoBox').classList.add('dismissed');
-        showNotification('Info hidden until next Monday');
-    }
-    
-    function updateInfoBoxVisibility() {
-        const infoBox = document.getElementById('infoBox');
-        if (!shouldShowInfoBox()) infoBox.classList.add('dismissed');
-        else infoBox.classList.remove('dismissed');
-    }
-    
+    let hasJoinedTournament = false;
+
     function showNotification(msg, isError = false) {
         const notif = document.getElementById('notification');
-        notif.textContent = msg;
-        notif.className = 'notification' + (isError ? ' error' : '');
-        notif.style.display = 'block';
-        setTimeout(() => notif.style.display = 'none', 3000);
+        if (notif) {
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 4000);
+        }
     }
-    
+
+    function formatNumber(num) {
+        return parseFloat(num).toFixed(2);
+    }
+
+    // Helper to get user's local date
+    function getLocalDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+
     async function apiCall(endpoint, data = null) {
-        if (!tg?.initData) throw new Error('Not in Telegram');
         const options = {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData })
+            method: data ? 'POST' : 'GET',
+            headers: { 'Content-Type': 'application/json' }
         };
+        if (data) options.body = JSON.stringify(data);
         const response = await fetch(endpoint, options);
         if (!response.ok) {
             const error = await response.text();
@@ -725,132 +620,244 @@
         }
         return response.json();
     }
-    
-    // Format coins
-    function formatCoins(amount) {
-        const num = parseFloat(amount) || 0;
-        const coins = num > 10000 ? num / 1000000 : num;
-        if (coins >= 1000000) return (coins / 1000000).toFixed(2) + 'M';
-        if (coins >= 1000) return (coins / 1000).toFixed(2) + 'K';
-        return coins.toFixed(2);
-    }
-    
-    function renderStandings(standings) {
-        const container = document.getElementById('standingsList');
-        if (!standings || standings.length === 0) {
-            container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No participants yet.</p></div>';
-            return;
-        }
-        
-        container.innerHTML = standings.map((user, idx) => {
-            const rank = idx + 1;
-            const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-            const coinsFormatted = formatCoins(user.weekly_coins);
-            const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
-            
-            return `
-                <div class="standings-item">
-                    <div class="rank ${rankClass}">#${rank}</div>
-                    <div class="avatar">
-                        ${user.photo_url ? `<img src="${user.photo_url}" alt="${user.first_name}">` : initial}
-                    </div>
-                    <div class="info">
-                        <div class="name">
-                            ${user.first_name || user.username || 'User'}
-                            <span class="tier-badge">${user.tier || 'Fresher'}</span>
+
+    // ============================================
+    // SKELETON LOADING
+    // ============================================
+    function showSkeleton() {
+        const myRankContainer = document.getElementById('myRankContainer');
+        if (myRankContainer) {
+            myRankContainer.innerHTML = `
+                <div class="skeleton-my-rank-card">
+                    <div class="skeleton-my-rank-left">
+                        <div class="skeleton-my-rank-icon"></div>
+                        <div class="skeleton-my-rank-info">
+                            <div class="skeleton-my-rank-title"></div>
+                            <div class="skeleton-my-rank-value"></div>
+                            <div class="skeleton-my-rank-label"></div>
                         </div>
-                        <div class="username">${user.username ? '@' + user.username : ''}</div>
                     </div>
-                    <div class="coins">${coinsFormatted} <small>COINS</small></div>
+                    <div class="skeleton-my-rank-coins"></div>
                 </div>
             `;
-        }).join('');
+        }
+        
+        const standingsList = document.getElementById('standingsList');
+        if (standingsList) {
+            let skeletonItems = '';
+            for (let i = 0; i < 5; i++) {
+                skeletonItems += `
+                    <div class="skeleton-standings-item">
+                        <div class="skeleton-rank"></div>
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-info">
+                            <div class="skeleton-name"></div>
+                            <div class="skeleton-username"></div>
+                        </div>
+                        <div class="skeleton-coins"></div>
+                    </div>
+                `;
+            }
+            standingsList.innerHTML = skeletonItems;
+        }
     }
-    
-    function updateMyRank(data) {
-        const container = document.getElementById('myRankContainer');
+
+    function getRankClass(rank) {
+        if (rank === 1) return 'rank-1';
+        if (rank === 2) return 'rank-2';
+        if (rank === 3) return 'rank-3';
+        return '';
+    }
+
+    function getAvatarInitials(name) {
+        if (!name) return '👤';
+        return name.charAt(0).toUpperCase();
+    }
+
+    function updateTournamentUI(data) {
+        hasJoinedTournament = data.has_joined;
+        
+        // Update join button UI
         const joinBtn = document.getElementById('joinBtn');
         const joinedBadge = document.getElementById('joinedBadge');
-        
-        hasJoined = data.has_joined;
-        
-        if (hasJoined) {
-            joinBtn.style.display = 'none';
-            joinedBadge.style.display = 'inline-flex';
-            
-            if (data.my_rank) {
-                container.innerHTML = `
+        if (joinBtn && joinedBadge) {
+            if (hasJoinedTournament) {
+                joinBtn.style.display = 'none';
+                joinedBadge.style.display = 'inline-flex';
+            } else {
+                joinBtn.style.display = 'flex';
+                joinedBadge.style.display = 'none';
+            }
+        }
+
+        // Update "My Rank" card
+        const myRankContainer = document.getElementById('myRankContainer');
+        if (myRankContainer) {
+            if (data.my_rank && hasJoinedTournament) {
+                let rankEmoji = '';
+                if (data.my_rank === 1) rankEmoji = '🥇';
+                else if (data.my_rank === 2) rankEmoji = '🥈';
+                else if (data.my_rank === 3) rankEmoji = '🥉';
+                else rankEmoji = `#${data.my_rank}`;
+                
+                myRankContainer.innerHTML = `
                     <div class="my-rank-card">
                         <div class="my-rank-header">
-                            <div class="my-rank-title">
-                                <i class="fas fa-user"></i>
-                                <span>Your Current Rank</span>
-                            </div>
-                            <div class="my-rank-value" id="myRank">#${data.my_rank}</div>
+                            <div class="my-rank-title"><i class="fas fa-chart-line"></i> YOUR RANK</div>
+                            <div class="my-rank-value">${rankEmoji}</div>
                         </div>
                         <div class="my-rank-stats">
-                            <span><i class="fas fa-coins"></i> <span id="myCoins">${formatCoins(data.my_coins)}</span> COINS</span>
-                            <span><i class="fas fa-users"></i> <span id="myReferrals">${data.standings.find(u => u.id === tg?.initDataUnsafe?.user?.id)?.referral_count || 0}</span> refs</span>
+                            <span>💰 ${formatNumber(data.my_coins)} COINS</span>
+                            <span>🎯 This week only</span>
+                        </div>
+                    </div>
+                `;
+            } else if (hasJoinedTournament) {
+                myRankContainer.innerHTML = `
+                    <div class="my-rank-card">
+                        <div class="my-rank-header">
+                            <div class="my-rank-title"><i class="fas fa-chart-line"></i> YOUR RANK</div>
+                            <div class="my-rank-value">📊 No earnings yet</div>
+                        </div>
+                        <div class="my-rank-stats">
+                            <span>⭐ Watch ads and earn COINS!</span>
                         </div>
                     </div>
                 `;
             } else {
-                container.innerHTML = '';
+                myRankContainer.innerHTML = '';
             }
-        } else {
-            joinBtn.style.display = 'flex';
-            joinedBadge.style.display = 'none';
-            container.innerHTML = '';
+        }
+
+        // Update standings list with PRIVACY: No usernames, no clickable elements
+        const standingsList = document.getElementById('standingsList');
+        if (standingsList) {
+            if (!data.standings || data.standings.length === 0) {
+                standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join the tournament to compete!</p></div>';
+                return;
+            }
+
+            standingsList.innerHTML = data.standings.map(entry => {
+                const rankClass = getRankClass(entry.rank);
+                // IMPORTANT: Only show first_name, NEVER show username or telegram_id
+                const displayName = entry.first_name || 'Anonymous User';
+                const avatarInitial = getAvatarInitials(displayName);
+                // Truncate long names for privacy (optional)
+                const shortName = displayName.length > 15 ? displayName.substring(0, 12) + '...' : displayName;
+                
+                return `
+                    <div class="standings-item">
+                        <div class="rank ${rankClass}">${entry.rank}</div>
+                        <div class="avatar">
+                            <span>${avatarInitial}</span>
+                        </div>
+                        <div class="info">
+                            <div class="name">${escapeHtml(shortName)}</div>
+                            <div class="username">${entry.tier || 'Fresher'} Tier</div>
+                        </div>
+                        <div class="coins">${formatNumber(entry.weekly_coins)} <small>COINS</small></div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update timer
+        updateTournamentTimer();
+    }
+
+    // Simple escape to prevent XSS
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function updateTournamentTimer() {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        let daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+        const nextMonday = new Date(now);
+        nextMonday.setDate(now.getDate() + daysUntilMonday);
+        nextMonday.setHours(0, 0, 0, 0);
+        
+        const diff = nextMonday - now;
+        
+        if (diff <= 0) {
+            loadTournamentData();
+            return;
+        }
+        
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        
+        const timerElement = document.getElementById('tournamentTimer');
+        if (timerElement) {
+            timerElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
         }
     }
-    
-    async function loadTournament(showSkeleton = true) {
-        if (showSkeleton) {
-            showStandingsSkeleton();
-            showMyRankSkeleton();
+
+    async function loadTournamentData(showSkeletonLoader = true) {
+        if (!tg?.initData) {
+            showNotification('Please open from Telegram', true);
+            return;
+        }
+        
+        if (showSkeletonLoader) {
+            showSkeleton();
         }
         
         try {
-            const data = await apiCall('/api/tournament/standings');
-            renderStandings(data.standings);
-            updateMyRank(data);
+            const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
+            updateTournamentUI(data);
+            
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(updateTournamentTimer, 60000);
+            updateTournamentTimer();
+            
         } catch (err) {
-            console.error('Tournament error:', err);
-            let errorMsg = err.message;
-            try { errorMsg = JSON.parse(err.message).error || errorMsg; } catch(e) {}
-            document.getElementById('standingsList').innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Failed to load tournament</p>
-                    <p style="font-size:11px; margin-top:5px; color: #ff5252;">${errorMsg}</p>
-                    <button class="retry-btn" onclick="loadTournament()">Retry</button>
-                </div>
-            `;
+            console.error('Failed to load tournament:', err);
+            const standingsList = document.getElementById('standingsList');
+            if (standingsList) {
+                standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load standings. Pull to refresh.</p></div>';
+            }
         }
     }
-    
+
     async function joinTournament() {
+        if (!tg?.initData) {
+            showNotification('Please open from Telegram', true);
+            return;
+        }
+        
         const joinBtn = document.getElementById('joinBtn');
         joinBtn.disabled = true;
         joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
         
         try {
-            await apiCall('/api/tournament/join');
-            showNotification('You joined the tournament! 🏆');
-            await loadTournament(false);
+            const result = await apiCall('/api/tournament/join', { initData: tg.initData });
+            if (result.success) {
+                showNotification('🎉 You joined the tournament! Good luck!');
+                await loadTournamentData(false);
+            } else {
+                showNotification(result.error || 'Failed to join', true);
+                joinBtn.disabled = false;
+                joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
+            }
         } catch (err) {
-            let msg = err.message;
-            try { msg = JSON.parse(msg).error; } catch(e) {}
-            showNotification(msg || 'Failed to join', true);
+            showNotification(err.message || 'Failed to join', true);
             joinBtn.disabled = false;
             joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
         }
     }
-    
+
     // ============================================
     // PULL TO REFRESH
     // ============================================
-    
     function showRefreshIndicator(text, isError = false) {
         refreshIndicator.textContent = text;
         refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
@@ -863,10 +870,9 @@
         isRefreshing = true;
         showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
         try {
-            await loadTournament(false);
-            updateTimer();
+            await loadTournamentData(true);
             showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-            showNotification('Tournament refreshed!', false);
+            showNotification('Tournament standings refreshed!', false);
         } catch (err) {
             showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
         } finally {
@@ -880,19 +886,20 @@
     document.addEventListener('touchmove', (e) => {
         if (window.scrollY === 0 && !isRefreshing) {
             const diff = e.touches[0].clientY - touchStartY;
-            if (diff > 60) { e.preventDefault(); refreshData(); }
+            if (diff > 60) {
+                e.preventDefault();
+                refreshData();
+            }
         }
     });
-    
-    // Initialize timer and refresh every minute
+
     document.addEventListener('DOMContentLoaded', () => {
-        updateTimer();
-        setInterval(updateTimer, 60000);
-        showStandingsSkeleton();
-        showMyRankSkeleton();
-        loadTournament(true);
-        updateInfoBoxVisibility();
-        document.getElementById('joinBtn').addEventListener('click', joinTournament);
+        loadTournamentData(true);
+        
+        const joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) {
+            joinBtn.addEventListener('click', joinTournament);
+        }
     });
 </script>
 </body>
