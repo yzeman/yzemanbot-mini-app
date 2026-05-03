@@ -1016,6 +1016,58 @@ io.on('connection', (socket) => {
         // ... rest of existing code
     });
 
+    // Inside io.on('connection', (socket) => { ... })
+
+// Edit private message
+socket.on('edit-private-message', async (data) => {
+    const { messageId, newMessage, userId, chatId } = data;
+    
+    if (!newMessage || newMessage.trim().length === 0) return;
+    if (newMessage.length > 500) return;
+    
+    try {
+        const result = await pool.query(`
+            UPDATE private_messages
+            SET message = $1, is_edited = true, updated_at = NOW()
+            WHERE id = $2 AND sender_id = $3
+            RETURNING id
+        `, [newMessage.trim(), messageId, userId]);
+        
+        if (result.rows.length > 0) {
+            io.to(`private_${chatId}`).emit('private-message-edited', {
+                messageId,
+                newMessage: newMessage.trim(),
+                userId
+            });
+        }
+    } catch (err) {
+        console.error('Edit message error:', err);
+        socket.emit('message-error', { error: 'Failed to edit message' });
+    }
+});
+
+// Delete private message
+socket.on('delete-private-message', async (data) => {
+    const { messageId, userId, chatId } = data;
+    
+    try {
+        const result = await pool.query(`
+            DELETE FROM private_messages
+            WHERE id = $1 AND sender_id = $2
+            RETURNING id
+        `, [messageId, userId]);
+        
+        if (result.rows.length > 0) {
+            io.to(`private_${chatId}`).emit('private-message-deleted', {
+                messageId
+            });
+        }
+    } catch (err) {
+        console.error('Delete message error:', err);
+        socket.emit('message-error', { error: 'Failed to delete message' });
+    }
+});
+
     // Add this inside io.on('connection', (socket) => { ... })
 
 socket.on('join-status', (data) => {
