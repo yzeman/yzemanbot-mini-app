@@ -1040,47 +1040,71 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
-// WHEEL SPIN ENDPOINT (WITH TRACKING)
+// WHEEL SPIN ENDPOINT - USES USER'S LOCAL DATE
 // ============================================
 app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
+    const { localDate } = req.body;
+    if (!localDate) {
+      return res.status(400).json({ error: 'Missing localDate' });
+    }
+
     const telegramId = req.telegramUser.id;
-    const today = new Date().toISOString().split('T')[0];
-    
     const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     const userId = userResult.rows[0].id;
-    
-    const lastSpin = await client.query("SELECT spin_date FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1", [userId]);
+
+    // Get last spin date (stored in UTC, but we compare dates as strings)
+    const lastSpin = await client.query(
+      "SELECT spin_date FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
+      [userId]
+    );
+
     if (lastSpin.rows.length > 0) {
-      const daysDiff = Math.floor((new Date() - new Date(lastSpin.rows[0].spin_date)) / 86400000);
-      if (daysDiff < 3) return res.status(400).json({ error: `Next spin in ${3 - daysDiff} day(s)`, daysLeft: 3 - daysDiff });
+      const lastSpinDate = lastSpin.rows[0].spin_date; // stored as DATE in DB (no timezone)
+      const lastSpinStr = lastSpinDate instanceof Date
+        ? lastSpinDate.toISOString().split('T')[0]
+        : lastSpinDate;
+      // Calculate difference in local calendar days
+      const lastDate = new Date(lastSpinStr);
+      const currentDate = new Date(localDate);
+      const diffTime = currentDate - lastDate;
+      const daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      if (daysDiff < 3) {
+        return res.status(400).json({
+          error: `Next spin in ${3 - daysDiff} day(s)`,
+          daysLeft: 3 - daysDiff
+        });
+      }
     }
-    
-    // Updated wheel prizes - matches frontend distribution
+
+    // Prizes (same as before)
     const prizes = [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000];
     const rewardCoins = prizes[Math.floor(Math.random() * prizes.length)];
-    
+
     const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
     const multipliers = { Fresher: 1.0, Brute: 1.5, Silver: 2.0, Gold: 2.5, Platinum: 3.0 };
     const finalReward = rewardCoins * (multipliers[userTier.rows[0]?.tier] || 1.0);
-    
+
     await client.query('BEGIN');
-    await client.query('INSERT INTO wheel_spins (user_id, spin_date, reward_coins) VALUES ($1, $2, $3)', [userId, today, finalReward]);
-    await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [finalReward, userId]);
-    
-    // ✅ TRACK IN AD_REWARDS FOR TOURNAMENT/LEADERBOARD
+    await client.query(
+      'INSERT INTO wheel_spins (user_id, spin_date, reward_coins) VALUES ($1, $2, $3)',
+      [userId, localDate, finalReward]
+    );
+    await client.query(
+      'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+      [finalReward, userId]
+    );
     await client.query(
       'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
       [userId, finalReward, 'wheel']
     );
-    
     await awardReferralCommission(client, userId, finalReward);
     await trackMonthlyEarnings(client, userId, finalReward);
     if (rewardCoins >= 20) await awardAchievement(userId, 'Wheel Champion', client);
     await client.query('COMMIT');
-    
+
     res.json({ success: true, reward: finalReward });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -1091,22 +1115,48 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
   }
 });
 
+// ============================================
+// WHEEL STATUS ENDPOINT - USES USER'S LOCAL DATE
+// ============================================
 app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
   try {
+    const { localDate } = req.body;
+    if (!localDate) {
+      return res.status(400).json({ error: 'Missing localDate' });
+    }
+
     const telegramId = req.telegramUser.id;
     const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) return res.json({ can_spin: true, days_left: 0, last_reward: 0 });
+    if (userResult.rows.length === 0) {
+      return res.json({ can_spin: true, days_left: 0, last_reward: 0 });
+    }
     const userId = userResult.rows[0].id;
-    
-    const lastSpin = await pool.query("SELECT spin_date, reward_coins FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1", [userId]);
+
+    const lastSpin = await pool.query(
+      "SELECT spin_date, reward_coins FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
+      [userId]
+    );
+
     let canSpin = true, daysLeft = 0, lastReward = 0;
     if (lastSpin.rows.length > 0) {
-      const daysDiff = Math.floor((new Date() - new Date(lastSpin.rows[0].spin_date)) / 86400000);
+      const lastSpinDate = lastSpin.rows[0].spin_date;
       lastReward = lastSpin.rows[0].reward_coins;
-      if (daysDiff < 3) { canSpin = false; daysLeft = 3 - daysDiff; }
+      const lastSpinStr = lastSpinDate instanceof Date
+        ? lastSpinDate.toISOString().split('T')[0]
+        : lastSpinDate;
+      const lastDate = new Date(lastSpinStr);
+      const currentDate = new Date(localDate);
+      const diffTime = currentDate - lastDate;
+      const daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      if (daysDiff < 3) {
+        canSpin = false;
+        daysLeft = 3 - daysDiff;
+      }
     }
+
     res.json({ can_spin: canSpin, days_left: daysLeft, last_reward: lastReward });
   } catch (err) {
+    console.error('Wheel status error:', err);
     res.status(500).json({ error: err.message });
   }
 });
