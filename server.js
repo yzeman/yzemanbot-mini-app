@@ -86,6 +86,7 @@ async function initDB() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_friends INTEGER DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_blocks_received INTEGER DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trust_score INTEGER DEFAULT 50`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP`);
 
     const pointsColExists = await client.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='points')`);
     if (pointsColExists.rows[0].exists) {
@@ -3717,6 +3718,68 @@ app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) =>
     } catch (err) {
         console.error('Unread messages error:', err);
         res.json({ unread_count: 0 });
+    }
+});
+
+// ============================================
+// GET ONLINE STATUS FOR FRIENDS
+// ============================================
+app.post('/api/friends/online-status', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ online_status: {} });
+        const userId = userResult.rows[0].id;
+        
+        // Get all friends of the user
+        const friendsResult = await pool.query(`
+            SELECT u.id
+            FROM friends f
+            JOIN users u ON (f.friend_id = u.id)
+            WHERE f.user_id = $1 AND f.status = 'accepted'
+            UNION
+            SELECT u.id
+            FROM friends f
+            JOIN users u ON (f.user_id = u.id)
+            WHERE f.friend_id = $1 AND f.status = 'accepted'
+        `, [userId]);
+        
+        const friendIds = friendsResult.rows.map(row => row.id);
+        
+        // Get online status from connectedUsers (this is stored in memory)
+        const onlineStatus = {};
+        
+        // Check each friend if they have an active WebSocket connection
+        for (const friendId of friendIds) {
+            // Check if user has an active socket connection
+            let isOnline = false;
+            for (const [socketId, user] of connectedUsers) {
+                if (user.userId === friendId) {
+                    isOnline = true;
+                    break;
+                }
+            }
+            onlineStatus[friendId] = isOnline;
+        }
+        
+        res.json({ online_status: onlineStatus });
+    } catch (err) {
+        console.error('Online status error:', err);
+        res.json({ online_status: {} });
+    }
+});
+
+// Also add endpoint to update last seen
+app.post('/api/user/last-seen', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        await pool.query(`
+            UPDATE users SET last_seen = NOW() WHERE telegram_id = $1
+        `, [telegramId]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Last seen error:', err);
+        res.json({ success: false });
     }
 });
 
