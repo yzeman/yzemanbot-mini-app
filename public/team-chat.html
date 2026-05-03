@@ -130,7 +130,6 @@
             margin-left: 5px;
         }
         
-        /* Message actions menu (long press) */
         .message-actions {
             position: fixed;
             background: var(--darker);
@@ -285,8 +284,8 @@
         let typingTimeout = null;
         let selectedMessageId = null;
         let selectedMessageElement = null;
+        let pendingMessages = []; // Store messages that are waiting for user ID confirmation
         
-        // Get team info from URL
         const urlParams = new URLSearchParams(window.location.search);
         const teamId = urlParams.get('teamId');
         const teamName = decodeURIComponent(urlParams.get('teamName') || 'Team Chat');
@@ -330,6 +329,14 @@
             return fullName.split(' ')[0];
         }
         
+        // Get user's display name (first name only)
+        function getUserDisplayName() {
+            if (currentUser && currentUser.first_name) {
+                return getFirstName(currentUser.first_name);
+            }
+            return 'You';
+        }
+        
         function hideMessageActions() {
             const menu = document.getElementById('messageActions');
             menu.style.display = 'none';
@@ -337,7 +344,8 @@
             selectedMessageElement = null;
         }
         
-        function showMessageActions(event, messageId, element) {
+        function showMessageActions(event, messageId, element, isOwn) {
+            if (!isOwn) return;
             event.preventDefault();
             event.stopPropagation();
             
@@ -349,7 +357,6 @@
             menu.style.left = `${event.pageX - 50}px`;
             menu.style.top = `${event.pageY - 20}px`;
             
-            // Hide menu when clicking elsewhere
             setTimeout(() => {
                 document.addEventListener('click', hideMessageActions);
             }, 100);
@@ -381,7 +388,8 @@
             hideMessageActions();
         }
         
-        function addMessageToChat(msg, isOwn = false) {
+        // Add message to chat - FIXED: correctly identifies own messages
+        function addMessageToChat(msg) {
             const container = document.getElementById('messagesContainer');
             
             if (container.querySelector('.loading-messages')) {
@@ -389,20 +397,34 @@
             }
             
             const time = formatTime(msg.created_at);
-            // IMPORTANT: Use first_name from the message, not from currentUser
-            const senderName = getFirstName(msg.first_name || 'User');
+            // Check if this message is from the current user
+            const isOwn = currentUser && msg.user_id === currentUser.id;
+            
+            // Get sender name: use the name from the message, or fallback
+            let senderName = 'User';
+            if (msg.first_name) {
+                senderName = getFirstName(msg.first_name);
+            } else if (isOwn && currentUser && currentUser.first_name) {
+                senderName = getFirstName(currentUser.first_name);
+            }
+            
             const initial = getInitials(senderName);
-            const isCurrentUser = isOwn || (currentUser && msg.user_id === currentUser.id);
             
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isCurrentUser ? 'message-own' : ''}`;
+            messageDiv.className = `message ${isOwn ? 'message-own' : ''}`;
             messageDiv.dataset.messageId = msg.id;
             messageDiv.dataset.userId = msg.user_id;
+            
+            // For own messages, don't show sender name (only for others)
+            let senderHtml = '';
+            if (!isOwn) {
+                senderHtml = `<div class="message-sender">${escapeHtml(senderName)}</div>`;
+            }
             
             messageDiv.innerHTML = `
                 <div class="message-avatar">${escapeHtml(initial)}</div>
                 <div class="message-bubble">
-                    ${!isCurrentUser ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}
+                    ${senderHtml}
                     <div class="message-text">${escapeHtml(msg.message)}</div>
                     <div class="message-time">
                         ${time}
@@ -411,16 +433,15 @@
                 </div>
             `;
             
-            // Add long press / right-click menu for own messages
-            if (isCurrentUser) {
+            // Add long press menu for own messages
+            if (isOwn) {
                 messageDiv.addEventListener('contextmenu', (e) => {
-                    showMessageActions(e, msg.id, messageDiv);
+                    showMessageActions(e, msg.id, messageDiv, true);
                 });
-                // For mobile touch
                 let touchTimer;
                 messageDiv.addEventListener('touchstart', (e) => {
                     touchTimer = setTimeout(() => {
-                        showMessageActions(e, msg.id, messageDiv);
+                        showMessageActions(e, msg.id, messageDiv, true);
                     }, 500);
                 });
                 messageDiv.addEventListener('touchend', () => clearTimeout(touchTimer));
@@ -429,6 +450,55 @@
             
             container.appendChild(messageDiv);
             scrollToBottom();
+        }
+        
+        // Add temporary message (optimistic update)
+        function addTempMessage(message, tempId) {
+            const container = document.getElementById('messagesContainer');
+            
+            if (container.querySelector('.loading-messages')) {
+                container.innerHTML = '';
+            }
+            
+            const time = 'Sending...';
+            const senderName = getUserDisplayName();
+            const initial = getInitials(senderName);
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message message-own';
+            messageDiv.dataset.tempId = tempId;
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${escapeHtml(initial)}</div>
+                <div class="message-bubble">
+                    <div class="message-text">${escapeHtml(message)}</div>
+                    <div class="message-time">
+                        ${time}
+                        <span style="font-size:8px; margin-left:5px;">⏳</span>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            scrollToBottom();
+            return messageDiv;
+        }
+        
+        function replaceTempMessage(tempId, realMessage) {
+            const tempDiv = document.querySelector(`.message[data-temp-id="${tempId}"]`);
+            if (tempDiv) {
+                tempDiv.removeAttribute('data-temp-id');
+                tempDiv.dataset.messageId = realMessage.id;
+                tempDiv.dataset.userId = realMessage.user_id;
+                
+                const timeSpan = tempDiv.querySelector('.message-time');
+                if (timeSpan) {
+                    timeSpan.innerHTML = `${formatTime(realMessage.created_at)}`;
+                }
+                
+                const sendingSpan = timeSpan?.querySelector('span');
+                if (sendingSpan) sendingSpan.remove();
+            }
         }
         
         function updateMessageInChat(messageId, newMessage) {
@@ -467,8 +537,7 @@
             
             container.innerHTML = '';
             messages.forEach(msg => {
-                const isOwn = currentUser && msg.user_id === currentUser.id;
-                addMessageToChat(msg, isOwn);
+                addMessageToChat(msg);
             });
             scrollToBottom();
         }
@@ -511,16 +580,14 @@
             document.getElementById('teamName').textContent = teamName;
             
             try {
-                // Get current user
                 const userRes = await fetch('/api/user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ initData: tg.initData })
                 });
                 currentUser = await userRes.json();
-                console.log('Current user:', currentUser);
+                console.log('Current user loaded:', currentUser);
                 
-                // Get team info
                 const teamRes = await fetch('/api/team/info', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -560,7 +627,7 @@
             });
             
             socket.on('connect', () => {
-                console.log('✅ WebSocket connected, socket id:', socket.id);
+                console.log('WebSocket connected');
                 document.getElementById('teamStatus').textContent = 'Connected';
                 
                 socket.emit('join-team', {
@@ -571,14 +638,13 @@
             });
             
             socket.on('chat-history', (messages) => {
-                console.log('Received chat history:', messages?.length || 0, 'messages');
+                console.log('Chat history received:', messages?.length);
                 renderMessages(messages);
             });
             
             socket.on('new-message', (message) => {
-                console.log('New message received:', message);
-                const isOwn = message.user_id === currentUser.id;
-                addMessageToChat(message, isOwn);
+                console.log('New message:', message);
+                addMessageToChat(message);
             });
             
             socket.on('user-joined', (data) => {
@@ -604,12 +670,12 @@
             });
             
             socket.on('disconnect', () => {
-                console.log('🔴 WebSocket disconnected');
+                console.log('WebSocket disconnected');
                 document.getElementById('teamStatus').textContent = 'Reconnecting...';
             });
             
             socket.on('connect_error', (err) => {
-                console.error('WebSocket connection error:', err);
+                console.error('Connection error:', err);
                 document.getElementById('teamStatus').textContent = 'Connection error';
                 showNotification('Connection error. Retrying...', true);
             });
@@ -620,7 +686,8 @@
             const message = input.value.trim();
             if (!message) return;
             
-            console.log('Sending message:', message);
+            const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+            addTempMessage(message, tempId);
             
             socket.emit('send-message', {
                 teamId: parseInt(teamId),
@@ -652,7 +719,6 @@
             }, 1000);
         }
         
-        // Set up event listeners
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
@@ -660,11 +726,8 @@
         document.getElementById('messageInput').addEventListener('input', handleTyping);
         document.getElementById('editMessageBtn').addEventListener('click', editMessage);
         document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
-        
-        // Hide message actions on scroll
         document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);
         
-        // Initialize
         init();
     </script>
 </body>
