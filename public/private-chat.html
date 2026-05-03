@@ -151,6 +151,10 @@
             align-items: center;
             justify-content: center;
         }
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         
         .loading-messages {
             text-align: center;
@@ -174,6 +178,11 @@
             align-items: center;
             gap: 5px;
         }
+        
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -192,9 +201,7 @@
     <div class="typing-indicator" id="typingIndicator" style="display: none;">
         <span>Typing</span>
         <div class="typing-dots" style="display: flex; gap: 3px;">
-            <span style="width:6px;height:6px;background:var(--gold);border-radius:50%;animation:typing 1.4s infinite;"></span>
-            <span style="width:6px;height:6px;background:var(--gold);border-radius:50%;animation:typing 1.4s infinite 0.2s;"></span>
-            <span style="width:6px;height:6px;background:var(--gold);border-radius:50%;animation:typing 1.4s infinite 0.4s;"></span>
+            <span></span><span></span><span></span>
         </div>
     </div>
     
@@ -212,8 +219,8 @@
         let socket = null;
         let currentUser = null;
         let currentChatId = null;
-        let friendName = '';
         let typingTimeout = null;
+        let isConnected = false;
         
         const urlParams = new URLSearchParams(window.location.search);
         const friendUserId = urlParams.get('userId');
@@ -337,6 +344,10 @@
                 currentUser = await userRes.json();
                 currentChatId = [currentUser.id, parseInt(friendUserId)].sort().join('-');
                 
+                console.log('Current user:', currentUser.id);
+                console.log('Friend ID:', friendUserId);
+                console.log('Chat ID:', currentChatId);
+                
                 connectWebSocket();
                 
                 // Load message history
@@ -352,7 +363,8 @@
                 
             } catch (err) {
                 console.error('Init error:', err);
-                showNotification('Failed to load chat', true);
+                showNotification('Failed to load chat: ' + err.message, true);
+                document.getElementById('friendStatus').textContent = 'Error loading';
             }
         }
         
@@ -360,14 +372,20 @@
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const socketUrl = `${protocol}//${window.location.host}`;
             
+            console.log('Connecting to WebSocket:', socketUrl);
+            
             socket = io(socketUrl, {
                 auth: { initData: tg.initData },
-                transports: ['websocket']
+                transports: ['websocket'],
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1000
             });
             
             socket.on('connect', () => {
                 console.log('WebSocket connected');
                 document.getElementById('friendStatus').textContent = 'Connected';
+                isConnected = true;
                 
                 socket.emit('join-private', {
                     chatId: currentChatId,
@@ -378,6 +396,7 @@
             });
             
             socket.on('private-message', (message) => {
+                console.log('Private message received:', message);
                 const isOwn = message.sender_id === currentUser.id;
                 addMessageToChat(message, isOwn);
                 
@@ -387,7 +406,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ initData: tg.initData, messageId: message.id })
-                    });
+                    }).catch(e => console.log('Mark read error:', e));
                 }
             });
             
@@ -398,14 +417,30 @@
             });
             
             socket.on('disconnect', () => {
+                console.log('WebSocket disconnected');
                 document.getElementById('friendStatus').textContent = 'Reconnecting...';
+                isConnected = false;
+            });
+            
+            socket.on('connect_error', (err) => {
+                console.error('WebSocket connection error:', err);
+                document.getElementById('friendStatus').textContent = 'Connection error';
+                showNotification('Connection error. Retrying...', true);
             });
         }
         
         function sendMessage() {
+            if (!isConnected) {
+                showNotification('Not connected. Please wait...', true);
+                return;
+            }
+            
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             if (!message) return;
+            
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
             
             socket.emit('send-private-message', {
                 chatId: currentChatId,
@@ -416,9 +451,15 @@
             });
             
             input.value = '';
+            
+            setTimeout(() => {
+                sendBtn.disabled = false;
+            }, 500);
         }
         
         function handleTyping() {
+            if (!isConnected) return;
+            
             if (typingTimeout) clearTimeout(typingTimeout);
             
             socket.emit('typing-private', {
