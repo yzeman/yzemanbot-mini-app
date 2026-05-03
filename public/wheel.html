@@ -446,361 +446,344 @@
     <div class="notification" id="notification"></div>
     
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.ready(); tg.expand(); }
-        
-        // Pull to refresh variables
-        let touchStartY = 0;
-        let isRefreshing = false;
-        const refreshIndicator = document.getElementById('refreshIndicator');
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
 
-        // ============================================================
-        // 12 SEGMENT MIXED WHEEL - ALL VALUES MIXED
-        // ============================================================
-        const PRIZES = [
-            { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },
-            { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },
-            { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },
-            { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },
-            { value: 50, label: '50', color: '#66BB6A', rarity: 'easy' },
-            { value: 100, label: '100', color: '#9CCC65', rarity: 'easy' },
-            { value: 200, label: '200', color: '#FFA726', rarity: 'medium' },
-            { value: 1000, label: '1K', color: '#F44336', rarity: 'rare' },
-            { value: 50, label: '50', color: '#81C784', rarity: 'easy' },
-            { value: 100, label: '100', color: '#AED581', rarity: 'easy' },
-            { value: 2000, label: '2K', color: '#D32F2F', rarity: 'rare' },
-            { value: 500, label: '500', color: '#E64A19', rarity: 'medium' }
-        ];
+    // Pull to refresh variables
+    let touchStartY = 0;
+    let isRefreshing = false;
+    const refreshIndicator = document.getElementById('refreshIndicator');
 
-        let wheelSpinning = false, wheelAnimationFrame = null, wheelCurrentAngle = 0, canSpin = false;
+    // ============================================================
+    // 12 SEGMENT WHEEL CONFIGURATION
+    // ============================================================
+    const PRIZES = [
+        { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },
+        { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },
+        { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },
+        { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },
+        { value: 50, label: '50', color: '#66BB6A', rarity: 'easy' },
+        { value: 100, label: '100', color: '#9CCC65', rarity: 'easy' },
+        { value: 200, label: '200', color: '#FFA726', rarity: 'medium' },
+        { value: 1000, label: '1K', color: '#F44336', rarity: 'rare' },
+        { value: 50, label: '50', color: '#81C784', rarity: 'easy' },
+        { value: 100, label: '100', color: '#AED581', rarity: 'easy' },
+        { value: 2000, label: '2K', color: '#D32F2F', rarity: 'rare' },
+        { value: 500, label: '500', color: '#E64A19', rarity: 'medium' }
+    ];
 
-        function showNotification(msg, isError = false) {
-            const n = document.getElementById('notification');
-            n.textContent = msg;
-            n.className = 'notification' + (isError ? ' error' : '');
-            n.style.display = 'block';
-            setTimeout(() => n.style.display = 'none', 4000);
-        }
+    let wheelSpinning = false;
+    let wheelAnimationFrame = null;
+    let wheelCurrentAngle = 0;
+    let canSpin = false;
 
-        // ============================================
-        // SKELETON LOADING FUNCTIONS
-        // ============================================
-        
-        function showSkeleton() {
-            // Status card skeleton
-            document.getElementById('statusCardContainer').innerHTML = `
-                <div class="skeleton-status-card">
-                    <div class="skeleton-status-text"></div>
-                    <div class="skeleton-timer-text"></div>
-                    <div class="skeleton-last-reward"></div>
-                </div>
-            `;
-            
-            // Prizes section skeleton
-            let prizeItems = '';
-            for (let i = 0; i < 6; i++) {
-                prizeItems += `
-                    <div class="skeleton-prize-item">
-                        <div class="skeleton-prize-color"></div>
-                        <div class="skeleton-prize-value"></div>
-                    </div>
-                `;
-            }
-            document.getElementById('prizesSectionContainer').innerHTML = `
-                <div class="prizes-section">
-                    <div class="prizes-title">
-                        <i class="fas fa-gift"></i>
-                        <span>Available Prizes</span>
-                    </div>
-                    <div class="skeleton-prizes-grid">
-                        ${prizeItems}
-                    </div>
-                </div>
-            `;
-            
-            // Wheel canvas skeleton
-            const canvas = document.getElementById('wheelCanvas');
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'rgba(255,255,255,0.05)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                ctx.font = "16px 'Segoe UI'";
-                ctx.textAlign = 'center';
-                ctx.fillText('🎡', canvas.width/2, canvas.height/2);
-            }
-        }
-        
-        function renderPrizesGrid() {
-            const uniquePrizes = [];
-            const seen = new Set();
-            for (const p of PRIZES) {
-                if (!seen.has(p.value)) {
-                    seen.add(p.value);
-                    uniquePrizes.push(p);
-                }
-            }
-            document.getElementById('prizesSectionContainer').innerHTML = `
-                <div class="prizes-section">
-                    <div class="prizes-title">
-                        <i class="fas fa-gift"></i>
-                        <span>Available Prizes</span>
-                    </div>
-                    <div class="prizes-grid">
-                        ${uniquePrizes.map(p => `
-                            <div class="prize-item">
-                                <div class="prize-color" style="background:${p.color};"></div>
-                                <div class="prize-value">${p.label}</div>
-                                <div class="prize-label">COINS</div>
-                            </div>
-                        `).join('')}
-                    </div>
+    // Helper: get user's local date (YYYY-MM-DD)
+    function getLocalDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    function showNotification(msg, isError = false) {
+        const n = document.getElementById('notification');
+        n.textContent = msg;
+        n.className = 'notification' + (isError ? ' error' : '');
+        n.style.display = 'block';
+        setTimeout(() => n.style.display = 'none', 4000);
+    }
+
+    // ============================================
+    // SKELETON LOADING
+    // ============================================
+    function showSkeleton() {
+        document.getElementById('statusCardContainer').innerHTML = `
+            <div class="skeleton-status-card">
+                <div class="skeleton-status-text"></div>
+                <div class="skeleton-timer-text"></div>
+                <div class="skeleton-last-reward"></div>
+            </div>
+        `;
+        let prizeItems = '';
+        for (let i = 0; i < 6; i++) {
+            prizeItems += `
+                <div class="skeleton-prize-item">
+                    <div class="skeleton-prize-color"></div>
+                    <div class="skeleton-prize-value"></div>
                 </div>
             `;
         }
-        
-        function renderStatusCard(canSpinData, daysLeft, lastReward) {
+        document.getElementById('prizesSectionContainer').innerHTML = `
+            <div class="prizes-section">
+                <div class="prizes-title">
+                    <i class="fas fa-gift"></i>
+                    <span>Available Prizes</span>
+                </div>
+                <div class="skeleton-prizes-grid">
+                    ${prizeItems}
+                </div>
+            </div>
+        `;
+        const canvas = document.getElementById('wheelCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.font = "16px 'Segoe UI'";
+            ctx.textAlign = 'center';
+            ctx.fillText('🎡', canvas.width/2, canvas.height/2);
+        }
+    }
+
+    function renderPrizesGrid() {
+        const uniquePrizes = [];
+        const seen = new Set();
+        for (const p of PRIZES) {
+            if (!seen.has(p.value)) {
+                seen.add(p.value);
+                uniquePrizes.push(p);
+            }
+        }
+        document.getElementById('prizesSectionContainer').innerHTML = `
+            <div class="prizes-section">
+                <div class="prizes-title">
+                    <i class="fas fa-gift"></i>
+                    <span>Available Prizes</span>
+                </div>
+                <div class="prizes-grid">
+                    ${uniquePrizes.map(p => `
+                        <div class="prize-item">
+                            <div class="prize-color" style="background:${p.color};"></div>
+                            <div class="prize-value">${p.label}</div>
+                            <div class="prize-label">COINS</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStatusCard(canSpinData, daysLeft, lastReward) {
+        document.getElementById('statusCardContainer').innerHTML = `
+            <div class="status-card">
+                <div class="status-text" id="statusText">${canSpinData ? '<span style="color:var(--success);">✅ Ready to spin!</span>' : '<span style="color:var(--warning);">⏳ Next spin available in:</span>'}</div>
+                <div class="timer-text" id="timerText">${!canSpinData && daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''}` : ''}</div>
+                <div class="last-reward" id="lastRewardText">${lastReward > 0 ? `Last spin: ${lastReward.toFixed(2)} COINS!` : 'No spins yet!'}</div>
+                <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
+            </div>
+        `;
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
+    }
+
+    function drawWheel(angle) {
+        const canvas = document.getElementById('wheelCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const size = canvas.width, center = size/2, radius = size/2 - 10;
+        const segAngle = (Math.PI*2)/PRIZES.length;
+        ctx.clearRect(0,0,size,size);
+        for(let i=0; i<PRIZES.length; i++){
+            const start = angle + i*segAngle, end = start + segAngle;
+            ctx.beginPath();
+            ctx.fillStyle = PRIZES[i].color;
+            ctx.moveTo(center,center);
+            ctx.arc(center,center,radius,start,end);
+            ctx.fill();
+            ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2; ctx.stroke();
+            ctx.save();
+            ctx.translate(center,center);
+            ctx.rotate(start + segAngle/2);
+            ctx.fillStyle='white';
+            ctx.font="bold 14px 'Segoe UI'";
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.shadowBlur = 2;
+            ctx.shadowColor = 'black';
+            let displayLabel = PRIZES[i].label;
+            if (PRIZES[i].value >= 1000) displayLabel = PRIZES[i].value/1000 + 'K';
+            ctx.fillText(displayLabel, radius*0.65, 0);
+            ctx.shadowBlur = 0;
+            ctx.restore();
+        }
+        ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,18,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#1a1a2e'; ctx.font='bold 22px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🎡', center, center);
+        ctx.beginPath();
+        ctx.arc(center, center, radius+2, 0, Math.PI*2);
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    // ============================================
+    // API CALLS WITH LOCAL DATE
+    // ============================================
+    async function loadWheelStatus(showSkeletonLoader = true) {
+        if (!tg?.initData) {
             document.getElementById('statusCardContainer').innerHTML = `
                 <div class="status-card">
-                    <div class="status-text" id="statusText">${canSpinData ? '<span style="color:var(--success);">✅ Ready to spin!</span>' : '<span style="color:var(--warning);">⏳ Next spin available in:</span>'}</div>
-                    <div class="timer-text" id="timerText">${!canSpinData && daysLeft > 0 ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''}` : ''}</div>
-                    <div class="last-reward" id="lastRewardText">${lastReward > 0 ? `Last spin: ${lastReward.toFixed(2)} COINS!` : 'No spins yet!'}</div>
-                    <button class="retry-btn" id="retryBtn" style="display:none;">🔄 Retry</button>
+                    <div class="status-text">❌ Not in Telegram</div>
+                    <button class="retry-btn" id="retryBtn">🔄 Retry</button>
                 </div>
             `;
-            
-            // Re-attach retry button event
             const retryBtn = document.getElementById('retryBtn');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', loadWheelStatus);
-            }
+            if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
+            return;
         }
+        if (showSkeletonLoader) showSkeleton();
 
-        function drawWheel(angle) {
-            const canvas = document.getElementById('wheelCanvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            const size = canvas.width, center = size/2, radius = size/2 - 10;
-            const segAngle = (Math.PI*2)/PRIZES.length;
-            ctx.clearRect(0,0,size,size);
-            
-            for(let i=0; i<PRIZES.length; i++){
-                const start = angle + i*segAngle, end = start + segAngle;
-                ctx.beginPath();
-                ctx.fillStyle = PRIZES[i].color;
-                ctx.moveTo(center,center);
-                ctx.arc(center,center,radius,start,end);
-                ctx.fill();
-                ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2; ctx.stroke();
-                ctx.save();
-                ctx.translate(center,center);
-                ctx.rotate(start + segAngle/2);
-                ctx.fillStyle='white';
-                ctx.font="bold 14px 'Segoe UI'";
-                ctx.textAlign='center'; ctx.textBaseline='middle';
-                ctx.shadowBlur = 2;
-                ctx.shadowColor = 'black';
-                
-                let displayLabel = PRIZES[i].label;
-                if (PRIZES[i].value >= 1000) displayLabel = PRIZES[i].value/1000 + 'K';
-                
-                ctx.fillText(displayLabel, radius*0.65, 0);
-                ctx.shadowBlur = 0;
-                ctx.restore();
-            }
-            ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,18,0,Math.PI*2); ctx.fill();
-            ctx.fillStyle='#1a1a2e'; ctx.font='bold 22px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillText('🎡', center, center);
-            ctx.beginPath();
-            ctx.arc(center, center, radius+2, 0, Math.PI*2);
-            ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-        }
+        try {
+            const response = await fetch('/api/wheel-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    initData: tg.initData,
+                    localDate: getLocalDate()
+                })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            console.log('Wheel status:', data);
 
-        function parseRewardToCoins(value) {
-            if (value === undefined || value === null) return 0;
-            const num = Number(value);
-            return num;
-        }
+            canSpin = data.can_spin;
+            const daysLeft = data.days_left || 0;
+            const lastReward = parseFloat(data.last_reward) || 0;
 
-        async function loadWheelStatus(showSkeletonLoader = true) {
-            if (!tg?.initData) {
-                document.getElementById('statusCardContainer').innerHTML = `
-                    <div class="status-card">
-                        <div class="status-text">❌ Not in Telegram</div>
-                        <button class="retry-btn" id="retryBtn">🔄 Retry</button>
-                    </div>
-                `;
-                const retryBtn = document.getElementById('retryBtn');
-                if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
-                return;
-            }
-            
-            if (showSkeletonLoader) {
-                showSkeleton();
-            }
-            
-            try {
-                const res = await fetch('/api/wheel-status', {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({initData: tg.initData})
-                });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                console.log('Wheel status:', data);
-
-                canSpin = data.can_spin;
-                const daysLeft = data.days_left || 0;
-                const lastReward = parseRewardToCoins(data.last_reward);
-                
-                renderStatusCard(data.can_spin, daysLeft, lastReward);
-                
-                const spinBtn = document.getElementById('spinBtn');
-                if (spinBtn) spinBtn.disabled = !data.can_spin;
-                
-                drawWheel(wheelCurrentAngle);
-                renderPrizesGrid();
-            } catch(err) {
-                console.error('Status error:', err);
-                document.getElementById('statusCardContainer').innerHTML = `
-                    <div class="status-card">
-                        <div class="status-text">❌ Failed to load</div>
-                        <button class="retry-btn" id="retryBtn">🔄 Retry</button>
-                    </div>
-                `;
-                const retryBtn = document.getElementById('retryBtn');
-                if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
-                showNotification('Could not load wheel status', true);
-            }
-        }
-
-        async function spinWheel() {
-            if (wheelSpinning || !canSpin || !tg?.initData) return;
-            wheelSpinning = true;
+            renderStatusCard(data.can_spin, daysLeft, lastReward);
             const spinBtn = document.getElementById('spinBtn');
-            spinBtn.disabled = true;
-            spinBtn.textContent = '🎡 SPINNING...';
-            
-            // Add spinning class to canvas for glow effect
-            const canvas = document.getElementById('wheelCanvas');
-            if (canvas) canvas.classList.add('spinning');
-
-            const spinAngle = Math.random() * (Math.PI*2*8) + (Math.PI*2*4);
-            const startTime = performance.now();
-            const duration = 3500;
-
-            function animateSpin(now) {
-                const elapsed = now - startTime;
-                const progress = Math.min(1, elapsed / duration);
-                const easeOut = 1 - Math.pow(1 - progress, 4);
-                wheelCurrentAngle = (wheelCurrentAngle + spinAngle * easeOut) % (Math.PI*2);
-                drawWheel(wheelCurrentAngle);
-                if (progress < 1) {
-                    wheelAnimationFrame = requestAnimationFrame(animateSpin);
-                } else {
-                    wheelAnimationFrame = null;
-                    if (canvas) canvas.classList.remove('spinning');
-                    
-                    // Calculate which segment the pointer is pointing to
-                    // The pointer is at top (angle -90 degrees / -PI/2)
-                    const pointerAngle = -Math.PI / 2;
-                    let finalAngle = wheelCurrentAngle % (Math.PI*2);
-                    let angleDiff = (pointerAngle - finalAngle + Math.PI*2) % (Math.PI*2);
-                    const segIdx = Math.floor(angleDiff / ((Math.PI*2)/PRIZES.length)) % PRIZES.length;
-                    const prize = PRIZES[segIdx].value;
-                    
-                    console.log(`Wheel stopped on segment ${segIdx}, prize: ${prize}`);
-                    wheelSpinning = false;
-                    submitSpin(prize);
-                }
-            }
-            if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
-            wheelAnimationFrame = requestAnimationFrame(animateSpin);
+            if (spinBtn) spinBtn.disabled = !data.can_spin;
+            drawWheel(wheelCurrentAngle);
+            renderPrizesGrid();
+        } catch (err) {
+            console.error('Status error:', err);
+            document.getElementById('statusCardContainer').innerHTML = `
+                <div class="status-card">
+                    <div class="status-text">❌ Failed to load</div>
+                    <button class="retry-btn" id="retryBtn">🔄 Retry</button>
+                </div>
+            `;
+            const retryBtn = document.getElementById('retryBtn');
+            if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
+            showNotification('Could not load wheel status', true);
         }
+    }
 
-        async function submitSpin(prize) {
-            try {
-                const res = await fetch('/api/wheel-spin', {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({initData: tg.initData})
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    const reward = parseRewardToCoins(data.reward);
-                    let celebrationMsg = `🎡 You won ${reward.toFixed(2)} COINS!`;
-                    if (reward >= 1000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
-                    else if (reward >= 500) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
-                    showNotification(celebrationMsg, false);
-                    
-                    // Play sound if available
-                    if (window.AudioManager) {
-                        window.AudioManager.playSound('reward');
-                    }
-                    
-                    await loadWheelStatus(false);
-                } else {
-                    showNotification(data.error || 'Spin failed', true);
-                    await loadWheelStatus(false);
-                }
-            } catch(err) {
-                showNotification('Network error', true);
+    async function spinWheel() {
+        if (wheelSpinning || !canSpin || !tg?.initData) return;
+        wheelSpinning = true;
+        const spinBtn = document.getElementById('spinBtn');
+        spinBtn.disabled = true;
+        spinBtn.textContent = '🎡 SPINNING...';
+
+        const canvas = document.getElementById('wheelCanvas');
+        if (canvas) canvas.classList.add('spinning');
+
+        const spinAngle = Math.random() * (Math.PI*2*8) + (Math.PI*2*4);
+        const startTime = performance.now();
+        const duration = 3500;
+
+        function animateSpin(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(1, elapsed / duration);
+            const easeOut = 1 - Math.pow(1 - progress, 4);
+            wheelCurrentAngle = (wheelCurrentAngle + spinAngle * easeOut) % (Math.PI*2);
+            drawWheel(wheelCurrentAngle);
+            if (progress < 1) {
+                wheelAnimationFrame = requestAnimationFrame(animateSpin);
+            } else {
+                wheelAnimationFrame = null;
+                if (canvas) canvas.classList.remove('spinning');
+
+                // Calculate segment where pointer (top = -PI/2) points
+                const pointerAngle = -Math.PI / 2;
+                let finalAngle = wheelCurrentAngle % (Math.PI*2);
+                let angleDiff = (pointerAngle - finalAngle + Math.PI*2) % (Math.PI*2);
+                const segIdx = Math.floor(angleDiff / ((Math.PI*2)/PRIZES.length)) % PRIZES.length;
+                const prizeValue = PRIZES[segIdx].value;
+
+                console.log(`Wheel landed on segment ${segIdx}, prize: ${prizeValue}`);
+                wheelSpinning = false;
+                submitSpin(prizeValue);
+            }
+        }
+        if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
+        wheelAnimationFrame = requestAnimationFrame(animateSpin);
+    }
+
+    async function submitSpin(prize) {
+        try {
+            const response = await fetch('/api/wheel-spin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    initData: tg.initData,
+                    localDate: getLocalDate()
+                })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                const reward = parseFloat(data.reward);
+                let celebrationMsg = `🎡 You won ${reward.toFixed(2)} COINS!`;
+                if (reward >= 1000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
+                else if (reward >= 500) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
+                showNotification(celebrationMsg, false);
+                if (window.AudioManager) window.AudioManager.playSound('reward');
                 await loadWheelStatus(false);
-            } finally {
-                const spinBtn = document.getElementById('spinBtn');
-                if (spinBtn) spinBtn.textContent = '🎡 SPIN NOW';
+            } else {
+                showNotification(data.error || 'Spin failed', true);
+                await loadWheelStatus(false);
             }
+        } catch (err) {
+            showNotification('Network error', true);
+            await loadWheelStatus(false);
+        } finally {
+            const spinBtn = document.getElementById('spinBtn');
+            if (spinBtn) spinBtn.textContent = '🎡 SPIN NOW';
         }
-        
-        // ============================================
-        // PULL TO REFRESH
-        // ============================================
-        
-        function showRefreshIndicator(text, isError = false) {
-            refreshIndicator.textContent = text;
-            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
-            refreshIndicator.classList.add('show');
-            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
-        }
-        
-        async function refreshData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
-            try {
-                await loadWheelStatus(true);
-                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-                showNotification('Wheel status refreshed!', false);
-            } catch (err) {
-                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
-            } finally {
-                isRefreshing = false;
-            }
-        }
-        
-        document.addEventListener('touchstart', (e) => {
-            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
-        });
-        document.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && !isRefreshing) {
-                const diff = e.touches[0].clientY - touchStartY;
-                if (diff > 60) {
-                    e.preventDefault();
-                    refreshData();
-                }
-            }
-        });
+    }
 
-        // Initialize
-        showSkeleton();
-        setTimeout(() => {
-            loadWheelStatus(true);
-        }, 100);
+    // ============================================
+    // PULL TO REFRESH
+    // ============================================
+    function showRefreshIndicator(text, isError = false) {
+        refreshIndicator.textContent = text;
+        refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+        refreshIndicator.classList.add('show');
+        setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+    }
 
-        document.getElementById('spinBtn').addEventListener('click', spinWheel);
-    </script>
+    async function refreshData() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        try {
+            await loadWheelStatus(true);
+            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+            showNotification('Wheel status refreshed!', false);
+        } catch (err) {
+            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
+    });
+    document.addEventListener('touchmove', (e) => {
+        if (window.scrollY === 0 && !isRefreshing) {
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 60) {
+                e.preventDefault();
+                refreshData();
+            }
+        }
+    });
+
+    // Initialization
+    showSkeleton();
+    setTimeout(() => loadWheelStatus(true), 100);
+
+    document.getElementById('spinBtn').addEventListener('click', spinWheel);
+</script>
 </body>
 </html>
