@@ -3615,6 +3615,35 @@ app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) =>
     }
 });
 
+// Get unread message counts per friend
+app.post('/api/private/messages/unread-by-friend', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ unread_counts: {} });
+        const userId = userResult.rows[0].id;
+        
+        const result = await pool.query(`
+            SELECT 
+                sender_id,
+                COUNT(*) as unread_count
+            FROM private_messages 
+            WHERE receiver_id = $1 AND is_read = false
+            GROUP BY sender_id
+        `, [userId]);
+        
+        const unreadCounts = {};
+        result.rows.forEach(row => {
+            unreadCounts[row.sender_id] = parseInt(row.unread_count);
+        });
+        
+        res.json({ unread_counts: unreadCounts });
+    } catch (err) {
+        console.error('Unread by friend error:', err);
+        res.json({ unread_counts: {} });
+    }
+});
+
 // ============================================
 // PRIVATE MESSAGES API ENDPOINTS
 // ============================================
