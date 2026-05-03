@@ -57,7 +57,6 @@
             justify-content: center;
         }
         
-        /* Profile Card - COMPACT */
         .profile-card {
             background: rgba(22, 33, 62, 0.8);
             backdrop-filter: blur(10px);
@@ -119,7 +118,6 @@
             color: var(--gray);
         }
         
-        /* Private Profile Card */
         .private-card {
             background: rgba(22, 33, 62, 0.8);
             backdrop-filter: blur(10px);
@@ -145,7 +143,6 @@
             margin-bottom: 15px;
         }
         
-        /* Trust Score - COMPACT */
         .trust-section {
             background: rgba(22, 33, 62, 0.8);
             border-radius: 16px;
@@ -184,7 +181,6 @@
             margin-top: 6px;
         }
         
-        /* Tabs - COMPACT */
         .tabs {
             display: flex;
             background: rgba(22, 33, 62, 0.8);
@@ -220,7 +216,6 @@
             display: block;
         }
         
-        /* Lists */
         .request-item, .friend-item {
             display: flex;
             align-items: center;
@@ -277,6 +272,7 @@
         .request-actions, .friend-actions {
             display: flex;
             gap: 6px;
+            position: relative;
         }
         .action-icon {
             width: 32px;
@@ -287,12 +283,35 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            position: relative;
         }
         .action-icon.accept { background: var(--success); color: white; }
         .action-icon.reject { background: var(--danger); color: white; }
         .action-icon.block { background: var(--warning); color: white; }
         .action-icon.chat { background: var(--secondary); color: white; }
         .action-icon:active { transform: scale(0.95); }
+        
+        /* Message notification badge on chat icon */
+        .message-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            font-size: 9px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 3px;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
+        }
+        .message-badge.hidden {
+            display: none;
+        }
         
         .friend-btn {
             padding: 8px 20px;
@@ -377,48 +396,6 @@
             justify-content: center;
             margin-top: 10px;
         }
-        
-        /* Notification Bell Icon for Messages */
-        .notification-bell {
-            position: fixed;
-            bottom: 70px;
-            right: 20px;
-            background: var(--secondary);
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            z-index: 200;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .notification-bell:hover {
-            transform: scale(1.05);
-        }
-        .notification-bell .badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: var(--danger);
-            color: white;
-            border-radius: 50%;
-            min-width: 20px;
-            height: 20px;
-            font-size: 10px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 4px;
-        }
-        .notification-bell .badge.hidden {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -451,12 +428,6 @@
             </div>
             <div id="searchResults"></div>
         </div>
-    </div>
-    
-    <!-- Notification Bell Icon for Messages -->
-    <div class="notification-bell" id="notificationBell" onclick="openMessages()">
-        <i class="fas fa-bell"></i>
-        <span class="badge hidden" id="notificationBadge">0</span>
     </div>
     
     <div class="bottom-nav">
@@ -534,7 +505,6 @@
             }
         }
         
-        // Get avatar HTML with photo if available
         function getAvatarHtml(photoUrl, firstName, size = '44px') {
             if (photoUrl && photoUrl.startsWith('http')) {
                 return `<img src="${photoUrl}" alt="${escapeHtml(firstName)}" style="width:100%;height:100%;object-fit:cover;">`;
@@ -542,61 +512,13 @@
             return escapeHtml(getInitials(firstName));
         }
         
-        // Open messages - show friend requests and chat list
-        function openMessages() {
-            // Switch to requests tab to show friend requests
-            const requestsTab = document.querySelector('.tab[data-tab="requests"]');
-            if (requestsTab) {
-                requestsTab.click();
-            }
-            // Also highlight the bell briefly
-            const bell = document.getElementById('notificationBell');
-            bell.style.transform = 'scale(1.1)';
-            setTimeout(() => {
-                bell.style.transform = '';
-            }, 200);
-        }
-        
-        // Load notification count (friend requests + unread messages)
-        async function loadNotificationCount() {
+        async function loadUnreadMessagesForFriends() {
             try {
-                // Fetch friend requests count
-                let pendingRequests = 0;
-                try {
-                    const requestsData = await apiCall('/api/friends/requests');
-                    pendingRequests = requestsData.requests?.length || 0;
-                } catch (e) {
-                    console.log('Friend requests endpoint not available');
-                }
-                
-                // Fetch unread messages count
-                let unreadMessages = 0;
-                try {
-                    const messagesData = await apiCall('/api/private/messages/unread');
-                    unreadMessages = messagesData.unread_count || 0;
-                } catch (e) {
-                    console.log('Private messages endpoint not available');
-                }
-                
-                const totalNotifications = pendingRequests + unreadMessages;
-                const badge = document.querySelector('#notificationBell .badge');
-                
-                if (badge) {
-                    if (totalNotifications > 0) {
-                        badge.textContent = totalNotifications > 99 ? '99+' : totalNotifications;
-                        badge.classList.remove('hidden');
-                        // Add bounce animation
-                        const bell = document.getElementById('notificationBell');
-                        bell.style.animation = 'none';
-                        setTimeout(() => {
-                            bell.style.animation = 'bounce 0.5s ease';
-                        }, 10);
-                    } else {
-                        badge.classList.add('hidden');
-                    }
-                }
+                const data = await apiCall('/api/private/messages/unread-by-friend');
+                return data.unread_counts || {};
             } catch (err) {
-                console.error('Failed to load notifications:', err);
+                console.log('Unread messages endpoint not available:', err);
+                return {};
             }
         }
         
@@ -630,14 +552,6 @@
                     setupTabs();
                     setupSearch();
                 }
-                
-                // Start loading notification count
-                await loadNotificationCount();
-                
-                // Set up interval to check for new notifications every 30 seconds
-                if (unreadInterval) clearInterval(unreadInterval);
-                unreadInterval = setInterval(loadNotificationCount, 30000);
-                
             } catch (err) {
                 console.error('Profile error:', err);
                 showNotification('Failed to load profile', true);
@@ -789,14 +703,18 @@
             container.innerHTML = '<div class="loading">Loading friends...</div>';
             
             try {
-                const data = await apiCall('/api/friends/list');
-                renderFriends(data.friends);
+                const [friendsData, unreadData] = await Promise.all([
+                    apiCall('/api/friends/list'),
+                    apiCall('/api/private/messages/unread-by-friend').catch(() => ({ unread_counts: {} }))
+                ]);
+                renderFriends(friendsData.friends, unreadData.unread_counts || {});
             } catch (err) {
+                console.error('Load friends error:', err);
                 container.innerHTML = '<div class="empty-state">Failed to load friends</div>';
             }
         }
         
-        function renderFriends(friends) {
+        function renderFriends(friends, unreadCounts) {
             const container = document.getElementById('friendsList');
             if (!friends || friends.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No friends yet. Add some friends!</p></div>';
@@ -806,6 +724,9 @@
             container.innerHTML = friends.map(friend => {
                 const avatarHtml = getAvatarHtml(friend.photo_url, friend.first_name || friend.username || 'U');
                 const firstName = getFirstName(friend.first_name || 'User');
+                const unreadCount = unreadCounts[friend.id] || 0;
+                const badgeHtml = unreadCount > 0 ? `<span class="message-badge">${unreadCount > 9 ? '9+' : unreadCount}</span>` : '';
+                
                 return `
                     <div class="friend-item" onclick="viewUserProfile(${friend.id})">
                         <div class="friend-avatar">${avatarHtml}</div>
@@ -816,6 +737,7 @@
                         <div class="friend-actions" onclick="event.stopPropagation()">
                             <div class="action-icon chat" onclick="startChat(${friend.id}, '${escapeHtml(firstName)}')">
                                 <i class="fas fa-comment"></i>
+                                ${badgeHtml}
                             </div>
                             <div class="action-icon block" onclick="blockUser(${friend.id})">
                                 <i class="fas fa-ban"></i>
@@ -833,8 +755,6 @@
             try {
                 const data = await apiCall('/api/friends/requests');
                 renderRequests(data.requests);
-                // Refresh notification badge after loading requests
-                loadNotificationCount();
             } catch (err) {
                 container.innerHTML = '<div class="empty-state">Failed to load requests</div>';
             }
@@ -959,7 +879,6 @@
                 showNotification(result.message || 'Friend request accepted!');
                 loadRequests();
                 loadFriends();
-                loadNotificationCount();
                 const user = await apiCall('/api/user');
                 renderOwnProfile(user);
             } catch (err) {
@@ -972,7 +891,6 @@
                 const result = await apiCall('/api/friends/reject', { friendId: userId });
                 showNotification(result.message || 'Friend request rejected');
                 loadRequests();
-                loadNotificationCount();
             } catch (err) {
                 showNotification(err.message, true);
             }
@@ -991,7 +909,6 @@
                     loadSearch(document.getElementById('searchInput')?.value || '');
                     const user = await apiCall('/api/user');
                     renderOwnProfile(user);
-                    loadNotificationCount();
                 }
             } catch (err) {
                 showNotification(err.message, true);
