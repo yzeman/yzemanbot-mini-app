@@ -3087,6 +3087,252 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
+// FRIENDS SYSTEM API ENDPOINTS
+// ============================================
+
+// Get user's friends list
+app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ friends: [] });
+        const userId = userResult.rows[0].id;
+        
+        const friends = await pool.query(`
+            SELECT 
+                u.id, u.first_name, u.username, u.photo_url, u.tier, u.coins,
+                COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
+                50 - COALESCE(ubs.total_blocks_received, 0) * 5 as trust_score
+            FROM friends f
+            JOIN users u ON (f.friend_id = u.id)
+            LEFT JOIN user_block_stats ubs ON u.id = ubs.user_id
+            WHERE f.user_id = $1 AND f.status = 'accepted'
+            UNION
+            SELECT 
+                u.id, u.first_name, u.username, u.photo_url, u.tier, u.coins,
+                COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
+                50 - COALESCE(ubs.total_blocks_received, 0) * 5 as trust_score
+            FROM friends f
+            JOIN users u ON (f.user_id = u.id)
+            LEFT JOIN user_block_stats ubs ON u.id = ubs.user_id
+            WHERE f.friend_id = $1 AND f.status = 'accepted'
+        `, [userId]);
+        
+        res.json({ friends: friends.rows });
+    } catch (err) {
+        console.error('Friends list error:', err);
+        res.status(500).json({ error: 'Failed to fetch friends' });
+    }
+});
+
+// Get pending friend requests
+app.post('/api/friends/requests', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ requests: [] });
+        const userId = userResult.rows[0].id;
+        
+        const requests = await pool.query(`
+            SELECT 
+                u.id, u.first_name, u.username, u.photo_url, u.tier,
+                COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
+                50 - COALESCE(ubs.total_blocks_received, 0) * 5 as trust_score
+            FROM friends f
+            JOIN users u ON f.user_id = u.id
+            LEFT JOIN user_block_stats ubs ON u.id = ubs.user_id
+            WHERE f.friend_id = $1 AND f.status = 'pending'
+        `, [userId]);
+        
+        res.json({ requests: requests.rows });
+    } catch (err) {
+        console.error('Friend requests error:', err);
+        res.status(500).json({ error: 'Failed to fetch requests' });
+    }
+});
+
+// Send friend request
+app.post('/api/friends/request', verifyTelegramData, async (req, res) => {
+    const { friendId } = req.body;
+    const client = await pool.connect();
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const userId = userResult.rows[0].id;
+        
+        if (userId === friendId) {
+            return res.status(400).json({ error: 'Cannot add yourself as friend' });
+        }
+        
+        // Check if already friends or pending
+        const existing = await client.query(`
+            SELECT * FROM friends 
+            WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+        `, [userId, friendId]);
+        
+        if (existing.rows.length > 0) {
+            const status = existing.rows[0].status;
+            if (status === 'accepted') return res.status(400).json({ error: 'Already friends' });
+            if (status === 'pending') return res.status(400).json({ error: 'Friend request already pending' });
+            if (status === 'blocked') return res.status(400).json({ error: 'Cannot send request to blocked user' });
+        }
+        
+        await client.query('BEGIN');
+        
+        await client.query(`
+            INSERT INTO friends (user_id, friend_id, status)
+            VALUES ($1, $2, 'pending')
+        `, [userId, friendId]);
+        
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Friend request sent!' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Friend request error:', err);
+        res.status(500).json({ error: 'Failed to send request' });
+    } finally {
+        client.release();
+    }
+});
+
+// Accept friend request
+app.post('/api/friends/accept', verifyTelegramData, async (req, res) => {
+    const { friendId } = req.body;
+    const client = await pool.connect();
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const userId = userResult.rows[0].id;
+        
+        await client.query('BEGIN');
+        
+        const result = await client.query(`
+            UPDATE friends 
+            SET status = 'accepted', updated_at = NOW()
+            WHERE friend_id = $1 AND user_id = $2 AND status = 'pending'
+            RETURNING *
+        `, [userId, friendId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Friend request not found' });
+        }
+        
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'Friend request accepted!' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Accept friend error:', err);
+        res.status(500).json({ error: 'Failed to accept request' });
+    } finally {
+        client.release();
+    }
+});
+
+// Reject friend request
+app.post('/api/friends/reject', verifyTelegramData, async (req, res) => {
+    const { friendId } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const userId = userResult.rows[0].id;
+        
+        await pool.query(`
+            DELETE FROM friends
+            WHERE friend_id = $1 AND user_id = $2 AND status = 'pending'
+        `, [userId, friendId]);
+        
+        res.json({ success: true, message: 'Friend request rejected' });
+    } catch (err) {
+        console.error('Reject friend error:', err);
+        res.status(500).json({ error: 'Failed to reject request' });
+    }
+});
+
+// Block user
+app.post('/api/friends/block', verifyTelegramData, async (req, res) => {
+    const { friendId } = req.body;
+    const client = await pool.connect();
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const userId = userResult.rows[0].id;
+        
+        await client.query('BEGIN');
+        
+        // Delete any existing friendship
+        await client.query(`
+            DELETE FROM friends 
+            WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+        `, [userId, friendId]);
+        
+        // Add as blocked
+        await client.query(`
+            INSERT INTO friends (user_id, friend_id, status)
+            VALUES ($1, $2, 'blocked')
+            ON CONFLICT (user_id, friend_id) DO UPDATE SET status = 'blocked'
+        `, [userId, friendId]);
+        
+        // Update block stats for the blocked user
+        await client.query(`
+            INSERT INTO user_block_stats (user_id, total_blocks_received, total_blocks_given)
+            VALUES ($1, 1, 0)
+            ON CONFLICT (user_id) DO UPDATE SET 
+                total_blocks_received = user_block_stats.total_blocks_received + 1,
+                updated_at = NOW()
+        `, [friendId]);
+        
+        await client.query('COMMIT');
+        res.json({ success: true, message: 'User blocked' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Block user error:', err);
+        res.status(500).json({ error: 'Failed to block user' });
+    } finally {
+        client.release();
+    }
+});
+
+// Search users
+app.post('/api/users/search', verifyTelegramData, async (req, res) => {
+    const { query } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ users: [] });
+        const userId = userResult.rows[0].id;
+        
+        const users = await pool.query(`
+            SELECT 
+                u.id, u.first_name, u.username, u.photo_url, u.tier,
+                COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
+                50 - COALESCE(ubs.total_blocks_received, 0) * 5 as trust_score,
+                CASE 
+                    WHEN f.status = 'accepted' THEN 'friends'
+                    WHEN f.status = 'pending' AND f.user_id = $1 THEN 'pending_sent'
+                    WHEN f.status = 'pending' AND f.friend_id = $1 THEN 'pending_received'
+                    WHEN f.status = 'blocked' THEN 'blocked'
+                    ELSE 'none'
+                END as relationship
+            FROM users u
+            LEFT JOIN friends f ON (f.user_id = $1 AND f.friend_id = u.id) OR (f.friend_id = $1 AND f.user_id = u.id)
+            LEFT JOIN user_block_stats ubs ON u.id = ubs.user_id
+            WHERE u.id != $1
+            AND (u.first_name ILIKE $2 OR u.username ILIKE $2)
+            LIMIT 20
+        `, [userId, `%${query}%`]);
+        
+        res.json({ users: users.rows });
+    } catch (err) {
+        console.error('Search users error:', err);
+        res.status(500).json({ error: 'Failed to search users' });
+    }
+});
+
+// ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
 app.get('/health', async (req, res) => {
