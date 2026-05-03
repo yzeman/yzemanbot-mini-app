@@ -307,9 +307,11 @@
         .team-actions {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
         .team-btn {
             flex: 1;
+            min-width: 80px;
             background: transparent;
             border: 1px solid var(--gray);
             color: var(--gray);
@@ -325,6 +327,7 @@
         }
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
+        .team-btn.chat { border-color: var(--secondary); color: var(--secondary); }
         .team-btn:active { transform: scale(0.97); }
         
         .members-title {
@@ -728,9 +731,23 @@
     let pendingCreate = false;
     let pendingJoin = false;
     let optimisticTeamData = null;
+    let currentTeamData = null; // Store current team data for chat navigation
     const CACHE_TTL = 60000;
     
     const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
+    
+    // ============================================
+    // TEAM CHAT NAVIGATION
+    // ============================================
+    function openTeamChat() {
+        if (currentTeamData && currentTeamData.team && currentTeamData.team.id) {
+            const teamId = currentTeamData.team.id;
+            const teamName = encodeURIComponent(currentTeamData.team.name);
+            window.location.href = `/team-chat.html?teamId=${teamId}&teamName=${teamName}`;
+        } else {
+            showNotification('Team info not available. Please refresh and try again.', true);
+        }
+    }
     
     function dismissMonthlyBanner() {
         localStorage.setItem('monthlyBannerDismissed', 'true');
@@ -851,6 +868,9 @@
     
     function renderMyTeam(data) {
         const container = document.getElementById('myTeamContent');
+        // Store team data for chat navigation
+        currentTeamData = data;
+        
         if (!data || !data.has_team) {
             container.innerHTML = `
                 <div class="no-team-card">
@@ -897,6 +917,7 @@
                 </div>
                 <div class="team-actions">
                     <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
+                    <button class="team-btn chat" onclick="openTeamChat()"><i class="fas fa-comment-dots"></i> Team Chat</button>
                     <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                 </div>
             </div>
@@ -980,6 +1001,7 @@
                 </div>
                 <div class="team-actions">
                     <button class="team-btn copy" onclick="copyTeamCode('${escapeHtml(teamCode)}')"><i class="fas fa-copy"></i> Copy Code</button>
+                    <button class="team-btn chat" onclick="openTeamChat()" disabled style="opacity:0.5;"><i class="fas fa-comment-dots"></i> Team Chat</button>
                     <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                 </div>
             </div>
