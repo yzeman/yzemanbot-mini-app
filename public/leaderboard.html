@@ -749,6 +749,7 @@
             }).join('');
         }
 
+        // FIXED: updateMyRankCard - Now correctly shows rank number
         function updateMyRankCard(data, type) {
             const userId = tg?.initDataUnsafe?.user?.id;
             const myRankContainer = document.getElementById('myRankContainer');
@@ -769,7 +770,7 @@
             if (myIndex !== -1) {
                 const myData = sorted[myIndex];
                 const rank = myIndex + 1;
-                const rankDisplay = getRankDisplay(rank);
+                const rankDisplay = getRankDisplay(rank); // This returns 🥇, 🥈, 🥉, or #4, #5, etc.
                 
                 let score, scoreLabel;
                 if (type === 'referrals') {
@@ -787,7 +788,7 @@
                             <div class="my-rank-icon"><i class="fas fa-user"></i></div>
                             <div class="my-rank-info">
                                 <h4>YOUR RANK</h4>
-                                <div class="my-rank-value">${rankDisplay}</div>
+                                <div class="my-rank-value" style="font-size: 32px;">${rankDisplay}</div>
                             </div>
                         </div>
                         <div class="my-rank-right">
