@@ -688,13 +688,23 @@ io.on('connection', (socket) => {
         }
     });
     
+    // ============================================
+    // FIXED: send-message with database name lookup
+    // ============================================
     socket.on('send-message', async (data) => {
-        const { teamId, message, userId, firstName } = data;
+        const { teamId, message, userId } = data;
         
         if (!message || message.trim().length === 0) return;
         if (message.length > 500) return;
         
         try {
+            // Get the user's first name from the database (not from frontend)
+            const userResult = await pool.query(
+                'SELECT first_name FROM users WHERE id = $1',
+                [userId]
+            );
+            const firstName = userResult.rows[0]?.first_name || 'User';
+            
             const result = await pool.query(`
                 INSERT INTO team_messages (team_id, user_id, message)
                 VALUES ($1, $2, $3)
@@ -703,16 +713,17 @@ io.on('connection', (socket) => {
             
             const messageData = {
                 id: result.rows[0].id,
-                teamId,
-                userId,
-                firstName,
+                team_id: teamId,
+                user_id: userId,
+                first_name: firstName,
                 message: message.trim(),
-                createdAt: result.rows[0].created_at,
-                isEdited: false
+                created_at: result.rows[0].created_at,
+                is_edited: false
             };
             
             io.to(`team_${teamId}`).emit('new-message', messageData);
             
+            // Clear typing status
             await pool.query(`
                 UPDATE team_typing_status
                 SET is_typing = false, updated_at = NOW()
