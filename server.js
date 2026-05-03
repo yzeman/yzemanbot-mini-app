@@ -1015,6 +1015,17 @@ io.on('connection', (socket) => {
         
         // ... rest of existing code
     });
+
+    // Add this inside io.on('connection', (socket) => { ... })
+
+socket.on('join-status', (data) => {
+    const { userId } = data;
+    socket.join(`user_${userId}`);
+    socket.userId = userId;
+    
+    // Broadcast to friends that user is online
+    // You'll need to get friend list and emit to them
+});
     
     socket.on('disconnect', async () => {
         const user = connectedUsers.get(socket.id);
