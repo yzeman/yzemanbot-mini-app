@@ -53,111 +53,135 @@
         
         .header {
             background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
-            padding: 25px 15px 30px;
-            border-radius: 0 0 35px 35px;
+            padding: 20px 15px 25px;
+            border-radius: 0 0 30px 30px;
             text-align: center;
             position: relative;
-            border-bottom: 1px solid rgba(255,215,0,0.2);
         }
         
         .header h1 {
-            font-size: 26px;
-            margin-bottom: 8px;
+            font-size: 24px;
+            margin-bottom: 5px;
             background: linear-gradient(135deg, var(--gold), #FFA000);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
         
-        .header i { color: var(--gold); margin-right: 8px; }
-        .header p { color: var(--gray); font-size: 13px; }
+        .header i { color: var(--gold); margin-right: 6px; }
+        .header p { color: var(--gray); font-size: 12px; }
         
         .back-btn-header {
             position: absolute;
-            top: 20px; left: 20px;
-            color: white; font-size: 22px;
+            top: 18px; left: 18px;
+            color: white; font-size: 20px;
             text-decoration: none; z-index: 10;
             background: rgba(0,0,0,0.3);
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(5px);
         }
         
-        /* Timer Banner */
+        /* Timer Banner - Compact */
         .timer-banner {
             background: linear-gradient(135deg, rgba(255,152,0,0.9), rgba(255,107,107,0.9));
             backdrop-filter: blur(10px);
-            padding: 15px;
-            border-radius: 20px;
-            margin: 16px 15px;
+            padding: 10px 15px;
+            border-radius: 16px;
+            margin: 12px 15px;
             text-align: center;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
         }
         
         .timer-banner h3 {
-            font-size: 13px;
-            margin-bottom: 8px;
+            font-size: 11px;
+            margin-bottom: 4px;
             opacity: 0.9;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            gap: 5px;
         }
         
         .timer {
-            font-size: 32px;
+            font-size: 24px;
             font-weight: bold;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             font-family: monospace;
         }
         
-        /* Prize Banner */
+        /* Prize Banner - COLLAPSIBLE */
         .prize-banner {
-            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,160,0,0.1));
+            background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,160,0,0.08));
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,215,0,0.3);
-            padding: 18px;
-            border-radius: 20px;
-            margin: 0 15px 16px;
-            text-align: center;
+            border: 1px solid rgba(255,215,0,0.2);
+            border-radius: 16px;
+            margin: 0 15px 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
         }
         
-        .prize-banner h3 {
-            font-size: 14px;
-            margin-bottom: 12px;
+        .prize-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
+            justify-content: space-between;
+            padding: 12px 15px;
+            cursor: pointer;
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .prize-header h3 {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
             color: var(--gold);
+        }
+        
+        .toggle-icon {
+            font-size: 14px;
+            color: var(--gray);
+            transition: transform 0.3s;
+        }
+        
+        .prize-header.collapsed .toggle-icon {
+            transform: rotate(180deg);
+        }
+        
+        .prize-content {
+            padding: 12px 15px;
+            max-height: 200px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        
+        .prize-content.collapsed {
+            max-height: 0;
+            padding: 0 15px;
         }
         
         .prize-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            gap: 10px;
         }
         
         .prize-card {
             background: linear-gradient(135deg, rgba(0,0,0,0.3), rgba(0,0,0,0.1));
-            border-radius: 14px;
-            padding: 12px 5px;
+            border-radius: 12px;
+            padding: 10px 5px;
             text-align: center;
-            transition: transform 0.2s;
         }
         
-        .prize-card:hover { transform: translateY(-3px); }
-        .prize-position { font-size: 28px; margin-bottom: 5px; }
-        .prize-amount { font-size: 16px; font-weight: bold; color: var(--gold); }
-        .prize-label { font-size: 9px; opacity: 0.8; margin-top: 3px; }
+        .prize-position { font-size: 24px; margin-bottom: 3px; }
+        .prize-amount { font-size: 14px; font-weight: bold; color: var(--gold); }
+        .prize-label { font-size: 8px; opacity: 0.7; margin-top: 2px; }
         
-        /* Join Section */
+        /* Join Section - Compact */
         .join-section {
-            padding: 0 15px 16px;
+            padding: 0 15px 12px;
             text-align: center;
         }
         
@@ -165,68 +189,68 @@
             background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
             color: white;
             border: none;
-            padding: 16px 30px;
-            border-radius: 40px;
-            font-size: 16px;
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
             width: 100%;
-            max-width: 280px;
+            max-width: 260px;
             margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            transition: all 0.3s;
+            gap: 8px;
         }
         
         .join-btn:active { transform: scale(0.97); }
-        .join-btn:disabled {
-            background: var(--gray);
-            box-shadow: none;
-            cursor: not-allowed;
-        }
+        .join-btn:disabled { background: var(--gray); cursor: not-allowed; }
         
         .joined-badge {
             background: linear-gradient(135deg, var(--success), #008C4A);
             color: white;
-            padding: 12px 25px;
-            border-radius: 40px;
-            font-size: 14px;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 13px;
             font-weight: bold;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         
-        /* My Rank Card - HIGHLIGHTED */
+        /* My Rank Card - STICKY */
+        .sticky-rank-container {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            margin: 0 15px 12px;
+        }
+        
         .my-rank-card {
             background: linear-gradient(135deg, var(--secondary), #0D47A1);
-            border-radius: 20px;
-            padding: 18px 20px;
-            margin: 16px 15px;
-            box-shadow: 0 10px 25px rgba(33,150,243,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 15px rgba(33,150,243,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
         }
         
         .my-rank-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         
         .my-rank-title {
-            font-size: 13px;
+            font-size: 11px;
             color: rgba(255,255,255,0.8);
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
         }
         
         .my-rank-value {
-            font-size: 36px;
+            font-size: 28px;
             font-weight: bold;
             background: linear-gradient(135deg, var(--gold), #FFA000);
             -webkit-background-clip: text;
@@ -237,8 +261,8 @@
         .my-rank-stats {
             display: flex;
             justify-content: space-between;
+            font-size: 11px;
             color: rgba(255,255,255,0.8);
-            font-size: 13px;
         }
         
         /* Standings Section */
@@ -247,65 +271,56 @@
         }
         
         .standings-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
         
-        .standings-title i { color: var(--gold); font-size: 20px; }
+        .standings-title i { color: var(--gold); font-size: 18px; }
         
         .standings-list {
             max-height: 500px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
         }
         
         .standings-item {
             display: flex;
             align-items: center;
-            padding: 12px 15px;
+            padding: 10px 12px;
             background: rgba(22, 33, 62, 0.8);
             backdrop-filter: blur(5px);
-            border-radius: 16px;
-            transition: all 0.2s;
+            border-radius: 14px;
             border: 1px solid rgba(255,255,255,0.05);
         }
         
-        .standings-item:hover {
-            transform: translateX(5px);
-            background: rgba(33, 150, 243, 0.1);
-            border-color: rgba(33,150,243,0.3);
-        }
-        
-        /* Highlight current user's row */
         .standings-item.current-user {
             background: linear-gradient(135deg, rgba(76,175,80,0.2), rgba(0,200,83,0.1));
             border: 1px solid var(--gold);
-            box-shadow: 0 0 15px rgba(255,215,0,0.2);
         }
         
         .rank {
-            width: 45px;
-            height: 45px;
+            width: 38px;
+            height: 38px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 18px;
-            margin-right: 12px;
-            border-radius: 12px;
+            font-size: 16px;
+            margin-right: 10px;
+            border-radius: 10px;
             background: rgba(255,255,255,0.05);
+            flex-shrink: 0;
         }
         
         .rank-1 { 
             background: linear-gradient(135deg, #FFD700, #FFA000);
             color: #1a1a2e;
-            box-shadow: 0 0 10px rgba(255,215,0,0.5);
         }
         .rank-2 { 
             background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
@@ -317,15 +332,15 @@
         }
         
         .avatar {
-            width: 45px;
-            height: 45px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
-            margin-right: 12px;
+            font-size: 15px;
+            margin-right: 10px;
             color: white;
             font-weight: bold;
             flex-shrink: 0;
@@ -338,67 +353,68 @@
         
         .name {
             font-weight: 600;
-            font-size: 15px;
-            margin-bottom: 4px;
+            font-size: 13px;
+            margin-bottom: 2px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
             flex-wrap: wrap;
         }
         
         .tier-badge {
             display: inline-block;
-            background: var(--gold);
-            color: var(--dark);
-            padding: 2px 8px;
-            border-radius: 20px;
-            font-size: 9px;
-            font-weight: bold;
+            background: rgba(255,215,0,0.2);
+            color: var(--gold);
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 8px;
+            font-weight: 600;
         }
         
         .coins {
             font-weight: bold;
             color: var(--gold);
-            font-size: 16px;
+            font-size: 13px;
             text-align: right;
             flex-shrink: 0;
         }
         
         .coins small {
-            font-size: 10px;
+            font-size: 8px;
             color: var(--gray);
             font-weight: normal;
         }
         
-        /* How It Works Section */
+        /* Info Box - Compact */
         .info-box {
-            background: linear-gradient(135deg, rgba(33,150,243,0.1), rgba(25,118,210,0.05));
-            border-radius: 20px;
-            padding: 18px;
-            margin: 20px 15px;
-            border-left: 4px solid var(--secondary);
+            background: linear-gradient(135deg, rgba(33,150,243,0.08), rgba(25,118,210,0.04));
+            border-radius: 14px;
+            padding: 12px 15px;
+            margin: 12px 15px;
+            border-left: 3px solid var(--secondary);
         }
         
         .info-box h4 {
-            font-size: 14px;
-            margin-bottom: 12px;
+            font-size: 12px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             color: var(--gold);
         }
         
         .info-box p {
             color: var(--gray);
-            font-size: 12px;
-            margin-bottom: 8px;
-            line-height: 1.5;
+            font-size: 10px;
+            margin-bottom: 5px;
+            line-height: 1.4;
         }
         
         .info-box i {
             color: var(--secondary);
-            margin-right: 8px;
-            width: 20px;
+            margin-right: 6px;
+            width: 18px;
+            font-size: 10px;
         }
         
         /* Skeleton Loading */
@@ -416,64 +432,60 @@
         
         .skeleton-my-rank-card {
             background: rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 18px 20px;
-            margin: 16px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            border-radius: 16px;
+            padding: 12px 16px;
         }
         
         .skeleton-standings-item {
             display: flex;
             align-items: center;
-            padding: 12px 15px;
+            padding: 10px 12px;
             background: rgba(22, 33, 62, 0.8);
-            border-radius: 16px;
-            margin-bottom: 8px;
+            border-radius: 14px;
+            margin-bottom: 6px;
         }
-        .skeleton-rank { width: 45px; height: 45px; background: rgba(255,255,255,0.08); border-radius: 12px; margin-right: 12px; }
-        .skeleton-avatar { width: 45px; height: 45px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 12px; }
+        .skeleton-rank { width: 38px; height: 38px; background: rgba(255,255,255,0.08); border-radius: 10px; margin-right: 10px; }
+        .skeleton-avatar { width: 38px; height: 38px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 10px; }
         .skeleton-info { flex: 1; }
-        .skeleton-name { width: 40%; height: 15px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
-        .skeleton-username { width: 30%; height: 11px; background: rgba(255,255,255,0.06); border-radius: 4px; }
-        .skeleton-coins { width: 70px; height: 16px; background: rgba(255,255,255,0.08); border-radius: 4px; }
+        .skeleton-name { width: 40%; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 4px; }
+        .skeleton-username { width: 30%; height: 9px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .skeleton-coins { width: 60px; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; }
         
-        .loading, .empty-state { text-align: center; padding: 40px; color: var(--gray); }
+        .loading, .empty-state { text-align: center; padding: 30px; color: var(--gray); }
         .retry-btn {
             background: var(--secondary);
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
-            margin-top: 12px;
+            margin-top: 10px;
         }
         
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(22, 33, 62, 0.95);
             backdrop-filter: blur(10px);
-            display: flex; padding: 10px 15px;
+            display: flex; padding: 8px 12px;
             border-top: 1px solid rgba(255,255,255,0.1);
             z-index: 100;
         }
         
         .nav-item {
             flex: 1; text-align: center; color: var(--gray);
-            text-decoration: none; font-size: 11px; padding: 6px;
-            border-radius: 10px; transition: all 0.2s;
+            text-decoration: none; font-size: 10px; padding: 5px;
+            border-radius: 8px;
         }
         
-        .nav-item i { font-size: 22px; display: block; margin-bottom: 3px; }
-        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.15); }
+        .nav-item i { font-size: 20px; display: block; margin-bottom: 2px; }
+        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.12); }
         
         .notification {
             position: fixed; bottom: 80px; left: 15px; right: 15px;
-            background: var(--success); color: white; padding: 14px 18px;
-            border-radius: 14px; text-align: center; font-weight: 500;
-            display: none; z-index: 1000; font-size: 13px;
+            background: var(--success); color: white; padding: 12px 16px;
+            border-radius: 12px; text-align: center; font-weight: 500;
+            display: none; z-index: 1000; font-size: 12px;
         }
         
         .notification.error { background: var(--danger); }
@@ -492,30 +504,35 @@
         <p>Compete for massive COINS prizes!</p>
     </div>
     
-    <!-- Timer Banner -->
+    <!-- Timer Banner - Compact -->
     <div class="timer-banner">
         <h3><i class="fas fa-hourglass-half"></i> Tournament Ends In</h3>
         <div class="timer" id="tournamentTimer">--d --h --m</div>
     </div>
     
-    <!-- Prize Banner -->
-    <div class="prize-banner">
-        <h3><i class="fas fa-crown"></i> Prize Pool</h3>
-        <div class="prize-grid">
-            <div class="prize-card">
-                <div class="prize-position">🥇</div>
-                <div class="prize-amount">2,000</div>
-                <div class="prize-label">COINS</div>
-            </div>
-            <div class="prize-card">
-                <div class="prize-position">🥈</div>
-                <div class="prize-amount">1,000</div>
-                <div class="prize-label">COINS</div>
-            </div>
-            <div class="prize-card">
-                <div class="prize-position">🥉</div>
-                <div class="prize-amount">500</div>
-                <div class="prize-label">COINS</div>
+    <!-- Prize Banner - COLLAPSIBLE -->
+    <div class="prize-banner" id="prizeBanner">
+        <div class="prize-header" id="prizeToggle">
+            <h3><i class="fas fa-crown"></i> Prize Pool</h3>
+            <i class="fas fa-chevron-up toggle-icon" id="toggleIcon"></i>
+        </div>
+        <div class="prize-content" id="prizeContent">
+            <div class="prize-grid">
+                <div class="prize-card">
+                    <div class="prize-position">🥇</div>
+                    <div class="prize-amount">2,000</div>
+                    <div class="prize-label">COINS</div>
+                </div>
+                <div class="prize-card">
+                    <div class="prize-position">🥈</div>
+                    <div class="prize-amount">1,000</div>
+                    <div class="prize-label">COINS</div>
+                </div>
+                <div class="prize-card">
+                    <div class="prize-position">🥉</div>
+                    <div class="prize-amount">500</div>
+                    <div class="prize-label">COINS</div>
+                </div>
             </div>
         </div>
     </div>
@@ -526,12 +543,14 @@
             <i class="fas fa-trophy"></i> JOIN TOURNAMENT
         </button>
         <div class="joined-badge" id="joinedBadge" style="display: none;">
-            <i class="fas fa-check-circle"></i> You're in the tournament!
+            <i class="fas fa-check-circle"></i> You're in!
         </div>
     </div>
     
-    <!-- My Rank Container -->
-    <div id="myRankContainer"></div>
+    <!-- My Rank Container - STICKY, stays visible while scrolling -->
+    <div class="sticky-rank-container" id="stickyRankContainer">
+        <div id="myRankContainer"></div>
+    </div>
     
     <!-- Standings Section -->
     <div class="standings-section">
@@ -544,14 +563,14 @@
         </div>
     </div>
     
-    <!-- How It Works -->
+    <!-- How It Works - Compact -->
     <div class="info-box">
-        <h4><i class="fas fa-lightbulb"></i> How to Earn Coins</h4>
+        <h4><i class="fas fa-lightbulb"></i> How to Earn</h4>
         <p><i class="fas fa-play-circle"></i> Watch ads — earn COINS</p>
         <p><i class="fas fa-user-plus"></i> Refer friends — bonus COINS</p>
         <p><i class="fas fa-calendar-check"></i> Daily rewards count toward tournament</p>
-        <p><i class="fas fa-clock"></i> Tournament runs Monday 00:00 – Sunday 23:59</p>
-        <p><i class="fas fa-gift"></i> Prizes awarded automatically at Monday 00:01</p>
+        <p><i class="fas fa-clock"></i> Runs Monday 00:00 – Sunday 23:59</p>
+        <p><i class="fas fa-gift"></i> Prizes awarded at Monday 00:01</p>
     </div>
     
     <!-- Bottom Navigation -->
@@ -575,6 +594,9 @@
         const refreshIndicator = document.getElementById('refreshIndicator');
         let hasJoinedTournament = false;
         let currentUserId = null;
+        
+        // Collapsible banner state
+        let prizeBannerCollapsed = localStorage.getItem('prizeBannerCollapsed') === 'true';
 
         function showNotification(msg, isError = false) {
             const notif = document.getElementById('notification');
@@ -586,7 +608,7 @@
             }
         }
 
-        // Format number with commas (e.g., 3632.00 → "3,632.00")
+        // Format number with commas
         function formatNumberWithCommas(num) {
             if (num === undefined || num === null) return '0.00';
             const number = parseFloat(num);
@@ -594,6 +616,28 @@
             const parts = number.toFixed(2).split('.');
             parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
             return parts.join('.');
+        }
+
+        // Toggle prize banner
+        function togglePrizeBanner() {
+            prizeBannerCollapsed = !prizeBannerCollapsed;
+            localStorage.setItem('prizeBannerCollapsed', prizeBannerCollapsed);
+            
+            const prizeContent = document.getElementById('prizeContent');
+            const prizeHeader = document.getElementById('prizeToggle');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (prizeBannerCollapsed) {
+                prizeContent.classList.add('collapsed');
+                prizeHeader.classList.add('collapsed');
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            } else {
+                prizeContent.classList.remove('collapsed');
+                prizeHeader.classList.remove('collapsed');
+                toggleIcon.classList.remove('fa-chevron-down');
+                toggleIcon.classList.add('fa-chevron-up');
+            }
         }
 
         async function apiCall(endpoint, data = null) {
@@ -610,22 +654,17 @@
             return response.json();
         }
 
-        // ============================================
-        // SKELETON LOADING
-        // ============================================
+        // Show skeleton loading
         function showSkeleton() {
             const myRankContainer = document.getElementById('myRankContainer');
             if (myRankContainer) {
                 myRankContainer.innerHTML = `
                     <div class="skeleton-my-rank-card">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div class="skeleton-rank"></div>
-                            <div style="flex:1;">
-                                <div class="skeleton-name" style="width: 40%;"></div>
-                                <div class="skeleton-username" style="width: 30%;"></div>
-                            </div>
-                            <div class="skeleton-coins"></div>
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div class="skeleton-name" style="width: 30%;"></div>
+                            <div class="skeleton-coins" style="width: 50px;"></div>
                         </div>
+                        <div class="skeleton-username" style="width: 40%; margin-top: 8px;"></div>
                     </div>
                 `;
             }
@@ -695,7 +734,7 @@
                 }
             }
 
-            // Update "My Rank" card - HIGHLIGHTED
+            // Update "My Rank" card - STICKY VERSION
             const myRankContainer = document.getElementById('myRankContainer');
             if (myRankContainer) {
                 if (data.my_rank && hasJoinedTournament) {
@@ -706,13 +745,13 @@
                         <div class="my-rank-card">
                             <div class="my-rank-header">
                                 <div class="my-rank-title">
-                                    <i class="fas fa-crown"></i> YOUR POSITION
+                                    <i class="fas fa-crown"></i> YOUR RANK
                                 </div>
                                 <div class="my-rank-value">${rankEmoji}</div>
                             </div>
                             <div class="my-rank-stats">
                                 <span><i class="fas fa-coins"></i> ${formattedCoins} COINS</span>
-                                <span><i class="fas fa-chart-line"></i> This week only</span>
+                                <span><i class="fas fa-chart-line"></i> This week</span>
                             </div>
                         </div>
                     `;
@@ -721,9 +760,9 @@
                         <div class="my-rank-card">
                             <div class="my-rank-header">
                                 <div class="my-rank-title">
-                                    <i class="fas fa-chart-line"></i> YOUR POSITION
+                                    <i class="fas fa-chart-line"></i> YOUR RANK
                                 </div>
-                                <div class="my-rank-value">📊 Pending</div>
+                                <div class="my-rank-value">📊 </div>
                             </div>
                             <div class="my-rank-stats">
                                 <span>⭐ Watch ads to earn COINS!</span>
@@ -739,7 +778,7 @@
             const standingsList = document.getElementById('standingsList');
             if (standingsList) {
                 if (!data.standings || data.standings.length === 0) {
-                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join the tournament to compete!</p></div>';
+                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join to compete!</p></div>';
                     return;
                 }
 
@@ -769,11 +808,13 @@
                             <div class="info">
                                 <div class="name">
                                     ${escapeHtml(shortName)}
-                                    ${isCurrentUser ? '<span style="background:var(--gold); color:var(--dark); padding:2px 8px; border-radius:20px; font-size:9px; font-weight:bold;">YOU</span>' : ''}
+                                    ${isCurrentUser ? '<span class="tier-badge" style="background:var(--gold); color:var(--dark);">YOU</span>' : ''}
                                 </div>
-                                <div class="username">${entry.tier || 'Fresher'} Tier</div>
+                                <div class="name" style="font-size:10px; color:var(--gray); font-weight:normal;">
+                                    ${entry.tier || 'Fresher'} Tier
+                                </div>
                             </div>
-                            <div class="coins">${formattedCoins} <small>COINS</small></div>
+                            <div class="coins">${formattedCoins}<small> COINS</small></div>
                         </div>
                     `;
                 }).join('');
@@ -816,7 +857,7 @@
             }
             
             try {
-                // First get current user info to know their ID
+                // Get current user info
                 const userData = await apiCall('/api/user', { initData: tg.initData });
                 currentUserId = userData.id;
                 
@@ -831,7 +872,7 @@
                 console.error('Failed to load tournament:', err);
                 const standingsList = document.getElementById('standingsList');
                 if (standingsList) {
-                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load standings. Pull to refresh.</p></div>';
+                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load. Pull to refresh.</p></div>';
                 }
             }
         }
@@ -863,9 +904,7 @@
             }
         }
 
-        // ============================================
-        // PULL TO REFRESH
-        // ============================================
+        // Pull to refresh
         function showRefreshIndicator(text, isError = false) {
             refreshIndicator.textContent = text;
             refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
@@ -901,7 +940,23 @@
             }
         });
 
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
+            // Setup collapsible banner
+            const prizeToggle = document.getElementById('prizeToggle');
+            if (prizeToggle) {
+                prizeToggle.addEventListener('click', togglePrizeBanner);
+                // Restore collapsed state
+                if (prizeBannerCollapsed) {
+                    const prizeContent = document.getElementById('prizeContent');
+                    const toggleIcon = document.getElementById('toggleIcon');
+                    prizeContent.classList.add('collapsed');
+                    prizeToggle.classList.add('collapsed');
+                    toggleIcon.classList.remove('fa-chevron-up');
+                    toggleIcon.classList.add('fa-chevron-down');
+                }
+            }
+            
             loadTournamentData(true);
             
             const joinBtn = document.getElementById('joinBtn');
