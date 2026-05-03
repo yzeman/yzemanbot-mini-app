@@ -3333,6 +3333,29 @@ app.post('/api/users/search', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
+// GET UNREAD PRIVATE MESSAGES COUNT
+// ============================================
+app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ unread_count: 0 });
+        const userId = userResult.rows[0].id;
+        
+        const result = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM private_messages 
+            WHERE receiver_id = $1 AND is_read = false
+        `, [userId]);
+        
+        res.json({ unread_count: parseInt(result.rows[0].count) });
+    } catch (err) {
+        console.error('Unread messages error:', err);
+        res.json({ unread_count: 0 });
+    }
+});
+
+// ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
 app.get('/health', async (req, res) => {
