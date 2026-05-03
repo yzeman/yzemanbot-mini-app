@@ -712,6 +712,157 @@ io.on('connection', (socket) => {
             console.error('Load messages error:', err);
         }
     });
+
+    // Add these inside io.on('connection', (socket) => { ... })
+
+// Store connected users and their socket IDs for push notifications
+const connectedUsers = new Map(); // socketId -> user data
+const userSockets = new Map(); // userId -> socketId (for targeting specific users)
+
+// Join private chat room
+socket.on('join-private', (data) => {
+    const { chatId, userId, friendId, firstName } = data;
+    
+    // Store user info for private chat
+    connectedUsers.set(socket.id, {
+        userId,
+        friendId,
+        firstName,
+        chatId,
+        socketId: socket.id
+    });
+    
+    // Store mapping for user -> socket (for push notifications)
+    userSockets.set(userId, socket.id);
+    
+    socket.join(`private_${chatId}`);
+    console.log(`🔵 User ${firstName} (${userId}) joined private chat ${chatId}`);
+});
+
+// Send private message with push notification
+socket.on('send-private-message', async (data) => {
+    const { chatId, receiverId, message, senderId, senderName } = data;
+    
+    if (!message || message.trim().length === 0) return;
+    if (message.length > 500) return;
+    
+    try {
+        // Save to database
+        const result = await pool.query(`
+            INSERT INTO private_messages (sender_id, receiver_id, message)
+            VALUES ($1, $2, $3)
+            RETURNING id, created_at
+        `, [senderId, receiverId, message.trim()]);
+        
+        // Get sender's full info for notification
+        const senderInfo = await pool.query(
+            'SELECT first_name, photo_url FROM users WHERE id = $1',
+            [senderId]
+        );
+        
+        const messageData = {
+            id: result.rows[0].id,
+            sender_id: senderId,
+            receiver_id: receiverId,
+            sender_name: senderName,
+            message: message.trim(),
+            created_at: result.rows[0].created_at,
+            is_read: false,
+            is_edited: false
+        };
+        
+        // Send to the specific private chat room (both users are in this room)
+        io.to(`private_${chatId}`).emit('private-message', messageData);
+        
+        // ============================================
+        // PUSH NOTIFICATION TO RECEIVER (if offline/online)
+        // ============================================
+        
+        // Check if receiver is currently connected (online in the app)
+        const receiverSocketId = userSockets.get(receiverId);
+        const isReceiverOnline = receiverSocketId && connectedUsers.has(receiverSocketId);
+        
+        if (!isReceiverOnline) {
+            // User is offline - send push notification via Telegram Bot
+            try {
+                // Get receiver's telegram_id from database
+                const receiverInfo = await pool.query(
+                    'SELECT telegram_id, first_name FROM users WHERE id = $1',
+                    [receiverId]
+                );
+                
+                if (receiverInfo.rows.length > 0 && process.env.BOT_TOKEN) {
+                    const receiverTelegramId = receiverInfo.rows[0].telegram_id;
+                    const senderFirstName = senderInfo.rows[0]?.first_name || senderName;
+                    const messagePreview = message.length > 50 ? message.substring(0, 50) + '...' : message;
+                    
+                    // Send notification via Telegram Bot
+                    const notificationMessage = `💬 *New Message from ${senderFirstName}*\n\n📝 "${messagePreview}"\n\n🔔 Tap to open chat and reply!`;
+                    
+                    // Create inline keyboard to open the mini app directly to the chat
+                    const miniAppUrl = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
+                    
+                    await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: receiverTelegramId,
+                            text: notificationMessage,
+                            parse_mode: 'Markdown',
+                            reply_markup: {
+                                inline_keyboard: [[
+                                    { text: "💬 OPEN CHAT", web_app: { url: `${miniAppUrl}/profile.html?userId=${senderId}&openChat=true` } }
+                                ]]
+                            }
+                        })
+                    });
+                    
+                    console.log(`📨 Push notification sent to user ${receiverId} via Telegram`);
+                }
+            } catch (notifyErr) {
+                console.error('Failed to send push notification:', notifyErr);
+            }
+        } else {
+            // User is online - send a subtle notification within the app
+            io.to(receiverSocketId).emit('new-message-notification', {
+                from: senderId,
+                fromName: senderName,
+                message: message.trim(),
+                chatId: chatId
+            });
+        }
+        
+    } catch (err) {
+        console.error('Send private message error:', err);
+        socket.emit('message-error', { error: 'Failed to send message' });
+    }
+});
+
+// Typing indicator for private chat
+socket.on('typing-private', (data) => {
+    const { chatId, userId, isTyping } = data;
+    socket.to(`private_${chatId}`).emit('user-typing-private', {
+        userId,
+        isTyping
+    });
+});
+
+// Handle disconnection - cleanup
+socket.on('disconnect', () => {
+    const user = connectedUsers.get(socket.id);
+    if (user) {
+        console.log(`🔴 User ${user.firstName} (${user.userId}) disconnected`);
+        
+        // Remove from connected users
+        connectedUsers.delete(socket.id);
+        
+        // Remove from userSockets mapping if this socket matches
+        const storedSocketId = userSockets.get(user.userId);
+        if (storedSocketId === socket.id) {
+            userSockets.delete(user.userId);
+        }
+    }
+});
     
     // ============================================
     // FIXED: send-message with database name lookup
@@ -3516,6 +3667,27 @@ app.post('/api/private/messages/mark-read', verifyTelegramData, async (req, res)
         res.json({ success: true });
     } catch (err) {
         res.json({ success: false });
+    }
+});
+
+// Get unread message count for notification badge
+app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ unread_count: 0 });
+        const userId = userResult.rows[0].id;
+        
+        const result = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM private_messages 
+            WHERE receiver_id = $1 AND is_read = false
+        `, [userId]);
+        
+        res.json({ unread_count: parseInt(result.rows[0].count) });
+    } catch (err) {
+        console.error('Unread messages error:', err);
+        res.json({ unread_count: 0 });
     }
 });
 
