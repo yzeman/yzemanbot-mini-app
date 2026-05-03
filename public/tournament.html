@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Tournament - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -19,13 +19,14 @@
             --gold: #FFD700;
             --silver: #C0C0C0;
             --bronze: #CD7F32;
+            --success: #00c853;
         }
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--dark);
+            background: linear-gradient(135deg, var(--dark) 0%, #0f0f1a 100%);
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
@@ -51,23 +52,24 @@
         .refresh-indicator i { margin-right: 5px; }
         
         .header {
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 25px;
-            border-radius: 0 0 30px 30px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+            padding: 25px 15px 30px;
+            border-radius: 0 0 35px 35px;
             text-align: center;
             position: relative;
+            border-bottom: 1px solid rgba(255,215,0,0.2);
         }
         
         .header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            font-size: 26px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--gold), #FFA000);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
-        .header h1 i { color: var(--gold); }
+        .header i { color: var(--gold); margin-right: 8px; }
         .header p { color: var(--gray); font-size: 13px; }
         
         .back-btn-header {
@@ -75,79 +77,83 @@
             top: 20px; left: 20px;
             color: white; font-size: 22px;
             text-decoration: none; z-index: 10;
+            background: rgba(0,0,0,0.3);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
         }
         
         /* Timer Banner */
         .timer-banner {
-            background: linear-gradient(135deg, var(--warning) 0%, #ff6b6b 100%);
-            padding: 12px;
-            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(255,152,0,0.9), rgba(255,107,107,0.9));
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            border-radius: 20px;
             margin: 16px 15px;
             text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
         }
         
         .timer-banner h3 {
-            font-size: 12px;
-            margin-bottom: 6px;
+            font-size: 13px;
+            margin-bottom: 8px;
             opacity: 0.9;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 8px;
         }
         
         .timer {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: bold;
+            letter-spacing: 2px;
+            font-family: monospace;
         }
         
         /* Prize Banner */
         .prize-banner {
-            background: linear-gradient(135deg, var(--gold) 0%, #FFA000 100%);
-            color: var(--dark);
-            padding: 15px;
-            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,160,0,0.1));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,215,0,0.3);
+            padding: 18px;
+            border-radius: 20px;
             margin: 0 15px 16px;
             text-align: center;
         }
         
         .prize-banner h3 {
-            font-size: 15px;
-            margin-bottom: 10px;
+            font-size: 14px;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 8px;
+            color: var(--gold);
         }
         
         .prize-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
+            gap: 12px;
         }
         
         .prize-card {
-            background: rgba(0,0,0,0.2);
-            border-radius: 10px;
-            padding: 10px 3px;
+            background: linear-gradient(135deg, rgba(0,0,0,0.3), rgba(0,0,0,0.1));
+            border-radius: 14px;
+            padding: 12px 5px;
             text-align: center;
+            transition: transform 0.2s;
         }
         
-        .prize-position {
-            font-size: 20px;
-            margin-bottom: 2px;
-        }
-        
-        .prize-amount {
-            font-size: 13px;
-            font-weight: bold;
-        }
-        
-        .prize-label {
-            font-size: 8px;
-            opacity: 0.8;
-            margin-top: 2px;
-        }
+        .prize-card:hover { transform: translateY(-3px); }
+        .prize-position { font-size: 28px; margin-bottom: 5px; }
+        .prize-amount { font-size: 16px; font-weight: bold; color: var(--gold); }
+        .prize-label { font-size: 9px; opacity: 0.8; margin-top: 3px; }
         
         /* Join Section */
         .join-section {
@@ -156,24 +162,26 @@
         }
         
         .join-btn {
-            background: linear-gradient(135deg, var(--primary) 0%, #45a049 100%);
+            background: linear-gradient(135deg, var(--primary) 0%, #2E7D32 100%);
             color: white;
             border: none;
-            padding: 14px 25px;
-            border-radius: 35px;
+            padding: 16px 30px;
+            border-radius: 40px;
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
             width: 100%;
             max-width: 280px;
             margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 10px;
+            transition: all 0.3s;
         }
         
+        .join-btn:active { transform: scale(0.97); }
         .join-btn:disabled {
             background: var(--gray);
             box-shadow: none;
@@ -181,31 +189,32 @@
         }
         
         .joined-badge {
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--success), #008C4A);
             color: white;
-            padding: 10px 18px;
-            border-radius: 35px;
+            padding: 12px 25px;
+            border-radius: 40px;
             font-size: 14px;
             font-weight: bold;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
         
-        /* My Rank Card */
+        /* My Rank Card - HIGHLIGHTED */
         .my-rank-card {
-            background: linear-gradient(135deg, var(--secondary) 0%, #1976D2 100%);
-            border-radius: 16px;
-            padding: 15px 18px;
+            background: linear-gradient(135deg, var(--secondary), #0D47A1);
+            border-radius: 20px;
+            padding: 18px 20px;
             margin: 16px 15px;
-            display: none;
+            box-shadow: 0 10px 25px rgba(33,150,243,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         
         .my-rank-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         
         .my-rank-title {
@@ -213,19 +222,23 @@
             color: rgba(255,255,255,0.8);
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
         
         .my-rank-value {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: bold;
+            background: linear-gradient(135deg, var(--gold), #FFA000);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         
         .my-rank-stats {
             display: flex;
             justify-content: space-between;
             color: rgba(255,255,255,0.8);
-            font-size: 12px;
+            font-size: 13px;
         }
         
         /* Standings Section */
@@ -234,223 +247,199 @@
         }
         
         .standings-title {
-            font-size: 15px;
+            font-size: 18px;
             font-weight: 600;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 10px;
         }
         
-        .standings-title i { color: var(--gold); }
+        .standings-title i { color: var(--gold); font-size: 20px; }
         
         .standings-list {
-            max-height: 320px;
+            max-height: 500px;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
         
         .standings-item {
             display: flex;
             align-items: center;
-            padding: 10px 12px;
-            background: var(--darker);
-            border-radius: 12px;
-            margin-bottom: 6px;
+            padding: 12px 15px;
+            background: rgba(22, 33, 62, 0.8);
+            backdrop-filter: blur(5px);
+            border-radius: 16px;
+            transition: all 0.2s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .standings-item:hover {
+            transform: translateX(5px);
+            background: rgba(33, 150, 243, 0.1);
+            border-color: rgba(33,150,243,0.3);
+        }
+        
+        /* Highlight current user's row */
+        .standings-item.current-user {
+            background: linear-gradient(135deg, rgba(76,175,80,0.2), rgba(0,200,83,0.1));
+            border: 1px solid var(--gold);
+            box-shadow: 0 0 15px rgba(255,215,0,0.2);
         }
         
         .rank {
-            width: 32px;
-            height: 32px;
+            width: 45px;
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 13px;
-            margin-right: 10px;
-            border-radius: 8px;
+            font-size: 18px;
+            margin-right: 12px;
+            border-radius: 12px;
             background: rgba(255,255,255,0.05);
         }
         
-        .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA000); color: var(--dark); }
-        .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: var(--dark); }
-        .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: var(--dark); }
+        .rank-1 { 
+            background: linear-gradient(135deg, #FFD700, #FFA000);
+            color: #1a1a2e;
+            box-shadow: 0 0 10px rgba(255,215,0,0.5);
+        }
+        .rank-2 { 
+            background: linear-gradient(135deg, #C0C0C0, #A0A0A0);
+            color: #1a1a2e;
+        }
+        .rank-3 { 
+            background: linear-gradient(135deg, #CD7F32, #B87333);
+            color: #1a1a2e;
+        }
         
         .avatar {
-            width: 35px;
-            height: 35px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 15px;
-            margin-right: 10px;
+            font-size: 18px;
+            margin-right: 12px;
             color: white;
             font-weight: bold;
-            overflow: hidden;
-        }
-        
-        .avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            flex-shrink: 0;
         }
         
         .info {
             flex: 1;
+            min-width: 0;
         }
         
         .name {
             font-weight: 600;
-            font-size: 13px;
-            margin-bottom: 1px;
-        }
-        
-        .username {
-            font-size: 10px;
-            color: var(--gray);
+            font-size: 15px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
         
         .tier-badge {
             display: inline-block;
             background: var(--gold);
             color: var(--dark);
-            padding: 2px 6px;
-            border-radius: 15px;
-            font-size: 8px;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 9px;
             font-weight: bold;
-            margin-left: 5px;
         }
         
         .coins {
             font-weight: bold;
             color: var(--gold);
-            font-size: 13px;
+            font-size: 16px;
+            text-align: right;
+            flex-shrink: 0;
         }
         
         .coins small {
-            font-size: 8px;
+            font-size: 10px;
             color: var(--gray);
             font-weight: normal;
         }
         
-        /* Skeleton Loading Styles */
+        /* How It Works Section */
+        .info-box {
+            background: linear-gradient(135deg, rgba(33,150,243,0.1), rgba(25,118,210,0.05));
+            border-radius: 20px;
+            padding: 18px;
+            margin: 20px 15px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .info-box h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--gold);
+        }
+        
+        .info-box p {
+            color: var(--gray);
+            font-size: 12px;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        
+        .info-box i {
+            color: var(--secondary);
+            margin-right: 8px;
+            width: 20px;
+        }
+        
+        /* Skeleton Loading */
         .skeleton {
             background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
             background-size: 200% 100%;
             animation: skeleton-wave 1.5s infinite;
             border-radius: 8px;
         }
-        @keyframes skeleton-wave { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        @keyframes skeleton-wave {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .skeleton-my-rank-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 18px 20px;
+            margin: 16px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
         
         .skeleton-standings-item {
             display: flex;
             align-items: center;
-            padding: 10px 12px;
-            background: var(--darker);
-            border-radius: 12px;
-            margin-bottom: 6px;
-        }
-        .skeleton-rank { width: 32px; height: 32px; background: rgba(255,255,255,0.08); border-radius: 8px; margin-right: 10px; }
-        .skeleton-avatar { width: 35px; height: 35px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 10px; }
-        .skeleton-info { flex: 1; }
-        .skeleton-name { width: 40%; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
-        .skeleton-username { width: 30%; height: 10px; background: rgba(255,255,255,0.06); border-radius: 4px; }
-        .skeleton-coins { width: 60px; height: 13px; background: rgba(255,255,255,0.08); border-radius: 4px; }
-        
-        .skeleton-my-rank-card {
-            background: rgba(255,255,255,0.05);
+            padding: 12px 15px;
+            background: rgba(22, 33, 62, 0.8);
             border-radius: 16px;
-            padding: 15px 18px;
-            margin: 16px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            margin-bottom: 8px;
         }
-        .skeleton-my-rank-left { display: flex; align-items: center; gap: 15px; }
-        .skeleton-my-rank-icon { width: 50px; height: 50px; background: rgba(255,255,255,0.08); border-radius: 50%; }
-        .skeleton-my-rank-info { flex: 1; }
-        .skeleton-my-rank-title { width: 60px; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
-        .skeleton-my-rank-value { width: 40px; height: 28px; background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .skeleton-my-rank-coins { width: 60px; height: 22px; background: rgba(255,255,255,0.08); border-radius: 4px; }
-        .skeleton-my-rank-label { width: 40px; height: 11px; background: rgba(255,255,255,0.06); border-radius: 4px; margin-top: 4px; }
+        .skeleton-rank { width: 45px; height: 45px; background: rgba(255,255,255,0.08); border-radius: 12px; margin-right: 12px; }
+        .skeleton-avatar { width: 45px; height: 45px; background: rgba(255,255,255,0.08); border-radius: 50%; margin-right: 12px; }
+        .skeleton-info { flex: 1; }
+        .skeleton-name { width: 40%; height: 15px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-bottom: 6px; }
+        .skeleton-username { width: 30%; height: 11px; background: rgba(255,255,255,0.06); border-radius: 4px; }
+        .skeleton-coins { width: 70px; height: 16px; background: rgba(255,255,255,0.08); border-radius: 4px; }
         
-        /* Collapsible Info Box */
-        .info-box {
-            background: rgba(33, 150, 243, 0.1);
-            border-left: 3px solid var(--secondary);
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin: 16px 15px;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .info-box.dismissed {
-            display: none;
-        }
-        
-        .info-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 6px;
-        }
-        
-        .info-title {
-            font-size: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .info-title i {
-            color: var(--secondary);
-        }
-        
-        .close-info-btn {
-            background: transparent;
-            border: none;
-            color: var(--gray);
-            font-size: 14px;
-            cursor: pointer;
-            padding: 2px 4px;
-            transition: color 0.2s;
-        }
-        
-        .close-info-btn:hover {
-            color: var(--light);
-        }
-        
-        .info-box p {
-            color: var(--gray);
-            font-size: 11px;
-            margin-bottom: 4px;
-        }
-        
-        .info-box i {
-            color: var(--secondary);
-            margin-right: 6px;
-            width: 14px;
-        }
-        
-        .info-box p:last-child {
-            margin-bottom: 0;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--gray);
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px;
-            color: var(--gray);
-        }
-        
+        .loading, .empty-state { text-align: center; padding: 40px; color: var(--gray); }
         .retry-btn {
             background: var(--secondary);
             color: white;
@@ -464,24 +453,27 @@
         
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: var(--darker); display: flex; padding: 8px 15px;
-            border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
+            background: rgba(22, 33, 62, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex; padding: 10px 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            z-index: 100;
         }
         
         .nav-item {
             flex: 1; text-align: center; color: var(--gray);
-            text-decoration: none; font-size: 11px; padding: 5px;
-            border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+            text-decoration: none; font-size: 11px; padding: 6px;
+            border-radius: 10px; transition: all 0.2s;
         }
         
-        .nav-item i { font-size: 20px; }
-        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
+        .nav-item i { font-size: 22px; display: block; margin-bottom: 3px; }
+        .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.15); }
         
         .notification {
             position: fixed; bottom: 80px; left: 15px; right: 15px;
-            background: #00c853; color: white; padding: 12px 18px;
-            border-radius: 10px; text-align: center; display: none; z-index: 1000;
-            font-size: 13px;
+            background: var(--success); color: white; padding: 14px 18px;
+            border-radius: 14px; text-align: center; font-weight: 500;
+            display: none; z-index: 1000; font-size: 13px;
         }
         
         .notification.error { background: var(--danger); }
@@ -506,17 +498,18 @@
         <div class="timer" id="tournamentTimer">--d --h --m</div>
     </div>
     
+    <!-- Prize Banner -->
     <div class="prize-banner">
         <h3><i class="fas fa-crown"></i> Prize Pool</h3>
         <div class="prize-grid">
             <div class="prize-card">
                 <div class="prize-position">🥇</div>
-                <div class="prize-amount">2000</div>
+                <div class="prize-amount">2,000</div>
                 <div class="prize-label">COINS</div>
             </div>
             <div class="prize-card">
                 <div class="prize-position">🥈</div>
-                <div class="prize-amount">1000</div>
+                <div class="prize-amount">1,000</div>
                 <div class="prize-label">COINS</div>
             </div>
             <div class="prize-card">
@@ -546,21 +539,15 @@
             <i class="fas fa-list-ol"></i>
             <span>Current Standings</span>
         </div>
-        <div class="standings-list" id="standingsList"></div>
+        <div class="standings-list" id="standingsList">
+            <div class="loading">Loading standings...</div>
+        </div>
     </div>
     
-    <!-- Collapsible Info Box -->
-    <div class="info-box" id="infoBox">
-        <div class="info-header">
-            <div class="info-title">
-                <i class="fas fa-info-circle"></i>
-                <span>How to Earn Coins</span>
-            </div>
-            <button class="close-info-btn" onclick="dismissInfoBox()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <p><i class="fas fa-ad"></i> Watch ads — earn COINS</p>
+    <!-- How It Works -->
+    <div class="info-box">
+        <h4><i class="fas fa-lightbulb"></i> How to Earn Coins</h4>
+        <p><i class="fas fa-play-circle"></i> Watch ads — earn COINS</p>
         <p><i class="fas fa-user-plus"></i> Refer friends — bonus COINS</p>
         <p><i class="fas fa-calendar-check"></i> Daily rewards count toward tournament</p>
         <p><i class="fas fa-clock"></i> Tournament runs Monday 00:00 – Sunday 23:59</p>
@@ -578,329 +565,350 @@
     
     <div class="notification" id="notification"></div>
     
-<script>
-    const tg = window.Telegram?.WebApp;
-    if (tg) { tg.ready(); tg.expand(); }
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
 
-    let countdownInterval = null;
-    let isRefreshing = false;
-    let touchStartY = 0;
-    const refreshIndicator = document.getElementById('refreshIndicator');
-    let hasJoinedTournament = false;
+        let countdownInterval = null;
+        let isRefreshing = false;
+        let touchStartY = 0;
+        const refreshIndicator = document.getElementById('refreshIndicator');
+        let hasJoinedTournament = false;
+        let currentUserId = null;
 
-    function showNotification(msg, isError = false) {
-        const notif = document.getElementById('notification');
-        if (notif) {
-            notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 4000);
-        }
-    }
-
-    function formatNumber(num) {
-        return parseFloat(num).toFixed(2);
-    }
-
-    // Helper to get user's local date
-    function getLocalDate() {
-        return new Date().toISOString().split('T')[0];
-    }
-
-    async function apiCall(endpoint, data = null) {
-        const options = {
-            method: data ? 'POST' : 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        };
-        if (data) options.body = JSON.stringify(data);
-        const response = await fetch(endpoint, options);
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(error);
-        }
-        return response.json();
-    }
-
-    // ============================================
-    // SKELETON LOADING
-    // ============================================
-    function showSkeleton() {
-        const myRankContainer = document.getElementById('myRankContainer');
-        if (myRankContainer) {
-            myRankContainer.innerHTML = `
-                <div class="skeleton-my-rank-card">
-                    <div class="skeleton-my-rank-left">
-                        <div class="skeleton-my-rank-icon"></div>
-                        <div class="skeleton-my-rank-info">
-                            <div class="skeleton-my-rank-title"></div>
-                            <div class="skeleton-my-rank-value"></div>
-                            <div class="skeleton-my-rank-label"></div>
-                        </div>
-                    </div>
-                    <div class="skeleton-my-rank-coins"></div>
-                </div>
-            `;
-        }
-        
-        const standingsList = document.getElementById('standingsList');
-        if (standingsList) {
-            let skeletonItems = '';
-            for (let i = 0; i < 5; i++) {
-                skeletonItems += `
-                    <div class="skeleton-standings-item">
-                        <div class="skeleton-rank"></div>
-                        <div class="skeleton-avatar"></div>
-                        <div class="skeleton-info">
-                            <div class="skeleton-name"></div>
-                            <div class="skeleton-username"></div>
-                        </div>
-                        <div class="skeleton-coins"></div>
-                    </div>
-                `;
-            }
-            standingsList.innerHTML = skeletonItems;
-        }
-    }
-
-    function getRankClass(rank) {
-        if (rank === 1) return 'rank-1';
-        if (rank === 2) return 'rank-2';
-        if (rank === 3) return 'rank-3';
-        return '';
-    }
-
-    function getAvatarInitials(name) {
-        if (!name) return '👤';
-        return name.charAt(0).toUpperCase();
-    }
-
-    function updateTournamentUI(data) {
-        hasJoinedTournament = data.has_joined;
-        
-        // Update join button UI
-        const joinBtn = document.getElementById('joinBtn');
-        const joinedBadge = document.getElementById('joinedBadge');
-        if (joinBtn && joinedBadge) {
-            if (hasJoinedTournament) {
-                joinBtn.style.display = 'none';
-                joinedBadge.style.display = 'inline-flex';
-            } else {
-                joinBtn.style.display = 'flex';
-                joinedBadge.style.display = 'none';
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            if (notif) {
+                notif.textContent = msg;
+                notif.className = 'notification' + (isError ? ' error' : '');
+                notif.style.display = 'block';
+                setTimeout(() => notif.style.display = 'none', 4000);
             }
         }
 
-        // Update "My Rank" card
-        const myRankContainer = document.getElementById('myRankContainer');
-        if (myRankContainer) {
-            if (data.my_rank && hasJoinedTournament) {
-                let rankEmoji = '';
-                if (data.my_rank === 1) rankEmoji = '🥇';
-                else if (data.my_rank === 2) rankEmoji = '🥈';
-                else if (data.my_rank === 3) rankEmoji = '🥉';
-                else rankEmoji = `#${data.my_rank}`;
-                
+        // Format number with commas (e.g., 3632.00 → "3,632.00")
+        function formatNumberWithCommas(num) {
+            if (num === undefined || num === null) return '0.00';
+            const number = parseFloat(num);
+            if (isNaN(number)) return '0.00';
+            const parts = number.toFixed(2).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.join('.');
+        }
+
+        async function apiCall(endpoint, data = null) {
+            const options = {
+                method: data ? 'POST' : 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (data) options.body = JSON.stringify(data);
+            const response = await fetch(endpoint, options);
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error);
+            }
+            return response.json();
+        }
+
+        // ============================================
+        // SKELETON LOADING
+        // ============================================
+        function showSkeleton() {
+            const myRankContainer = document.getElementById('myRankContainer');
+            if (myRankContainer) {
                 myRankContainer.innerHTML = `
-                    <div class="my-rank-card">
-                        <div class="my-rank-header">
-                            <div class="my-rank-title"><i class="fas fa-chart-line"></i> YOUR RANK</div>
-                            <div class="my-rank-value">${rankEmoji}</div>
-                        </div>
-                        <div class="my-rank-stats">
-                            <span>💰 ${formatNumber(data.my_coins)} COINS</span>
-                            <span>🎯 This week only</span>
-                        </div>
-                    </div>
-                `;
-            } else if (hasJoinedTournament) {
-                myRankContainer.innerHTML = `
-                    <div class="my-rank-card">
-                        <div class="my-rank-header">
-                            <div class="my-rank-title"><i class="fas fa-chart-line"></i> YOUR RANK</div>
-                            <div class="my-rank-value">📊 No earnings yet</div>
-                        </div>
-                        <div class="my-rank-stats">
-                            <span>⭐ Watch ads and earn COINS!</span>
+                    <div class="skeleton-my-rank-card">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="skeleton-rank"></div>
+                            <div style="flex:1;">
+                                <div class="skeleton-name" style="width: 40%;"></div>
+                                <div class="skeleton-username" style="width: 30%;"></div>
+                            </div>
+                            <div class="skeleton-coins"></div>
                         </div>
                     </div>
                 `;
-            } else {
-                myRankContainer.innerHTML = '';
             }
-        }
-
-        // Update standings list with PRIVACY: No usernames, no clickable elements
-        const standingsList = document.getElementById('standingsList');
-        if (standingsList) {
-            if (!data.standings || data.standings.length === 0) {
-                standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join the tournament to compete!</p></div>';
-                return;
-            }
-
-            standingsList.innerHTML = data.standings.map(entry => {
-                const rankClass = getRankClass(entry.rank);
-                // IMPORTANT: Only show first_name, NEVER show username or telegram_id
-                const displayName = entry.first_name || 'Anonymous User';
-                const avatarInitial = getAvatarInitials(displayName);
-                // Truncate long names for privacy (optional)
-                const shortName = displayName.length > 15 ? displayName.substring(0, 12) + '...' : displayName;
-                
-                return `
-                    <div class="standings-item">
-                        <div class="rank ${rankClass}">${entry.rank}</div>
-                        <div class="avatar">
-                            <span>${avatarInitial}</span>
-                        </div>
-                        <div class="info">
-                            <div class="name">${escapeHtml(shortName)}</div>
-                            <div class="username">${entry.tier || 'Fresher'} Tier</div>
-                        </div>
-                        <div class="coins">${formatNumber(entry.weekly_coins)} <small>COINS</small></div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Update timer
-        updateTournamentTimer();
-    }
-
-    // Simple escape to prevent XSS
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
-    }
-
-    function updateTournamentTimer() {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        let daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-        const nextMonday = new Date(now);
-        nextMonday.setDate(now.getDate() + daysUntilMonday);
-        nextMonday.setHours(0, 0, 0, 0);
-        
-        const diff = nextMonday - now;
-        
-        if (diff <= 0) {
-            loadTournamentData();
-            return;
-        }
-        
-        const days = Math.floor(diff / 86400000);
-        const hours = Math.floor((diff % 86400000) / 3600000);
-        const minutes = Math.floor((diff % 3600000) / 60000);
-        
-        const timerElement = document.getElementById('tournamentTimer');
-        if (timerElement) {
-            timerElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
-        }
-    }
-
-    async function loadTournamentData(showSkeletonLoader = true) {
-        if (!tg?.initData) {
-            showNotification('Please open from Telegram', true);
-            return;
-        }
-        
-        if (showSkeletonLoader) {
-            showSkeleton();
-        }
-        
-        try {
-            const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
-            updateTournamentUI(data);
             
-            if (countdownInterval) clearInterval(countdownInterval);
-            countdownInterval = setInterval(updateTournamentTimer, 60000);
-            updateTournamentTimer();
-            
-        } catch (err) {
-            console.error('Failed to load tournament:', err);
             const standingsList = document.getElementById('standingsList');
             if (standingsList) {
-                standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load standings. Pull to refresh.</p></div>';
+                let skeletonItems = '';
+                for (let i = 0; i < 8; i++) {
+                    skeletonItems += `
+                        <div class="skeleton-standings-item">
+                            <div class="skeleton-rank"></div>
+                            <div class="skeleton-avatar"></div>
+                            <div class="skeleton-info">
+                                <div class="skeleton-name"></div>
+                                <div class="skeleton-username"></div>
+                            </div>
+                            <div class="skeleton-coins"></div>
+                        </div>
+                    `;
+                }
+                standingsList.innerHTML = skeletonItems;
             }
         }
-    }
 
-    async function joinTournament() {
-        if (!tg?.initData) {
-            showNotification('Please open from Telegram', true);
-            return;
+        function getRankClass(rank) {
+            if (rank === 1) return 'rank-1';
+            if (rank === 2) return 'rank-2';
+            if (rank === 3) return 'rank-3';
+            return '';
         }
-        
-        const joinBtn = document.getElementById('joinBtn');
-        joinBtn.disabled = true;
-        joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
-        
-        try {
-            const result = await apiCall('/api/tournament/join', { initData: tg.initData });
-            if (result.success) {
-                showNotification('🎉 You joined the tournament! Good luck!');
-                await loadTournamentData(false);
-            } else {
-                showNotification(result.error || 'Failed to join', true);
+
+        function getRankEmoji(rank) {
+            if (rank === 1) return '🥇';
+            if (rank === 2) return '🥈';
+            if (rank === 3) return '🥉';
+            return `#${rank}`;
+        }
+
+        function getAvatarInitials(name) {
+            if (!name) return '👤';
+            return name.charAt(0).toUpperCase();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return 'Anonymous';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        function updateTournamentUI(data) {
+            hasJoinedTournament = data.has_joined;
+            
+            // Update join button UI
+            const joinBtn = document.getElementById('joinBtn');
+            const joinedBadge = document.getElementById('joinedBadge');
+            if (joinBtn && joinedBadge) {
+                if (hasJoinedTournament) {
+                    joinBtn.style.display = 'none';
+                    joinedBadge.style.display = 'inline-flex';
+                } else {
+                    joinBtn.style.display = 'flex';
+                    joinedBadge.style.display = 'none';
+                }
+            }
+
+            // Update "My Rank" card - HIGHLIGHTED
+            const myRankContainer = document.getElementById('myRankContainer');
+            if (myRankContainer) {
+                if (data.my_rank && hasJoinedTournament) {
+                    const rankEmoji = getRankEmoji(data.my_rank);
+                    const formattedCoins = formatNumberWithCommas(data.my_coins);
+                    
+                    myRankContainer.innerHTML = `
+                        <div class="my-rank-card">
+                            <div class="my-rank-header">
+                                <div class="my-rank-title">
+                                    <i class="fas fa-crown"></i> YOUR POSITION
+                                </div>
+                                <div class="my-rank-value">${rankEmoji}</div>
+                            </div>
+                            <div class="my-rank-stats">
+                                <span><i class="fas fa-coins"></i> ${formattedCoins} COINS</span>
+                                <span><i class="fas fa-chart-line"></i> This week only</span>
+                            </div>
+                        </div>
+                    `;
+                } else if (hasJoinedTournament) {
+                    myRankContainer.innerHTML = `
+                        <div class="my-rank-card">
+                            <div class="my-rank-header">
+                                <div class="my-rank-title">
+                                    <i class="fas fa-chart-line"></i> YOUR POSITION
+                                </div>
+                                <div class="my-rank-value">📊 Pending</div>
+                            </div>
+                            <div class="my-rank-stats">
+                                <span>⭐ Watch ads to earn COINS!</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    myRankContainer.innerHTML = '';
+                }
+            }
+
+            // Update standings list
+            const standingsList = document.getElementById('standingsList');
+            if (standingsList) {
+                if (!data.standings || data.standings.length === 0) {
+                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join the tournament to compete!</p></div>';
+                    return;
+                }
+
+                standingsList.innerHTML = data.standings.map(entry => {
+                    const rankClass = getRankClass(entry.rank);
+                    const rankNumber = entry.rank;
+                    const displayName = entry.first_name || 'Anonymous User';
+                    const avatarInitial = getAvatarInitials(displayName);
+                    const shortName = displayName.length > 18 ? displayName.substring(0, 15) + '...' : displayName;
+                    const formattedCoins = formatNumberWithCommas(entry.weekly_coins);
+                    const isCurrentUser = currentUserId && entry.id === currentUserId;
+                    const currentUserClass = isCurrentUser ? 'current-user' : '';
+                    
+                    // Rank display with medal for top 3
+                    let rankDisplay = rankNumber;
+                    if (rankNumber === 1) rankDisplay = '🥇';
+                    else if (rankNumber === 2) rankDisplay = '🥈';
+                    else if (rankNumber === 3) rankDisplay = '🥉';
+                    else rankDisplay = rankNumber;
+                    
+                    return `
+                        <div class="standings-item ${currentUserClass}">
+                            <div class="rank ${rankClass}">${rankDisplay}</div>
+                            <div class="avatar">
+                                <span>${avatarInitial}</span>
+                            </div>
+                            <div class="info">
+                                <div class="name">
+                                    ${escapeHtml(shortName)}
+                                    ${isCurrentUser ? '<span style="background:var(--gold); color:var(--dark); padding:2px 8px; border-radius:20px; font-size:9px; font-weight:bold;">YOU</span>' : ''}
+                                </div>
+                                <div class="username">${entry.tier || 'Fresher'} Tier</div>
+                            </div>
+                            <div class="coins">${formattedCoins} <small>COINS</small></div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function updateTournamentTimer() {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            let daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+            const nextMonday = new Date(now);
+            nextMonday.setDate(now.getDate() + daysUntilMonday);
+            nextMonday.setHours(0, 0, 0, 0);
+            
+            const diff = nextMonday - now;
+            
+            if (diff <= 0) {
+                loadTournamentData();
+                return;
+            }
+            
+            const days = Math.floor(diff / 86400000);
+            const hours = Math.floor((diff % 86400000) / 3600000);
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            
+            const timerElement = document.getElementById('tournamentTimer');
+            if (timerElement) {
+                timerElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
+            }
+        }
+
+        async function loadTournamentData(showSkeletonLoader = true) {
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                return;
+            }
+            
+            if (showSkeletonLoader) {
+                showSkeleton();
+            }
+            
+            try {
+                // First get current user info to know their ID
+                const userData = await apiCall('/api/user', { initData: tg.initData });
+                currentUserId = userData.id;
+                
+                const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
+                updateTournamentUI(data);
+                
+                if (countdownInterval) clearInterval(countdownInterval);
+                countdownInterval = setInterval(updateTournamentTimer, 60000);
+                updateTournamentTimer();
+                
+            } catch (err) {
+                console.error('Failed to load tournament:', err);
+                const standingsList = document.getElementById('standingsList');
+                if (standingsList) {
+                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load standings. Pull to refresh.</p></div>';
+                }
+            }
+        }
+
+        async function joinTournament() {
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                return;
+            }
+            
+            const joinBtn = document.getElementById('joinBtn');
+            joinBtn.disabled = true;
+            joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
+            
+            try {
+                const result = await apiCall('/api/tournament/join', { initData: tg.initData });
+                if (result.success) {
+                    showNotification('🎉 You joined the tournament! Good luck! 🏆');
+                    await loadTournamentData(false);
+                } else {
+                    showNotification(result.error || 'Failed to join', true);
+                    joinBtn.disabled = false;
+                    joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
+                }
+            } catch (err) {
+                showNotification(err.message || 'Failed to join', true);
                 joinBtn.disabled = false;
                 joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
             }
-        } catch (err) {
-            showNotification(err.message || 'Failed to join', true);
-            joinBtn.disabled = false;
-            joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
         }
-    }
 
-    // ============================================
-    // PULL TO REFRESH
-    // ============================================
-    function showRefreshIndicator(text, isError = false) {
-        refreshIndicator.textContent = text;
-        refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
-        refreshIndicator.classList.add('show');
-        setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
-    }
-    
-    async function refreshData() {
-        if (isRefreshing) return;
-        isRefreshing = true;
-        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
-        try {
-            await loadTournamentData(true);
-            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-            showNotification('Tournament standings refreshed!', false);
-        } catch (err) {
-            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
-        } finally {
-            isRefreshing = false;
+        // ============================================
+        // PULL TO REFRESH
+        // ============================================
+        function showRefreshIndicator(text, isError = false) {
+            refreshIndicator.textContent = text;
+            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            refreshIndicator.classList.add('show');
+            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
         }
-    }
-    
-    document.addEventListener('touchstart', (e) => {
-        if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
-    });
-    document.addEventListener('touchmove', (e) => {
-        if (window.scrollY === 0 && !isRefreshing) {
-            const diff = e.touches[0].clientY - touchStartY;
-            if (diff > 60) {
-                e.preventDefault();
-                refreshData();
+        
+        async function refreshData() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+            try {
+                await loadTournamentData(true);
+                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+                showNotification('Tournament standings refreshed!', false);
+            } catch (err) {
+                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            } finally {
+                isRefreshing = false;
             }
         }
-    });
-
-    document.addEventListener('DOMContentLoaded', () => {
-        loadTournamentData(true);
         
-        const joinBtn = document.getElementById('joinBtn');
-        if (joinBtn) {
-            joinBtn.addEventListener('click', joinTournament);
-        }
-    });
-</script>
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (window.scrollY === 0 && !isRefreshing) {
+                const diff = e.touches[0].clientY - touchStartY;
+                if (diff > 60) {
+                    e.preventDefault();
+                    refreshData();
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTournamentData(true);
+            
+            const joinBtn = document.getElementById('joinBtn');
+            if (joinBtn) {
+                joinBtn.addEventListener('click', joinTournament);
+            }
+        });
+    </script>
 </body>
 </html>
