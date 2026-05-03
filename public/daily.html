@@ -607,410 +607,335 @@
     
     <div class="notification" id="notification"></div>
     
-    <script>
-        // ============================================
-        // DAILY PAGE - WITH SKELETONS & PULL TO REFRESH
-        // ============================================
-        
-        const tg = window.Telegram?.WebApp;
-        if (tg) {
-            tg.ready();
-            tg.expand();
-            console.log('✅ Daily page: Telegram WebApp ready');
+   <script>
+    // ============================================
+    // DAILY PAGE - WITH LOCAL DATE SUPPORT
+    // ============================================
+    
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+        tg.ready();
+        tg.expand();
+        console.log('✅ Daily page: Telegram WebApp ready');
+    }
+    
+    let countdownInterval = null;
+    let isRefreshing = false;
+    let touchStartY = 0;
+    const refreshIndicator = document.getElementById('refreshIndicator');
+    
+    function showNotification(msg, isError = false) {
+        const notif = document.getElementById('notification');
+        if (notif) {
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 4000);
         }
-        
-        let countdownInterval = null;
-        let isRefreshing = false;
-        let touchStartY = 0;
-        const refreshIndicator = document.getElementById('refreshIndicator');
-        
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            if (notif) {
-                notif.textContent = msg;
-                notif.className = 'notification' + (isError ? ' error' : '');
-                notif.style.display = 'block';
-                setTimeout(() => notif.style.display = 'none', 4000);
-            }
+    }
+    
+    async function apiCall(endpoint, data = null) {
+        const options = {
+            method: data ? 'POST' : 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        };
+        if (data) options.body = JSON.stringify(data);
+        const response = await fetch(endpoint, options);
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(error);
         }
-        
-        async function apiCall(endpoint, data = null) {
-            const options = {
-                method: data ? 'POST' : 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            };
-            if (data) options.body = JSON.stringify(data);
-            const response = await fetch(endpoint, options);
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
-            }
-            return response.json();
+        return response.json();
+    }
+    
+    function getLocalDate() {
+        return new Date().toISOString().split('T')[0];
+    }
+    
+    function calculateReward(streak) {
+        const baseReward = 0.2;
+        const streakBonus = (streak || 0) * 0.1;
+        let totalReward = baseReward + streakBonus;
+        if ((streak || 0) > 0 && (streak % 7 === 0)) {
+            totalReward += 1.0;
         }
-        
-        function calculateReward(streak) {
-            const baseReward = 0.2;
-            const streakBonus = (streak || 0) * 0.1;
-            let totalReward = baseReward + streakBonus;
-            
-            if ((streak || 0) > 0 && (streak % 7 === 0)) {
-                totalReward += 1.0;
-            }
-            
-            return { baseReward, streakBonus, totalReward };
-        }
-        
-        function getRewardIcon(streak) {
-            if (streak >= 100) return '💎';
-            if (streak >= 50) return '👑';
-            if (streak >= 30) return '⭐';
-            if (streak >= 14) return '🌟';
-            if (streak >= 7) return '🔥';
-            return '🎁';
-        }
-        
-        function getRewardTitle(streak, claimed) {
-            if (claimed) return '✅ Already Claimed Today';
-            if (streak >= 100) return '💎 LEGENDARY REWARD!';
-            if (streak >= 50) return '👑 EPIC REWARD!';
-            if (streak >= 30) return '⭐ AMAZING REWARD!';
-            if (streak >= 14) return '🌟 GREAT REWARD!';
-            if (streak >= 7) return '🔥 ON FIRE!';
-            return '🎁 Claim Daily Reward';
-        }
-        
-        // ============================================
-        // SKELETON LOADING FUNCTIONS
-        // ============================================
-        
-        function showSkeleton() {
-            // Stats skeleton
-            document.getElementById('statsContainer').innerHTML = `
-                <div class="skeleton-stat-item">
-                    <div class="skeleton-stat-value"></div>
-                    <div class="skeleton-stat-label"></div>
-                </div>
-                <div class="skeleton-stat-item">
-                    <div class="skeleton-stat-value"></div>
-                    <div class="skeleton-stat-label"></div>
-                </div>
-                <div class="skeleton-stat-item">
-                    <div class="skeleton-stat-value"></div>
-                    <div class="skeleton-stat-label"></div>
-                </div>
-            `;
-            
-            // Reward card skeleton
-            document.getElementById('rewardCardContainer').innerHTML = `
-                <div class="skeleton-reward-card">
-                    <div class="skeleton-reward-icon"></div>
-                    <div class="skeleton-reward-title"></div>
-                    <div class="skeleton-reward-amount"></div>
-                    <div class="skeleton-reward-coin"></div>
-                </div>
-            `;
-            
-            // Streak info skeleton
-            document.getElementById('streakInfoContainer').innerHTML = `
-                <div class="skeleton-streak-info">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="skeleton-streak-fire"></div>
-                        <div class="skeleton-streak-text">
-                            <div class="skeleton-streak-title"></div>
-                            <div class="skeleton-streak-subtitle"></div>
-                        </div>
+        return { baseReward, streakBonus, totalReward };
+    }
+    
+    function getRewardIcon(streak) {
+        if (streak >= 100) return '💎';
+        if (streak >= 50) return '👑';
+        if (streak >= 30) return '⭐';
+        if (streak >= 14) return '🌟';
+        if (streak >= 7) return '🔥';
+        return '🎁';
+    }
+    
+    function getRewardTitle(streak, claimed) {
+        if (claimed) return '✅ Already Claimed Today';
+        if (streak >= 100) return '💎 LEGENDARY REWARD!';
+        if (streak >= 50) return '👑 EPIC REWARD!';
+        if (streak >= 30) return '⭐ AMAZING REWARD!';
+        if (streak >= 14) return '🌟 GREAT REWARD!';
+        if (streak >= 7) return '🔥 ON FIRE!';
+        return '🎁 Claim Daily Reward';
+    }
+    
+    function showSkeleton() {
+        // Stats skeleton
+        document.getElementById('statsContainer').innerHTML = `
+            <div class="skeleton-stat-item">
+                <div class="skeleton-stat-value"></div>
+                <div class="skeleton-stat-label"></div>
+            </div>
+            <div class="skeleton-stat-item">
+                <div class="skeleton-stat-value"></div>
+                <div class="skeleton-stat-label"></div>
+            </div>
+            <div class="skeleton-stat-item">
+                <div class="skeleton-stat-value"></div>
+                <div class="skeleton-stat-label"></div>
+            </div>
+        `;
+        document.getElementById('rewardCardContainer').innerHTML = `
+            <div class="skeleton-reward-card">
+                <div class="skeleton-reward-icon"></div>
+                <div class="skeleton-reward-title"></div>
+                <div class="skeleton-reward-amount"></div>
+                <div class="skeleton-reward-coin"></div>
+            </div>
+        `;
+        document.getElementById('streakInfoContainer').innerHTML = `
+            <div class="skeleton-streak-info">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="skeleton-streak-fire"></div>
+                    <div class="skeleton-streak-text">
+                        <div class="skeleton-streak-title"></div>
+                        <div class="skeleton-streak-subtitle"></div>
                     </div>
                 </div>
+            </div>
+        `;
+        const calendar = document.getElementById('calendar');
+        if (calendar) {
+            calendar.innerHTML = `
+                <div class="skeleton-calendar">
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                    <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
+                </div>
             `;
-            
-            // Calendar skeleton
-            const calendar = document.getElementById('calendar');
-            if (calendar) {
-                calendar.innerHTML = `
-                    <div class="skeleton-calendar">
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                        <div class="skeleton-calendar-day"><div class="skeleton-calendar-letter"></div><div class="skeleton-calendar-number"></div></div>
-                    </div>
-                `;
-            }
         }
+    }
+    
+    function updateDailyUI(data) {
+        const currentStreak = data.current_streak || 0;
+        const claimedToday = data.claimed_today || false;
         
-        function updateDailyUI(data) {
-            const currentStreak = data.current_streak || 0;
-            const claimedToday = data.claimed_today || false;
-            
-            // Build stats HTML
-            document.getElementById('statsContainer').innerHTML = `
-                <div class="stat-item">
-                    <div class="stat-value" id="streakCount">${currentStreak}</div>
-                    <div class="stat-label">Current Streak 🔥</div>
-                    <div class="stat-help">Days in a row</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="maxStreak">${data.max_streak || 0}</div>
-                    <div class="stat-label">Best Streak 🏆</div>
-                    <div class="stat-help">Your highest ever</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value" id="totalDays">${data.last_7_days?.length || 0}</div>
-                    <div class="stat-label">Total Days</div>
-                    <div class="stat-help">Total claims</div>
-                </div>
-            `;
-            
-            const { streakBonus, totalReward } = calculateReward(currentStreak);
-            
-            // Build reward card HTML
-            document.getElementById('rewardCardContainer').innerHTML = `
-                <div class="reward-card" id="claimBtn">
-                    <div class="reward-icon" id="rewardIcon">${getRewardIcon(currentStreak)}</div>
-                    <div class="reward-title" id="claimBtnText">${getRewardTitle(currentStreak, claimedToday)}</div>
-                    <div class="reward-amount"><span id="todayReward">${totalReward.toFixed(2)}</span></div>
-                    <div class="reward-coin">COINS</div>
-                    <div class="streak-bonus-badge" id="streakBonusBadge">${streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus'}</div>
-                </div>
-            `;
-            
-            // Build streak info HTML
-            document.getElementById('streakInfoContainer').innerHTML = `
-                <div class="streak-info">
-                    <div class="streak-header">
-                        <div class="streak-fire">🔥</div>
-                        <div class="streak-info-text">
-                            <h3>How Streak Works</h3>
-                            <p>Claim daily without missing a day to increase your streak!</p>
-                        </div>
-                    </div>
-                    <div class="bonus-list">
-                        <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
-                        <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
-                        <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
-                        <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
+        document.getElementById('statsContainer').innerHTML = `
+            <div class="stat-item">
+                <div class="stat-value" id="streakCount">${currentStreak}</div>
+                <div class="stat-label">Current Streak 🔥</div>
+                <div class="stat-help">Days in a row</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="maxStreak">${data.max_streak || 0}</div>
+                <div class="stat-label">Best Streak 🏆</div>
+                <div class="stat-help">Your highest ever</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="totalDays">${data.last_7_days?.length || 0}</div>
+                <div class="stat-label">Total Days</div>
+                <div class="stat-help">Total claims</div>
+            </div>
+        `;
+        
+        const { streakBonus, totalReward } = calculateReward(currentStreak);
+        document.getElementById('rewardCardContainer').innerHTML = `
+            <div class="reward-card" id="claimBtn">
+                <div class="reward-icon" id="rewardIcon">${getRewardIcon(currentStreak)}</div>
+                <div class="reward-title" id="claimBtnText">${getRewardTitle(currentStreak, claimedToday)}</div>
+                <div class="reward-amount"><span id="todayReward">${totalReward.toFixed(2)}</span></div>
+                <div class="reward-coin">COINS</div>
+                <div class="streak-bonus-badge" id="streakBonusBadge">${streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus'}</div>
+            </div>
+        `;
+        
+        document.getElementById('streakInfoContainer').innerHTML = `
+            <div class="streak-info">
+                <div class="streak-header">
+                    <div class="streak-fire">🔥</div>
+                    <div class="streak-info-text">
+                        <h3>How Streak Works</h3>
+                        <p>Claim daily without missing a day to increase your streak!</p>
                     </div>
                 </div>
-            `;
-            
-            // Re-attach event listener to the new claim button
-            const claimBtn = document.getElementById('claimBtn');
-            if (claimBtn) {
-                if (claimedToday) {
-                    claimBtn.classList.add('disabled');
-                } else {
-                    claimBtn.classList.remove('disabled');
-                }
-                claimBtn.addEventListener('click', claimDailyReward);
-            }
-            
-            renderCalendar(data);
+                <div class="bonus-list">
+                    <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
+                    <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
+                    <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
+                    <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
+                </div>
+            </div>
+        `;
+        
+        const claimBtn = document.getElementById('claimBtn');
+        if (claimBtn) {
+            if (claimedToday) claimBtn.classList.add('disabled');
+            else claimBtn.classList.remove('disabled');
+            claimBtn.addEventListener('click', claimDailyReward);
         }
         
-        function renderCalendar(data) {
-            const calendar = document.getElementById('calendar');
-            if (!calendar) return;
-            
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0];
-            
-            const claimedDays = data?.last_7_days || [];
-            const claimedDates = new Set(claimedDays.map(d => d.reward_date));
-            
-            const startDate = new Date(today);
-            startDate.setDate(today.getDate() - 6);
-            
-            calendar.innerHTML = '';
-            
-            const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-            
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(startDate);
-                date.setDate(startDate.getDate() + i);
-                
-                const dateStr = date.toISOString().split('T')[0];
-                const dayOfWeek = date.getDay();
-                const dayLetter = dayNames[dayOfWeek];
-                const dayNumber = date.getDate();
-                const month = date.getMonth() + 1;
-                const isClaimed = claimedDates.has(dateStr);
-                const isToday = dateStr === todayStr;
-                
-                const dayDiv = document.createElement('div');
-                dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}`;
-                
-                let checkIcon = '';
-                if (isClaimed) {
-                    checkIcon = '<i class="fas fa-check-circle"></i>';
-                } else if (isToday && !isClaimed) {
-                    checkIcon = '<i class="fas fa-gift"></i>';
-                }
-                
-                dayDiv.innerHTML = `
-                    <div class="day-letter">${dayLetter}</div>
-                    <div class="day-number">${dayNumber}/${month}</div>
-                    ${checkIcon}
-                `;
-                calendar.appendChild(dayDiv);
-            }
-        }
+        renderCalendar(data);
+    }
+    
+    function renderCalendar(data) {
+        const calendar = document.getElementById('calendar');
+        if (!calendar) return;
         
-        function startCountdown() {
-            if (countdownInterval) clearInterval(countdownInterval);
-            
-            countdownInterval = setInterval(() => {
-                const now = new Date();
-                const tomorrow = new Date(now);
-                tomorrow.setDate(now.getDate() + 1);
-                tomorrow.setHours(0, 0, 0, 0);
-                
-                const diff = tomorrow - now;
-                
-                if (diff <= 0) {
-                    loadDailyStats(false);
-                    return;
-                }
-                
-                const hours = Math.floor(diff / 3600000);
-                const minutes = Math.floor((diff % 3600000) / 60000);
-                const seconds = Math.floor((diff % 60000) / 1000);
-                
-                const countdownEl = document.getElementById('countdown');
-                if (countdownEl) {
-                    countdownEl.innerHTML = `Next reward in: <span>${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</span>`;
-                }
-            }, 1000);
-        }
+        const todayStr = getLocalDate();
+        const claimedDays = data?.last_7_days || [];
+        const claimedDates = new Set(claimedDays.map(d => d.reward_date));
         
-        async function loadDailyStats(showSkeletonLoader = true) {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 6);
+        
+        calendar.innerHTML = '';
+        const dayNames = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(startDate);
+            date.setDate(startDate.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            const dayLetter = dayNames[date.getDay()];
+            const dayNumber = date.getDate();
+            const month = date.getMonth() + 1;
+            const isClaimed = claimedDates.has(dateStr);
+            const isToday = dateStr === todayStr;
+            
+            const dayDiv = document.createElement('div');
+            dayDiv.className = `calendar-day ${isClaimed ? 'claimed' : ''} ${isToday ? 'today' : ''}`;
+            let checkIcon = '';
+            if (isClaimed) checkIcon = '<i class="fas fa-check-circle"></i>';
+            else if (isToday && !isClaimed) checkIcon = '<i class="fas fa-gift"></i>';
+            dayDiv.innerHTML = `<div class="day-letter">${dayLetter}</div><div class="day-number">${dayNumber}/${month}</div>${checkIcon}`;
+            calendar.appendChild(dayDiv);
+        }
+    }
+    
+    function startCountdown() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownInterval = setInterval(() => {
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(now.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            const diff = tomorrow - now;
+            if (diff <= 0) {
+                loadDailyStats(false);
                 return;
             }
-            
-            if (showSkeletonLoader) {
-                showSkeleton();
+            const hours = Math.floor(diff / 3600000);
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            const countdownEl = document.getElementById('countdown');
+            if (countdownEl) {
+                countdownEl.innerHTML = `Next reward in: <span>${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}</span>`;
             }
-            
-            try {
-                const data = await apiCall('/api/daily-stats', { initData: tg.initData });
-                updateDailyUI(data);
-                startCountdown();
-            } catch (err) {
-                console.error('Failed to load daily stats:', err);
-                document.getElementById('statsContainer').innerHTML = '<div class="loading">Failed to load stats</div>';
-            }
+        }, 1000);
+    }
+    
+    async function loadDailyStats(showSkeletonLoader = true) {
+        if (!tg?.initData) {
+            showNotification('Please open from Telegram', true);
+            return;
         }
-        
-        async function claimDailyReward() {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
-                return;
-            }
-            
-            const claimBtn = document.getElementById('claimBtn');
-            if (claimBtn.classList.contains('disabled')) {
-                showNotification('You already claimed your reward today! Come back tomorrow!', true);
-                return;
-            }
-            
-            claimBtn.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                claimBtn.style.transform = '';
-            }, 200);
-            
-            claimBtn.style.pointerEvents = 'none';
-            claimBtn.style.opacity = '0.7';
-            
-            try {
-                const data = await apiCall('/api/daily-reward', { initData: tg.initData });
-                
-                const coins = data.reward.toFixed(2);
-                const streak = data.streak;
-                
-                let message = `🎉 Daily reward claimed! +${coins} COINS!`;
-                if (streak >= 100) message = `💎 LEGENDARY! ${streak} day streak! +${coins} COINS! 💎`;
-                else if (streak >= 50) message = `👑 EPIC! ${streak} day streak! +${coins} COINS! 👑`;
-                else if (streak >= 30) message = `⭐ AMAZING! ${streak} day streak! +${coins} COINS! ⭐`;
-                else if (streak >= 14) message = `🌟 GREAT! ${streak} day streak! +${coins} COINS! 🌟`;
-                else if (streak >= 7) message = `🔥 ON FIRE! ${streak} day streak! +${coins} COINS! 🔥`;
-                else message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
-                
-                showNotification(message);
-                await loadDailyStats(false);
-                
-            } catch (err) {
-                let errorMsg = err.message;
-                try {
-                    const parsed = JSON.parse(errorMsg);
-                    errorMsg = parsed.error || errorMsg;
-                } catch (e) {}
-                
-                if (errorMsg.includes('Already claimed')) {
-                    errorMsg = 'You already claimed your reward today! Come back tomorrow!';
-                }
-                
-                showNotification(errorMsg, true);
-                await loadDailyStats(false);
-            } finally {
-                claimBtn.style.pointerEvents = '';
-                claimBtn.style.opacity = '';
-            }
+        if (showSkeletonLoader) showSkeleton();
+        try {
+            const localDate = getLocalDate();
+            const data = await apiCall('/api/daily-stats', { initData: tg.initData, localDate });
+            updateDailyUI(data);
+            startCountdown();
+        } catch (err) {
+            console.error('Failed to load daily stats:', err);
+            document.getElementById('statsContainer').innerHTML = '<div class="loading">Failed to load stats</div>';
         }
-        
-        // ============================================
-        // PULL TO REFRESH FUNCTIONALITY
-        // ============================================
-        
-        function showRefreshIndicator(text, isError = false) {
-            refreshIndicator.textContent = text;
-            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
-            refreshIndicator.classList.add('show');
-            setTimeout(() => {
-                refreshIndicator.classList.remove('show');
-            }, 1500);
+    }
+    
+    async function claimDailyReward() {
+        if (!tg?.initData) {
+            showNotification('Please open from Telegram', true);
+            return;
         }
-        
-        async function refreshData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
-            
-            try {
-                await loadDailyStats(false);
-                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-                showNotification('Daily stats refreshed!', false);
-            } catch (err) {
-                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
-            } finally {
-                isRefreshing = false;
-            }
+        const claimBtn = document.getElementById('claimBtn');
+        if (claimBtn.classList.contains('disabled')) {
+            showNotification('You already claimed your reward today! Come back tomorrow!', true);
+            return;
         }
+        claimBtn.style.transform = 'scale(0.98)';
+        setTimeout(() => claimBtn.style.transform = '', 200);
+        claimBtn.style.pointerEvents = 'none';
+        claimBtn.style.opacity = '0.7';
         
-        // Touch events for pull to refresh
-        document.addEventListener('touchstart', (e) => {
-            if (window.scrollY === 0) {
-                touchStartY = e.touches[0].clientY;
-            }
-        });
-        
-        document.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && !isRefreshing) {
-                const touchY = e.touches[0].clientY;
-                const diff = touchY - touchStartY;
-                if (diff > 60) {
-                    e.preventDefault();
-                    refreshData();
-                }
-            }
-        });
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('📅 Daily page loading...');
-            loadDailyStats(true);
-        });
-    </script>
+        try {
+            const localDate = getLocalDate();
+            const data = await apiCall('/api/daily-reward', { initData: tg.initData, localDate });
+            const coins = data.reward.toFixed(2);
+            const streak = data.streak;
+            let message = `🎉 Daily reward claimed! +${coins} COINS!`;
+            if (streak >= 100) message = `💎 LEGENDARY! ${streak} day streak! +${coins} COINS! 💎`;
+            else if (streak >= 50) message = `👑 EPIC! ${streak} day streak! +${coins} COINS! 👑`;
+            else if (streak >= 30) message = `⭐ AMAZING! ${streak} day streak! +${coins} COINS! ⭐`;
+            else if (streak >= 14) message = `🌟 GREAT! ${streak} day streak! +${coins} COINS! 🌟`;
+            else if (streak >= 7) message = `🔥 ON FIRE! ${streak} day streak! +${coins} COINS! 🔥`;
+            else message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
+            showNotification(message);
+            await loadDailyStats(false);
+        } catch (err) {
+            let errorMsg = err.message;
+            try { const parsed = JSON.parse(errorMsg); errorMsg = parsed.error || errorMsg; } catch (e) {}
+            if (errorMsg.includes('Already claimed')) errorMsg = 'You already claimed your reward today! Come back tomorrow!';
+            showNotification(errorMsg, true);
+            await loadDailyStats(false);
+        } finally {
+            claimBtn.style.pointerEvents = '';
+            claimBtn.style.opacity = '';
+        }
+    }
+    
+    // Pull to refresh
+    function showRefreshIndicator(text, isError = false) {
+        refreshIndicator.textContent = text;
+        refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+        refreshIndicator.classList.add('show');
+        setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+    }
+    async function refreshData() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        try {
+            await loadDailyStats(false);
+            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+            showNotification('Daily stats refreshed!', false);
+        } catch (err) {
+            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+        } finally {
+            isRefreshing = false;
+        }
+    }
+    document.addEventListener('touchstart', (e) => { if (window.scrollY === 0) touchStartY = e.touches[0].clientY; });
+    document.addEventListener('touchmove', (e) => {
+        if (window.scrollY === 0 && !isRefreshing) {
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 60) { e.preventDefault(); refreshData(); }
+        }
+    });
+    document.addEventListener('DOMContentLoaded', () => { loadDailyStats(true); });
+</script>
 </body>
 </html>
