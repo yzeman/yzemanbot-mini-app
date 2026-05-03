@@ -64,7 +64,7 @@
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex;
             align-items: center;
             justify-content: center;
@@ -73,7 +73,9 @@
             color: white;
             overflow: hidden;
             cursor: pointer;
+            transition: transform 0.2s;
         }
+        .avatar:hover { transform: scale(1.05); }
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
         .user-info { 
             flex: 1; 
@@ -81,15 +83,6 @@
         }
         .user-name { font-size: 18px; font-weight: 600; }
         .user-id { font-size: 12px; color: var(--gray); }
-        .tier-badge-header {
-            background: var(--gold);
-            color: var(--dark);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-        }
         
         /* Profile Link with Notification Badge */
         .profile-link {
@@ -138,12 +131,15 @@
             display: none;
         }
         
+        /* ATTRACTIVE BALANCE CARD WITH TIER */
         .balance-card {
-            background: rgba(255,255,255,0.1);
-            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            border-radius: 25px;
             padding: 20px;
             margin-top: 10px;
             position: relative;
+            border: 1px solid rgba(255,215,0,0.2);
+            backdrop-filter: blur(10px);
         }
         .balance-row {
             display: flex;
@@ -151,9 +147,74 @@
             align-items: center;
             margin-bottom: 15px;
         }
-        .balance-label { font-size: 14px; color: var(--gray); }
-        .balance-value { font-size: 32px; font-weight: bold; color: var(--gold); }
+        .balance-label { 
+            font-size: 14px; 
+            color: var(--gray);
+            letter-spacing: 0.5px;
+        }
+        .balance-value { 
+            font-size: 32px; 
+            font-weight: bold; 
+            background: linear-gradient(135deg, var(--gold), #FFA000);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
         .balance-coin { font-size: 14px; color: var(--gray); margin-left: 5px; }
+        
+        /* Attractive Tier Display */
+        .tier-display {
+            background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,160,0,0.08));
+            border-radius: 16px;
+            padding: 12px 15px;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+        .tier-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .tier-icon {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--gold), #FFA000);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--dark);
+        }
+        .tier-details h4 {
+            font-size: 11px;
+            color: var(--gray);
+            letter-spacing: 0.5px;
+        }
+        .tier-name {
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--gold), #FFA000);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .tier-multiplier {
+            text-align: right;
+        }
+        .multiplier-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        .multiplier-label {
+            font-size: 10px;
+            color: var(--gray);
+        }
+        
         .progress-section { margin-top: 15px; }
         .progress-label {
             display: flex;
@@ -186,11 +247,13 @@
             border-radius: 15px;
             padding: 12px;
             text-align: center;
+            transition: transform 0.2s;
         }
+        .stat-card:hover { transform: translateY(-2px); }
         .stat-value { font-size: 20px; font-weight: bold; color: var(--light); }
         .stat-label { font-size: 11px; color: var(--gray); margin-top: 5px; }
         
-        /* ATTRACTIVE FEATURE GRID - REARRANGED */
+        /* ATTRACTIVE FEATURE GRID */
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -714,13 +777,14 @@
                 <div id="userName" class="user-name">Loading...</div>
                 <div id="userId" class="user-id"></div>
             </div>
-            <div id="tier" class="tier-badge-header" onclick="window.location.href='/profile.html'">Fresher</div>
             <div class="profile-link" onclick="window.location.href='/profile.html'">
                 <i class="fas fa-user-circle"></i>
                 <span>Profile</span>
                 <div id="profileNotificationBadge" class="notification-badge hidden">0</div>
             </div>
         </div>
+        
+        <!-- ATTRACTIVE BALANCE CARD WITH TIER DISPLAY -->
         <div class="balance-card">
             <div class="balance-row">
                 <span class="balance-label">Your Balance</span>
@@ -729,6 +793,22 @@
                     <span class="balance-coin">COINS</span>
                 </div>
             </div>
+            
+            <!-- Attractive Tier Display -->
+            <div class="tier-display" id="tierDisplay">
+                <div class="tier-info">
+                    <div class="tier-icon" id="tierIcon">🌱</div>
+                    <div class="tier-details">
+                        <h4>CURRENT TIER</h4>
+                        <div class="tier-name" id="tierName">Fresher</div>
+                    </div>
+                </div>
+                <div class="tier-multiplier">
+                    <div class="multiplier-value" id="tierMultiplier">1.0x</div>
+                    <div class="multiplier-label">Earning Rate</div>
+                </div>
+            </div>
+            
             <div class="progress-section">
                 <div class="progress-label">
                     <span>Withdrawal Progress</span>
@@ -964,7 +1044,7 @@
             const requestsData = await requestsRes.json();
             const pendingRequests = requestsData.requests?.length || 0;
             
-            // Fetch unread messages count (if private messages endpoint exists)
+            // Fetch unread messages count
             let unreadMessages = 0;
             try {
                 const messagesRes = await fetch('/api/private/messages/unread', {
@@ -975,8 +1055,7 @@
                 const messagesData = await messagesRes.json();
                 unreadMessages = messagesData.unread_count || 0;
             } catch (e) {
-                // Private messages endpoint might not exist yet
-                console.log('Private messages not available');
+                console.log('Private messages endpoint not available');
             }
             
             const totalNotifications = pendingRequests + unreadMessages;
@@ -993,10 +1072,59 @@
         }
     }
     
+    // Function to update tier display with icon and multiplier
+    function updateTierDisplay() {
+        const tierElement = document.getElementById('tierName');
+        const tierIconElement = document.getElementById('tierIcon');
+        const multiplierElement = document.getElementById('tierMultiplier');
+        
+        if (!currentUser) return;
+        
+        const tier = currentUser.tier || 'Fresher';
+        const tierConfig = {
+            'Fresher': { icon: '🌱', multiplier: '1.0x', color: '#888' },
+            'Brute': { icon: '🔥', multiplier: '1.5x', color: '#FF9800' },
+            'Silver': { icon: '🥈', multiplier: '2.0x', color: '#C0C0C0' },
+            'Gold': { icon: '🥇', multiplier: '2.5x', color: '#FFD700' },
+            'Platinum': { icon: '💎', multiplier: '3.0x', color: '#E5E4E2' }
+        };
+        
+        const config = tierConfig[tier] || tierConfig['Fresher'];
+        tierElement.textContent = tier;
+        tierIconElement.textContent = config.icon;
+        multiplierElement.textContent = config.multiplier;
+    }
+    
+    // Override the refreshUser function to update tier display
+    const originalRefreshUser = window.refreshUser;
+    if (originalRefreshUser) {
+        window.refreshUser = async function() {
+            await originalRefreshUser();
+            if (window.currentUser) {
+                updateTierDisplay();
+            }
+        };
+    }
+    
+    // Listen for user data updates
+    if (window.currentUser) {
+        updateTierDisplay();
+    }
+    
+    // Check for user data periodically
+    setInterval(() => {
+        if (window.currentUser) {
+            updateTierDisplay();
+        }
+    }, 5000);
+    
     document.addEventListener('DOMContentLoaded', () => {
         checkUrlForTab();
         loadNotificationCount();
         setInterval(loadNotificationCount, 30000);
+        if (window.currentUser) {
+            updateTierDisplay();
+        }
     });
     </script>
     
