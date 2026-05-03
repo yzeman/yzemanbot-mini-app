@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Team Chat - YzemanBot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
+            --gold: #FFD700;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, #0f0f1a 100%);
+            color: var(--light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+            flex-shrink: 0;
+        }
+        .back-btn {
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+            background: rgba(0,0,0,0.3);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .team-info h2 {
+            font-size: 18px;
+            margin-bottom: 2px;
+        }
+        .team-info p {
+            font-size: 11px;
+            color: var(--gray);
+        }
+        .member-count {
+            background: var(--primary);
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            margin-left: auto;
+        }
+        
+        /* Messages Container */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 85%;
+        }
+        .message-own {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .message-bubble {
+            background: rgba(22, 33, 62, 0.9);
+            border-radius: 18px;
+            padding: 10px 14px;
+            max-width: 100%;
+        }
+        .message-own .message-bubble {
+            background: linear-gradient(135deg, var(--primary), #2E7D32);
+        }
+        .message-sender {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gold);
+            margin-bottom: 3px;
+        }
+        .message-text {
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .message-time {
+            font-size: 9px;
+            color: var(--gray);
+            margin-top: 4px;
+            text-align: right;
+        }
+        .edited-badge {
+            font-size: 8px;
+            color: var(--gray);
+            margin-left: 5px;
+        }
+        
+        /* Typing Indicator */
+        .typing-indicator {
+            padding: 8px 15px;
+            font-size: 11px;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+        }
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+        
+        /* Input Area */
+        .input-area {
+            padding: 12px;
+            background: rgba(22, 33, 62, 0.95);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .message-input {
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--gray);
+            border-radius: 25px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        .message-input:focus {
+            border-color: var(--primary);
+        }
+        .send-btn {
+            background: linear-gradient(135deg, var(--primary), #2E7D32);
+            border: none;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-btn:active { transform: scale(0.95); }
+        
+        .loading-messages {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+        }
+        
+        /* Message actions (long press menu) */
+        .message-actions {
+            position: fixed;
+            background: var(--darker);
+            border-radius: 12px;
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .message-actions button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+        .message-actions button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .message-actions .delete-btn { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="chat-header" id="chatHeader">
+        <a href="/team.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+        <div class="team-info">
+            <h2 id="teamName">Team Chat</h2>
+            <p id="teamStatus">Connecting...</p>
+        </div>
+        <div class="member-count" id="memberCount">0 members</div>
+    </div>
+    
+    <div class="messages-container" id="messagesContainer">
+        <div class="loading-messages">Loading messages...</div>
+    </div>
+    
+    <div class="typing-indicator" id="typingIndicator" style="display: none;">
+        <span>Someone is typing</span>
+        <div class="typing-dots">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <input type="text" class="message-input" id="messageInput" placeholder="Type a message...">
+        <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    
+    <div class="message-actions" id="messageActions">
+        <button id="editMessageBtn"><i class="fas fa-edit"></i> Edit</button>
+        <button id="deleteMessageBtn" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+    
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+        
+        let socket = null;
+        let currentUser = null;
+        let currentTeam = null;
+        let typingTimeout = null;
+        let selectedMessageId = null;
+        let selectedMessageElement = null;
+        
+        // Get team info from URL or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const teamId = urlParams.get('teamId');
+        const teamName = urlParams.get('teamName') || 'Team Chat';
+        
+        async function init() {
+            if (!tg?.initData) {
+                showError('Please open from Telegram');
+                return;
+            }
+            
+            // Get current user
+            try {
+                const userRes = await fetch('/api/user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                currentUser = await userRes.json();
+                
+                // Get team info
+                const teamRes = await fetch('/api/team/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                const teamData = await teamRes.json();
+                
+                if (!teamData.has_team) {
+                    showError('You are not in a team');
+                    setTimeout(() => window.location.href = '/team.html', 2000);
+                    return;
+                }
+                
+                currentTeam = teamData.team;
+                document.getElementById('teamName').textContent = currentTeam.name;
+                document.getElementById('memberCount').textContent = `${teamData.members?.length || 0} members`;
+                
+                connectWebSocket();
+                
+            } catch (err) {
+                console.error('Init error:', err);
+                showError('Failed to load user data');
+            }
+        }
+        
+        function connectWebSocket() {
+            const socketUrl = window.location.origin.replace('http', 'ws');
+            socket = io(socketUrl, {
+                auth: { initData: tg.initData },
+                transports: ['websocket']
+            });
+            
+            socket.on('connect', () => {
+                console.log('✅ WebSocket connected');
+                socket.emit('join-team', {
+                    teamId: currentTeam.id,
+                    userId: currentUser.id,
+                    firstName: currentUser.first_name
+                });
+                document.getElementById('teamStatus').textContent = 'Connected';
+            });
+            
+            socket.on('chat-history', (messages) => {
+                renderMessages(messages);
+            });
+            
+            socket.on('new-message', (message) => {
+                addMessageToChat(message);
+                scrollToBottom();
+            });
+            
+            socket.on('user-joined', (data) => {
+                addSystemMessage(`${data.firstName} joined the chat`);
+            });
+            
+            socket.on('user-typing', (data) => {
+                showTypingIndicator(data.firstName, data.isTyping);
+            });
+            
+            socket.on('message-edited', (data) => {
+                updateMessageInChat(data.messageId, data.newMessage);
+            });
+            
+            socket.on('message-deleted', (data) => {
+                removeMessageFromChat(data.messageId);
+            });
+            
+            socket.on('message-error', (data) => {
+                showError(data.error);
+            });
+            
+            socket.on('disconnect', () => {
+                document.getElementById('teamStatus').textContent = 'Reconnecting...';
+                setTimeout(() => {
+                    if (!socket.connected) socket.connect();
+                }, 3000);
+            });
+        }
+        
+        function renderMessages(messages) {
+            const container = document.getElementById('messagesContainer');
+            if (!messages || messages.length === 0) {
+                container.innerHTML = '<div class="loading-messages">No messages yet. Say hi to your team!</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            messages.forEach(msg => {
+                appendMessageElement(msg);
+            });
+            scrollToBottom();
+        }
+        
+        function appendMessageElement(msg) {
+            const container = document.getElementById('messagesContainer');
+            const isOwn = msg.user_id === currentUser.id;
+            const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const initial = (msg.first_name || 'U')[0].toUpperCase();
+            const firstName = msg.first_name ? msg.first_name.split(' ')[0] : 'User';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOwn ? 'message-own' : ''}`;
+            messageDiv.dataset.messageId = msg.id;
+            messageDiv.dataset.userId = msg.user_id;
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${initial}</div>
+                <div class="message-bubble">
+                    ${!isOwn ? `<div class="message-sender">${escapeHtml(firstName)}</div>` : ''}
+                    <div class="message-text">${escapeHtml(msg.message)}</div>
+                    <div class="message-time">
+                        ${time}
+                        ${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}
+                    </div>
+                </div>
+            `;
+            
+            // Add long press menu for own messages
+            if (isOwn) {
+                messageDiv.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showMessageActions(e, msg.id, messageDiv);
+                });
+                messageDiv.addEventListener('touchstart', (e) => {
+                    let timer;
+                    timer = setTimeout(() => {
+                        showMessageActions(e, msg.id, messageDiv);
+                    }, 500);
+                    messageDiv.addEventListener('touchend', () => clearTimeout(timer));
+                    messageDiv.addEventListener('touchmove', () => clearTimeout(timer));
+                });
+            }
+            
+            container.appendChild(messageDiv);
+        }
+        
+        function addMessageToChat(msg) {
+            const container = document.getElementById('messagesContainer');
+            // Remove "no messages" placeholder if exists
+            if (container.querySelector('.loading-messages')) {
+                container.innerHTML = '';
+            }
+            appendMessageElement(msg);
+        }
+        
+        function updateMessageInChat(messageId, newMessage) {
+            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (messageDiv) {
+                const textSpan = messageDiv.querySelector('.message-text');
+                const timeSpan = messageDiv.querySelector('.message-time');
+                if (textSpan) {
+                    textSpan.textContent = escapeHtml(newMessage);
+                }
+                if (timeSpan && !timeSpan.querySelector('.edited-badge')) {
+                    timeSpan.innerHTML += '<span class="edited-badge">(edited)</span>';
+                }
+            }
+        }
+        
+        function removeMessageFromChat(messageId) {
+            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (messageDiv) {
+                messageDiv.remove();
+            }
+        }
+        
+        function addSystemMessage(text) {
+            const container = document.getElementById('messagesContainer');
+            const systemDiv = document.createElement('div');
+            systemDiv.style.cssText = 'text-align:center; font-size:11px; color:var(--gray); margin:5px 0;';
+            systemDiv.textContent = text;
+            container.appendChild(systemDiv);
+            setTimeout(() => systemDiv.remove(), 3000);
+        }
+        
+        function showTypingIndicator(userName, isTyping) {
+            const indicator = document.getElementById('typingIndicator');
+            if (isTyping) {
+                indicator.style.display = 'flex';
+                indicator.querySelector('span').textContent = `${userName} is typing`;
+                setTimeout(() => {
+                    if (indicator.style.display === 'flex') {
+                        indicator.style.display = 'none';
+                    }
+                }, 3000);
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        function showMessageActions(event, messageId, element) {
+            const menu = document.getElementById('messageActions');
+            selectedMessageId = messageId;
+            selectedMessageElement = element;
+            
+            menu.style.display = 'block';
+            menu.style.left = `${event.pageX}px`;
+            menu.style.top = `${event.pageY}px`;
+            
+            setTimeout(() => {
+                document.addEventListener('click', hideMessageActions);
+            }, 100);
+        }
+        
+        function hideMessageActions() {
+            const menu = document.getElementById('messageActions');
+            menu.style.display = 'none';
+            selectedMessageId = null;
+            selectedMessageElement = null;
+            document.removeEventListener('click', hideMessageActions);
+        }
+        
+        async function editMessage() {
+            if (!selectedMessageId) return;
+            const newMessage = prompt('Edit your message:');
+            if (newMessage && newMessage.trim()) {
+                socket.emit('edit-message', {
+                    messageId: selectedMessageId,
+                    newMessage: newMessage.trim(),
+                    userId: currentUser.id,
+                    teamId: currentTeam.id
+                });
+            }
+            hideMessageActions();
+        }
+        
+        async function deleteMessage() {
+            if (!selectedMessageId) return;
+            if (confirm('Delete this message?')) {
+                socket.emit('delete-message', {
+                    messageId: selectedMessageId,
+                    userId: currentUser.id,
+                    teamId: currentTeam.id
+                });
+            }
+            hideMessageActions();
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            socket.emit('send-message', {
+                teamId: currentTeam.id,
+                message: message,
+                userId: currentUser.id,
+                firstName: currentUser.first_name
+            });
+            
+            input.value = '';
+        }
+        
+        function handleTyping() {
+            if (typingTimeout) clearTimeout(typingTimeout);
+            
+            socket.emit('typing', {
+                teamId: currentTeam.id,
+                userId: currentUser.id,
+                firstName: currentUser.first_name,
+                isTyping: true
+            });
+            
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', {
+                    teamId: currentTeam.id,
+                    userId: currentUser.id,
+                    firstName: currentUser.first_name,
+                    isTyping: false
+                });
+            }, 1000);
+        }
+        
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function showError(msg) {
+            console.error(msg);
+            document.getElementById('teamStatus').textContent = msg;
+            const notif = document.getElementById('notification');
+            if (notif) {
+                notif.textContent = msg;
+                notif.style.display = 'block';
+                setTimeout(() => notif.style.display = 'none', 3000);
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        document.getElementById('messageInput').addEventListener('input', handleTyping);
+        document.getElementById('editMessageBtn').addEventListener('click', editMessage);
+        document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
+        
+        // Add notification div
+        const notifDiv = document.createElement('div');
+        notifDiv.id = 'notification';
+        notifDiv.style.cssText = 'position:fixed; bottom:80px; left:15px; right:15px; background:#00c853; color:white; padding:12px; border-radius:12px; text-align:center; display:none; z-index:1000; font-size:12px;';
+        document.body.appendChild(notifDiv);
+        
+        init();
+    </script>
+</body>
+</html>
