@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="//libtl.com/sdk.js" data-zone="9683863" data-sdk="show_9683863"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -131,6 +132,45 @@
             display: none;
         }
         
+        /* Online status toast */
+        .online-toast {
+            position: fixed;
+            bottom: 80px;
+            left: 15px;
+            right: 15px;
+            background: linear-gradient(135deg, var(--secondary), #0D47A1);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+            transform: translateY(100px);
+            transition: transform 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .online-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .online-toast i {
+            font-size: 20px;
+            color: var(--gold);
+        }
+        .online-toast-content {
+            flex: 1;
+        }
+        .online-toast-title {
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .online-toast-text {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
         /* ATTRACTIVE BALANCE CARD WITH TIER */
         .balance-card {
             background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
@@ -161,6 +201,15 @@
             background-clip: text;
         }
         .balance-coin { font-size: 14px; color: var(--gray); margin-left: 5px; }
+        
+        function formatNumberWithCommas(num) {
+            if (num === undefined) return '0';
+            const n = parseFloat(num);
+            if (isNaN(n)) return '0';
+            const parts = n.toFixed(2).split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            return parts.join('.');
+        }
         
         /* Attractive Tier Display */
         .tier-display {
@@ -770,6 +819,15 @@
         <i class="fas fa-arrow-down"></i> Pull to refresh
     </div>
     
+    <!-- Online Toast Notification -->
+    <div class="online-toast" id="onlineToast">
+        <i class="fas fa-circle" style="color: #4CAF50; font-size: 12px;"></i>
+        <div class="online-toast-content">
+            <div class="online-toast-title" id="onlineToastTitle">Friend Online</div>
+            <div class="online-toast-text" id="onlineToastText">Someone came online</div>
+        </div>
+    </div>
+    
     <div class="header">
         <div class="user-section">
             <div class="avatar" id="userAvatar" onclick="window.location.href='/profile.html'"><i class="fas fa-user"></i></div>
@@ -1018,6 +1076,16 @@
     <script src="/app.js"></script>
     
     <script>
+    // Format number with commas
+    function formatNumberWithCommas(num) {
+        if (num === undefined || num === null) return '0';
+        const number = parseFloat(num);
+        if (isNaN(number)) return '0';
+        const parts = number.toFixed(2).split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return parts.join('.');
+    }
+    
     // Check URL for tab parameter
     function checkUrlForTab() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -1035,7 +1103,6 @@
         if (!window.Telegram?.WebApp?.initData) return;
         
         try {
-            // Fetch friend requests count
             const requestsRes = await fetch('/api/friends/requests', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1044,7 +1111,6 @@
             const requestsData = await requestsRes.json();
             const pendingRequests = requestsData.requests?.length || 0;
             
-            // Fetch unread messages count
             let unreadMessages = 0;
             try {
                 const messagesRes = await fetch('/api/private/messages/unread', {
@@ -1072,36 +1138,83 @@
         }
     }
     
+    // Online status WebSocket
+    let statusSocket = null;
+    let toastTimeout = null;
+    
+    function showOnlineToast(firstName) {
+        const toast = document.getElementById('onlineToast');
+        document.getElementById('onlineToastTitle').textContent = 'Friend Online 🟢';
+        document.getElementById('onlineToastText').textContent = `${firstName} is now online!`;
+        
+        toast.classList.add('show');
+        
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 4000);
+    }
+    
+    function connectStatusWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${protocol}//${window.location.host}`;
+        
+        statusSocket = io(socketUrl, {
+            auth: { initData: window.Telegram?.WebApp?.initData },
+            transports: ['websocket']
+        });
+        
+        statusSocket.on('connect', () => {
+            console.log('Status WebSocket connected');
+            if (currentUser) {
+                statusSocket.emit('join-status', { userId: currentUser.id });
+            }
+        });
+        
+        statusSocket.on('friend-online', (data) => {
+            console.log('Friend online:', data);
+            showOnlineToast(data.firstName);
+        });
+        
+        statusSocket.on('disconnect', () => {
+            console.log('Status WebSocket disconnected');
+            setTimeout(connectStatusWebSocket, 3000);
+        });
+    }
+    
     // Function to update tier display with icon and multiplier
     function updateTierDisplay() {
         const tierElement = document.getElementById('tierName');
         const tierIconElement = document.getElementById('tierIcon');
         const multiplierElement = document.getElementById('tierMultiplier');
         
-        if (!currentUser) return;
+        if (!window.currentUser) return;
         
-        const tier = currentUser.tier || 'Fresher';
+        const tier = window.currentUser.tier || 'Fresher';
         const tierConfig = {
-            'Fresher': { icon: '🌱', multiplier: '1.0x', color: '#888' },
-            'Brute': { icon: '🔥', multiplier: '1.5x', color: '#FF9800' },
-            'Silver': { icon: '🥈', multiplier: '2.0x', color: '#C0C0C0' },
-            'Gold': { icon: '🥇', multiplier: '2.5x', color: '#FFD700' },
-            'Platinum': { icon: '💎', multiplier: '3.0x', color: '#E5E4E2' }
+            'Fresher': { icon: '🌱', multiplier: '1.0x' },
+            'Brute': { icon: '🔥', multiplier: '1.5x' },
+            'Silver': { icon: '🥈', multiplier: '2.0x' },
+            'Gold': { icon: '🥇', multiplier: '2.5x' },
+            'Platinum': { icon: '💎', multiplier: '3.0x' }
         };
         
         const config = tierConfig[tier] || tierConfig['Fresher'];
-        tierElement.textContent = tier;
-        tierIconElement.textContent = config.icon;
-        multiplierElement.textContent = config.multiplier;
+        if (tierElement) tierElement.textContent = tier;
+        if (tierIconElement) tierIconElement.textContent = config.icon;
+        if (multiplierElement) multiplierElement.textContent = config.multiplier;
     }
     
-    // Override the refreshUser function to update tier display
-    const originalRefreshUser = window.refreshUser;
-    if (originalRefreshUser) {
-        window.refreshUser = async function() {
-            await originalRefreshUser();
+    // Override updateUI to add comma formatting
+    const originalUpdateUI = window.updateUI;
+    if (originalUpdateUI) {
+        window.updateUI = function() {
+            originalUpdateUI();
             if (window.currentUser) {
-                updateTierDisplay();
+                const coinsEl = document.getElementById('coins');
+                if (coinsEl) {
+                    coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
+                }
             }
         };
     }
@@ -1109,14 +1222,34 @@
     // Listen for user data updates
     if (window.currentUser) {
         updateTierDisplay();
+        const coinsEl = document.getElementById('coins');
+        if (coinsEl) {
+            coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
+        }
     }
     
-    // Check for user data periodically
-    setInterval(() => {
-        if (window.currentUser) {
-            updateTierDisplay();
-        }
-    }, 5000);
+    // Monitor currentUser changes
+    Object.defineProperty(window, 'currentUser', {
+        set: function(value) {
+            this._currentUser = value;
+            if (value) {
+                const coinsEl = document.getElementById('coins');
+                if (coinsEl) {
+                    coinsEl.textContent = formatNumberWithCommas(value.coins);
+                }
+                updateTierDisplay();
+                
+                // Connect WebSocket when user is available
+                if (!statusSocket) {
+                    connectStatusWebSocket();
+                }
+            }
+        },
+        get: function() {
+            return this._currentUser;
+        },
+        configurable: true
+    });
     
     document.addEventListener('DOMContentLoaded', () => {
         checkUrlForTab();
@@ -1124,6 +1257,7 @@
         setInterval(loadNotificationCount, 30000);
         if (window.currentUser) {
             updateTierDisplay();
+            connectStatusWebSocket();
         }
     });
     </script>
@@ -1133,7 +1267,6 @@
         const tg = window.Telegram?.WebApp;
         if (tg) { tg.ready(); tg.expand(); }
         
-        // Pull to refresh
         let touchStartY = 0;
         let isRefreshing = false;
         const refreshIndicator = document.getElementById('refreshIndicator');
@@ -1169,7 +1302,6 @@
             }
         });
         
-        // Task configuration
         const TASK_CONFIG = {
             game: { name: 'game', coins: 200, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false, onceOnly: true },
             website: { name: 'website', coins: 5, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: false, onceOnly: false },
