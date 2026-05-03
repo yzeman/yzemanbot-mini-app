@@ -1048,22 +1048,28 @@ function displayWithdrawalHistory(history) {
 
 async function claimDailyReward() {
     try {
-        const result = await apiCall('/api/daily-reward', { initData: tg.initData });
+        const localDate = new Date().toISOString().split('T')[0];
+        const result = await apiCall('/api/daily-reward', { initData: tg.initData, localDate });
         const streak = result.streak || 1;
         const totalReward = COIN_ECONOMY.DAILY_BASE_REWARD + (streak * COIN_ECONOMY.DAILY_STREAK_BONUS);
         await addCoins(totalReward, 'daily');
         showNotification(`🎁 Daily reward: +${totalReward.toFixed(2)} COINS! Streak: ${streak} days 🔥`);
         await refreshUser();
         if (document.getElementById('streakCount')) loadDailyStats();
-    } catch (err) { showNotification(err.message, true); }
+    } catch (err) {
+        showNotification(err.message, true);
+    }
 }
 
 async function loadDailyStats() {
     try {
-        const data = await apiCall('/api/daily-stats', { initData: tg.initData });
+        const localDate = new Date().toISOString().split('T')[0];
+        const data = await apiCall('/api/daily-stats', { initData: tg.initData, localDate });
         const streakCount = document.getElementById('streakCount');
         if (streakCount) streakCount.textContent = data.current_streak || 0;
-    } catch (err) { console.error('Daily stats error:', err); }
+    } catch (err) {
+        console.error('Daily stats error:', err);
+    }
 }
 
 // ============================================================
