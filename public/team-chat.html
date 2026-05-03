@@ -16,6 +16,7 @@
             --light: #ffffff;
             --gray: #888888;
             --gold: #FFD700;
+            --danger: #f44336;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -78,6 +79,7 @@
             display: flex;
             gap: 10px;
             max-width: 85%;
+            position: relative;
         }
         .message-own {
             align-self: flex-end;
@@ -100,6 +102,7 @@
             border-radius: 18px;
             padding: 10px 14px;
             max-width: 100%;
+            position: relative;
         }
         .message-own .message-bubble {
             background: linear-gradient(135deg, var(--primary), #2E7D32);
@@ -126,6 +129,33 @@
             color: var(--gray);
             margin-left: 5px;
         }
+        
+        /* Message actions menu (long press) */
+        .message-actions {
+            position: fixed;
+            background: var(--darker);
+            border-radius: 12px;
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .message-actions button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .message-actions button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .message-actions .delete-btn { color: #f44336; }
         
         .system-message {
             text-align: center;
@@ -238,6 +268,11 @@
         <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
     
+    <div class="message-actions" id="messageActions">
+        <button id="editMessageBtn"><i class="fas fa-edit"></i> Edit</button>
+        <button id="deleteMessageBtn" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+    
     <div class="notification" id="notification"></div>
     
     <script>
@@ -248,6 +283,8 @@
         let currentUser = null;
         let currentTeam = null;
         let typingTimeout = null;
+        let selectedMessageId = null;
+        let selectedMessageElement = null;
         
         // Get team info from URL
         const urlParams = new URLSearchParams(window.location.search);
@@ -293,15 +330,66 @@
             return fullName.split(' ')[0];
         }
         
+        function hideMessageActions() {
+            const menu = document.getElementById('messageActions');
+            menu.style.display = 'none';
+            selectedMessageId = null;
+            selectedMessageElement = null;
+        }
+        
+        function showMessageActions(event, messageId, element) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const menu = document.getElementById('messageActions');
+            selectedMessageId = messageId;
+            selectedMessageElement = element;
+            
+            menu.style.display = 'block';
+            menu.style.left = `${event.pageX - 50}px`;
+            menu.style.top = `${event.pageY - 20}px`;
+            
+            // Hide menu when clicking elsewhere
+            setTimeout(() => {
+                document.addEventListener('click', hideMessageActions);
+            }, 100);
+        }
+        
+        async function editMessage() {
+            if (!selectedMessageId) return;
+            const newMessage = prompt('Edit your message:');
+            if (newMessage && newMessage.trim()) {
+                socket.emit('edit-message', {
+                    messageId: selectedMessageId,
+                    newMessage: newMessage.trim(),
+                    userId: currentUser.id,
+                    teamId: parseInt(teamId)
+                });
+            }
+            hideMessageActions();
+        }
+        
+        async function deleteMessage() {
+            if (!selectedMessageId) return;
+            if (confirm('Delete this message?')) {
+                socket.emit('delete-message', {
+                    messageId: selectedMessageId,
+                    userId: currentUser.id,
+                    teamId: parseInt(teamId)
+                });
+            }
+            hideMessageActions();
+        }
+        
         function addMessageToChat(msg, isOwn = false) {
             const container = document.getElementById('messagesContainer');
             
-            // Remove loading placeholder if exists
             if (container.querySelector('.loading-messages')) {
                 container.innerHTML = '';
             }
             
             const time = formatTime(msg.created_at);
+            // IMPORTANT: Use first_name from the message, not from currentUser
             const senderName = getFirstName(msg.first_name || 'User');
             const initial = getInitials(senderName);
             const isCurrentUser = isOwn || (currentUser && msg.user_id === currentUser.id);
@@ -309,6 +397,7 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isCurrentUser ? 'message-own' : ''}`;
             messageDiv.dataset.messageId = msg.id;
+            messageDiv.dataset.userId = msg.user_id;
             
             messageDiv.innerHTML = `
                 <div class="message-avatar">${escapeHtml(initial)}</div>
@@ -322,8 +411,41 @@
                 </div>
             `;
             
+            // Add long press / right-click menu for own messages
+            if (isCurrentUser) {
+                messageDiv.addEventListener('contextmenu', (e) => {
+                    showMessageActions(e, msg.id, messageDiv);
+                });
+                // For mobile touch
+                let touchTimer;
+                messageDiv.addEventListener('touchstart', (e) => {
+                    touchTimer = setTimeout(() => {
+                        showMessageActions(e, msg.id, messageDiv);
+                    }, 500);
+                });
+                messageDiv.addEventListener('touchend', () => clearTimeout(touchTimer));
+                messageDiv.addEventListener('touchmove', () => clearTimeout(touchTimer));
+            }
+            
             container.appendChild(messageDiv);
             scrollToBottom();
+        }
+        
+        function updateMessageInChat(messageId, newMessage) {
+            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (messageDiv) {
+                const textSpan = messageDiv.querySelector('.message-text');
+                const timeSpan = messageDiv.querySelector('.message-time');
+                if (textSpan) textSpan.textContent = escapeHtml(newMessage);
+                if (timeSpan && !timeSpan.querySelector('.edited-badge')) {
+                    timeSpan.innerHTML += '<span class="edited-badge">(edited)</span>';
+                }
+            }
+        }
+        
+        function removeMessageFromChat(messageId) {
+            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (messageDiv) messageDiv.remove();
         }
         
         function addSystemMessage(text) {
@@ -360,16 +482,15 @@
         
         function showTypingIndicator(userName, isTyping) {
             const indicator = document.getElementById('typingIndicator');
-            if (isTyping) {
+            if (isTyping && userName !== currentUser?.first_name) {
                 indicator.style.display = 'flex';
                 indicator.querySelector('span').textContent = `${getFirstName(userName)} is typing`;
-                // Auto-hide after 3 seconds if no new typing event
                 setTimeout(() => {
                     if (indicator.style.display === 'flex') {
                         indicator.style.display = 'none';
                     }
                 }, 3000);
-            } else {
+            } else if (!isTyping) {
                 indicator.style.display = 'none';
             }
         }
@@ -471,20 +592,11 @@
             });
             
             socket.on('message-edited', (data) => {
-                const messageDiv = document.querySelector(`.message[data-message-id="${data.messageId}"]`);
-                if (messageDiv) {
-                    const textSpan = messageDiv.querySelector('.message-text');
-                    const timeSpan = messageDiv.querySelector('.message-time');
-                    if (textSpan) textSpan.textContent = escapeHtml(data.newMessage);
-                    if (timeSpan && !timeSpan.querySelector('.edited-badge')) {
-                        timeSpan.innerHTML += '<span class="edited-badge">(edited)</span>';
-                    }
-                }
+                updateMessageInChat(data.messageId, data.newMessage);
             });
             
             socket.on('message-deleted', (data) => {
-                const messageDiv = document.querySelector(`.message[data-message-id="${data.messageId}"]`);
-                if (messageDiv) messageDiv.remove();
+                removeMessageFromChat(data.messageId);
             });
             
             socket.on('message-error', (data) => {
@@ -540,12 +652,17 @@
             }, 1000);
         }
         
-        // Event listeners
+        // Set up event listeners
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
         document.getElementById('messageInput').addEventListener('input', handleTyping);
+        document.getElementById('editMessageBtn').addEventListener('click', editMessage);
+        document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
+        
+        // Hide message actions on scroll
+        document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);
         
         // Initialize
         init();
