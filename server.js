@@ -1,8 +1,9 @@
-// ============================================================
+===================
 // YZEMANBOT - BACKEND SERVER (COMPLETE - FIXED)
 // COIN ECONOMY: 1 COIN = 1 UNIT (NO POINTS)
 // WITHDRAWAL: 100,000 COINS minimum
 // WITH 2% LIFETIME COMMISSION
+// WITH WEBSOCKET FOR TEAM CHAT
 // ============================================================
 
 const { Pool } = require('pg');
@@ -11,7 +12,18 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const { Telegraf } = require('telegraf');
+const http = require('http');
+const socketIo = require('socket.io');
+
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    },
+    transports: ['websocket', 'polling']
+});
 
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -296,8 +308,47 @@ async function initDB() {
       )
     `);
 
-   // ============================================
-    // ACHIEVEMENTS INSERT - UPDATED WITH NEW REWARDS
+    // ============================================
+    // TEAM CHAT TABLES - ADD INSIDE initDB()
+    // ============================================
+    
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS team_messages (
+        id SERIAL PRIMARY KEY,
+        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        message TEXT NOT NULL,
+        is_edited BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_team_id ON team_messages(team_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_created_at ON team_messages(created_at DESC)`);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS team_message_reads (
+        id SERIAL PRIMARY KEY,
+        message_id INTEGER NOT NULL REFERENCES team_messages(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        read_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(message_id, user_id)
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS team_typing_status (
+        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        is_typing BOOLEAN DEFAULT FALSE,
+        updated_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (team_id, user_id)
+      )
+    `);
+
+    // ============================================
+    // ACHIEVEMENTS INSERT
     // ============================================
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, coins_reward) VALUES
@@ -312,7 +363,6 @@ async function initDB() {
         ('Daily Streak 7', '7 day login streak', '📅', 7, 1000),
         ('Super Referrer', 'Get 500 referrals', '⭐', 500, 7000),
         ('Ad Master', 'Watch 1000 ads', '📺', 1000, 2500),
-        -- NEW ACHIEVEMENTS
         ('Team Winner', 'Your team wins monthly competition', '🏅', 1, 5000),
         ('Leaderboard Winner', 'Finish Top 3 on monthly leaderboard', '👑', 3, 3000),
         ('Ad Master Platinum', 'Watch 5000 ads', '💎', 5000, 10000),
@@ -324,10 +374,8 @@ async function initDB() {
         required_value = EXCLUDED.required_value
     `);
     
-    console.log('✅ Achievements table seeded with updated rewards');
-
-    await client.query('COMMIT');
     console.log('✅ Database initialized successfully');
+    await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('❌ Database initialization failed:', err.stack);
@@ -552,6 +600,211 @@ function verifyAdmin(req, res, next) {
   }
   next();
 }
+
+
+// ============================================
+// WEBSOCKET SERVER FOR TEAM CHAT
+// ============================================
+
+// Store connected users { socketId: { userId, teamId, firstName } }
+const connectedUsers = new Map();
+
+io.use(async (socket, next) => {
+    const initData = socket.handshake.auth.initData;
+    if (!initData) {
+        return next(new Error('Authentication required'));
+    }
+    
+    try {
+        const initDataParsed = new URLSearchParams(initData);
+        const hash = initDataParsed.get('hash');
+        const authDate = initDataParsed.get('auth_date');
+        
+        if (Date.now() / 1000 - parseInt(authDate) > 86400) {
+            return next(new Error('Expired authentication'));
+        }
+        
+        initDataParsed.delete('hash');
+        const dataCheckString = Array.from(initDataParsed.entries())
+            .map(([k,v]) => `${k}=${v}`)
+            .sort()
+            .join('\n');
+        
+        const secretKey = crypto.createHmac('sha256', 'WebAppData')
+            .update(process.env.BOT_TOKEN)
+            .digest();
+        
+        const calculatedHash = crypto.createHmac('sha256', secretKey)
+            .update(dataCheckString)
+            .digest('hex');
+        
+        if (calculatedHash !== hash) {
+            return next(new Error('Invalid hash'));
+        }
+        
+        const user = JSON.parse(initDataParsed.get('user'));
+        socket.user = user;
+        next();
+    } catch (err) {
+        console.error('Socket auth error:', err);
+        next(new Error('Authentication failed'));
+    }
+});
+
+io.on('connection', (socket) => {
+    console.log('🟢 User connected:', socket.id);
+    
+    socket.on('join-team', async (data) => {
+        const { teamId, userId, firstName } = data;
+        
+        connectedUsers.set(socket.id, {
+            userId,
+            teamId,
+            firstName,
+            socketId: socket.id
+        });
+        
+        socket.join(`team_${teamId}`);
+        
+        try {
+            const messages = await pool.query(`
+                SELECT tm.*, u.first_name, u.photo_url
+                FROM team_messages tm
+                JOIN users u ON tm.user_id = u.id
+                WHERE tm.team_id = $1
+                ORDER BY tm.created_at DESC
+                LIMIT 50
+            `, [teamId]);
+            
+            socket.emit('chat-history', messages.rows.reverse());
+            
+            socket.to(`team_${teamId}`).emit('user-joined', {
+                userId,
+                firstName,
+                message: `${firstName} joined the chat`
+            });
+            
+        } catch (err) {
+            console.error('Load messages error:', err);
+        }
+    });
+    
+    socket.on('send-message', async (data) => {
+        const { teamId, message, userId, firstName } = data;
+        
+        if (!message || message.trim().length === 0) return;
+        if (message.length > 500) return;
+        
+        try {
+            const result = await pool.query(`
+                INSERT INTO team_messages (team_id, user_id, message)
+                VALUES ($1, $2, $3)
+                RETURNING id, created_at
+            `, [teamId, userId, message.trim()]);
+            
+            const messageData = {
+                id: result.rows[0].id,
+                teamId,
+                userId,
+                firstName,
+                message: message.trim(),
+                createdAt: result.rows[0].created_at,
+                isEdited: false
+            };
+            
+            io.to(`team_${teamId}`).emit('new-message', messageData);
+            
+            await pool.query(`
+                UPDATE team_typing_status
+                SET is_typing = false, updated_at = NOW()
+                WHERE team_id = $1 AND user_id = $2
+            `, [teamId, userId]);
+            
+            socket.to(`team_${teamId}`).emit('user-typing', {
+                userId,
+                firstName,
+                isTyping: false
+            });
+            
+        } catch (err) {
+            console.error('Send message error:', err);
+            socket.emit('message-error', { error: 'Failed to send message' });
+        }
+    });
+    
+    socket.on('typing', async (data) => {
+        const { teamId, userId, firstName, isTyping } = data;
+        
+        try {
+            await pool.query(`
+                INSERT INTO team_typing_status (team_id, user_id, is_typing, updated_at)
+                VALUES ($1, $2, $3, NOW())
+                ON CONFLICT (team_id, user_id) 
+                DO UPDATE SET is_typing = $3, updated_at = NOW()
+            `, [teamId, userId, isTyping]);
+            
+            socket.to(`team_${teamId}`).emit('user-typing', {
+                userId,
+                firstName,
+                isTyping
+            });
+        } catch (err) {
+            console.error('Typing status error:', err);
+        }
+    });
+    
+    socket.on('edit-message', async (data) => {
+        const { messageId, newMessage, userId, teamId } = data;
+        
+        if (!newMessage || newMessage.trim().length === 0) return;
+        if (newMessage.length > 500) return;
+        
+        try {
+            const result = await pool.query(`
+                UPDATE team_messages
+                SET message = $1, is_edited = true, updated_at = NOW()
+                WHERE id = $2 AND user_id = $3
+                RETURNING id
+            `, [newMessage.trim(), messageId, userId]);
+            
+            if (result.rows.length > 0) {
+                io.to(`team_${teamId}`).emit('message-edited', {
+                    messageId,
+                    newMessage: newMessage.trim(),
+                    userId
+                });
+            }
+        } catch (err) {
+            socket.emit('message-error', { error: 'Failed to edit message' });
+        }
+    });
+    
+    socket.on('delete-message', async (data) => {
+        const { messageId, userId, teamId } = data;
+        
+        try {
+            const result = await pool.query(`
+                DELETE FROM team_messages
+                WHERE id = $1 AND user_id = $2
+                RETURNING id
+            `, [messageId, userId]);
+            
+            if (result.rows.length > 0) {
+                io.to(`team_${teamId}`).emit('message-deleted', { messageId });
+            }
+        } catch (err) {
+            socket.emit('message-error', { error: 'Failed to delete message' });
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        const user = connectedUsers.get(socket.id);
+        if (user) {
+            console.log(`🔴 User ${user.firstName} disconnected`);
+            connectedUsers.delete(socket.id);
+        }
+    });
+});
 
 // ============================================
 // USER API ENDPOINT (UPDATED FOR COINS)
@@ -793,251 +1046,7 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     client.release();
   }
 });
-
-
-    // ============================================
-    // TEAM CHAT TABLES - ADD THESE
-    // ============================================
-    
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS team_messages (
-        id SERIAL PRIMARY KEY,
-        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        message TEXT NOT NULL,
-        is_edited BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_team_id ON team_messages(team_id)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_created_at ON team_messages(created_at DESC)`);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS team_message_reads (
-        id SERIAL PRIMARY KEY,
-        message_id INTEGER NOT NULL REFERENCES team_messages(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        read_at TIMESTAMP DEFAULT NOW(),
-        UNIQUE(message_id, user_id)
-      )
-    `);
-
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS team_typing_status (
-        team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        is_typing BOOLEAN DEFAULT FALSE,
-        updated_at TIMESTAMP DEFAULT NOW(),
-        PRIMARY KEY (team_id, user_id)
-      )
-    `);
-
-
-// ============================================
-// WEBSOCKET SERVER FOR TEAM CHAT
-// ============================================
-
-// Store connected users { socketId: { userId, teamId, firstName } }
-const connectedUsers = new Map();
-
-io.use(async (socket, next) => {
-    const initData = socket.handshake.auth.initData;
-    if (!initData) {
-        return next(new Error('Authentication required'));
-    }
-    
-    try {
-        const initDataParsed = new URLSearchParams(initData);
-        const hash = initDataParsed.get('hash');
-        const authDate = initDataParsed.get('auth_date');
-        
-        if (Date.now() / 1000 - parseInt(authDate) > 86400) {
-            return next(new Error('Expired authentication'));
-        }
-        
-        initDataParsed.delete('hash');
-        const dataCheckString = Array.from(initDataParsed.entries())
-            .map(([k,v]) => `${k}=${v}`)
-            .sort()
-            .join('\n');
-        
-        const secretKey = crypto.createHmac('sha256', 'WebAppData')
-            .update(process.env.BOT_TOKEN)
-            .digest();
-        
-        const calculatedHash = crypto.createHmac('sha256', secretKey)
-            .update(dataCheckString)
-            .digest('hex');
-        
-        if (calculatedHash !== hash) {
-            return next(new Error('Invalid hash'));
-        }
-        
-        const user = JSON.parse(initDataParsed.get('user'));
-        socket.user = user;
-        next();
-    } catch (err) {
-        console.error('Socket auth error:', err);
-        next(new Error('Authentication failed'));
-    }
-});
-
-io.on('connection', (socket) => {
-    console.log('🟢 User connected:', socket.id);
-    
-    socket.on('join-team', async (data) => {
-        const { teamId, userId, firstName } = data;
-        
-        connectedUsers.set(socket.id, {
-            userId,
-            teamId,
-            firstName,
-            socketId: socket.id
-        });
-        
-        socket.join(`team_${teamId}`);
-        
-        try {
-            const messages = await pool.query(`
-                SELECT tm.*, u.first_name, u.photo_url
-                FROM team_messages tm
-                JOIN users u ON tm.user_id = u.id
-                WHERE tm.team_id = $1
-                ORDER BY tm.created_at DESC
-                LIMIT 50
-            `, [teamId]);
-            
-            socket.emit('chat-history', messages.rows.reverse());
-            
-            socket.to(`team_${teamId}`).emit('user-joined', {
-                userId,
-                firstName,
-                message: `${firstName} joined the chat`
-            });
-            
-        } catch (err) {
-            console.error('Load messages error:', err);
-        }
-    });
-    
-    socket.on('send-message', async (data) => {
-        const { teamId, message, userId, firstName } = data;
-        
-        if (!message || message.trim().length === 0) return;
-        if (message.length > 500) return;
-        
-        try {
-            const result = await pool.query(`
-                INSERT INTO team_messages (team_id, user_id, message)
-                VALUES ($1, $2, $3)
-                RETURNING id, created_at
-            `, [teamId, userId, message.trim()]);
-            
-            const messageData = {
-                id: result.rows[0].id,
-                teamId,
-                userId,
-                firstName,
-                message: message.trim(),
-                createdAt: result.rows[0].created_at,
-                isEdited: false
-            };
-            
-            io.to(`team_${teamId}`).emit('new-message', messageData);
-            
-            await pool.query(`
-                UPDATE team_typing_status
-                SET is_typing = false, updated_at = NOW()
-                WHERE team_id = $1 AND user_id = $2
-            `, [teamId, userId]);
-            
-            socket.to(`team_${teamId}`).emit('user-typing', {
-                userId,
-                firstName,
-                isTyping: false
-            });
-            
-        } catch (err) {
-            console.error('Send message error:', err);
-            socket.emit('message-error', { error: 'Failed to send message' });
-        }
-    });
-    
-    socket.on('typing', async (data) => {
-        const { teamId, userId, firstName, isTyping } = data;
-        
-        try {
-            await pool.query(`
-                INSERT INTO team_typing_status (team_id, user_id, is_typing, updated_at)
-                VALUES ($1, $2, $3, NOW())
-                ON CONFLICT (team_id, user_id) 
-                DO UPDATE SET is_typing = $3, updated_at = NOW()
-            `, [teamId, userId, isTyping]);
-            
-            socket.to(`team_${teamId}`).emit('user-typing', {
-                userId,
-                firstName,
-                isTyping
-            });
-        } catch (err) {
-            console.error('Typing status error:', err);
-        }
-    });
-    
-    socket.on('edit-message', async (data) => {
-        const { messageId, newMessage, userId, teamId } = data;
-        
-        if (!newMessage || newMessage.trim().length === 0) return;
-        if (newMessage.length > 500) return;
-        
-        try {
-            const result = await pool.query(`
-                UPDATE team_messages
-                SET message = $1, is_edited = true, updated_at = NOW()
-                WHERE id = $2 AND user_id = $3
-                RETURNING id
-            `, [newMessage.trim(), messageId, userId]);
-            
-            if (result.rows.length > 0) {
-                io.to(`team_${teamId}`).emit('message-edited', {
-                    messageId,
-                    newMessage: newMessage.trim(),
-                    userId
-                });
-            }
-        } catch (err) {
-            socket.emit('message-error', { error: 'Failed to edit message' });
-        }
-    });
-    
-    socket.on('delete-message', async (data) => {
-        const { messageId, userId, teamId } = data;
-        
-        try {
-            const result = await pool.query(`
-                DELETE FROM team_messages
-                WHERE id = $1 AND user_id = $2
-                RETURNING id
-            `, [messageId, userId]);
-            
-            if (result.rows.length > 0) {
-                io.to(`team_${teamId}`).emit('message-deleted', { messageId });
-            }
-        } catch (err) {
-            socket.emit('message-error', { error: 'Failed to delete message' });
-        }
-    });
-    
-    socket.on('disconnect', () => {
-        const user = connectedUsers.get(socket.id);
-        if (user) {
-            console.log(`🔴 User ${user.firstName} disconnected`);
-            connectedUsers.delete(socket.id);
-        }
-    });
-});
+ 
 
 // ============================================
 // USER EARNINGS HISTORY (DETAILED)
@@ -3068,7 +3077,7 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// HEALTH CHECK
+// HEALTH CHECK & WEBHOOK
 // ============================================
 app.get('/health', async (req, res) => {
   try {
@@ -3080,6 +3089,7 @@ app.get('/health', async (req, res) => {
 });
 
 app.get('/webhook', (req, res) => res.send('Webhook active'));
+
 // ============================================
 // TELEGRAM BOT
 // ============================================
