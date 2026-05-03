@@ -6,6 +6,7 @@
     <title>Profile - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -18,6 +19,8 @@
             --gray: #888888;
             --gold: #FFD700;
             --success: #00c853;
+            --online: #4CAF50;
+            --offline: #888888;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -225,6 +228,7 @@
             margin-bottom: 8px;
         }
         .request-avatar, .friend-avatar {
+            position: relative;
             width: 44px;
             height: 44px;
             border-radius: 50%;
@@ -244,6 +248,38 @@
             height: 100%;
             object-fit: cover;
         }
+        
+        /* Online Status Indicator */
+        .online-indicator {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid var(--darker);
+            background-color: var(--offline);
+        }
+        .online-indicator.online {
+            background-color: var(--online);
+            box-shadow: 0 0 5px var(--online);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.6; transform: scale(0.9); }
+        }
+        
+        .last-seen {
+            font-size: 9px;
+            color: var(--gray);
+            margin-top: 2px;
+        }
+        .last-seen.online {
+            color: var(--online);
+        }
+        
         .request-info, .friend-info {
             flex: 1;
             cursor: pointer;
@@ -448,7 +484,9 @@
         let viewedUserId = null;
         let isOwnProfile = true;
         let viewedUserProfile = null;
-        let unreadInterval = null;
+        let statusSocket = null;
+        let onlineStatusMap = {};
+        let currentFriends = [];
         
         const urlParams = new URLSearchParams(window.location.search);
         const targetUserId = urlParams.get('userId');
@@ -489,6 +527,92 @@
             return n.toFixed(0);
         }
         
+        function formatLastSeen(lastSeen) {
+            if (!lastSeen) return 'recently';
+            const last = new Date(lastSeen);
+            const now = new Date();
+            const diff = Math.floor((now - last) / 1000 / 60);
+            
+            if (diff < 1) return 'just now';
+            if (diff < 60) return `${diff} min ago`;
+            if (diff < 1440) return `${Math.floor(diff / 60)} hours ago`;
+            return `${Math.floor(diff / 1440)} days ago`;
+        }
+        
+        function updateFriendOnlineStatus(friendId, isOnline) {
+            const friendElement = document.querySelector(`.friend-item[data-user-id="${friendId}"]`);
+            if (friendElement) {
+                const indicator = friendElement.querySelector('.online-indicator');
+                const lastSeenSpan = friendElement.querySelector('.last-seen');
+                if (indicator) {
+                    if (isOnline) {
+                        indicator.classList.add('online');
+                        if (lastSeenSpan) lastSeenSpan.textContent = 'Online now';
+                        lastSeenSpan?.classList.add('online');
+                    } else {
+                        indicator.classList.remove('online');
+                        if (lastSeenSpan) lastSeenSpan.textContent = 'Offline';
+                        lastSeenSpan?.classList.remove('online');
+                    }
+                }
+            }
+        }
+        
+        function connectStatusWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const socketUrl = `${protocol}//${window.location.host}`;
+            
+            statusSocket = io(socketUrl, {
+                auth: { initData: tg?.initData },
+                transports: ['websocket']
+            });
+            
+            statusSocket.on('connect', () => {
+                console.log('Status WebSocket connected');
+                statusSocket.emit('join-status', { userId: currentUser?.id });
+            });
+            
+            statusSocket.on('friend-online', (data) => {
+                console.log('Friend online:', data);
+                onlineStatusMap[data.userId] = true;
+                updateFriendOnlineStatus(data.userId, true);
+                showNotification(`${getFirstName(data.firstName)} is now online!`, false);
+            });
+            
+            statusSocket.on('friend-offline', (data) => {
+                console.log('Friend offline:', data);
+                onlineStatusMap[data.userId] = false;
+                updateFriendOnlineStatus(data.userId, false);
+            });
+            
+            statusSocket.on('disconnect', () => {
+                console.log('Status WebSocket disconnected');
+                setTimeout(connectStatusWebSocket, 3000);
+            });
+        }
+        
+        async function loadOnlineStatus() {
+            try {
+                const data = await apiCall('/api/friends/online-status');
+                onlineStatusMap = data.online_status || {};
+                
+                document.querySelectorAll('.friend-item').forEach(item => {
+                    const friendId = parseInt(item.dataset.userId);
+                    if (onlineStatusMap[friendId]) {
+                        const indicator = item.querySelector('.online-indicator');
+                        const lastSeenSpan = item.querySelector('.last-seen');
+                        if (indicator) indicator.classList.add('online');
+                        if (lastSeenSpan) {
+                            lastSeenSpan.textContent = 'Online now';
+                            lastSeenSpan.classList.add('online');
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to load online status:', err);
+            }
+        }
+        
         async function apiCall(endpoint, data = null) {
             if (!tg?.initData) throw new Error('Not in Telegram');
             const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
@@ -512,20 +636,13 @@
             return escapeHtml(getInitials(firstName));
         }
         
-        async function loadUnreadMessagesForFriends() {
-            try {
-                const data = await apiCall('/api/private/messages/unread-by-friend');
-                return data.unread_counts || {};
-            } catch (err) {
-                console.log('Unread messages endpoint not available:', err);
-                return {};
-            }
-        }
-        
         async function loadProfile() {
             try {
                 const user = await apiCall('/api/user');
                 currentUser = user;
+                
+                // Update last seen
+                apiCall('/api/user/last-seen').catch(() => {});
                 
                 if (targetUserId && parseInt(targetUserId) !== currentUser.id) {
                     isOwnProfile = false;
@@ -551,6 +668,14 @@
                     loadRequests();
                     setupTabs();
                     setupSearch();
+                    
+                    // Connect WebSocket for online status
+                    connectStatusWebSocket();
+                    
+                    // Update last seen periodically
+                    setInterval(() => {
+                        apiCall('/api/user/last-seen').catch(() => {});
+                    }, 60000);
                 }
             } catch (err) {
                 console.error('Profile error:', err);
@@ -707,7 +832,9 @@
                     apiCall('/api/friends/list'),
                     apiCall('/api/private/messages/unread-by-friend').catch(() => ({ unread_counts: {} }))
                 ]);
-                renderFriends(friendsData.friends, unreadData.unread_counts || {});
+                currentFriends = friendsData.friends || [];
+                renderFriends(currentFriends, unreadData.unread_counts || {});
+                await loadOnlineStatus();
             } catch (err) {
                 console.error('Load friends error:', err);
                 container.innerHTML = '<div class="empty-state">Failed to load friends</div>';
@@ -726,13 +853,20 @@
                 const firstName = getFirstName(friend.first_name || 'User');
                 const unreadCount = unreadCounts[friend.id] || 0;
                 const badgeHtml = unreadCount > 0 ? `<span class="message-badge">${unreadCount > 9 ? '9+' : unreadCount}</span>` : '';
+                const isOnline = onlineStatusMap[friend.id] || false;
+                const onlineClass = isOnline ? 'online' : '';
+                const lastSeenText = isOnline ? 'Online now' : (friend.last_seen ? `Last seen ${formatLastSeen(friend.last_seen)}` : 'Offline');
                 
                 return `
-                    <div class="friend-item" onclick="viewUserProfile(${friend.id})">
-                        <div class="friend-avatar">${avatarHtml}</div>
+                    <div class="friend-item" data-user-id="${friend.id}" onclick="viewUserProfile(${friend.id})">
+                        <div class="friend-avatar">
+                            ${avatarHtml}
+                            <div class="online-indicator ${onlineClass}"></div>
+                        </div>
                         <div class="friend-info">
                             <div class="friend-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${friend.tier || 'Fresher'} Tier</div>
+                            <div class="last-seen ${onlineClass}">${lastSeenText}</div>
                         </div>
                         <div class="friend-actions" onclick="event.stopPropagation()">
                             <div class="action-icon chat" onclick="startChat(${friend.id}, '${escapeHtml(firstName)}')">
