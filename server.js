@@ -82,6 +82,10 @@ async function initDB() {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_date DATE`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_coins_earned DECIMAL(20,3) DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS team_id INTEGER`);
+    // Add these lines inside your initDB() function, after the other ALTER TABLE statements
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_friends INTEGER DEFAULT 0`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_blocks_received INTEGER DEFAULT 0`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS trust_score INTEGER DEFAULT 50`);
 
     const pointsColExists = await client.query(`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='points')`);
     if (pointsColExists.rows[0].exists) {
