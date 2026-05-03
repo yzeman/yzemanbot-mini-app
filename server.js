@@ -3098,6 +3098,7 @@ app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
         if (userResult.rows.length === 0) return res.json({ friends: [], total_friends: 0 });
         const userId = userResult.rows[0].id;
         
+        // Get friends where status is accepted
         const friends = await pool.query(`
             SELECT 
                 u.id, u.first_name, u.username, u.photo_url, u.tier, u.coins,
@@ -3120,7 +3121,7 @@ app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
         
         const totalFriends = friends.rows.length;
         
-        // Also update the user's total_friends in the response
+        // Update the user's total_friends in the users table
         await pool.query(`
             UPDATE users SET total_friends = $1 WHERE id = $2
         `, [totalFriends, userId]);
@@ -3128,7 +3129,7 @@ app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
         res.json({ friends: friends.rows, total_friends: totalFriends });
     } catch (err) {
         console.error('Friends list error:', err);
-        res.status(500).json({ error: 'Failed to fetch friends' });
+        res.status(500).json({ error: 'Failed to fetch friends: ' + err.message });
     }
 });
 
@@ -3336,6 +3337,82 @@ app.post('/api/users/search', verifyTelegramData, async (req, res) => {
     } catch (err) {
         console.error('Search users error:', err);
         res.status(500).json({ error: 'Failed to search users' });
+    }
+});
+
+// Get user relationship status
+app.post('/api/friends/relationship', verifyTelegramData, async (req, res) => {
+    const { friendId } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ is_friend: false, status: 'none' });
+        const userId = userResult.rows[0].id;
+        
+        const result = await pool.query(`
+            SELECT status FROM friends 
+            WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+        `, [userId, friendId]);
+        
+        if (result.rows.length === 0) {
+            return res.json({ is_friend: false, status: 'none' });
+        }
+        
+        const status = result.rows[0].status;
+        let isFriend = status === 'accepted';
+        let relationshipStatus = status;
+        
+        // Determine direction of pending request
+        if (status === 'pending') {
+            const checkDirection = await pool.query(`
+                SELECT user_id FROM friends WHERE user_id = $1 AND friend_id = $2
+            `, [userId, friendId]);
+            relationshipStatus = checkDirection.rows.length > 0 ? 'pending_sent' : 'pending_received';
+        }
+        
+        res.json({ is_friend: isFriend, status: relationshipStatus });
+    } catch (err) {
+        console.error('Relationship error:', err);
+        res.json({ is_friend: false, status: 'none' });
+    }
+});
+
+// Get user profile by ID (for friends only)
+app.post('/api/user/profile', verifyTelegramData, async (req, res) => {
+    const { userId } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const requestorResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (requestorResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        const requestorId = requestorResult.rows[0].id;
+        
+        // Check if they are friends
+        const friendCheck = await pool.query(`
+            SELECT status FROM friends 
+            WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)
+        `, [requestorId, userId]);
+        
+        const isFriend = friendCheck.rows.length > 0 && friendCheck.rows[0].status === 'accepted';
+        
+        if (!isFriend && requestorId !== userId) {
+            return res.status(403).json({ error: 'Profile only visible to friends' });
+        }
+        
+        const userResult = await pool.query(`
+            SELECT id, first_name, username, photo_url, tier, coins, referrals, total_coins_earned,
+                   COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
+                   (SELECT COUNT(*) FROM friends WHERE (user_id = u.id OR friend_id = u.id) AND status = 'accepted') as total_friends
+            FROM users u
+            LEFT JOIN user_block_stats ubs ON u.id = ubs.user_id
+            WHERE u.id = $1
+        `, [userId]);
+        
+        if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+        
+        res.json(userResult.rows[0]);
+    } catch (err) {
+        console.error('User profile error:', err);
+        res.status(500).json({ error: 'Failed to fetch profile' });
     }
 });
 
