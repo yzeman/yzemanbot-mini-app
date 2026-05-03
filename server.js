@@ -311,6 +311,27 @@ async function initDB() {
       )
     `);
 
+      // Add these tables inside your initDB() function, after the other tables
+
+// Private messages table
+await client.query(`
+  CREATE TABLE IF NOT EXISTS private_messages (
+    id SERIAL PRIMARY KEY,
+    sender_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    is_edited BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+  )
+`);
+
+// Create indexes
+await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_sender_id ON private_messages(sender_id)`);
+await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_receiver_id ON private_messages(receiver_id)`);
+await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at ON private_messages(created_at DESC)`);
+
     // ============================================
     // TEAM CHAT TABLES - ADD INSIDE initDB()
     // ============================================
@@ -3440,6 +3461,61 @@ app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) =>
     } catch (err) {
         console.error('Unread messages error:', err);
         res.json({ unread_count: 0 });
+    }
+});
+
+// ============================================
+// PRIVATE MESSAGES API ENDPOINTS
+// ============================================
+
+// Get message history between two users
+app.post('/api/private/messages/history', verifyTelegramData, async (req, res) => {
+    const { friendId } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ messages: [] });
+        const userId = userResult.rows[0].id;
+        
+        const messages = await pool.query(`
+            SELECT pm.*, 
+                   u1.first_name as sender_name,
+                   u2.first_name as receiver_name
+            FROM private_messages pm
+            JOIN users u1 ON pm.sender_id = u1.id
+            JOIN users u2 ON pm.receiver_id = u2.id
+            WHERE (pm.sender_id = $1 AND pm.receiver_id = $2) 
+               OR (pm.sender_id = $2 AND pm.receiver_id = $1)
+            ORDER BY pm.created_at ASC
+            LIMIT 100
+        `, [userId, friendId]);
+        
+        // Mark messages as read
+        await pool.query(`
+            UPDATE private_messages 
+            SET is_read = true 
+            WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false
+        `, [userId, friendId]);
+        
+        res.json({ messages: messages.rows });
+    } catch (err) {
+        console.error('Message history error:', err);
+        res.status(500).json({ error: 'Failed to fetch messages' });
+    }
+});
+
+// Mark message as read
+app.post('/api/private/messages/mark-read', verifyTelegramData, async (req, res) => {
+    const { messageId } = req.body;
+    try {
+        await pool.query(`
+            UPDATE private_messages 
+            SET is_read = true 
+            WHERE id = $1
+        `, [messageId]);
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false });
     }
 });
 
