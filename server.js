@@ -992,6 +992,52 @@ socket.on('disconnect', () => {
         }
     });
 });
+io.on('connection', (socket) => {
+    console.log('🟢 User connected:', socket.id);
+    
+    // Track when user connects
+    socket.on('join-team', async (data) => {
+        const { teamId, userId, firstName } = data;
+        
+        connectedUsers.set(socket.id, {
+            userId,
+            teamId,
+            firstName,
+            socketId: socket.id,
+            connectedAt: Date.now()
+        });
+        
+        // Update last seen
+        await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
+        
+        // Broadcast to friends that user is online
+        socket.broadcast.emit('friend-online', { userId, firstName });
+        
+        // ... rest of existing code
+    });
+    
+    socket.on('disconnect', async () => {
+        const user = connectedUsers.get(socket.id);
+        if (user) {
+            console.log(`🔴 User ${user.firstName} disconnected`);
+            
+            // Update last seen
+            await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.userId]);
+            
+            // Broadcast to friends that user went offline
+            socket.broadcast.emit('friend-offline', { userId: user.userId });
+            
+            connectedUsers.delete(socket.id);
+            
+            // Remove from userSockets
+            const storedSocketId = userSockets.get(user.userId);
+            if (storedSocketId === socket.id) {
+                userSockets.delete(user.userId);
+            }
+        }
+    });
+});
+
 
 // ============================================
 // USER API ENDPOINT (UPDATED FOR COINS)
