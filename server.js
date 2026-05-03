@@ -3090,12 +3090,12 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
 // FRIENDS SYSTEM API ENDPOINTS
 // ============================================
 
-// Get user's friends list
+// Get user's friends list with total count
 app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
     try {
         const telegramId = req.telegramUser.id;
         const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-        if (userResult.rows.length === 0) return res.json({ friends: [] });
+        if (userResult.rows.length === 0) return res.json({ friends: [], total_friends: 0 });
         const userId = userResult.rows[0].id;
         
         const friends = await pool.query(`
@@ -3118,7 +3118,14 @@ app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
             WHERE f.friend_id = $1 AND f.status = 'accepted'
         `, [userId]);
         
-        res.json({ friends: friends.rows });
+        const totalFriends = friends.rows.length;
+        
+        // Also update the user's total_friends in the response
+        await pool.query(`
+            UPDATE users SET total_friends = $1 WHERE id = $2
+        `, [totalFriends, userId]);
+        
+        res.json({ friends: friends.rows, total_friends: totalFriends });
     } catch (err) {
         console.error('Friends list error:', err);
         res.status(500).json({ error: 'Failed to fetch friends' });
