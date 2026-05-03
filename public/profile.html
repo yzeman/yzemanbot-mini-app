@@ -365,6 +365,35 @@
             justify-content: center;
             margin-top: 10px;
         }
+        
+        /* Unread Message Badge */
+        .unread-badge {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            min-width: 22px;
+            height: 22px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 200;
+            cursor: pointer;
+            animation: bounce 0.5s ease;
+        }
+        .unread-badge.hidden {
+            display: none;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
     </style>
 </head>
 <body>
@@ -399,6 +428,11 @@
         </div>
     </div>
     
+    <!-- Floating Unread Message Badge -->
+    <div class="unread-badge hidden" id="unreadBadge" onclick="window.location.href='/messages.html'">
+        0
+    </div>
+    
     <div class="bottom-nav">
         <a href="/" class="nav-item"><i class="fas fa-home"></i><span>Home</span></a>
         <a href="/daily.html" class="nav-item"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -417,6 +451,7 @@
         let viewedUserId = null;
         let isOwnProfile = true;
         let viewedUserProfile = null;
+        let unreadInterval = null;
         
         const urlParams = new URLSearchParams(window.location.search);
         const targetUserId = urlParams.get('userId');
@@ -473,6 +508,32 @@
             }
         }
         
+        // ============================================
+        // LOAD UNREAD MESSAGE COUNT FOR BADGE
+        // ============================================
+        async function loadUnreadCount() {
+            try {
+                const data = await apiCall('/api/private/messages/unread');
+                const unreadCount = data.unread_count || 0;
+                const badge = document.getElementById('unreadBadge');
+                if (badge) {
+                    if (unreadCount > 0) {
+                        badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                        badge.classList.remove('hidden');
+                        // Add bounce animation
+                        badge.style.animation = 'none';
+                        setTimeout(() => {
+                            badge.style.animation = 'bounce 0.5s ease';
+                        }, 10);
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load unread count:', err);
+            }
+        }
+        
         async function loadProfile() {
             try {
                 const user = await apiCall('/api/user');
@@ -503,6 +564,14 @@
                     setupTabs();
                     setupSearch();
                 }
+                
+                // Start loading unread count after user is loaded
+                await loadUnreadCount();
+                
+                // Set up interval to check for new messages every 30 seconds
+                if (unreadInterval) clearInterval(unreadInterval);
+                unreadInterval = setInterval(loadUnreadCount, 30000);
+                
             } catch (err) {
                 console.error('Profile error:', err);
                 showNotification('Failed to load profile', true);
