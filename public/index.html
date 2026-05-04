@@ -607,17 +607,20 @@
             letter-spacing: normal;
         }
         .redeem-btn {
-            background: white;
-            color: #F44336;
-            border: none;
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-        .redeem-btn:active { transform: scale(0.98); }
+    background: white;
+    color: #F44336;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    position: relative;
+    z-index: 5;
+    pointer-events: auto;
+}
+.redeem-btn:active { transform: scale(0.98); }
         
         .bonus-history-list {
             background: var(--darker);
