@@ -726,7 +726,20 @@
                     sessionStorage.removeItem(`returned_from_chat_${teamId}`);
                 }
                 
-                teamSocket.emit('join-team-status', { teamId });
+                // Get userId from the page (need to fetch it first)
+fetch('/api/user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ initData: tg.initData })
+})
+.then(res => res.json())
+.then(user => {
+    teamSocket.emit('join-team-status', { 
+        teamId: teamId,
+        userId: user.id 
+    });
+})
+.catch(err => console.error('User fetch error:', err));
                 
                 // ✅ Fetch server unread count
                 fetch('/api/team/unread-count', {
