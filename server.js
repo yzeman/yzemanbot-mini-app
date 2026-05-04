@@ -1733,7 +1733,7 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
         AND ar.created_at::date >= $1::date
         AND ar.ad_type IN (
           'ad', 'daily', 'wheel', 'achievement', 'task',
-          'referral_bonus', 'referral_commission', 'bonus', 'admin_add'
+          'referral_commission', 'bonus', 'admin_add'
         )
       GROUP BY u.id
       ORDER BY monthly_coins DESC
@@ -2990,6 +2990,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       FROM users u
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $1
+        AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task', 'referral_commission', 'bonus', 'admin_add')
       GROUP BY u.id
       ORDER BY monthly_coins DESC
       LIMIT 3
