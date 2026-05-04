@@ -593,6 +593,7 @@
             text-align: center;
             font-weight: bold;
             letter-spacing: 1px;
+            -webkit-appearance: none; /* Prevents iOS styling issues */
         }
         .bonus-input:focus {
             outline: none;
@@ -1367,7 +1368,20 @@
         }
     }
 });
-    </script>
+
+// Fix input focus for Telegram Mini App
+document.addEventListener('DOMContentLoaded', function() {
+    const bonusInput = document.getElementById('bonusCodeInput');
+    if (bonusInput) {
+        bonusInput.addEventListener('touchstart', function(e) {
+            e.stopPropagation(); // Prevents parent handlers from interfering
+        });
+        bonusInput.addEventListener('click', function(e) {
+            this.focus();
+        });
+    }
+});
+ </script>
     
     <script>
     (function() {
