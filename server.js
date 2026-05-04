@@ -694,6 +694,33 @@ io.on('connection', (socket) => {
     });
     
     // ============================================
+    // TEAM STATUS (for unread message badges)
+    // ============================================
+    socket.on('join-team-status', async (data) => {
+        const { teamId, userId } = data;
+        if (teamId && userId) {
+            socket.join(`team_status_${teamId}`);
+            
+            // Get unread message count for this team
+            try {
+                const result = await pool.query(`
+                    SELECT COUNT(*) as count 
+                    FROM team_messages 
+                    WHERE team_id = $1 AND created_at > COALESCE(
+                        (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
+                        '2024-01-01'
+                    )
+                `, [teamId, userId]);
+                
+                socket.emit('team-unread-update', { count: parseInt(result.rows[0].count) });
+            } catch (err) {
+                console.error('Team unread count error:', err);
+                socket.emit('team-unread-update', { count: 0 });
+            }
+        }
+    });
+    
+    // ============================================
     // TEAM CHAT
     // ============================================
     socket.on('join-team', async (data) => {
@@ -769,6 +796,18 @@ io.on('connection', (socket) => {
             };
             
             io.to(`team_${teamId}`).emit('new-message', messageData);
+            
+            // Update unread count for all team members except sender
+            const unreadResult = await pool.query(`
+                SELECT COUNT(*) as count 
+                FROM team_messages 
+                WHERE team_id = $1 AND created_at > COALESCE(
+                    (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
+                    '2024-01-01'
+                )
+            `, [teamId, userId]);
+            
+            socket.to(`team_${teamId}`).emit('team-unread-update', { count: parseInt(unreadResult.rows[0].count) });
             
             await pool.query(`
                 UPDATE team_typing_status
@@ -998,75 +1037,6 @@ io.on('connection', (socket) => {
             isTyping
         });
     });
-
-    // Add this inside io.on('connection', (socket) => { ... })
-
-// Join team status room for unread message count
-socket.on('join-team-status', async (data) => {
-    const { teamId, userId } = data;
-    if (teamId && userId) {
-        socket.join(`team_status_${teamId}`);
-        socket.userId = userId; // ✅ Set userId from the data
-        
-        // Connect this socket for friend online status too
-        socket.join(`user_${userId}`);
-        userSockets.set(userId, socket.id);
-        
-        // Get unread message count for this team
-        try {
-            const result = await pool.query(`
-                SELECT COUNT(*) as count 
-                FROM team_messages 
-                WHERE team_id = $1 AND created_at > (
-                    SELECT COALESCE(MAX(read_at), '2024-01-01') 
-                    FROM team_message_reads 
-                    WHERE team_id = $1 AND user_id = $2
-                )
-            `, [teamId, userId]);
-            
-            socket.emit('team-unread-count', { count: parseInt(result.rows[0].count) });
-        } catch (err) {
-            console.error('Team unread count error:', err);
-        }
-    }
-});
-
-// Broadcast team unread count updates
-socket.on('join-team-status', async (data) => {
-    const { teamId } = data;
-    if (teamId && socket.userId) {
-        socket.join(`team_status_${teamId}`);
-        
-        // Send initial unread count
-        const result = await pool.query(`
-            SELECT COUNT(*) as count 
-            FROM team_messages 
-            WHERE team_id = $1 AND created_at > COALESCE(
-                (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
-                '2024-01-01'
-            )
-        `, [teamId, socket.userId]);
-        
-        socket.emit('team-unread-update', { count: parseInt(result.rows[0].count) });
-    }
-});
-
-// When new team message arrives, update unread count for all members except sender
-socket.on('send-message', async (data) => {
-    // ... existing code ...
-    
-    // After saving message, broadcast unread count to all team members except sender
-    const unreadResult = await pool.query(`
-        SELECT COUNT(*) as count 
-        FROM team_messages 
-        WHERE team_id = $1 AND created_at > COALESCE(
-            (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
-            '2024-01-01'
-        )
-    `, [teamId, userId]);
-    
-    socket.to(`team_${teamId}`).emit('team-unread-update', { count: parseInt(unreadResult.rows[0].count) });
-});    
     
     // ============================================
     // DISCONNECT
