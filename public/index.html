@@ -31,6 +31,14 @@
             overflow-x: hidden;
         }
         
+        /* Fix for input fields - allow typing */
+        input, textarea, [contenteditable] {
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
+        }
+        
         /* Refresh Indicator */
         .refresh-indicator {
             position: fixed;
@@ -539,6 +547,8 @@
             color: white;
             font-size: 14px;
             margin: 15px 0;
+            -webkit-user-select: text !important;
+            user-select: text !important;
         }
         .wallet-input:focus { outline: none; border-color: var(--primary); }
         .btn {
@@ -592,6 +602,9 @@
             text-align: center;
             font-weight: bold;
             letter-spacing: 1px;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+            -webkit-touch-callout: default;
         }
         .bonus-input::placeholder {
             color: rgba(255,255,255,0.7);
@@ -1116,11 +1129,18 @@
     <script src="/app.js"></script>
     
     <script>
-    // Format number with commas
+    // Format number with commas for display
     function formatNumberWithCommas(num) {
-        if (num === undefined || num === null) return '0';
+        if (num === undefined || num === null) return '0.00';
         const number = parseFloat(num);
-        if (isNaN(number)) return '0';
+        if (isNaN(number)) return '0.00';
+        
+        // For large numbers, use abbreviations
+        if (number >= 1000000) {
+            return (number / 1000000).toFixed(2) + 'M';
+        }
+        
+        // Format with commas and 2 decimal places
         const parts = number.toFixed(2).split('.');
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         return parts.join('.');
@@ -1247,8 +1267,8 @@
         
         statusSocket.on('connect', () => {
             console.log('Status WebSocket connected');
-            if (currentUser) {
-                statusSocket.emit('join-status', { userId: currentUser.id });
+            if (window._currentUser) {
+                statusSocket.emit('join-status', { userId: window._currentUser.id });
             }
         });
         
@@ -1282,9 +1302,9 @@
         const tierIconElement = document.getElementById('tierIcon');
         const multiplierElement = document.getElementById('tierMultiplier');
         
-        if (!window.currentUser) return;
+        if (!window._currentUser) return;
         
-        const tier = window.currentUser.tier || 'Fresher';
+        const tier = window._currentUser.tier || 'Fresher';
         const tierConfig = {
             'Fresher': { icon: '🌱', multiplier: '1.0x' },
             'Brute': { icon: '🔥', multiplier: '1.5x' },
@@ -1299,62 +1319,67 @@
         if (multiplierElement) multiplierElement.textContent = config.multiplier;
     }
     
+    // Function to update coin display with commas
+    function updateCoinDisplay() {
+        const coinsEl = document.getElementById('coins');
+        if (coinsEl && window._currentUser) {
+            coinsEl.textContent = formatNumberWithCommas(window._currentUser.coins);
+        }
+    }
+    
     // Override updateUI to add comma formatting
     const originalUpdateUI = window.updateUI;
-    if (originalUpdateUI) {
-        window.updateUI = function() {
+    window.updateUI = function() {
+        if (originalUpdateUI) {
             originalUpdateUI();
-            if (window.currentUser) {
-                const coinsEl = document.getElementById('coins');
-                if (coinsEl) {
-                    coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
-                }
-                // Load team unread count when user data is updated
-                loadTeamUnreadCount();
-            }
-        };
-    }
-    
-    // Listen for user data updates
-    if (window.currentUser) {
-        updateTierDisplay();
-        const coinsEl = document.getElementById('coins');
-        if (coinsEl) {
-            coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
         }
+        updateCoinDisplay();
         loadTeamUnreadCount();
-    }
+    };
     
-    // Monitor currentUser changes
+    // Monitor currentUser changes using a setter
+    let _currentUser = window.currentUser;
+    window._currentUser = _currentUser;
+    
     Object.defineProperty(window, 'currentUser', {
+        get: function() {
+            return this._currentUser;
+        },
         set: function(value) {
             this._currentUser = value;
             if (value) {
-                const coinsEl = document.getElementById('coins');
-                if (coinsEl) {
-                    coinsEl.textContent = formatNumberWithCommas(value.coins);
-                }
+                updateCoinDisplay();
                 updateTierDisplay();
                 loadTeamUnreadCount();
                 
                 // Connect WebSocket when user is available
-                if (!statusSocket) {
+                if (!statusSocket || !statusSocket.connected) {
                     connectStatusWebSocket();
+                } else if (statusSocket.connected) {
+                    statusSocket.emit('join-status', { userId: value.id });
                 }
             }
-        },
-        get: function() {
-            return this._currentUser;
         },
         configurable: true
     });
     
+    // Initialize if currentUser exists
+    if (window.currentUser) {
+        updateTierDisplay();
+        updateCoinDisplay();
+        loadTeamUnreadCount();
+    }
+    
     document.addEventListener('DOMContentLoaded', () => {
         checkUrlForTab();
         loadNotificationCount();
+        updateCoinDisplay();
+        
+        // Refresh notifications periodically
         setInterval(loadNotificationCount, 30000);
         setInterval(loadTeamUnreadCount, 30000);
-        if (window.currentUser) {
+        
+        if (window._currentUser) {
             updateTierDisplay();
             connectStatusWebSocket();
             loadTeamUnreadCount();
@@ -1562,6 +1587,7 @@
         window.handleTaskClick = handleTaskClick;
         
         document.addEventListener('DOMContentLoaded', function() {
+            // Tab switching
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.onclick = function() {
                     const tabId = this.getAttribute('data-tab');
@@ -1572,6 +1598,7 @@
                 };
             });
             
+            // Task click handlers
             const tasks = ['game','website','youtube','twitter','facebook','instagram','tiktok','telegram'];
             tasks.forEach(taskKey => {
                 const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
@@ -1579,20 +1606,25 @@
             });
             document.getElementById('cancelTaskBtn')?.addEventListener('click', () => cancelTask());
             
+            // Bonus code redeem handler - fixed version
             const redeemBtn = document.getElementById('redeemBonusBtn');
-            if (redeemBtn) {
+            const bonusInput = document.getElementById('bonusCodeInput');
+            
+            if (redeemBtn && bonusInput) {
+                // Remove any existing event listeners by cloning
                 const newRedeemBtn = redeemBtn.cloneNode(true);
                 redeemBtn.parentNode.replaceChild(newRedeemBtn, redeemBtn);
+                
                 newRedeemBtn.addEventListener('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    const input = document.getElementById('bonusCodeInput');
-                    if (!input) return;
-                    const code = input.value.trim().toUpperCase();
+                    
+                    const code = bonusInput.value.trim().toUpperCase();
                     if (!code) { 
                         showNotification('Enter a bonus code', true); 
                         return; 
                     }
+                    
                     try {
                         const initData = tg?.initData || '';
                         const res = await fetch('/api/redeem-bonus', {
@@ -1607,11 +1639,19 @@
                         }
                         if (data.success) {
                             showNotification(`🎉 Code redeemed! +${data.coins} COINS`);
-                            input.value = '';
+                            bonusInput.value = '';
                             if (window.refreshUser) await window.refreshUser();
                         }
                     } catch (err) { 
                         showNotification('Network error', true); 
+                    }
+                });
+                
+                // Allow Enter key to submit
+                bonusInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        newRedeemBtn.click();
                     }
                 });
             }
