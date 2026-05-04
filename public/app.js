@@ -1155,23 +1155,63 @@ async function init() {
     const watchAdBtn = document.getElementById('watchAdBtn');
     if (watchAdBtn) watchAdBtn.addEventListener('click', watchAd);
     
+    // ✅ FIXED: Redeem bonus button — always works
     const redeemBonusBtn = document.getElementById('redeemBonusBtn');
-if (redeemBonusBtn && !redeemBonusBtn._hasListener) {
-    redeemBonusBtn._hasListener = true;
-    redeemBonusBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        redeemBonus();
-    });
-}
+    if (redeemBonusBtn) {
+        // Remove ALL previous listeners by cloning
+        const newRedeemBtn = redeemBonusBtn.cloneNode(true);
+        redeemBonusBtn.parentNode.replaceChild(newRedeemBtn, redeemBonusBtn);
+        
+        // Add fresh click listener
+        newRedeemBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const input = document.getElementById('bonusCodeInput');
+            if (!input) {
+                showNotification('Input not found', true);
+                return;
+            }
+            
+            const code = input.value.trim().toUpperCase();
+            if (!code) {
+                showNotification('Enter a bonus code', true);
+                return;
+            }
+            
+            // Call the redeem function
+            redeemBonus();
+        });
+        
+        // Ensure button is style-clickable
+        newRedeemBtn.style.pointerEvents = 'auto';
+        newRedeemBtn.style.zIndex = '5';
+        newRedeemBtn.style.position = 'relative';
+    }
     
     // Add Enter key support for bonus input
     const bonusInput = document.getElementById('bonusCodeInput');
     if (bonusInput) {
+        // Ensure input is focusable
+        bonusInput.style.pointerEvents = 'auto';
+        bonusInput.style.zIndex = '1';
+        
         bonusInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 redeemBonus();
             }
+        });
+        
+        // Fix touch/click on input
+        bonusInput.addEventListener('touchstart', function(e) {
+            e.stopPropagation();
+            this.focus();
+        }, { passive: false });
+        
+        bonusInput.addEventListener('click', function(e) {
+            e.stopPropagation();
+            this.focus();
         });
     }
     
