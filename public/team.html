@@ -308,6 +308,7 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            position: relative;
         }
         .team-btn {
             flex: 1;
@@ -324,11 +325,34 @@
             justify-content: center;
             gap: 5px;
             transition: all 0.2s;
+            position: relative;
         }
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
         .team-btn.chat { border-color: var(--secondary); color: var(--secondary); }
         .team-btn:active { transform: scale(0.97); }
+        
+        /* Notification badge for chat button */
+        .chat-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            font-size: 9px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 3px;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
+        }
+        .chat-badge.hidden {
+            display: none;
+        }
         
         .members-title {
             font-size: 14px;
@@ -725,19 +749,21 @@
     let touchStartY = 0;
     let isRefreshing = false;
     const refreshIndicator = document.getElementById('refreshIndicator');
+    let statusSocket = null;
+    let teamUnreadCount = 0;
     
     let monthlyCache = null;
     let monthlyLastFetch = 0;
     let pendingCreate = false;
     let pendingJoin = false;
     let optimisticTeamData = null;
-    let currentTeamData = null; // Store current team data for chat navigation
+    let currentTeamData = null;
     const CACHE_TTL = 60000;
     
     const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
     
     // ============================================
-    // TEAM CHAT NAVIGATION
+    // TEAM CHAT NAVIGATION WITH NOTIFICATION BADGE
     // ============================================
     function openTeamChat() {
         if (currentTeamData && currentTeamData.team && currentTeamData.team.id) {
@@ -747,6 +773,62 @@
         } else {
             showNotification('Team info not available. Please refresh and try again.', true);
         }
+    }
+    
+    function updateChatBadge(count) {
+        const chatBtn = document.querySelector('.team-btn.chat');
+        if (chatBtn) {
+            let badge = chatBtn.querySelector('.chat-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'chat-badge hidden';
+                chatBtn.appendChild(badge);
+            }
+            if (count > 0) {
+                badge.textContent = count > 99 ? '99+' : count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+    }
+    
+    function connectStatusWebSocket() {
+        if (!tg?.initData) return;
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${protocol}//${window.location.host}`;
+        
+        statusSocket = io(socketUrl, {
+            auth: { initData: tg.initData },
+            transports: ['websocket']
+        });
+        
+        statusSocket.on('connect', () => {
+            console.log('Status WebSocket connected for team');
+            if (currentTeamData?.team?.id) {
+                statusSocket.emit('join-team-status', { teamId: currentTeamData.team.id });
+            }
+        });
+        
+        statusSocket.on('team-unread-count', (data) => {
+            teamUnreadCount = data.count || 0;
+            updateChatBadge(teamUnreadCount);
+        });
+        
+        statusSocket.on('disconnect', () => {
+            console.log('Status WebSocket disconnected');
+            setTimeout(connectStatusWebSocket, 3000);
+        });
+    }
+    
+    // Format number with commas and 2 decimal places
+    function formatNumberWithCommas(num) {
+        if (num === undefined || num === null) return '0.00';
+        const number = parseFloat(num);
+        if (isNaN(number)) return '0.00';
+        const parts = number.toFixed(2).split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return parts.join('.');
     }
     
     function dismissMonthlyBanner() {
@@ -786,7 +868,6 @@
         });
     }
     
-    // Get user's first name only (no username)
     function getFirstNameOnly(fullName) {
         if (!fullName) return 'User';
         return fullName.split(' ')[0];
@@ -868,7 +949,6 @@
     
     function renderMyTeam(data) {
         const container = document.getElementById('myTeamContent');
-        // Store team data for chat navigation
         currentTeamData = data;
         
         if (!data || !data.has_team) {
@@ -917,18 +997,17 @@
                 </div>
                 <div class="team-actions">
                     <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
-                    <button class="team-btn chat" onclick="openTeamChat()"><i class="fas fa-comment-dots"></i> Team Chat</button>
+                    <button class="team-btn chat" onclick="openTeamChat()"><i class="fas fa-comment-dots"></i> Team Chat<span class="chat-badge hidden" id="chatBadge">0</span></button>
                     <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                 </div>
             </div>
             <div class="members-title"><i class="fas fa-user-friends"></i><span>Members (${members.length})</span></div>
             ${members.map(m => {
-                const personalCoins = parseFloat(m.coins) || 0;
                 const monthlyCoinsMember = parseFloat(m.monthly_coins) || 0;
-                // PRIVACY: Only show first name, no username
                 const firstName = m.first_name ? getFirstNameOnly(m.first_name) : (m.username || 'User');
                 const initial = firstName.charAt(0).toUpperCase();
                 const photoUrl = m.photo_url || '';
+                // Show only monthly contribution, not total balance
                 return `
                     <div class="member-item">
                         <div class="member-avatar">
@@ -941,13 +1020,23 @@
                             </div>
                             <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} referrals</div>
                         </div>
-                        <div class="member-coins" title="Total: ${formatCoinsFull(personalCoins)} COINS | This Month: ${formatCoinsFull(monthlyCoinsMember)} COINS">
-                            ${formatCoinsShort(monthlyCoinsMember)}<span style="font-size:9px;color:var(--gray);"> (${formatCoinsShort(personalCoins)})</span>
+                        <div class="member-coins" title="This month's contribution">
+                            ${formatNumberWithCommas(monthlyCoinsMember)} <span style="font-size:9px;color:var(--gray);">COINS</span>
                         </div>
                     </div>
                 `;
             }).join('')}
         `;
+        
+        // Update chat badge after render
+        updateChatBadge(teamUnreadCount);
+        
+        // Connect WebSocket for real-time notifications
+        if (!statusSocket && team.id) {
+            connectStatusWebSocket();
+        } else if (statusSocket && team.id) {
+            statusSocket.emit('join-team-status', { teamId: team.id });
+        }
     }
     
     function renderMonthlyCompetition(data) {
@@ -964,7 +1053,7 @@
                 const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
                 const rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
                 const prize = MONTHLY_PRIZES[rank];
-                const prizeInfo = prize ? `<span style="font-size:9px;color:var(--gold);margin-left:5px;">🏆 ${prize.coins} each</span>` : '';
+                const prizeInfo = prize ? `<span style="font-size:9px;color:var(--gold);margin-left:5px;">🏆 ${prize.coins.toLocaleString()} each</span>` : '';
                 const teamCoins = parseFloat(team.team_coins) || 0;
                 const teamInitial = (team.name || 'T')[0].toUpperCase();
                 
@@ -976,7 +1065,7 @@
                             <div class="name">${escapeHtml(team.name)}</div>
                             <div class="members">👑 ${escapeHtml(team.leader_name || '?')} • ${team.member_count || 0} members ${prizeInfo}</div>
                         </div>
-                        <div class="score">${formatCoinsShort(teamCoins)}</div>
+                        <div class="score">${formatNumberWithCommas(teamCoins)} COINS</div>
                     </div>
                 `;
             }).join('') + `</div>`;
