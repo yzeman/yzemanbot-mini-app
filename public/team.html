@@ -308,7 +308,6 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
-            position: relative;
         }
         .team-btn {
             flex: 1;
@@ -763,7 +762,7 @@
     const MONTHLY_PRIZES = { 1: { coins: 2500, medal: '🥇' }, 2: { coins: 1000, medal: '🥈' }, 3: { coins: 500, medal: '🥉' } };
     
     // ============================================
-    // TEAM CHAT NAVIGATION WITH NOTIFICATION BADGE
+    // TEAM CHAT NAVIGATION
     // ============================================
     function openTeamChat() {
         if (currentTeamData && currentTeamData.team && currentTeamData.team.id) {
@@ -793,20 +792,27 @@
         }
     }
     
-    function connectStatusWebSocket() {
-        if (!tg?.initData) return;
+    function connectStatusWebSocket(teamId) {
+        if (!tg?.initData || !teamId) return;
+        
+        // Don't reconnect if already connected with same team
+        if (statusSocket && statusSocket.connected) return;
+        
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const socketUrl = `${protocol}//${window.location.host}`;
         
         statusSocket = io(socketUrl, {
             auth: { initData: tg.initData },
-            transports: ['websocket']
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 2000
         });
         
         statusSocket.on('connect', () => {
             console.log('Status WebSocket connected for team');
-            if (currentTeamData?.team?.id) {
-                statusSocket.emit('join-team-status', { teamId: currentTeamData.team.id });
+            if (teamId) {
+                statusSocket.emit('join-team-status', { teamId: teamId });
             }
         });
         
@@ -817,7 +823,6 @@
         
         statusSocket.on('disconnect', () => {
             console.log('Status WebSocket disconnected');
-            setTimeout(connectStatusWebSocket, 3000);
         });
     }
     
@@ -1007,7 +1012,6 @@
                 const firstName = m.first_name ? getFirstNameOnly(m.first_name) : (m.username || 'User');
                 const initial = firstName.charAt(0).toUpperCase();
                 const photoUrl = m.photo_url || '';
-                // Show only monthly contribution, not total balance
                 return `
                     <div class="member-item">
                         <div class="member-avatar">
@@ -1032,10 +1036,8 @@
         updateChatBadge(teamUnreadCount);
         
         // Connect WebSocket for real-time notifications
-        if (!statusSocket && team.id) {
-            connectStatusWebSocket();
-        } else if (statusSocket && team.id) {
-            statusSocket.emit('join-team-status', { teamId: team.id });
+        if (team.id) {
+            connectStatusWebSocket(team.id);
         }
     }
     
@@ -1079,7 +1081,7 @@
                     <div class="team-avatar"><i class="fas fa-users"></i></div>
                     <div class="team-info">
                         <h3>${escapeHtml(teamName)}</h3>
-                        <span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(teamCode)}</span>
+                        <span class="team-code"><i class="fas fa-key"></i} ${escapeHtml(teamCode)}</span>
                     </div>
                     <div class="team-rank">--</div>
                 </div>
@@ -1133,6 +1135,7 @@
             renderMyTeam(data);
             optimisticTeamData = null;
         } catch (err) {
+            console.error('Load team error:', err);
             if (optimisticTeamData) {
                 const container = document.getElementById('myTeamContent');
                 const errorDiv = document.createElement('div');
@@ -1167,6 +1170,7 @@
             monthlyLastFetch = now;
             renderMonthlyCompetition(data);
         } catch (err) {
+            console.error('Load monthly error:', err);
             if (monthlyCache) {
                 renderMonthlyCompetition(monthlyCache);
             } else {
@@ -1359,6 +1363,7 @@
     }
     
     document.addEventListener('DOMContentLoaded', () => {
+        console.log('Team page loading...');
         showMyTeamSkeleton();
         showMonthlySkeleton();
         loadMyTeamOnly(true);
