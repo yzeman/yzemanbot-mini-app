@@ -31,6 +31,7 @@
             overflow-x: hidden;
         }
         
+        /* Refresh Indicator */
         .refresh-indicator {
             position: fixed;
             top: 0;
@@ -84,6 +85,7 @@
         .user-name { font-size: 18px; font-weight: 600; }
         .user-id { font-size: 12px; color: var(--gray); }
         
+        /* Profile Link with Notification Badge */
         .profile-link {
             position: relative;
             cursor: pointer;
@@ -130,6 +132,7 @@
             display: none;
         }
         
+        /* Feature Card with Notification Badge */
         .feature-card {
             position: relative;
         }
@@ -155,6 +158,7 @@
             display: none;
         }
         
+        /* Online status toast */
         .online-toast {
             position: fixed;
             bottom: 80px;
@@ -193,6 +197,7 @@
             opacity: 0.8;
         }
         
+        /* ATTRACTIVE BALANCE CARD WITH TIER */
         .balance-card {
             background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
             border-radius: 25px;
@@ -223,6 +228,7 @@
         }
         .balance-coin { font-size: 14px; color: var(--gray); margin-left: 5px; }
         
+        /* Attractive Tier Display */
         .tier-display {
             background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,160,0,0.08));
             border-radius: 16px;
@@ -313,6 +319,7 @@
         .stat-value { font-size: 20px; font-weight: bold; color: var(--light); }
         .stat-label { font-size: 11px; color: var(--gray); margin-top: 5px; }
         
+        /* ATTRACTIVE FEATURE GRID */
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -334,6 +341,7 @@
         .feature-card i { font-size: 28px; margin-bottom: 8px; color: var(--gold); }
         .feature-card span { font-size: 11px; display: block; font-weight: 500; }
         
+        /* Tournament Special Glowing Card */
         .feature-card.tournament {
             background: linear-gradient(135deg, #FF9800, #F44336);
             position: relative;
@@ -577,27 +585,22 @@
             padding: 14px 15px;
             border-radius: 12px;
             border: none;
-            background: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.2);
             color: white;
-            font-size: 16px;
+            font-size: 14px;
             text-transform: uppercase;
             text-align: center;
             font-weight: bold;
             letter-spacing: 1px;
-            cursor: text;
-            pointer-events: auto;
-            -webkit-user-select: text;
-            user-select: text;
         }
         .bonus-input::placeholder {
-            color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.7);
             text-transform: none;
             letter-spacing: normal;
-            font-size: 14px;
         }
         .bonus-input:focus {
-            outline: 2px solid white;
-            background: rgba(255,255,255,0.35);
+            outline: none;
+            background: rgba(255,255,255,0.3);
         }
         .redeem-btn {
             background: white;
@@ -773,6 +776,7 @@
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
         
+        /* Nav item notification badge */
         .nav-badge {
             position: absolute;
             top: -2px;
@@ -878,6 +882,7 @@
             </div>
         </div>
         
+        <!-- ATTRACTIVE BALANCE CARD WITH TIER DISPLAY -->
         <div class="balance-card">
             <div class="balance-row">
                 <span class="balance-label">Your Balance</span>
@@ -887,6 +892,7 @@
                 </div>
             </div>
             
+            <!-- Attractive Tier Display -->
             <div class="tier-display" id="tierDisplay">
                 <div class="tier-info">
                     <div class="tier-icon" id="tierIcon">🌱</div>
@@ -918,6 +924,7 @@
         </div>
     </div>
     
+    <!-- ATTRACTIVE FEATURE GRID - REARRANGED with TOURNAMENT HIGHLIGHTED -->
     <div class="feature-grid">
         <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
         <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
@@ -936,6 +943,7 @@
         <div class="tab" data-tab="bonus"><i class="fas fa-gift"></i><span>Bonus</span></div>
     </div>
     
+    <!-- Earn Tab -->
     <div class="tab-content active" id="earnTab">
         <div class="ad-streak-section">
             <div class="streak-header">
@@ -944,7 +952,7 @@
                     <div class="streak-count" id="adStreakDisplay">0</div>
                     <div class="streak-label">Current Ad Streak</div>
                 </div>
-                <button class="reset-streak-btn" onclick="window.resetAdStreak && window.resetAdStreak()">Reset</button>
+                <button class="reset-streak-btn" onclick="window.resetAdStreak()">Reset</button>
             </div>
             <div class="daily-progress">
                 <div class="progress-label">
@@ -1004,6 +1012,7 @@
         </div>
     </div>
     
+    <!-- Refer Tab -->
     <div class="tab-content" id="referTab">
         <div class="referral-section">
             <div class="section-title"><i class="fas fa-users"></i><span>Referral Program</span></div>
@@ -1033,6 +1042,7 @@
         </div>
     </div>
     
+    <!-- Wallet Tab -->
     <div class="tab-content" id="walletTab">
         <div class="wallet-section">
             <div class="section-title"><i class="fas fa-wallet"></i><span>Withdrawal</span></div>
@@ -1048,6 +1058,7 @@
         </div>
     </div>
     
+    <!-- Bonus Tab -->
     <div class="tab-content" id="bonusTab">
         <div class="bonus-section">
             <div class="channel-banner" onclick="window.open('https://t.me/YzemanEarnBotChannel', '_blank')">
@@ -1102,23 +1113,193 @@
     
     <div class="notification" id="notification"></div>
 
+    <script src="/app.js"></script>
+    
     <script>
-    // ============================================
-    // FIXED: Format number with commas
-    // ============================================
+    // Format number with commas
     function formatNumberWithCommas(num) {
-        if (num === undefined || num === null) return '0.00';
+        if (num === undefined || num === null) return '0';
         const number = parseFloat(num);
-        if (isNaN(number)) return '0.00';
-        // Support up to 3 decimal places
+        if (isNaN(number)) return '0';
         const parts = number.toFixed(2).split('.');
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         return parts.join('.');
     }
     
-    // ============================================
-    // FIXED: Override the updateUI function to use commas
-    // ============================================
+    // Check URL for tab parameter
+    function checkUrlForTab() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tab = urlParams.get('tab');
+        if (tab) {
+            const tabElement = document.querySelector(`.tab[data-tab="${tab}"]`);
+            if (tabElement) {
+                setTimeout(() => tabElement.click(), 300);
+            }
+        }
+    }
+    
+    // Load notification count for profile badge
+    async function loadNotificationCount() {
+        if (!window.Telegram?.WebApp?.initData) return;
+        
+        try {
+            const requestsRes = await fetch('/api/friends/requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
+            });
+            const requestsData = await requestsRes.json();
+            const pendingRequests = requestsData.requests?.length || 0;
+            
+            let unreadMessages = 0;
+            try {
+                const messagesRes = await fetch('/api/private/messages/unread', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
+                });
+                const messagesData = await messagesRes.json();
+                unreadMessages = messagesData.unread_count || 0;
+            } catch (e) {
+                console.log('Private messages endpoint not available');
+            }
+            
+            const totalNotifications = pendingRequests + unreadMessages;
+            const badge = document.getElementById('profileNotificationBadge');
+            
+            if (totalNotifications > 0) {
+                badge.textContent = totalNotifications > 99 ? '99+' : totalNotifications;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        } catch (err) {
+            console.error('Failed to load notifications:', err);
+        }
+    }
+    
+    // Load team unread message count for team button badge
+    async function loadTeamUnreadCount() {
+        if (!window.Telegram?.WebApp?.initData) return;
+        
+        try {
+            // First get user info to get team_id
+            const userRes = await fetch('/api/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
+            });
+            const user = await userRes.json();
+            
+            if (user.team_id) {
+                // Get unread team messages count
+                const teamUnreadRes = await fetch('/api/team/unread-count', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        initData: window.Telegram.WebApp.initData,
+                        teamId: user.team_id 
+                    })
+                });
+                const unreadData = await teamUnreadRes.json();
+                const unreadCount = unreadData.unread_count || 0;
+                
+                const teamBadge = document.getElementById('teamNotificationBadge');
+                if (teamBadge) {
+                    if (unreadCount > 0) {
+                        teamBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                        teamBadge.classList.remove('hidden');
+                    } else {
+                        teamBadge.classList.add('hidden');
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load team unread count:', err);
+        }
+    }
+    
+    // Online status WebSocket
+    let statusSocket = null;
+    let toastTimeout = null;
+    
+    function showOnlineToast(firstName) {
+        const toast = document.getElementById('onlineToast');
+        document.getElementById('onlineToastTitle').textContent = 'Friend Online 🟢';
+        document.getElementById('onlineToastText').textContent = `${firstName} is now online!`;
+        
+        toast.classList.add('show');
+        
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 4000);
+    }
+    
+    function connectStatusWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${protocol}//${window.location.host}`;
+        
+        statusSocket = io(socketUrl, {
+            auth: { initData: window.Telegram?.WebApp?.initData },
+            transports: ['websocket']
+        });
+        
+        statusSocket.on('connect', () => {
+            console.log('Status WebSocket connected');
+            if (currentUser) {
+                statusSocket.emit('join-status', { userId: currentUser.id });
+            }
+        });
+        
+        statusSocket.on('friend-online', (data) => {
+            console.log('Friend online:', data);
+            showOnlineToast(data.firstName);
+        });
+        
+        statusSocket.on('team-unread-update', (data) => {
+            console.log('Team unread update:', data);
+            const teamBadge = document.getElementById('teamNotificationBadge');
+            if (teamBadge) {
+                if (data.count > 0) {
+                    teamBadge.textContent = data.count > 99 ? '99+' : data.count;
+                    teamBadge.classList.remove('hidden');
+                } else {
+                    teamBadge.classList.add('hidden');
+                }
+            }
+        });
+        
+        statusSocket.on('disconnect', () => {
+            console.log('Status WebSocket disconnected');
+            setTimeout(connectStatusWebSocket, 3000);
+        });
+    }
+    
+    // Function to update tier display with icon and multiplier
+    function updateTierDisplay() {
+        const tierElement = document.getElementById('tierName');
+        const tierIconElement = document.getElementById('tierIcon');
+        const multiplierElement = document.getElementById('tierMultiplier');
+        
+        if (!window.currentUser) return;
+        
+        const tier = window.currentUser.tier || 'Fresher';
+        const tierConfig = {
+            'Fresher': { icon: '🌱', multiplier: '1.0x' },
+            'Brute': { icon: '🔥', multiplier: '1.5x' },
+            'Silver': { icon: '🥈', multiplier: '2.0x' },
+            'Gold': { icon: '🥇', multiplier: '2.5x' },
+            'Platinum': { icon: '💎', multiplier: '3.0x' }
+        };
+        
+        const config = tierConfig[tier] || tierConfig['Fresher'];
+        if (tierElement) tierElement.textContent = tier;
+        if (tierIconElement) tierIconElement.textContent = config.icon;
+        if (multiplierElement) multiplierElement.textContent = config.multiplier;
+    }
+    
+    // Override updateUI to add comma formatting
     const originalUpdateUI = window.updateUI;
     if (originalUpdateUI) {
         window.updateUI = function() {
@@ -1128,93 +1309,314 @@
                 if (coinsEl) {
                     coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
                 }
+                // Load team unread count when user data is updated
+                loadTeamUnreadCount();
             }
         };
     }
     
-    // ============================================
-    // FIXED: Ensure bonus input works properly
-    // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-        // Fix bonus input focus and typing
-        const bonusInput = document.getElementById('bonusCodeInput');
-        if (bonusInput) {
-            // Remove any disabled attribute
-            bonusInput.removeAttribute('disabled');
-            bonusInput.setAttribute('autocomplete', 'off');
-            bonusInput.setAttribute('autocorrect', 'off');
-            bonusInput.setAttribute('autocapitalize', 'off');
-            bonusInput.setAttribute('spellcheck', 'false');
-            
-            // Ensure it's focusable and clickable
-            bonusInput.style.pointerEvents = 'auto';
-            bonusInput.style.opacity = '1';
-            bonusInput.style.visibility = 'visible';
-            
-            // Remove any parent click handlers that might interfere
-            bonusInput.addEventListener('mousedown', function(e) {
-                e.stopPropagation();
-            });
-            
-            bonusInput.addEventListener('click', function(e) {
-                e.stopPropagation();
-                this.focus();
-            });
-            
-            bonusInput.addEventListener('focus', function() {
-                this.style.background = 'rgba(255,255,255,0.35)';
-                this.style.outline = '2px solid white';
-            });
-            
-            bonusInput.addEventListener('blur', function() {
-                this.style.background = 'rgba(255,255,255,0.25)';
-                this.style.outline = 'none';
-            });
-            
-            console.log('✅ Bonus input fixed - ready for typing');
+    // Listen for user data updates
+    if (window.currentUser) {
+        updateTierDisplay();
+        const coinsEl = document.getElementById('coins');
+        if (coinsEl) {
+            coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
         }
-        
-        // Fix redeem button
-        const redeemBtn = document.getElementById('redeemBonusBtn');
-        if (redeemBtn) {
-            const newBtn = redeemBtn.cloneNode(true);
-            redeemBtn.parentNode.replaceChild(newBtn, redeemBtn);
-            newBtn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const input = document.getElementById('bonusCodeInput');
-                if (!input) return;
-                const code = input.value.trim().toUpperCase();
-                if (!code) {
-                    showNotification('Enter a bonus code', true);
-                    return;
+        loadTeamUnreadCount();
+    }
+    
+    // Monitor currentUser changes
+    Object.defineProperty(window, 'currentUser', {
+        set: function(value) {
+            this._currentUser = value;
+            if (value) {
+                const coinsEl = document.getElementById('coins');
+                if (coinsEl) {
+                    coinsEl.textContent = formatNumberWithCommas(value.coins);
                 }
-                try {
-                    const initData = window.Telegram?.WebApp?.initData || '';
-                    const res = await fetch('/api/redeem-bonus', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ initData, code })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                        showNotification(data.error || 'Failed to redeem', true);
-                        return;
-                    }
-                    if (data.success) {
-                        showNotification(`🎉 Code redeemed! +${data.coins} COINS`);
-                        input.value = '';
-                        if (window.refreshUser) await window.refreshUser();
-                    }
-                } catch (err) {
-                    console.error('Redeem error:', err);
-                    showNotification('Network error', true);
+                updateTierDisplay();
+                loadTeamUnreadCount();
+                
+                // Connect WebSocket when user is available
+                if (!statusSocket) {
+                    connectStatusWebSocket();
                 }
-            });
+            }
+        },
+        get: function() {
+            return this._currentUser;
+        },
+        configurable: true
+    });
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        checkUrlForTab();
+        loadNotificationCount();
+        setInterval(loadNotificationCount, 30000);
+        setInterval(loadTeamUnreadCount, 30000);
+        if (window.currentUser) {
+            updateTierDisplay();
+            connectStatusWebSocket();
+            loadTeamUnreadCount();
         }
     });
     </script>
     
-    <script src="/app.js"></script>
+    <script>
+    (function() {
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+        
+        let touchStartY = 0;
+        let isRefreshing = false;
+        const refreshIndicator = document.getElementById('refreshIndicator');
+        
+        function showRefreshIndicator(text, isError = false) {
+            refreshIndicator.textContent = text;
+            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+            refreshIndicator.classList.add('show');
+            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
+        }
+        
+        async function refreshPage() {
+            if (isRefreshing) return;
+            isRefreshing = true;
+            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+            try {
+                if (window.refreshUser) await window.refreshUser();
+                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+            } catch (err) {
+                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            } finally {
+                isRefreshing = false;
+            }
+        }
+        
+        document.addEventListener('touchstart', (e) => {
+            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
+        });
+        document.addEventListener('touchmove', (e) => {
+            if (window.scrollY === 0 && !isRefreshing) {
+                const diff = e.touches[0].clientY - touchStartY;
+                if (diff > 60) { e.preventDefault(); refreshPage(); }
+            }
+        });
+        
+        const TASK_CONFIG = {
+            game: { name: 'game', coins: 200, url: 'https://www.wikigame.top/register?ref=WGMNKOP32XDYR', time: 60, showTimer: false, onceOnly: true },
+            website: { name: 'website', coins: 5, url: 'https://yzeupdates.lat/articles', time: 120, showTimer: false, onceOnly: false },
+            youtube: { name: 'youtube1', coins: 100, url: 'https://youtube.com/@yzemanbot?si=VuHuAADByaIuxL7p', time: 5, showTimer: false, onceOnly: true },
+            twitter: { name: 'twitter', coins: 100, url: 'https://x.com/yzemanbot?s=21', time: 5, showTimer: false, onceOnly: true },
+            facebook: { name: 'facebook', coins: 100, url: 'https://facebook.com/YzemanBot', time: 5, showTimer: false, onceOnly: true },
+            instagram: { name: 'instagram', coins: 100, url: 'https://www.instagram.com/yzemanbot?igsh=ajZqZzN3Nzhocmc2&utm_source=qr', time: 5, showTimer: false, onceOnly: true },
+            tiktok: { name: 'tiktok', coins: 100, url: 'https://www.tiktok.com/@yzeman.bot?_r=1&_t=ZS-95Z0ezLaxAW', time: 5, showTimer: false, onceOnly: true },
+            telegram: { name: 'telegram', coins: 100, url: 'https://t.me/YzemanEarnBotChannel', time: 0, showTimer: false, instant: true, onceOnly: true }
+        };
+        window.TASK_CONFIG = TASK_CONFIG;
+        
+        function showNotification(msg, isError) {
+            const n = document.getElementById('notification');
+            if (n) {
+                n.textContent = msg;
+                n.style.background = isError ? '#ff5252' : '#00c853';
+                n.style.display = 'block';
+                setTimeout(() => n.style.display = 'none', 4000);
+            }
+        }
+        window.showNotification = showNotification;
+        
+        function openTaskUrl(task) {
+            const tgWebApp = window.Telegram?.WebApp;
+            if (task.name === 'telegram') {
+                if (tgWebApp && tgWebApp.openTelegramLink) tgWebApp.openTelegramLink(task.url);
+                else window.open(task.url, '_blank');
+                return;
+            }
+            if (tgWebApp && tgWebApp.openLink) tgWebApp.openLink(task.url, { try_instant_view: false });
+            else window.open(task.url, '_blank');
+        }
+        
+        let activeTask = null, taskStartTime = null, timerInterval = null, taskCompleted = false, visibilityHandler = null;
+        
+        function cleanupTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler);
+            timerInterval = null;
+            document.getElementById('timerPopup')?.classList.remove('active');
+            activeTask = null;
+            taskCompleted = false;
+        }
+        
+        function cancelTask(manual) {
+            cleanupTimer();
+            if (manual !== false) showNotification('Task cancelled. No reward.', true);
+        }
+        window.cancelTask = cancelTask;
+        
+        async function completeTaskOnServer(taskName, coins, retryCount = 0) {
+            const maxRetries = 3;
+            try {
+                const initData = (tg && tg.initData) || '';
+                const res = await fetch('/api/complete-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskName, coins, initData })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showNotification(data.message, false);
+                    if (window.refreshUser) await window.refreshUser();
+                    return true;
+                } else if (retryCount < maxRetries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    return completeTaskOnServer(taskName, coins, retryCount + 1);
+                } else {
+                    showNotification(data.error || 'Server error', true);
+                    return false;
+                }
+            } catch (e) {
+                if (retryCount < maxRetries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    return completeTaskOnServer(taskName, coins, retryCount + 1);
+                }
+                showNotification('Network error', true);
+                return false;
+            }
+        }
+        
+        async function checkTaskCompleted(taskName, onceOnly) {
+            if (!onceOnly) return false;
+            try {
+                const initData = (tg && tg.initData) || '';
+                const res = await fetch('/api/check-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ taskName, initData })
+                });
+                const data = await res.json();
+                return data.completed || false;
+            } catch (e) { return false; }
+        }
+        
+        function markTaskCompletedInUI(taskKey, onceOnly) {
+            if (!onceOnly) return;
+            const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
+            if (btn) {
+                btn.classList.add('completed');
+                if (!btn.querySelector('.completed-badge')) {
+                    const badge = document.createElement('div');
+                    badge.className = 'completed-badge';
+                    badge.innerHTML = '✓ Done';
+                    btn.appendChild(badge);
+                }
+            }
+        }
+        
+        function startTimer(taskKey, task) {
+            if (task.instant) {
+                openTaskUrl(task);
+                completeTaskOnServer(task.name, task.coins).then(success => {
+                    if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
+                });
+                return;
+            }
+            cleanupTimer();
+            activeTask = taskKey;
+            taskStartTime = Date.now();
+            taskCompleted = false;
+            openTaskUrl(task);
+            visibilityHandler = function() {
+                if (document.visibilityState === 'visible') {
+                    const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                    if (elapsed < task.time && !taskCompleted) {
+                        cleanupTimer();
+                        showNotification(taskKey === 'website' ? 'Must stay on website for 2 min to earn reward.' : 'Task incomplete - follow the rules.', true);
+                    }
+                }
+            };
+            document.addEventListener('visibilitychange', visibilityHandler);
+            timerInterval = setInterval(async () => {
+                const elapsed = Math.floor((Date.now() - taskStartTime) / 1000);
+                const remaining = Math.max(0, task.time - elapsed);
+                if (remaining <= 0 && !taskCompleted) {
+                    taskCompleted = true;
+                    cleanupTimer();
+                    const success = await completeTaskOnServer(task.name, task.coins);
+                    if (success) markTaskCompletedInUI(taskKey, task.onceOnly);
+                }
+            }, 1000);
+        }
+        
+        async function handleTaskClick(taskKey) {
+            if (activeTask) { showNotification('Complete current task first!', true); return; }
+            const task = TASK_CONFIG[taskKey];
+            if (!task) return;
+            const alreadyCompleted = await checkTaskCompleted(task.name, task.onceOnly);
+            if (alreadyCompleted) {
+                showNotification('You already completed this task.', true);
+                markTaskCompletedInUI(taskKey, task.onceOnly);
+                return;
+            }
+            startTimer(taskKey, task);
+        }
+        window.handleTaskClick = handleTaskClick;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.onclick = function() {
+                    const tabId = this.getAttribute('data-tab');
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(tabId + 'Tab').classList.add('active');
+                };
+            });
+            
+            const tasks = ['game','website','youtube','twitter','facebook','instagram','tiktok','telegram'];
+            tasks.forEach(taskKey => {
+                const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
+                if (btn) btn.onclick = (e) => { e.preventDefault(); handleTaskClick(taskKey); };
+            });
+            document.getElementById('cancelTaskBtn')?.addEventListener('click', () => cancelTask());
+            
+            const redeemBtn = document.getElementById('redeemBonusBtn');
+            if (redeemBtn) {
+                const newRedeemBtn = redeemBtn.cloneNode(true);
+                redeemBtn.parentNode.replaceChild(newRedeemBtn, redeemBtn);
+                newRedeemBtn.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const input = document.getElementById('bonusCodeInput');
+                    if (!input) return;
+                    const code = input.value.trim().toUpperCase();
+                    if (!code) { 
+                        showNotification('Enter a bonus code', true); 
+                        return; 
+                    }
+                    try {
+                        const initData = tg?.initData || '';
+                        const res = await fetch('/api/redeem-bonus', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ initData, code })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) { 
+                            showNotification(data.error || 'Failed to redeem', true); 
+                            return; 
+                        }
+                        if (data.success) {
+                            showNotification(`🎉 Code redeemed! +${data.coins} COINS`);
+                            input.value = '';
+                            if (window.refreshUser) await window.refreshUser();
+                        }
+                    } catch (err) { 
+                        showNotification('Network error', true); 
+                    }
+                });
+            }
+        });
+    })();
+    </script>
 </body>
 </html>
