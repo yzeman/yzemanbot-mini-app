@@ -628,11 +628,12 @@ function verifyAdmin(req, res, next) {
 
 
 // ============================================
-// WEBSOCKET SERVER FOR TEAM CHAT
+// WEBSOCKET SERVER FOR TEAM CHAT & PRIVATE CHAT
 // ============================================
 
 // Store connected users { socketId: { userId, teamId, firstName } }
 const connectedUsers = new Map();
+const userSockets = new Map(); // userId -> socketId (for push notifications)
 
 io.use(async (socket, next) => {
     const initData = socket.handshake.auth.initData;
@@ -679,6 +680,22 @@ io.use(async (socket, next) => {
 io.on('connection', (socket) => {
     console.log('🟢 User connected:', socket.id);
     
+    // ============================================
+    // JOIN STATUS ROOM (for online status)
+    // ============================================
+    socket.on('join-status', (data) => {
+        const { userId } = data;
+        if (userId) {
+            socket.join(`user_${userId}`);
+            socket.userId = userId;
+            userSockets.set(userId, socket.id);
+            console.log(`👤 User ${userId} joined status room`);
+        }
+    });
+    
+    // ============================================
+    // TEAM CHAT
+    // ============================================
     socket.on('join-team', async (data) => {
         const { teamId, userId, firstName } = data;
         
@@ -686,10 +703,18 @@ io.on('connection', (socket) => {
             userId,
             teamId,
             firstName,
-            socketId: socket.id
+            socketId: socket.id,
+            connectedAt: Date.now()
         });
         
+        userSockets.set(userId, socket.id);
         socket.join(`team_${teamId}`);
+        
+        // Broadcast to friends that user is online
+        socket.broadcast.emit('friend-online', { userId, firstName });
+        
+        // Update last seen
+        await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
         
         try {
             const messages = await pool.query(`
@@ -713,161 +738,7 @@ io.on('connection', (socket) => {
             console.error('Load messages error:', err);
         }
     });
-
-    // Add these inside io.on('connection', (socket) => { ... })
-
-// Store connected users and their socket IDs for push notifications
-const connectedUsers = new Map(); // socketId -> user data
-const userSockets = new Map(); // userId -> socketId (for targeting specific users)
-
-// Join private chat room
-socket.on('join-private', (data) => {
-    const { chatId, userId, friendId, firstName } = data;
     
-    // Store user info for private chat
-    connectedUsers.set(socket.id, {
-        userId,
-        friendId,
-        firstName,
-        chatId,
-        socketId: socket.id
-    });
-    
-    // Store mapping for user -> socket (for push notifications)
-    userSockets.set(userId, socket.id);
-    
-    socket.join(`private_${chatId}`);
-    console.log(`🔵 User ${firstName} (${userId}) joined private chat ${chatId}`);
-});
-
-// Send private message with push notification
-socket.on('send-private-message', async (data) => {
-    const { chatId, receiverId, message, senderId, senderName } = data;
-    
-    if (!message || message.trim().length === 0) return;
-    if (message.length > 500) return;
-    
-    try {
-        // Save to database
-        const result = await pool.query(`
-            INSERT INTO private_messages (sender_id, receiver_id, message)
-            VALUES ($1, $2, $3)
-            RETURNING id, created_at
-        `, [senderId, receiverId, message.trim()]);
-        
-        // Get sender's full info for notification
-        const senderInfo = await pool.query(
-            'SELECT first_name, photo_url FROM users WHERE id = $1',
-            [senderId]
-        );
-        
-        const messageData = {
-            id: result.rows[0].id,
-            sender_id: senderId,
-            receiver_id: receiverId,
-            sender_name: senderName,
-            message: message.trim(),
-            created_at: result.rows[0].created_at,
-            is_read: false,
-            is_edited: false
-        };
-        
-        // Send to the specific private chat room (both users are in this room)
-        io.to(`private_${chatId}`).emit('private-message', messageData);
-        
-        // ============================================
-        // PUSH NOTIFICATION TO RECEIVER (if offline/online)
-        // ============================================
-        
-        // Check if receiver is currently connected (online in the app)
-        const receiverSocketId = userSockets.get(receiverId);
-        const isReceiverOnline = receiverSocketId && connectedUsers.has(receiverSocketId);
-        
-        if (!isReceiverOnline) {
-            // User is offline - send push notification via Telegram Bot
-            try {
-                // Get receiver's telegram_id from database
-                const receiverInfo = await pool.query(
-                    'SELECT telegram_id, first_name FROM users WHERE id = $1',
-                    [receiverId]
-                );
-                
-                if (receiverInfo.rows.length > 0 && process.env.BOT_TOKEN) {
-                    const receiverTelegramId = receiverInfo.rows[0].telegram_id;
-                    const senderFirstName = senderInfo.rows[0]?.first_name || senderName;
-                    const messagePreview = message.length > 50 ? message.substring(0, 50) + '...' : message;
-                    
-                    // Send notification via Telegram Bot
-                    const notificationMessage = `💬 *New Message from ${senderFirstName}*\n\n📝 "${messagePreview}"\n\n🔔 Tap to open chat and reply!`;
-                    
-                    // Create inline keyboard to open the mini app directly to the chat
-                    const miniAppUrl = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
-                    
-                    await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: receiverTelegramId,
-                            text: notificationMessage,
-                            parse_mode: 'Markdown',
-                            reply_markup: {
-                                inline_keyboard: [[
-                                    { text: "💬 OPEN CHAT", web_app: { url: `${miniAppUrl}/profile.html?userId=${senderId}&openChat=true` } }
-                                ]]
-                            }
-                        })
-                    });
-                    
-                    console.log(`📨 Push notification sent to user ${receiverId} via Telegram`);
-                }
-            } catch (notifyErr) {
-                console.error('Failed to send push notification:', notifyErr);
-            }
-        } else {
-            // User is online - send a subtle notification within the app
-            io.to(receiverSocketId).emit('new-message-notification', {
-                from: senderId,
-                fromName: senderName,
-                message: message.trim(),
-                chatId: chatId
-            });
-        }
-        
-    } catch (err) {
-        console.error('Send private message error:', err);
-        socket.emit('message-error', { error: 'Failed to send message' });
-    }
-});
-
-// Typing indicator for private chat
-socket.on('typing-private', (data) => {
-    const { chatId, userId, isTyping } = data;
-    socket.to(`private_${chatId}`).emit('user-typing-private', {
-        userId,
-        isTyping
-    });
-});
-
-// Handle disconnection - cleanup
-socket.on('disconnect', () => {
-    const user = connectedUsers.get(socket.id);
-    if (user) {
-        console.log(`🔴 User ${user.firstName} (${user.userId}) disconnected`);
-        
-        // Remove from connected users
-        connectedUsers.delete(socket.id);
-        
-        // Remove from userSockets mapping if this socket matches
-        const storedSocketId = userSockets.get(user.userId);
-        if (storedSocketId === socket.id) {
-            userSockets.delete(user.userId);
-        }
-    }
-});
-    
-    // ============================================
-    // FIXED: send-message with database name lookup
-    // ============================================
     socket.on('send-message', async (data) => {
         const { teamId, message, userId } = data;
         
@@ -875,7 +746,6 @@ socket.on('disconnect', () => {
         if (message.length > 500) return;
         
         try {
-            // Get the user's first name from the database (not from frontend)
             const userResult = await pool.query(
                 'SELECT first_name FROM users WHERE id = $1',
                 [userId]
@@ -900,7 +770,6 @@ socket.on('disconnect', () => {
             
             io.to(`team_${teamId}`).emit('new-message', messageData);
             
-            // Clear typing status
             await pool.query(`
                 UPDATE team_typing_status
                 SET is_typing = false, updated_at = NOW()
@@ -984,105 +853,159 @@ socket.on('disconnect', () => {
         }
     });
     
-    socket.on('disconnect', () => {
-        const user = connectedUsers.get(socket.id);
-        if (user) {
-            console.log(`🔴 User ${user.firstName} disconnected`);
-            connectedUsers.delete(socket.id);
-        }
-    });
-});
-io.on('connection', (socket) => {
-    console.log('🟢 User connected:', socket.id);
-    
-    // Track when user connects
-    socket.on('join-team', async (data) => {
-        const { teamId, userId, firstName } = data;
+    // ============================================
+    // PRIVATE CHAT
+    // ============================================
+    socket.on('join-private', (data) => {
+        const { chatId, userId, friendId, firstName } = data;
         
         connectedUsers.set(socket.id, {
             userId,
-            teamId,
+            friendId,
             firstName,
-            socketId: socket.id,
-            connectedAt: Date.now()
+            chatId,
+            socketId: socket.id
         });
         
-        // Update last seen
-        await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
-        
-        // Broadcast to friends that user is online
-        socket.broadcast.emit('friend-online', { userId, firstName });
-        
-        // ... rest of existing code
+        userSockets.set(userId, socket.id);
+        socket.join(`private_${chatId}`);
+        console.log(`🔵 User ${firstName} (${userId}) joined private chat ${chatId}`);
     });
-
-    // Inside io.on('connection', (socket) => { ... })
-
-// Edit private message
-socket.on('edit-private-message', async (data) => {
-    const { messageId, newMessage, userId, chatId } = data;
     
-    if (!newMessage || newMessage.trim().length === 0) return;
-    if (newMessage.length > 500) return;
-    
-    try {
-        const result = await pool.query(`
-            UPDATE private_messages
-            SET message = $1, is_edited = true, updated_at = NOW()
-            WHERE id = $2 AND sender_id = $3
-            RETURNING id
-        `, [newMessage.trim(), messageId, userId]);
+    socket.on('send-private-message', async (data) => {
+        const { chatId, receiverId, message, senderId, senderName } = data;
         
-        if (result.rows.length > 0) {
-            io.to(`private_${chatId}`).emit('private-message-edited', {
-                messageId,
-                newMessage: newMessage.trim(),
-                userId
-            });
-        }
-    } catch (err) {
-        console.error('Edit message error:', err);
-        socket.emit('message-error', { error: 'Failed to edit message' });
-    }
-});
-
-// Delete private message
-socket.on('delete-private-message', async (data) => {
-    const { messageId, userId, chatId } = data;
-    
-    try {
-        const result = await pool.query(`
-            DELETE FROM private_messages
-            WHERE id = $1 AND sender_id = $2
-            RETURNING id
-        `, [messageId, userId]);
+        if (!message || message.trim().length === 0) return;
+        if (message.length > 500) return;
         
-        if (result.rows.length > 0) {
-            io.to(`private_${chatId}`).emit('private-message-deleted', {
-                messageId
-            });
+        try {
+            const result = await pool.query(`
+                INSERT INTO private_messages (sender_id, receiver_id, message)
+                VALUES ($1, $2, $3)
+                RETURNING id, created_at
+            `, [senderId, receiverId, message.trim()]);
+            
+            const senderInfo = await pool.query(
+                'SELECT first_name, photo_url FROM users WHERE id = $1',
+                [senderId]
+            );
+            
+            const messageData = {
+                id: result.rows[0].id,
+                sender_id: senderId,
+                receiver_id: receiverId,
+                sender_name: senderName,
+                message: message.trim(),
+                created_at: result.rows[0].created_at,
+                is_read: false,
+                is_edited: false
+            };
+            
+            io.to(`private_${chatId}`).emit('private-message', messageData);
+            
+            const receiverSocketId = userSockets.get(receiverId);
+            const isReceiverOnline = receiverSocketId && connectedUsers.has(receiverSocketId);
+            
+            if (!isReceiverOnline) {
+                try {
+                    const receiverInfo = await pool.query(
+                        'SELECT telegram_id, first_name FROM users WHERE id = $1',
+                        [receiverId]
+                    );
+                    
+                    if (receiverInfo.rows.length > 0 && process.env.BOT_TOKEN) {
+                        const receiverTelegramId = receiverInfo.rows[0].telegram_id;
+                        const senderFirstName = senderInfo.rows[0]?.first_name || senderName;
+                        const messagePreview = message.length > 50 ? message.substring(0, 50) + '...' : message;
+                        const miniAppUrl = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
+                        
+                        await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: receiverTelegramId,
+                                text: `💬 *New Message from ${senderFirstName}*\n\n📝 "${messagePreview}"\n\n🔔 Tap to reply!`,
+                                parse_mode: 'Markdown',
+                                reply_markup: {
+                                    inline_keyboard: [[
+                                        { text: "💬 REPLY", web_app: { url: `${miniAppUrl}/profile.html?userId=${senderId}` } }
+                                    ]]
+                                }
+                            })
+                        });
+                    }
+                } catch (notifyErr) {
+                    console.error('Push notification error:', notifyErr);
+                }
+            }
+            
+        } catch (err) {
+            console.error('Send private message error:', err);
+            socket.emit('message-error', { error: 'Failed to send message' });
         }
-    } catch (err) {
-        console.error('Delete message error:', err);
-        socket.emit('message-error', { error: 'Failed to delete message' });
-    }
-});
-
-    // Add this inside io.on('connection', (socket) => { ... })
-
-socket.on('join-status', (data) => {
-    const { userId } = data;
-    socket.join(`user_${userId}`);
-    socket.userId = userId;
+    });
     
-    // Broadcast to friends that user is online
-    // You'll need to get friend list and emit to them
-});
+    socket.on('edit-private-message', async (data) => {
+        const { messageId, newMessage, userId, chatId } = data;
+        
+        if (!newMessage || newMessage.trim().length === 0) return;
+        if (newMessage.length > 500) return;
+        
+        try {
+            const result = await pool.query(`
+                UPDATE private_messages
+                SET message = $1, is_edited = true, updated_at = NOW()
+                WHERE id = $2 AND sender_id = $3
+                RETURNING id
+            `, [newMessage.trim(), messageId, userId]);
+            
+            if (result.rows.length > 0) {
+                io.to(`private_${chatId}`).emit('private-message-edited', {
+                    messageId,
+                    newMessage: newMessage.trim(),
+                    userId
+                });
+            }
+        } catch (err) {
+            socket.emit('message-error', { error: 'Failed to edit message' });
+        }
+    });
     
+    socket.on('delete-private-message', async (data) => {
+        const { messageId, userId, chatId } = data;
+        
+        try {
+            const result = await pool.query(`
+                DELETE FROM private_messages
+                WHERE id = $1 AND sender_id = $2
+                RETURNING id
+            `, [messageId, userId]);
+            
+            if (result.rows.length > 0) {
+                io.to(`private_${chatId}`).emit('private-message-deleted', {
+                    messageId
+                });
+            }
+        } catch (err) {
+            socket.emit('message-error', { error: 'Failed to delete message' });
+        }
+    });
+    
+    socket.on('typing-private', (data) => {
+        const { chatId, userId, isTyping } = data;
+        socket.to(`private_${chatId}`).emit('user-typing-private', {
+            userId,
+            isTyping
+        });
+    });
+    
+    // ============================================
+    // DISCONNECT
+    // ============================================
     socket.on('disconnect', async () => {
         const user = connectedUsers.get(socket.id);
         if (user) {
-            console.log(`🔴 User ${user.firstName} disconnected`);
+            console.log(`🔴 User ${user.firstName} (${user.userId}) disconnected`);
             
             // Update last seen
             await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.userId]);
@@ -1092,7 +1015,6 @@ socket.on('join-status', (data) => {
             
             connectedUsers.delete(socket.id);
             
-            // Remove from userSockets
             const storedSocketId = userSockets.get(user.userId);
             if (storedSocketId === socket.id) {
                 userSockets.delete(user.userId);
