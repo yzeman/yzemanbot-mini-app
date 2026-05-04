@@ -1003,9 +1003,14 @@ io.on('connection', (socket) => {
 
 // Join team status room for unread message count
 socket.on('join-team-status', async (data) => {
-    const { teamId } = data;
-    if (teamId) {
+    const { teamId, userId } = data;
+    if (teamId && userId) {
         socket.join(`team_status_${teamId}`);
+        socket.userId = userId; // ✅ Set userId from the data
+        
+        // Connect this socket for friend online status too
+        socket.join(`user_${userId}`);
+        userSockets.set(userId, socket.id);
         
         // Get unread message count for this team
         try {
@@ -1017,7 +1022,7 @@ socket.on('join-team-status', async (data) => {
                     FROM team_message_reads 
                     WHERE team_id = $1 AND user_id = $2
                 )
-            `, [teamId, socket.userId]);
+            `, [teamId, userId]);
             
             socket.emit('team-unread-count', { count: parseInt(result.rows[0].count) });
         } catch (err) {
