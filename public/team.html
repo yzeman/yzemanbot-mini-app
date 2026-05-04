@@ -1032,6 +1032,21 @@
     let teamSocket = null;
     let unreadCount = 0;
     
+    // Load saved unread count from localStorage (persists across page loads)
+    function loadSavedUnreadCount() {
+        if (!currentTeamData?.team?.id) return;
+        const saved = localStorage.getItem(`team_unread_${currentTeamData.team.id}`);
+        if (saved) {
+            unreadCount = parseInt(saved) || 0;
+            updateChatBadge();
+        }
+    }
+    
+    function saveUnreadCount() {
+        if (!currentTeamData?.team?.id) return;
+        localStorage.setItem(`team_unread_${currentTeamData.team.id}`, unreadCount);
+    }
+    
     function connectTeamSocket() {
         if (!currentTeamData?.team?.id || !tg?.initData) return;
         
@@ -1051,27 +1066,41 @@
             
             teamSocket.on('connect', () => {
                 console.log('🟢 Team status socket connected');
+                // Join the status room to get unread count
                 teamSocket.emit('join-team-status', { teamId });
             });
             
-            // Listen for new messages
+            // Listen for new messages from anyone in the team
             teamSocket.on('new-message', (msg) => {
+                console.log('📨 New team message received:', msg);
                 if (msg.team_id === teamId) {
                     unreadCount++;
+                    saveUnreadCount();
                     updateChatBadge();
                 }
             });
             
-            // Listen for unread count from server
+            // Listen for user-joined events too (someone entered chat)
+            teamSocket.on('user-joined', (data) => {
+                console.log('👤 User joined team chat:', data);
+            });
+            
+            // Get initial unread count from server
             teamSocket.on('team-unread-count', (data) => {
-                if (data.count > 0) {
+                console.log('📊 Server unread count:', data.count);
+                if (data.count > unreadCount) {
                     unreadCount = data.count;
-                    updateChatBadge();
                 }
+                saveUnreadCount();
+                updateChatBadge();
             });
             
             teamSocket.on('disconnect', () => {
                 console.log('🔴 Team status socket disconnected');
+            });
+            
+            teamSocket.on('connect_error', (err) => {
+                console.error('Team socket connection error:', err.message);
             });
             
         } catch (err) {
@@ -1091,20 +1120,22 @@
         }
     }
     
-    // Reset badge when clicking chat button
+    // Override openTeamChat to reset badge when clicking
     const originalOpenTeamChat = openTeamChat;
     openTeamChat = function() {
         unreadCount = 0;
+        saveUnreadCount();
         updateChatBadge();
         originalOpenTeamChat();
     };
     
-    // Connect socket after team data loads
+    // Override renderMyTeam to connect socket after team loads
     const originalRenderMyTeam = renderMyTeam;
     renderMyTeam = function(data) {
         originalRenderMyTeam(data);
         currentTeamData = data;
         if (data?.has_team) {
+            loadSavedUnreadCount();
             setTimeout(connectTeamSocket, 500);
         }
     };
