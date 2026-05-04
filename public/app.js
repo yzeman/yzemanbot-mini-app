@@ -20,11 +20,6 @@ if (tg) {
 const COIN_ECONOMY = {
     MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
     
-    // ============================================================
-    // BALANCED AD REWARDS - FUN BUT NOT TOO FAST
-    // Fresher: 0.2 | Brute: 0.35 | Silver: 0.5 | Gold: 0.75 | Platinum: 1.0
-    // ============================================================
-    
     AD_REWARDS: {
         'Fresher': 0.2,
         'Brute': 0.35,
@@ -33,7 +28,6 @@ const COIN_ECONOMY = {
         'Platinum': 1.0
     },
     
-    // Tier requirements (referral count)
     TIER_REQUIREMENTS: {
         'Fresher': 0,
         'Brute': 150,
@@ -42,7 +36,6 @@ const COIN_ECONOMY = {
         'Platinum': 1500
     },
     
-    // Referral rewards (tier-based, in COINS per invite)
     REFERRAL_REWARDS_COINS: {
         'Fresher': 5,
         'Brute': 10,
@@ -51,17 +44,9 @@ const COIN_ECONOMY = {
         'Platinum': 25
     },
     
-    // Invitee bonus (2,000 COINS)
     INVITEE_BONUS_COINS: 2000,
-    
-    // Lifetime commission rate (2%)
     COMMISSION_RATE: 0.02,
     
-    // ============================================================
-    // EXCITING AD BONUSES & SURPRISES
-    // ============================================================
-    
-    // Streak bonuses - Rewards consistency
     AD_STREAK_BONUSES: { 
         5: 1,
         10: 3,
@@ -70,19 +55,16 @@ const COIN_ECONOMY = {
         100: 100
     },
     
-    // Random bonus chances (exciting surprises!)
     LUCKY_AD_CHANCE: 0.15,
     GOLDEN_AD_CHANCE: 0.05,
     MEGA_AD_CHANCE: 0.01,
     EPIC_AD_CHANCE: 0.002,
     
-    // Daily & Weekly Goals
     DAILY_AD_GOAL: 20,
     DAILY_AD_GOAL_REWARD: 2,
     WEEKLY_AD_GOAL: 100,
     WEEKLY_AD_GOAL_REWARD: 15,
     
-    // Milestone rewards for total ads watched
     AD_MILESTONES: { 
         100: 10,
         250: 30,
@@ -93,14 +75,11 @@ const COIN_ECONOMY = {
         10000: 2500
     },
     
-    // Daily base reward
     DAILY_BASE_REWARD: 0.2,
     DAILY_STREAK_BONUS: 0.1,
     
-    // Wheel prizes
     WHEEL_PRIZES: [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000],
     
-    // Social task rewards
     SOCIAL_TASK_REWARDS: {
         'youtube1': 100,
         'youtube2': 100,
@@ -113,7 +92,6 @@ const COIN_ECONOMY = {
     PLAY_EARN_REWARD: 200,
     WEBSITE_TASK_REWARD: 5,
     
-    // Achievement rewards
     ACHIEVEMENT_REWARDS: {
         'Loyal User': 500,
         'Referral Master': 3000,
@@ -144,16 +122,32 @@ const COIN_ECONOMY = {
 
 const POINT_ECONOMY = COIN_ECONOMY;
 
+// ============================================================
+// FORMAT NUMBER WITH COMMAS
+// ============================================================
+function formatNumberWithCommas(num) {
+    if (num === undefined || num === null) return '0.00';
+    const number = parseFloat(num);
+    if (isNaN(number)) return '0.00';
+    
+    // For large numbers, use abbreviations
+    if (number >= 1000000) {
+        return (number / 1000000).toFixed(2) + 'M';
+    }
+    
+    // Format with commas and 2 decimal places
+    const parts = number.toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
 // ============================================
 // DEEP LINK NAVIGATION - Open specific pages
 // ============================================
 
 function handleDeepLink() {
-    // Check for startapp parameter
     const urlParams = new URLSearchParams(window.location.search);
     let startApp = urlParams.get('startapp');
-    
-    // Also check for regular page parameter
     const page = urlParams.get('page');
     
     if (startApp) {
@@ -166,7 +160,6 @@ function handleDeepLink() {
 function navigateToPage(page) {
     console.log(`🔗 Navigating to: ${page}`);
     
-    // Map page names to URLs
     const pageMap = {
         'leaderboard': '/leaderboard.html',
         'daily': '/daily.html',
@@ -175,27 +168,23 @@ function navigateToPage(page) {
         'achievements': '/achievements.html',
         'tournament': '/tournament.html',
         'history': '/history.html',
-        'refer': null,  // Special case - switch to refer tab on home page
-        'bonus': null,   // Special case - switch to bonus tab on home page
-        'wallet': null    // Special case - switch to wallet tab on home page
+        'refer': null,
+        'bonus': null,
+        'wallet': null
     };
     
     const targetUrl = pageMap[page.toLowerCase()];
     
     if (targetUrl) {
-        // Navigate to specific page
         window.location.href = targetUrl;
     } else if (['refer', 'bonus', 'wallet', 'earn'].includes(page.toLowerCase())) {
-        // Stay on home page but switch tab
         switchHomeTab(page.toLowerCase());
     } else {
-        // Default to home
         window.location.href = '/';
     }
 }
 
 function switchHomeTab(tabName) {
-    // Map tab names to data-tab values
     const tabMap = {
         'earn': 'earn',
         'refer': 'refer',
@@ -205,23 +194,19 @@ function switchHomeTab(tabName) {
     
     const targetTab = tabMap[tabName];
     if (targetTab) {
-        // Store in sessionStorage to apply after page loads
         sessionStorage.setItem('openTab', targetTab);
         
-        // If already on home page, switch tab immediately
         if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
             const tabElement = document.querySelector(`.tab[data-tab="${targetTab}"]`);
             if (tabElement) {
                 tabElement.click();
             }
         } else {
-            // Navigate to home page and then switch tab
             window.location.href = '/?tab=' + targetTab;
         }
     }
 }
 
-// Check sessionStorage for tab to open when home page loads
 function checkStoredTab() {
     const storedTab = sessionStorage.getItem('openTab');
     if (storedTab) {
@@ -233,7 +218,6 @@ function checkStoredTab() {
     }
 }
 
-// Run deep link handler when page loads
 document.addEventListener('DOMContentLoaded', () => {
     handleDeepLink();
     checkStoredTab();
@@ -601,31 +585,67 @@ function updateUI() {
     const coins = parseFloat(currentUser.coins) || 0;
     const progress = Math.min((coins / COIN_ECONOMY.MIN_WITHDRAWAL_COINS) * 100, 100);
     
+    // Update coin display WITH COMMAS
     const coinsEl = document.getElementById('coins');
+    if (coinsEl) {
+        coinsEl.textContent = formatNumberWithCommas(coins);
+    }
+    
+    // Update tier display
     const tierEl = document.getElementById('tier');
+    const tierNameEl = document.getElementById('tierName');
+    const tierIconEl = document.getElementById('tierIcon');
+    const tierMultiplierEl = document.getElementById('tierMultiplier');
+    
+    const tier = currentUser.tier || 'Fresher';
+    const tierConfig = {
+        'Fresher': { icon: '🌱', multiplier: '1.0x' },
+        'Brute': { icon: '🔥', multiplier: '1.5x' },
+        'Silver': { icon: '🥈', multiplier: '2.0x' },
+        'Gold': { icon: '🥇', multiplier: '2.5x' },
+        'Platinum': { icon: '💎', multiplier: '3.0x' }
+    };
+    
+    const config = tierConfig[tier] || tierConfig['Fresher'];
+    
+    if (tierEl) tierEl.textContent = tier;
+    if (tierNameEl) tierNameEl.textContent = tier;
+    if (tierIconEl) tierIconEl.textContent = config.icon;
+    if (tierMultiplierEl) tierMultiplierEl.textContent = config.multiplier;
+    
+    // Update progress with commas
     const progressAmount = document.getElementById('progressAmount');
     const progressBar = document.getElementById('progressBar');
-    const referralCount = document.getElementById('referralCount');
-    const referralReward = document.getElementById('referralReward');
-    const adReward = document.getElementById('adReward');
-    const referralLink = document.getElementById('referralLink');
-    
-    if (coinsEl) coinsEl.textContent = coins.toFixed(2);
-    if (tierEl) tierEl.textContent = currentUser.tier || 'Fresher';
-    if (progressAmount) progressAmount.textContent = `${coins.toFixed(2)} / ${COIN_ECONOMY.MIN_WITHDRAWAL_COINS} COINS`;
+    if (progressAmount) {
+        progressAmount.textContent = `${formatNumberWithCommas(coins)} / ${formatNumberWithCommas(COIN_ECONOMY.MIN_WITHDRAWAL_COINS)} COINS`;
+    }
     if (progressBar) progressBar.style.width = progress + '%';
-    if (referralCount) referralCount.textContent = currentUser.referrals || 0;
     
+    const referralCount = document.getElementById('referralCount');
+    const referralCountTab = document.getElementById('referralCountTab');
+    if (referralCount) referralCount.textContent = currentUser.referrals || 0;
+    if (referralCountTab) referralCountTab.textContent = currentUser.referrals || 0;
+    
+    const referralReward = document.getElementById('referralReward');
     if (referralReward) {
-        const reward = COIN_ECONOMY.REFERRAL_REWARDS_COINS[currentUser.tier] || 5;
+        const reward = COIN_ECONOMY.REFERRAL_REWARDS_COINS[tier] || 5;
         referralReward.textContent = `${reward.toFixed(2)} COINS`;
     }
+    
+    const adReward = document.getElementById('adReward');
     if (adReward) {
-        const reward = COIN_ECONOMY.AD_REWARDS[currentUser.tier] || 0.2;
+        const reward = COIN_ECONOMY.AD_REWARDS[tier] || 0.2;
         adReward.textContent = `${reward.toFixed(2)} COINS`;
     }
+    
+    const referralLink = document.getElementById('referralLink');
     if (referralLink && currentUser.referral_code) {
         referralLink.textContent = `https://t.me/YzemanBot?start=${currentUser.referral_code}`;
+    }
+    
+    const referralPerInvite = document.getElementById('referralPerInvite');
+    if (referralPerInvite) {
+        referralPerInvite.textContent = COIN_ECONOMY.REFERRAL_REWARDS_COINS[tier] || 5;
     }
     
     const withdrawBtn = document.getElementById('withdrawBtn');
@@ -641,14 +661,15 @@ function updateUI() {
         currentRefs.textContent = currentUser.referrals || 0;
         const tiers = ['Fresher', 'Brute', 'Silver', 'Gold', 'Platinum'];
         const tierRefs = Object.values(COIN_ECONOMY.TIER_REQUIREMENTS);
-        const idx = tiers.indexOf(currentUser.tier);
+        const idx = tiers.indexOf(tier);
         const nextRefs = tierRefs[idx + 1] || tierRefs[tierRefs.length - 1];
         if (nextTierReq) nextTierReq.textContent = nextRefs;
         const tierProgress = ((currentUser.referrals || 0) / nextRefs) * 100;
         if (tierProgressBar) tierProgressBar.style.width = Math.min(tierProgress, 100) + '%';
     }
+    
     const currentTierEl = document.getElementById('currentTier');
-    if (currentTierEl) currentTierEl.textContent = currentUser.tier || 'Fresher';
+    if (currentTierEl) currentTierEl.textContent = tier;
 }
 
 function updateAdStreakDisplay() {
@@ -678,7 +699,6 @@ function calculateAdReward() {
     let multiplier = 1;
     let luckyType = 'normal';
     
-    // Check EPIC first (0.2% chance)
     if (rand < COIN_ECONOMY.EPIC_AD_CHANCE) { 
         multiplier = 25; 
         luckyType = 'epic'; 
@@ -890,14 +910,14 @@ window.resetAdStreak = function() {
 
 async function checkTask(taskName) {
     try {
-        const res = await apiCall('/api/check-task', { taskName });
+        const res = await apiCall('/api/check-task', { taskName, initData: tg.initData });
         return res?.completed || false;
     } catch (e) { return false; }
 }
 
 async function completeTaskOnServer(taskName, coins) {
     try {
-        const res = await apiCall('/api/complete-task', { taskName, coins });
+        const res = await apiCall('/api/complete-task', { taskName, coins, initData: tg.initData });
         if (res?.success) {
             showNotification(res.message, false);
             const btn = document.getElementById(`task${taskName.charAt(0).toUpperCase() + taskName.slice(1)}`);
@@ -944,7 +964,7 @@ function displayBonusHistoryUI(history) {
     const container = document.getElementById('bonusHistoryList');
     if (!container) return;
     if (!history || history.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color: var(--gray);">No bonuses redeemed yet</div>';
+        container.innerHTML = '<div class="empty-bonus">No bonuses redeemed yet</div>';
         return;
     }
     container.innerHTML = history.map(item => {
@@ -1128,11 +1148,31 @@ async function init() {
         setTimeout(preloadMonetagAd, 2000);
     }
     
+    // Button event listeners
     const watchAdBtn = document.getElementById('watchAdBtn');
     if (watchAdBtn) watchAdBtn.addEventListener('click', watchAd);
     
     const redeemBonusBtn = document.getElementById('redeemBonusBtn');
-    if (redeemBonusBtn) redeemBonusBtn.addEventListener('click', redeemBonus);
+    if (redeemBonusBtn) {
+        // Remove existing listeners by cloning
+        const newBtn = redeemBonusBtn.cloneNode(true);
+        redeemBonusBtn.parentNode.replaceChild(newBtn, redeemBonusBtn);
+        newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            redeemBonus();
+        });
+    }
+    
+    // Add Enter key support for bonus input
+    const bonusInput = document.getElementById('bonusCodeInput');
+    if (bonusInput) {
+        bonusInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                redeemBonus();
+            }
+        });
+    }
     
     const copyBtn = document.getElementById('copyBtn');
     if (copyBtn) copyBtn.addEventListener('click', copyReferralLink);
