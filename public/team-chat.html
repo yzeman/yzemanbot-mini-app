@@ -667,15 +667,28 @@
             });
             
             socket.on('connect', () => {
-                console.log('WebSocket connected');
-                document.getElementById('teamStatus').textContent = 'Connected';
-                
-                socket.emit('join-team', {
-                    teamId: parseInt(teamId),
-                    userId: currentUser.id,
-                    firstName: currentUser.first_name || 'User'
-                });
-            });
+    console.log('WebSocket connected');
+    document.getElementById('teamStatus').textContent = 'Connected';
+    
+    socket.emit('join-team', {
+        teamId: parseInt(teamId),
+        userId: currentUser.id,
+        firstName: currentUser.first_name || 'User'
+    });
+    
+    // Clear unread badge in localStorage when entering chat
+    localStorage.setItem(`team_unread_${teamId}`, '0');
+    
+    // Mark all messages as read on the server
+    fetch('/api/team/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            initData: tg.initData,
+            teamId: parseInt(teamId) 
+        })
+    }).catch(err => console.error('Mark read error:', err));
+});
             
             socket.on('chat-history', (messages) => {
                 console.log('Chat history received:', messages?.length);
