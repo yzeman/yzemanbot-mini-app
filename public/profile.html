@@ -249,7 +249,6 @@
             object-fit: cover;
         }
         
-        /* Online Status Indicator */
         .online-indicator {
             position: absolute;
             bottom: 2px;
@@ -305,6 +304,16 @@
             color: var(--danger);
         }
         
+        .last-message {
+            font-size: 9px;
+            color: var(--gray);
+            margin-top: 2px;
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
         .request-actions, .friend-actions {
             display: flex;
             gap: 6px;
@@ -327,7 +336,6 @@
         .action-icon.chat { background: var(--secondary); color: white; }
         .action-icon:active { transform: scale(0.95); }
         
-        /* Message notification badge on chat icon */
         .message-badge {
             position: absolute;
             top: -5px;
@@ -641,7 +649,6 @@
                 const user = await apiCall('/api/user');
                 currentUser = user;
                 
-                // Update last seen
                 apiCall('/api/user/last-seen').catch(() => {});
                 
                 if (targetUserId && parseInt(targetUserId) !== currentUser.id) {
@@ -669,10 +676,8 @@
                     setupTabs();
                     setupSearch();
                     
-                    // Connect WebSocket for online status
                     connectStatusWebSocket();
                     
-                    // Update last seen periodically
                     setInterval(() => {
                         apiCall('/api/user/last-seen').catch(() => {});
                     }, 60000);
@@ -823,17 +828,56 @@
             return Math.max(0, Math.min(100, score));
         }
         
+        // Format time for display
+        function formatMessageTime(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            return `${diffDays}d ago`;
+        }
+        
         async function loadFriends() {
             const container = document.getElementById('friendsList');
             container.innerHTML = '<div class="loading">Loading friends...</div>';
             
             try {
-                const [friendsData, unreadData] = await Promise.all([
+                const [friendsData, unreadData, lastMessages] = await Promise.all([
                     apiCall('/api/friends/list'),
-                    apiCall('/api/private/messages/unread-by-friend').catch(() => ({ unread_counts: {} }))
+                    apiCall('/api/private/messages/unread-by-friend').catch(() => ({ unread_counts: {} })),
+                    apiCall('/api/private/messages/last-messages').catch(() => ({}))
                 ]);
                 currentFriends = friendsData.friends || [];
-                renderFriends(currentFriends, unreadData.unread_counts || {});
+                
+                // Sort friends by last message time (newest first)
+                const friendsWithLastMessage = currentFriends.map(friend => ({
+                    ...friend,
+                    lastMessageTime: lastMessages[friend.id]?.last_message_time || null,
+                    lastMessageText: lastMessages[friend.id]?.last_message || '',
+                    lastMessageDirection: lastMessages[friend.id]?.direction || ''
+                }));
+                
+                // Sort: online first, then by last message time
+                friendsWithLastMessage.sort((a, b) => {
+                    // Online status first
+                    const aOnline = onlineStatusMap[a.id] || false;
+                    const bOnline = onlineStatusMap[b.id] || false;
+                    if (aOnline !== bOnline) return bOnline - aOnline;
+                    
+                    // Then by last message time (newest first)
+                    const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
+                    const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
+                    return bTime - aTime;
+                });
+                
+                renderFriends(friendsWithLastMessage, unreadData.unread_counts || {});
                 await loadOnlineStatus();
             } catch (err) {
                 console.error('Load friends error:', err);
@@ -857,6 +901,14 @@
                 const onlineClass = isOnline ? 'online' : '';
                 const lastSeenText = isOnline ? 'Online now' : (friend.last_seen ? `Last seen ${formatLastSeen(friend.last_seen)}` : 'Offline');
                 
+                // Show last message preview
+                let lastMessageHtml = '';
+                if (friend.lastMessageText) {
+                    const directionIcon = friend.lastMessageDirection === 'sent' ? '📤 ' : '📥 ';
+                    const messagePreview = friend.lastMessageText.length > 25 ? friend.lastMessageText.substring(0, 22) + '...' : friend.lastMessageText;
+                    lastMessageHtml = `<div class="last-message">${directionIcon} ${escapeHtml(messagePreview)}</div>`;
+                }
+                
                 return `
                     <div class="friend-item" data-user-id="${friend.id}" onclick="viewUserProfile(${friend.id})">
                         <div class="friend-avatar">
@@ -867,6 +919,7 @@
                             <div class="friend-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${friend.tier || 'Fresher'} Tier</div>
                             <div class="last-seen ${onlineClass}">${lastSeenText}</div>
+                            ${lastMessageHtml}
                         </div>
                         <div class="friend-actions" onclick="event.stopPropagation()">
                             <div class="action-icon chat" onclick="startChat(${friend.id}, '${escapeHtml(firstName)}')">
@@ -888,7 +941,11 @@
             
             try {
                 const data = await apiCall('/api/friends/requests');
-                renderRequests(data.requests);
+                // Sort requests by created_at (newest first)
+                const sortedRequests = (data.requests || []).sort((a, b) => {
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+                renderRequests(sortedRequests);
             } catch (err) {
                 container.innerHTML = '<div class="empty-state">Failed to load requests</div>';
             }
@@ -906,6 +963,7 @@
                 const firstName = getFirstName(req.first_name || 'User');
                 const blocksReceived = req.total_blocks_received || 0;
                 const blockWarning = blocksReceived >= 5 ? '<div class="trust-badge warning"><i class="fas fa-ban"></i> Blocked by ' + blocksReceived + ' users</div>' : '';
+                const requestTime = formatMessageTime(req.created_at);
                 
                 return `
                     <div class="request-item">
@@ -913,6 +971,7 @@
                         <div class="request-info" onclick="viewUserProfile(${req.id})">
                             <div class="request-name">${escapeHtml(firstName)}</div>
                             <div class="request-tier">${req.tier || 'Fresher'} Tier</div>
+                            <div class="last-message" style="color:var(--gold);">Requested ${requestTime}</div>
                             ${blockWarning}
                         </div>
                         <div class="request-actions">
