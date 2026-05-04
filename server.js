@@ -3841,6 +3841,13 @@ app.post('/api/user/last-seen', verifyTelegramData, async (req, res) => {
     }
 });
 
+// Get unread team messages count for a user
+app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
+    const { teamId } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await
+
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
