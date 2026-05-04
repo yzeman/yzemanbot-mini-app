@@ -1344,16 +1344,29 @@
     });
     
     document.addEventListener('DOMContentLoaded', () => {
-        checkUrlForTab();
-        loadNotificationCount();
-        setInterval(loadNotificationCount, 30000);
-        setInterval(loadTeamUnreadCount, 30000);
-        if (window.currentUser) {
-            updateTierDisplay();
-            connectStatusWebSocket();
+    checkUrlForTab();
+    loadNotificationCount();
+    setInterval(loadNotificationCount, 30000);
+    setInterval(loadTeamUnreadCount, 30000);
+    
+    // Listen for when app.js sets up the user
+    window.addEventListener('userDataUpdated', function(e) {
+        if (e.detail && e.detail.team_id) {
             loadTeamUnreadCount();
         }
+        updateTierDisplay();
+        connectStatusWebSocket();
     });
+    
+    // In case user was already loaded before this script ran
+    if (window.currentUser) {
+        updateTierDisplay();
+        connectStatusWebSocket();
+        if (window.currentUser.team_id) {
+            loadTeamUnreadCount();
+        }
+    }
+});
     </script>
     
     <script>
