@@ -3866,6 +3866,55 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
     }
 });
 
+// Get last messages for friends (for sorting)
+app.post('/api/private/messages/last-messages', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({});
+        const userId = userResult.rows[0].id;
+        
+        const result = await pool.query(`
+            SELECT DISTINCT ON (other_user) 
+                other_user as friend_id,
+                message,
+                created_at as last_message_time,
+                CASE 
+                    WHEN sender_id = $1 THEN 'sent'
+                    ELSE 'received'
+                END as direction
+            FROM (
+                SELECT 
+                    sender_id,
+                    receiver_id,
+                    message,
+                    created_at,
+                    CASE 
+                        WHEN sender_id = $1 THEN receiver_id
+                        ELSE sender_id
+                    END as other_user
+                FROM private_messages
+                WHERE sender_id = $1 OR receiver_id = $1
+            ) messages
+            ORDER BY other_user, created_at DESC
+        `, [userId]);
+        
+        const lastMessages = {};
+        result.rows.forEach(row => {
+            lastMessages[row.friend_id] = {
+                last_message: row.message,
+                last_message_time: row.last_message_time,
+                direction: row.direction
+            };
+        });
+        
+        res.json(lastMessages);
+    } catch (err) {
+        console.error('Last messages error:', err);
+        res.json({});
+    }
+});
+
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
