@@ -1156,15 +1156,13 @@ async function init() {
     if (watchAdBtn) watchAdBtn.addEventListener('click', watchAd);
     
     const redeemBonusBtn = document.getElementById('redeemBonusBtn');
-    if (redeemBonusBtn) {
-        // Remove existing listeners by cloning
-        const newBtn = redeemBonusBtn.cloneNode(true);
-        redeemBonusBtn.parentNode.replaceChild(newBtn, redeemBonusBtn);
-        newBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            redeemBonus();
-        });
-    }
+if (redeemBonusBtn && !redeemBonusBtn._hasListener) {
+    redeemBonusBtn._hasListener = true;
+    redeemBonusBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        redeemBonus();
+    });
+}
     
     // Add Enter key support for bonus input
     const bonusInput = document.getElementById('bonusCodeInput');
