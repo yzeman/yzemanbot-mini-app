@@ -294,6 +294,7 @@
             font-weight: bold;
         }
         
+        /* LEADERBOARD LIST - FIXED STYLES */
         .leaderboard-list {
             max-height: 450px;
             overflow-y: auto;
@@ -310,37 +311,91 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
         .rank {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 16px;
-            margin-right: 10px;
+            font-size: 18px;
+            margin-right: 12px;
             border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+            flex-shrink: 0;
         }
         .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA000); color: #1a1a2e; }
         .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A0A0A0); color: #1a1a2e; }
         .rank-3 { background: linear-gradient(135deg, #CD7F32, #B87333); color: #1a1a2e; }
         
         .team-avatar-small {
-            width: 40px;
-            height: 40px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 18px;
             margin-right: 12px;
             color: white;
+            flex-shrink: 0;
         }
-        .score {
+        .team-info-compact {
+            flex: 1;
+            min-width: 0;
+        }
+        .team-name {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 4px;
+            color: var(--light);
+        }
+        /* Leader name and member count - SMALLER and MORE SUBTLE */
+        .team-meta {
+            font-size: 10px;
+            color: var(--gray);
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .team-meta i {
+            font-size: 9px;
+            margin-right: 2px;
+            color: var(--gold);
+            opacity: 0.6;
+        }
+        .team-leader {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .team-members-count {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .prize-badge {
+            font-size: 9px;
+            color: var(--gold);
+            background: rgba(255,215,0,0.15);
+            padding: 2px 6px;
+            border-radius: 12px;
+            margin-left: 8px;
+            display: inline-block;
+        }
+        .team-score {
             font-weight: bold;
             color: var(--gold);
-            font-size: 14px;
+            font-size: 15px;
             text-align: right;
+            flex-shrink: 0;
+        }
+        .team-score small {
+            font-size: 9px;
+            color: var(--gray);
+            font-weight: normal;
         }
         
         .skeleton {
@@ -624,6 +679,14 @@
         document.getElementById('prizeInfoBox').classList.add('dismissed');
     }
     
+    function shouldShowMonthlyBanner() {
+        return localStorage.getItem('monthlyBannerDismissed') !== 'true';
+    }
+    
+    function shouldShowPrizeInfo() {
+        return localStorage.getItem('prizeInfoDismissedMonth') !== new Date().toISOString().slice(0, 7);
+    }
+    
     function showMyTeamSkeleton() {
         document.getElementById('myTeamContent').innerHTML = `
             <div class="skeleton" style="height:200px; margin:15px; border-radius:20px;"></div>
@@ -635,7 +698,7 @@
     function showMonthlySkeleton() {
         let items = '';
         for (let i = 0; i < 5; i++) {
-            items += `<div class="skeleton" style="height:60px; margin-bottom:8px; border-radius:14px;"></div>`;
+            items += `<div class="skeleton" style="height:65px; margin-bottom:8px; border-radius:14px;"></div>`;
         }
         document.getElementById('monthlyContent').innerHTML = `<div class="members-title"><i class="fas fa-chart-line"></i> Monthly Standings</div>${items}`;
     }
@@ -643,8 +706,6 @@
     function renderMyTeam(data) {
         const container = document.getElementById('myTeamContent');
         currentTeamData = data;
-        
-        console.log('Rendering my team:', data);
         
         if (!data || !data.has_team) {
             container.innerHTML = `
@@ -736,15 +797,21 @@
                 const rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
                 const teamCoins = parseFloat(team.team_coins) || 0;
                 const teamInitial = (team.name || 'T')[0].toUpperCase();
+                const prize = MONTHLY_PRIZES[rank];
+                const prizeHtml = prize ? `<span class="prize-badge">🏆 ${prize.toLocaleString()}</span>` : '';
+                
                 return `
                     <div class="leaderboard-item">
                         <div class="rank ${rankClass}">${rankDisplay}</div>
                         <div class="team-avatar-small">${escapeHtml(teamInitial)}</div>
-                        <div class="info" style="flex:1;">
-                            <div class="name">${escapeHtml(team.name)}</div>
-                            <div class="members">👑 ${escapeHtml(team.leader_name || '?')} • ${team.member_count || 0} members</div>
+                        <div class="team-info-compact">
+                            <div class="team-name">${escapeHtml(team.name)} ${prizeHtml}</div>
+                            <div class="team-meta">
+                                <span class="team-leader"><i class="fas fa-crown"></i> ${escapeHtml(team.leader_name || '?')}</span>
+                                <span class="team-members-count"><i class="fas fa-users"></i> ${team.member_count || 0}</span>
+                            </div>
                         </div>
-                        <div class="score">${formatNumberWithCommas(teamCoins)}</div>
+                        <div class="team-score">${formatNumberWithCommas(teamCoins)}<small> COINS</small></div>
                     </div>
                 `;
             }).join('') + `</div>`;
@@ -754,7 +821,6 @@
         if (showSkeleton) showMyTeamSkeleton();
         try {
             const data = await apiCall('/api/team/info');
-            console.log('Team info response:', data);
             
             if (data && data.has_team && data.team && data.team.id) {
                 try {
@@ -955,14 +1021,6 @@
         document.getElementById('prizeInfoBox').classList.remove('dismissed');
     } else {
         document.getElementById('prizeInfoBox').classList.add('dismissed');
-    }
-    
-    function shouldShowMonthlyBanner() {
-        return localStorage.getItem('monthlyBannerDismissed') !== 'true';
-    }
-    
-    function shouldShowPrizeInfo() {
-        return localStorage.getItem('prizeInfoDismissedMonth') !== new Date().toISOString().slice(0, 7);
     }
     
     document.addEventListener('DOMContentLoaded', () => {
