@@ -776,7 +776,6 @@
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
         
-        /* Nav item notification badge */
         .nav-badge {
             position: absolute;
             top: -2px;
@@ -1116,12 +1115,14 @@
     <script src="/app.js"></script>
     
     <script>
-    // Format number with commas
+    // Format number with commas - FIXED: handles both integer and decimal values
     function formatNumberWithCommas(num) {
         if (num === undefined || num === null) return '0';
         const number = parseFloat(num);
         if (isNaN(number)) return '0';
+        // Split into integer and decimal parts
         const parts = number.toFixed(2).split('.');
+        // Add commas to integer part
         parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         return parts.join('.');
     }
@@ -1183,7 +1184,6 @@
         if (!window.Telegram?.WebApp?.initData) return;
         
         try {
-            // First get user info to get team_id
             const userRes = await fetch('/api/user', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1192,7 +1192,6 @@
             const user = await userRes.json();
             
             if (user.team_id) {
-                // Get unread team messages count
                 const teamUnreadRes = await fetch('/api/team/unread-count', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1276,7 +1275,6 @@
         });
     }
     
-    // Function to update tier display with icon and multiplier
     function updateTierDisplay() {
         const tierElement = document.getElementById('tierName');
         const tierIconElement = document.getElementById('tierIcon');
@@ -1309,7 +1307,6 @@
                 if (coinsEl) {
                     coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
                 }
-                // Load team unread count when user data is updated
                 loadTeamUnreadCount();
             }
         };
@@ -1337,7 +1334,6 @@
                 updateTierDisplay();
                 loadTeamUnreadCount();
                 
-                // Connect WebSocket when user is available
                 if (!statusSocket) {
                     connectStatusWebSocket();
                 }
@@ -1372,7 +1368,7 @@
         const refreshIndicator = document.getElementById('refreshIndicator');
         
         function showRefreshIndicator(text, isError = false) {
-            refreshIndicator.textContent = text;
+            refreshIndicator.innerHTML = text;
             refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
             refreshIndicator.classList.add('show');
             setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
@@ -1561,7 +1557,9 @@
         }
         window.handleTaskClick = handleTaskClick;
         
+        // FIXED: Bonus input functionality - making sure input is focusable and button works
         document.addEventListener('DOMContentLoaded', function() {
+            // Fix tab switching
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.onclick = function() {
                     const tabId = this.getAttribute('data-tab');
@@ -1572,6 +1570,7 @@
                 };
             });
             
+            // Fix tasks
             const tasks = ['game','website','youtube','twitter','facebook','instagram','tiktok','telegram'];
             tasks.forEach(taskKey => {
                 const btn = document.getElementById('task' + taskKey.charAt(0).toUpperCase() + taskKey.slice(1));
@@ -1579,10 +1578,31 @@
             });
             document.getElementById('cancelTaskBtn')?.addEventListener('click', () => cancelTask());
             
+            // FIXED: Bonus redeem button - ensure it works properly and input is focusable
             const redeemBtn = document.getElementById('redeemBonusBtn');
+            const bonusInput = document.getElementById('bonusCodeInput');
+            
+            // Make sure input is not disabled and can receive focus
+            if (bonusInput) {
+                bonusInput.removeAttribute('disabled');
+                bonusInput.style.pointerEvents = 'auto';
+                bonusInput.style.opacity = '1';
+                
+                // Allow typing in the input field
+                bonusInput.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+                
+                bonusInput.addEventListener('focus', function() {
+                    this.style.background = 'rgba(255,255,255,0.3)';
+                });
+            }
+            
             if (redeemBtn) {
+                // Remove any existing listeners by cloning
                 const newRedeemBtn = redeemBtn.cloneNode(true);
                 redeemBtn.parentNode.replaceChild(newRedeemBtn, redeemBtn);
+                
                 newRedeemBtn.addEventListener('click', async function(e) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1609,8 +1629,13 @@
                             showNotification(`🎉 Code redeemed! +${data.coins} COINS`);
                             input.value = '';
                             if (window.refreshUser) await window.refreshUser();
+                            // Also update bonus history if available
+                            if (window.loadBonusHistory) window.loadBonusHistory();
+                        } else {
+                            showNotification(data.error || 'Invalid code', true);
                         }
                     } catch (err) { 
+                        console.error('Redeem error:', err);
                         showNotification('Network error', true); 
                     }
                 });
