@@ -1030,6 +1030,43 @@ socket.on('join-team-status', async (data) => {
         }
     }
 });
+
+// Broadcast team unread count updates
+socket.on('join-team-status', async (data) => {
+    const { teamId } = data;
+    if (teamId && socket.userId) {
+        socket.join(`team_status_${teamId}`);
+        
+        // Send initial unread count
+        const result = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM team_messages 
+            WHERE team_id = $1 AND created_at > COALESCE(
+                (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
+                '2024-01-01'
+            )
+        `, [teamId, socket.userId]);
+        
+        socket.emit('team-unread-update', { count: parseInt(result.rows[0].count) });
+    }
+});
+
+// When new team message arrives, update unread count for all members except sender
+socket.on('send-message', async (data) => {
+    // ... existing code ...
+    
+    // After saving message, broadcast unread count to all team members except sender
+    const unreadResult = await pool.query(`
+        SELECT COUNT(*) as count 
+        FROM team_messages 
+        WHERE team_id = $1 AND created_at > COALESCE(
+            (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
+            '2024-01-01'
+        )
+    `, [teamId, userId]);
+    
+    socket.to(`team_${teamId}`).emit('team-unread-update', { count: parseInt(unreadResult.rows[0].count) });
+});    
     
     // ============================================
     // DISCONNECT
@@ -3959,6 +3996,38 @@ app.post('/api/team/mark-read', verifyTelegramData, async (req, res) => {
     } catch (err) {
         console.error('Mark read error:', err);
         res.status(500).json({ error: 'Failed to mark as read' });
+    }
+});
+
+// Get unread team messages count for badge
+app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
+    const { teamId } = req.body;
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ unread_count: 0 });
+        const userId = userResult.rows[0].id;
+        
+        // Get last read timestamp for this user in this team
+        const lastReadResult = await pool.query(`
+            SELECT MAX(read_at) as last_read 
+            FROM team_message_reads 
+            WHERE team_id = $1 AND user_id = $2
+        `, [teamId, userId]);
+        
+        const lastRead = lastReadResult.rows[0]?.last_read || new Date('2024-01-01');
+        
+        // Count unread messages
+        const countResult = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM team_messages 
+            WHERE team_id = $1 AND created_at > $2
+        `, [teamId, lastRead]);
+        
+        res.json({ unread_count: parseInt(countResult.rows[0].count) });
+    } catch (err) {
+        console.error('Team unread count error:', err);
+        res.json({ unread_count: 0 });
     }
 });
 
