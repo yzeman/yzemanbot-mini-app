@@ -1158,11 +1158,9 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               [refereeBonus, user.id]
             );
             
-            // ✅ TRACK REFEREE'S BONUS IN HISTORY (2,000 COINS)
-            await client.query(
-              'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
-              [user.id, refereeBonus, 'referral_bonus']
-            );
+            // ✅ REMOVED - Referee 2,000 bonus no longer counted in leaderboard
+// (The coins still go to the user's balance, just not tracked for rankings)
+console.log(`ℹ️ Referee ${user.id} received ${refereeBonus} COINS (not tracked in leaderboard)`);
             
             // Track monthly earnings for the referee's bonus
             await trackMonthlyEarnings(client, user.id, refereeBonus);
