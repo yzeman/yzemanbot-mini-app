@@ -753,7 +753,9 @@
                 </div>
                 <div class="team-actions">
                     <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
-                    <button class="team-btn chat" onclick="openTeamChat()"><i class="fas fa-comment-dots"></i> Team Chat</button>
+                    <button class="team-btn chat" onclick="openTeamChat()">
+    <i class="fas fa-comment-dots"></i> Team Chat
+    <span class="chat-badge hidden" id="teamChatBadge">0</span></button>
                     <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
                 </div>
             </div>
@@ -1022,6 +1024,90 @@
     } else {
         document.getElementById('prizeInfoBox').classList.add('dismissed');
     }
+    
+    // ============================================
+    // WEBSOCKET - Team Chat Badge Updates
+    // ============================================
+    
+    let teamSocket = null;
+    let unreadCount = 0;
+    
+    function connectTeamSocket() {
+        if (!currentTeamData?.team?.id || !tg?.initData) return;
+        
+        const teamId = currentTeamData.team.id;
+        
+        // Close existing connection
+        if (teamSocket) {
+            teamSocket.disconnect();
+            teamSocket = null;
+        }
+        
+        try {
+            teamSocket = io(window.location.origin, {
+                auth: { initData: tg.initData },
+                transports: ['websocket', 'polling']
+            });
+            
+            teamSocket.on('connect', () => {
+                console.log('🟢 Team status socket connected');
+                teamSocket.emit('join-team-status', { teamId });
+            });
+            
+            // Listen for new messages
+            teamSocket.on('new-message', (msg) => {
+                if (msg.team_id === teamId) {
+                    unreadCount++;
+                    updateChatBadge();
+                }
+            });
+            
+            // Listen for unread count from server
+            teamSocket.on('team-unread-count', (data) => {
+                if (data.count > 0) {
+                    unreadCount = data.count;
+                    updateChatBadge();
+                }
+            });
+            
+            teamSocket.on('disconnect', () => {
+                console.log('🔴 Team status socket disconnected');
+            });
+            
+        } catch (err) {
+            console.error('Team socket error:', err);
+        }
+    }
+    
+    function updateChatBadge() {
+        const badge = document.getElementById('teamChatBadge');
+        if (!badge) return;
+        
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+    
+    // Reset badge when clicking chat button
+    const originalOpenTeamChat = openTeamChat;
+    openTeamChat = function() {
+        unreadCount = 0;
+        updateChatBadge();
+        originalOpenTeamChat();
+    };
+    
+    // Connect socket after team data loads
+    const originalRenderMyTeam = renderMyTeam;
+    renderMyTeam = function(data) {
+        originalRenderMyTeam(data);
+        currentTeamData = data;
+        if (data?.has_team) {
+            setTimeout(connectTeamSocket, 500);
+        }
+    };
     
     document.addEventListener('DOMContentLoaded', () => {
         loadMyTeamOnly(true);
