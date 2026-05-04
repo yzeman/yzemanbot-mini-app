@@ -132,6 +132,32 @@
             display: none;
         }
         
+        /* Feature Card with Notification Badge */
+        .feature-card {
+            position: relative;
+        }
+        .feature-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            font-size: 9px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 3px;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .feature-badge.hidden {
+            display: none;
+        }
+        
         /* Online status toast */
         .online-toast {
             position: fixed;
@@ -201,15 +227,6 @@
             background-clip: text;
         }
         .balance-coin { font-size: 14px; color: var(--gray); margin-left: 5px; }
-        
-        function formatNumberWithCommas(num) {
-            if (num === undefined) return '0';
-            const n = parseFloat(num);
-            if (isNaN(n)) return '0';
-            const parts = n.toFixed(2).split('.');
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            return parts.join('.');
-        }
         
         /* Attractive Tier Display */
         .tier-display {
@@ -754,9 +771,32 @@
             padding: 8px;
             border-radius: 10px;
             transition: all 0.2s ease;
+            position: relative;
         }
         .nav-item i { font-size: 22px; display: block; margin-bottom: 4px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
+        
+        /* Nav item notification badge */
+        .nav-badge {
+            position: absolute;
+            top: -2px;
+            right: 5px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            font-size: 9px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 3px;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
+        }
+        .nav-badge.hidden {
+            display: none;
+        }
         
         .tier-benefits-list {
             margin-top: 20px;
@@ -890,7 +930,7 @@
         <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
         <a href="/leaderboard.html" class="feature-card"><i class="fas fa-trophy"></i><span>Ranks</span></a>
         <a href="/tournament.html" class="feature-card tournament"><i class="fas fa-crown"></i><span>Tournament</span><span class="hot-badge">🔥 HOT</span></a>
-        <a href="/team.html" class="feature-card"><i class="fas fa-users"></i><span>Team</span></a>
+        <a href="/team.html" class="feature-card" id="teamFeatureCard"><i class="fas fa-users"></i><span>Team</span><span class="feature-badge hidden" id="teamNotificationBadge">0</span></a>
         <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achievements</span></a>
         <a href="/history.html" class="feature-card"><i class="fas fa-history"></i><span>History</span></a>
         <a href="/faq.html" class="feature-card"><i class="fas fa-question-circle"></i><span>FAQ</span></a>
@@ -1138,6 +1178,47 @@
         }
     }
     
+    // Load team unread message count for team button badge
+    async function loadTeamUnreadCount() {
+        if (!window.Telegram?.WebApp?.initData) return;
+        
+        try {
+            // First get user info to get team_id
+            const userRes = await fetch('/api/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
+            });
+            const user = await userRes.json();
+            
+            if (user.team_id) {
+                // Get unread team messages count
+                const teamUnreadRes = await fetch('/api/team/unread-count', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        initData: window.Telegram.WebApp.initData,
+                        teamId: user.team_id 
+                    })
+                });
+                const unreadData = await teamUnreadRes.json();
+                const unreadCount = unreadData.unread_count || 0;
+                
+                const teamBadge = document.getElementById('teamNotificationBadge');
+                if (teamBadge) {
+                    if (unreadCount > 0) {
+                        teamBadge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                        teamBadge.classList.remove('hidden');
+                    } else {
+                        teamBadge.classList.add('hidden');
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Failed to load team unread count:', err);
+        }
+    }
+    
     // Online status WebSocket
     let statusSocket = null;
     let toastTimeout = null;
@@ -1174,6 +1255,19 @@
         statusSocket.on('friend-online', (data) => {
             console.log('Friend online:', data);
             showOnlineToast(data.firstName);
+        });
+        
+        statusSocket.on('team-unread-update', (data) => {
+            console.log('Team unread update:', data);
+            const teamBadge = document.getElementById('teamNotificationBadge');
+            if (teamBadge) {
+                if (data.count > 0) {
+                    teamBadge.textContent = data.count > 99 ? '99+' : data.count;
+                    teamBadge.classList.remove('hidden');
+                } else {
+                    teamBadge.classList.add('hidden');
+                }
+            }
         });
         
         statusSocket.on('disconnect', () => {
@@ -1215,6 +1309,8 @@
                 if (coinsEl) {
                     coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
                 }
+                // Load team unread count when user data is updated
+                loadTeamUnreadCount();
             }
         };
     }
@@ -1226,6 +1322,7 @@
         if (coinsEl) {
             coinsEl.textContent = formatNumberWithCommas(window.currentUser.coins);
         }
+        loadTeamUnreadCount();
     }
     
     // Monitor currentUser changes
@@ -1238,6 +1335,7 @@
                     coinsEl.textContent = formatNumberWithCommas(value.coins);
                 }
                 updateTierDisplay();
+                loadTeamUnreadCount();
                 
                 // Connect WebSocket when user is available
                 if (!statusSocket) {
@@ -1255,9 +1353,11 @@
         checkUrlForTab();
         loadNotificationCount();
         setInterval(loadNotificationCount, 30000);
+        setInterval(loadTeamUnreadCount, 30000);
         if (window.currentUser) {
             updateTierDisplay();
             connectStatusWebSocket();
+            loadTeamUnreadCount();
         }
     });
     </script>
