@@ -670,6 +670,9 @@ function updateUI() {
     
     const currentTierEl = document.getElementById('currentTier');
     if (currentTierEl) currentTierEl.textContent = tier;
+
+// At the end of updateUI() in app.js, before the closing }
+window.dispatchEvent(new CustomEvent('userDataUpdated', { detail: currentUser }));    
 }
 
 function updateAdStreakDisplay() {
@@ -687,9 +690,6 @@ function updateAdStreakDisplay() {
     if (weekDisplayEl) weekDisplayEl.textContent = adsWatchedWeek;
     if (dailyProgressEl) dailyProgressEl.style.width = Math.min((adsWatchedToday / COIN_ECONOMY.DAILY_AD_GOAL) * 100, 100) + '%';
     if (weeklyProgressEl) weeklyProgressEl.style.width = Math.min((adsWatchedWeek / COIN_ECONOMY.WEEKLY_AD_GOAL) * 100, 100) + '%';
-
-// At the end of updateUI() in app.js, before the closing }
-window.dispatchEvent(new CustomEvent('userDataUpdated', { detail: currentUser }));
 }
 
 // ============================================================
