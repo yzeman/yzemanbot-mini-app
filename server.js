@@ -3915,6 +3915,49 @@ app.post('/api/private/messages/last-messages', verifyTelegramData, async (req, 
 });
 
 // ============================================
+// MARK TEAM MESSAGES AS READ
+// ============================================
+app.post('/api/team/mark-read', verifyTelegramData, async (req, res) => {
+    try {
+        const { teamId } = req.body;
+        const telegramId = req.telegramUser.id;
+        
+        const userResult = await pool.query(
+            'SELECT id FROM users WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        const userId = userResult.rows[0].id;
+        
+        // Get the latest message for this team
+        const latestMessage = await pool.query(
+            'SELECT id FROM team_messages WHERE team_id = $1 ORDER BY created_at DESC LIMIT 1',
+            [teamId]
+        );
+        
+        if (latestMessage.rows.length > 0) {
+            // Insert a read record for the latest message
+            await pool.query(
+                `INSERT INTO team_message_reads (message_id, user_id, read_at) 
+                 VALUES ($1, $2, NOW()) 
+                 ON CONFLICT (message_id, user_id) 
+                 DO UPDATE SET read_at = NOW()`,
+                [latestMessage.rows[0].id, userId]
+            );
+        }
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Mark read error:', err);
+        res.status(500).json({ error: 'Failed to mark as read' });
+    }
+});
+
+// ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
 
