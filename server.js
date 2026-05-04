@@ -998,6 +998,33 @@ io.on('connection', (socket) => {
             isTyping
         });
     });
+
+    // Add this inside io.on('connection', (socket) => { ... })
+
+// Join team status room for unread message count
+socket.on('join-team-status', async (data) => {
+    const { teamId } = data;
+    if (teamId) {
+        socket.join(`team_status_${teamId}`);
+        
+        // Get unread message count for this team
+        try {
+            const result = await pool.query(`
+                SELECT COUNT(*) as count 
+                FROM team_messages 
+                WHERE team_id = $1 AND created_at > (
+                    SELECT COALESCE(MAX(read_at), '2024-01-01') 
+                    FROM team_message_reads 
+                    WHERE team_id = $1 AND user_id = $2
+                )
+            `, [teamId, socket.userId]);
+            
+            socket.emit('team-unread-count', { count: parseInt(result.rows[0].count) });
+        } catch (err) {
+            console.error('Team unread count error:', err);
+        }
+    }
+});
     
     // ============================================
     // DISCONNECT
