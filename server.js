@@ -3846,7 +3846,29 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
     const { teamId } = req.body;
     try {
         const telegramId = req.telegramUser.id;
-        const userResult = await
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) return res.json({ unread_count: 0 });
+        const userId = userResult.rows[0].id;
+        
+        const result = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM team_messages 
+            WHERE team_id = $1 AND created_at > COALESCE(
+                (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
+                '2024-01-01'
+            )
+        `, [teamId, userId]);
+        
+        res.json({ unread_count: parseInt(result.rows[0].count) });
+    } catch (err) {
+        console.error('Team unread count error:', err);
+        res.json({ unread_count: 0 });
+    }
+});
+
+// ============================================
+// HEALTH CHECK & WEBHOOK
+// ============================================
 
 // ============================================
 // HEALTH CHECK & WEBHOOK
