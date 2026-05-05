@@ -835,11 +835,10 @@
     // PAGE URL MAPPING FOR BROADCAST BUTTONS
     // ============================================
     function getPageUrl(page) {
-    // Your mini app URL - use your Render URL or the direct Telegram Mini App link
     const baseUrl = 'https://yzemanbot-backend.onrender.com';
     
     const pageMap = {
-        'app': baseUrl,  // Opens mini app home
+        'app': baseUrl,
         'wheel': `${baseUrl}/wheel.html`,
         'daily': `${baseUrl}/daily.html`,
         'leaderboard': `${baseUrl}/leaderboard.html`,
@@ -847,7 +846,10 @@
         'team': `${baseUrl}/team.html`,
         'achievements': `${baseUrl}/achievements.html`,
         'history': `${baseUrl}/history.html`,
-        'faq': `${baseUrl}/faq.html`
+        'faq': `${baseUrl}/faq.html`,
+        'bonus': 'https://t.me/YzemanBot?start=bonus',
+        'withdraw': 'https://t.me/YzemanBot?start=wallet',
+        'refer': 'https://t.me/YzemanBot?start=refer'
     };
     return pageMap[page] || '';
 }
