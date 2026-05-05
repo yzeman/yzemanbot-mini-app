@@ -411,6 +411,60 @@ await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at O
 }
 
 // ============================================
+// AUTOMATED CLEANUP SCHEDULER
+// ============================================
+async function runCleanupJob() {
+    const client = await pool.connect();
+    try {
+        console.log('🧹 Running scheduled cleanup...');
+        
+        // Delete team messages older than 30 days
+        const msgResult = await client.query(
+            'DELETE FROM team_messages WHERE created_at < NOW() - INTERVAL \'30 days\''
+        );
+        console.log(`🗑️ Deleted ${msgResult.rowCount} old team messages`);
+        
+        // Delete ad_rewards older than 90 days
+        const adResult = await client.query(
+            'DELETE FROM ad_rewards WHERE created_at < NOW() - INTERVAL \'90 days\''
+        );
+        console.log(`🗑️ Deleted ${adResult.rowCount} old ad rewards`);
+        
+        // Delete referral commissions older than 90 days
+        const refResult = await client.query(
+            'DELETE FROM referral_commissions WHERE created_at < NOW() - INTERVAL \'90 days\''
+        );
+        console.log(`🗑️ Deleted ${refResult.rowCount} old referral commissions`);
+        
+        // Delete private messages older than 60 days
+        const pmResult = await client.query(
+            'DELETE FROM private_messages WHERE created_at < NOW() - INTERVAL \'60 days\''
+        );
+        console.log(`🗑️ Deleted ${pmResult.rowCount} old private messages`);
+        
+        // Delete old typing status
+        const typeResult = await client.query(
+            'DELETE FROM team_typing_status WHERE updated_at < NOW() - INTERVAL \'1 day\''
+        );
+        console.log(`🗑️ Deleted ${typeResult.rowCount} old typing statuses`);
+        
+        // Reclaim space
+        await client.query('VACUUM');
+        console.log('✅ Cleanup completed successfully');
+    } catch (err) {
+        console.error('❌ Cleanup error:', err);
+    } finally {
+        client.release();
+    }
+}
+
+// Run cleanup every 24 hours (86400000 ms)
+setInterval(runCleanupJob, 86400000);
+
+// Also run once on startup
+setTimeout(runCleanupJob, 60000); // Wait 1 minute after server starts
+
+// ============================================
 // HELPER: Track Monthly Earnings
 // ============================================
 async function trackMonthlyEarnings(client, userId, coinsEarned) {
