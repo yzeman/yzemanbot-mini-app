@@ -818,21 +818,22 @@
     // PAGE URL MAPPING FOR BROADCAST BUTTONS
     // ============================================
     function getPageUrl(page) {
-    const baseUrl = 'https://t.me/YzemanBot';
+    // Your mini app URL - use your Render URL or the direct Telegram Mini App link
+    const baseUrl = 'https://yzemanbot-backend.onrender.com';
+    
     const pageMap = {
-        'app': `${baseUrl}/yzemanbot`,  // Opens the mini app directly
-        'wheel': `${baseUrl}/yzemanbot?startapp=wheel`,
-        'daily': `${baseUrl}/yzemanbot?startapp=daily`,
-        'leaderboard': `${baseUrl}/yzemanbot?startapp=leaderboard`,
-        'tournament': `${baseUrl}/yzemanbot?startapp=tournament`,
-        'team': `${baseUrl}/yzemanbot?startapp=team`,
-        'achievements': `${baseUrl}/yzemanbot?startapp=achievements`,
-        'history': `${baseUrl}/yzemanbot?startapp=history`,
-        'faq': `${baseUrl}/yzemanbot?startapp=faq`
+        'app': baseUrl,  // Opens mini app home
+        'wheel': `${baseUrl}/wheel.html`,
+        'daily': `${baseUrl}/daily.html`,
+        'leaderboard': `${baseUrl}/leaderboard.html`,
+        'tournament': `${baseUrl}/tournament.html`,
+        'team': `${baseUrl}/team.html`,
+        'achievements': `${baseUrl}/achievements.html`,
+        'history': `${baseUrl}/history.html`,
+        'faq': `${baseUrl}/faq.html`
     };
     return pageMap[page] || '';
 }
-
     function getButtonUrl(pageSelectId, customUrlId) {
         const pageSelect = document.getElementById(pageSelectId);
         const customUrl = document.getElementById(customUrlId);
