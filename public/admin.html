@@ -707,6 +707,15 @@
                     <i class="fas fa-info-circle"></i> Find your Telegram ID from @userinfobot
                 </div>
             </div>
+
+            <div class="form-group">
+    <label class="form-label">Send to Channel?</label>
+    <select class="form-input" id="broadcastTarget">
+        <option value="users">👥 Users Only</option>
+        <option value="channel">📢 Channel Only (@YzemanEarnBotChannel)</option>
+        <option value="both">👥📢 Both Users + Channel</option>
+    </select>
+</div>
             
             <div class="broadcast-stats" id="broadcastStats" style="display: none;">
                 <div id="statsContent"></div>
@@ -991,6 +1000,7 @@
     const message = document.getElementById('broadcastMessage').value;
     const imageUrl = document.getElementById('broadcastImageUrl').value;
     const videoUrl = document.getElementById('broadcastVideoUrl')?.value || '';
+    const target = document.getElementById('broadcastTarget')?.value || 'users';
     
     if (!message.trim()) {
         showNotification('Please enter a message', true);
@@ -999,8 +1009,9 @@
     
     const buttons = collectButtons();
     
-    const mediaType = videoUrl ? 'video (MP4)' : imageUrl ? 'image' : 'text only';
-    const confirmMsg = `⚠️ WARNING!\n\nYou are about to send a message to ALL users.\n\nMessage: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\nMedia: ${mediaType}\n${buttons.length > 0 ? 'With ' + buttons.length + ' button(s)' : ''}\n\nAre you absolutely sure?`;
+    const targetLabel = target === 'channel' ? 'CHANNEL ONLY' : target === 'both' ? 'USERS + CHANNEL' : 'USERS ONLY';
+    const mediaType = videoUrl ? 'video' : imageUrl ? 'image' : 'text';
+    const confirmMsg = `⚠️ WARNING!\n\nSending to: *${targetLabel}*\nMessage: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\nMedia: ${mediaType}\n${buttons.length > 0 ? buttons.length + ' button(s)' : ''}\n\nAre you absolutely sure?`;
     
     if (!confirm(confirmMsg)) return;
     
@@ -1024,24 +1035,32 @@
                 message: message,
                 imageUrl: imageUrl || null,
                 videoUrl: videoUrl || null,
-                buttons: buttons
+                buttons: buttons,
+                target: target
             })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            document.getElementById('statsContent').innerHTML = `
+            let statsHtml = `
                 <div style="text-align: center;">
-                    <div style="color: var(--success); font-size: 24px; margin-bottom: 10px;">✓</div>
-                    <div><strong>${result.sent}</strong> messages sent successfully</div>
-                    <div><strong>${result.failed}</strong> failed</div>
-                    <div>Total users: <strong>${result.total}</strong></div>
-                    ${result.failedUsers && result.failedUsers.length > 0 ? `<div style="margin-top: 10px; font-size: 11px;">Failed IDs: ${result.failedUsers.join(', ')}</div>` : ''}
+                    <div style="color: var(--success); font-size: 24px; margin-bottom: 10px;">✓</div>`;
+            
+            if (result.usersSent !== undefined) {
+                statsHtml += `<div>👥 Users: <strong>${result.usersSent}</strong> sent, <strong>${result.usersFailed}</strong> failed</div>`;
+            }
+            if (result.channelSent !== undefined) {
+                statsHtml += `<div>📢 Channel: ${result.channelSent ? '✅ Sent' : '❌ Failed'}</div>`;
+            }
+            
+            statsHtml += `
                     <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
                 </div>
             `;
-            showNotification(`✅ Broadcast completed! Sent: ${result.sent}, Failed: ${result.failed}`);
+            
+            document.getElementById('statsContent').innerHTML = statsHtml;
+            showNotification(`✅ Broadcast completed!`);
             document.getElementById('broadcastMessage').value = '';
             document.getElementById('broadcastImageUrl').value = '';
             if (document.getElementById('broadcastVideoUrl')) document.getElementById('broadcastVideoUrl').value = '';
