@@ -3943,17 +3943,52 @@ app.post('/api/friends/online-status', verifyTelegramData, async (req, res) => {
     }
 });
 
-// Also add endpoint to update last seen
+// ============================================
+// GET LAST SEEN FOR A USER
+// ============================================
 app.post('/api/user/last-seen', verifyTelegramData, async (req, res) => {
     try {
         const telegramId = req.telegramUser.id;
-        await pool.query(`
-            UPDATE users SET last_seen = NOW() WHERE telegram_id = $1
-        `, [telegramId]);
-        res.json({ success: true });
+        const { targetUserId } = req.body;
+        
+        // Use targetUserId if provided, otherwise use the requesting user's ID
+        const userId = targetUserId || telegramId;
+        
+        const result = await pool.query(
+            'SELECT id, last_seen FROM users WHERE telegram_id = $1',
+            [userId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.json({ last_seen: null });
+        }
+        
+        res.json({ 
+            last_seen: result.rows[0].last_seen,
+            user_id: result.rows[0].id
+        });
     } catch (err) {
         console.error('Last seen error:', err);
-        res.json({ success: false });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================
+// UPDATE LAST SEEN (call this on every page load)
+// ============================================
+app.post('/api/user/update-last-seen', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        
+        await pool.query(
+            'UPDATE users SET last_seen = NOW() WHERE telegram_id = $1',
+            [telegramId]
+        );
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Update last seen error:', err);
+        res.status(500).json({ error: err.message });
     }
 });
 
