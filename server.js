@@ -3401,6 +3401,26 @@ app.get('/api/admin/db-size', async (req, res) => {
     }
 });
 
+app.get('/api/admin/db-size-detail', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                pg_size_pretty(pg_database_size(current_database())) as total_size,
+                pg_size_pretty(pg_total_relation_size('users')) as users_table,
+                pg_size_pretty(pg_total_relation_size('team_messages')) as team_messages,
+                pg_size_pretty(pg_total_relation_size('ad_rewards')) as ad_rewards,
+                pg_size_pretty(pg_total_relation_size('referral_commissions')) as referral_commissions,
+                pg_size_pretty(pg_total_relation_size('private_messages')) as private_messages,
+                (SELECT COUNT(*) FROM users) as user_count,
+                (SELECT COUNT(*) FROM team_messages) as message_count,
+                (SELECT COUNT(*) FROM ad_rewards) as ad_reward_count
+        `);
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ============================================
 // FRIENDS SYSTEM API ENDPOINTS
 // ============================================
