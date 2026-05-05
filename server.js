@@ -1423,7 +1423,7 @@ app.post('/api/earnings-history', verifyTelegramData, async (req, res) => {
 
 
 // ============================================
-// DAILY REWARD ENDPOINT - USES USER'S LOCAL DATE
+// DAILY REWARD ENDPOINT - FIXED STREAK
 // ============================================
 app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -1450,7 +1450,6 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
     }
 
     const userId = userResult.rows[0].id;
-    const lastLogin = userResult.rows[0].last_login_date;
 
     // Check if already claimed today (using local date)
     const existing = await client.query(
@@ -1461,19 +1460,34 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
       return res.status(400).json({ error: 'Already claimed today' });
     }
 
-    let streak = 1;
+    // ✅ FIXED: Get the last daily_reward entry to determine streak
+    const lastClaim = await client.query(
+      'SELECT reward_date, streak_count FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 1',
+      [userId]
+    );
 
-    // Compare using the local yesterday date
-    if (lastLogin) {
-      const lastLoginStr = lastLogin instanceof Date
-        ? lastLogin.toISOString().split('T')[0]
-        : lastLogin;
-      if (lastLoginStr === yesterdayStr) {
-        const lastStreak = await client.query(
-          'SELECT streak_count FROM daily_rewards WHERE user_id = $1 ORDER BY reward_date DESC LIMIT 1',
-          [userId]
-        );
-        streak = (lastStreak.rows[0]?.streak_count || 0) + 1;
+    let streak = 1; // Default: start at 1
+
+    if (lastClaim.rows.length > 0) {
+      const lastRewardDate = lastClaim.rows[0].reward_date;
+      // Handle both Date object and string
+      const lastDateStr = lastRewardDate instanceof Date 
+        ? lastRewardDate.toISOString().split('T')[0] 
+        : String(lastRewardDate).split('T')[0];
+      
+      console.log(`📅 Last claim: ${lastDateStr}, Yesterday: ${yesterdayStr}`);
+      
+      if (lastDateStr === yesterdayStr) {
+        // User claimed yesterday, continue streak
+        streak = (lastClaim.rows[0].streak_count || 0) + 1;
+        console.log(`✅ Streak continued: ${streak}`);
+      } else if (lastDateStr === todayStr) {
+        // Shouldn't happen due to check above, but safety
+        streak = lastClaim.rows[0].streak_count || 1;
+      } else {
+        // Streak broken
+        streak = 1;
+        console.log(`🔄 Streak reset to 1 (last: ${lastDateStr})`);
       }
     }
 
@@ -1517,6 +1531,8 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
 
     await client.query('COMMIT');
 
+    console.log(`💰 Daily reward: User ${telegramId}, Streak: ${streak}, Reward: ${finalReward}`);
+    
     res.json({ success: true, reward: finalReward, streak });
   } catch (err) {
     await client.query('ROLLBACK');
