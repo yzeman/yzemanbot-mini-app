@@ -834,22 +834,22 @@
     // ============================================
     // PAGE URL MAPPING FOR BROADCAST BUTTONS
     // ============================================
-    function getPageUrl(page) {
-    const appName = 'yzemanbot'; // Your mini app short name
+   function getPageUrl(page) {
+    const baseUrl = 'https://yzemanbot-backend.onrender.com';
     
     const pageMap = {
-        'app': `https://t.me/YzemanBot/${appName}`,
-        'wheel': `https://t.me/YzemanBot/${appName}?startapp=wheel`,
-        'daily': `https://t.me/YzemanBot/${appName}?startapp=daily`,
-        'leaderboard': `https://t.me/YzemanBot/${appName}?startapp=leaderboard`,
-        'tournament': `https://t.me/YzemanBot/${appName}?startapp=tournament`,
-        'team': `https://t.me/YzemanBot/${appName}?startapp=team`,
-        'achievements': `https://t.me/YzemanBot/${appName}?startapp=achievements`,
-        'history': `https://t.me/YzemanBot/${appName}?startapp=history`,
-        'faq': `https://t.me/YzemanBot/${appName}?startapp=faq`,
-        'bonus': `https://t.me/YzemanBot/${appName}?startapp=bonus`,
-        'withdraw': `https://t.me/YzemanBot/${appName}?startapp=wallet`,
-        'refer': `https://t.me/YzemanBot/${appName}?startapp=refer`
+        'app': baseUrl,
+        'wheel': `${baseUrl}/wheel.html`,
+        'daily': `${baseUrl}/daily.html`,
+        'leaderboard': `${baseUrl}/leaderboard.html`,
+        'tournament': `${baseUrl}/tournament.html`,
+        'team': `${baseUrl}/team.html`,
+        'achievements': `${baseUrl}/achievements.html`,
+        'history': `${baseUrl}/history.html`,
+        'faq': `${baseUrl}/faq.html`,
+        'bonus': `${baseUrl}/index.html?tab=bonus`,
+        'withdraw': `${baseUrl}/index.html?tab=wallet`,
+        'refer': `${baseUrl}/index.html?tab=refer`
     };
     return pageMap[page] || '';
 }
