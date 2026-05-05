@@ -733,65 +733,76 @@
     }
     
     function updateDailyUI(data) {
-        const currentStreak = data.current_streak || 0;
-        const claimedToday = data.claimed_today || false;
-        
-        document.getElementById('statsContainer').innerHTML = `
-            <div class="stat-item">
-                <div class="stat-value" id="streakCount">${currentStreak}</div>
-                <div class="stat-label">Current Streak 🔥</div>
-                <div class="stat-help">Days in a row</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="maxStreak">${data.max_streak || 0}</div>
-                <div class="stat-label">Best Streak 🏆</div>
-                <div class="stat-help">Your highest ever</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value" id="totalDays">${data.last_7_days?.length || 0}</div>
-                <div class="stat-label">Total Days</div>
-                <div class="stat-help">Total claims</div>
-            </div>
-        `;
-        
-        const { streakBonus, totalReward } = calculateReward(currentStreak);
-        document.getElementById('rewardCardContainer').innerHTML = `
-            <div class="reward-card" id="claimBtn">
-                <div class="reward-icon" id="rewardIcon">${getRewardIcon(currentStreak)}</div>
-                <div class="reward-title" id="claimBtnText">${getRewardTitle(currentStreak, claimedToday)}</div>
-                <div class="reward-amount"><span id="todayReward">${totalReward.toFixed(2)}</span></div>
-                <div class="reward-coin">COINS</div>
-                <div class="streak-bonus-badge" id="streakBonusBadge">${streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus'}</div>
-            </div>
-        `;
-        
-        document.getElementById('streakInfoContainer').innerHTML = `
-            <div class="streak-info">
-                <div class="streak-header">
-                    <div class="streak-fire">🔥</div>
-                    <div class="streak-info-text">
-                        <h3>How Streak Works</h3>
-                        <p>Claim daily without missing a day to increase your streak!</p>
-                    </div>
-                </div>
-                <div class="bonus-list">
-                    <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
-                    <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
-                    <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
-                    <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
-                </div>
-            </div>
-        `;
-        
-        const claimBtn = document.getElementById('claimBtn');
-        if (claimBtn) {
-            if (claimedToday) claimBtn.classList.add('disabled');
-            else claimBtn.classList.remove('disabled');
-            claimBtn.addEventListener('click', claimDailyReward);
-        }
-        
-        renderCalendar(data);
+    // ✅ FIX: Show last known streak when not yet claimed today
+    let displayStreak = data.current_streak || 0;
+    const claimedToday = data.claimed_today || false;
+    
+    if (displayStreak === 0 && !claimedToday && data.last_7_days && data.last_7_days.length > 0) {
+        displayStreak = data.last_7_days[0].streak_count || 0;
     }
+    
+    document.getElementById('statsContainer').innerHTML = `
+        <div class="stat-item">
+            <div class="stat-value" id="streakCount">${displayStreak}</div>
+            <div class="stat-label">Current Streak 🔥</div>
+            <div class="stat-help">Days in a row</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="maxStreak">${data.max_streak || 0}</div>
+            <div class="stat-label">Best Streak 🏆</div>
+            <div class="stat-help">Your highest ever</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="totalDays">${data.last_7_days?.length || 0}</div>
+            <div class="stat-label">Total Days</div>
+            <div class="stat-help">Total claims</div>
+        </div>
+    `;
+    
+    const { streakBonus, totalReward } = calculateReward(displayStreak);
+    document.getElementById('rewardCardContainer').innerHTML = `
+        <div class="reward-card" id="claimBtn">
+            <div class="reward-icon" id="rewardIcon">${getRewardIcon(displayStreak)}</div>
+            <div class="reward-title" id="claimBtnText">${getRewardTitle(displayStreak, claimedToday)}</div>
+            <div class="reward-amount"><span id="todayReward">${totalReward.toFixed(2)}</span></div>
+            <div class="reward-coin">COINS</div>
+            <div class="streak-bonus-badge" id="streakBonusBadge">${streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus'}</div>
+        </div>
+    `;
+    
+    document.getElementById('streakInfoContainer').innerHTML = `
+        <div class="streak-info">
+            <div class="streak-header">
+                <div class="streak-fire">🔥</div>
+                <div class="streak-info-text">
+                    <h3>How Streak Works</h3>
+                    <p>Claim daily without missing a day to increase your streak!</p>
+                </div>
+            </div>
+            <div class="bonus-list">
+                <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
+                <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
+                <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
+                <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
+            </div>
+        </div>
+    `;
+    
+    const claimBtn = document.getElementById('claimBtn');
+    if (claimBtn) {
+        if (claimedToday) {
+            claimBtn.classList.add('disabled');
+        } else {
+            claimBtn.classList.remove('disabled');
+        }
+        // Remove old listener to prevent duplicates
+        const newBtn = claimBtn.cloneNode(true);
+        claimBtn.parentNode.replaceChild(newBtn, claimBtn);
+        newBtn.addEventListener('click', claimDailyReward);
+    }
+    
+    renderCalendar(data);
+}
     
     function renderCalendar(data) {
         const calendar = document.getElementById('calendar');
