@@ -1065,6 +1065,13 @@ function displayWithdrawalHistory(history) {
     }).join('');
 }
 
+// Update last seen
+fetch('/api/user/update-last-seen', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ initData: tg.initData })
+}).catch(() => {});
+
 // ============================================================
 // DAILY REWARDS FUNCTIONS
 // ============================================================
