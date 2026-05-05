@@ -2940,14 +2940,22 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard - use url for ALL buttons
-    const inlineKeyboard = [];
-    if (buttons && buttons.length > 0) {
-      const row = buttons.map(btn => ({
-        text: btn.text,
-        url: btn.url
-      }));
-      inlineKeyboard.push(row);
+    // Build inline keyboard
+    // Users → web_app (opens mini app directly)
+    // Channel → url (opens bot with /start, user taps Open App)
+    function buildKeyboard(forChannel) {
+      const inlineKeyboard = [];
+      if (buttons && buttons.length > 0) {
+        const row = buttons.map(btn => {
+          if (forChannel) {
+            return { text: btn.text, url: 'https://t.me/YzemanBot?start=app' };
+          } else {
+            return { text: btn.text, web_app: { url: btn.url } };
+          }
+        });
+        inlineKeyboard.push(row);
+      }
+      return inlineKeyboard;
     }
     
     const result = {
@@ -2957,7 +2965,7 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       channelSent: false
     };
     
-    async function sendTelegramMessage(chatId) {
+    async function sendTelegramMessage(chatId, isChannel = false) {
       let method = 'sendMessage';
       const telegramBody = {
         chat_id: chatId,
@@ -2978,8 +2986,9 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
         telegramBody.text = message;
       }
       
-      if (inlineKeyboard.length > 0) {
-        telegramBody.reply_markup = { inline_keyboard: inlineKeyboard };
+      const keyboard = buildKeyboard(isChannel);
+      if (keyboard.length > 0) {
+        telegramBody.reply_markup = { inline_keyboard: keyboard };
       }
       
       const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
@@ -2991,12 +3000,15 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       return response.json();
     }
     
+    // ============================================
+    // SEND TO USERS
+    // ============================================
     if (target === 'users' || target === 'both') {
       const users = await pool.query('SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL');
       
       for (const user of users.rows) {
         try {
-          const res = await sendTelegramMessage(user.telegram_id);
+          const res = await sendTelegramMessage(user.telegram_id, false);
           if (res.ok) {
             result.usersSent++;
           } else {
@@ -3009,9 +3021,12 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       }
     }
     
+    // ============================================
+    // SEND TO CHANNEL
+    // ============================================
     if (target === 'channel' || target === 'both') {
       try {
-        const channelRes = await sendTelegramMessage(CHANNEL_USERNAME);
+        const channelRes = await sendTelegramMessage(CHANNEL_USERNAME, true);
         result.channelSent = channelRes.ok;
       } catch (err) {
         result.channelSent = false;
@@ -3028,7 +3043,7 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TEST BROADCAST - Supports Users + Channel
+// TEST BROADCAST - Users + Channel
 // ============================================
 app.post('/api/admin/test-broadcast', async (req, res) => {
   try {
@@ -3040,17 +3055,21 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard - use url for ALL buttons
+    const isChannel = target === 'channel';
+    const chatId = isChannel ? CHANNEL_USERNAME : parseInt(testTelegramId);
+    
+    // Build inline keyboard
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
-      const row = buttons.map(btn => ({
-        text: btn.text,
-        url: btn.url
-      }));
+      const row = buttons.map(btn => {
+        if (isChannel) {
+          return { text: btn.text, url: 'https://t.me/YzemanBot?start=app' };
+        } else {
+          return { text: btn.text, web_app: { url: btn.url } };
+        }
+      });
       inlineKeyboard.push(row);
     }
-    
-    const chatId = target === 'channel' ? CHANNEL_USERNAME : parseInt(testTelegramId);
     
     let method = 'sendMessage';
     const telegramBody = {
