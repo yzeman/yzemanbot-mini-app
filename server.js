@@ -2940,23 +2940,13 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard
+    // Build inline keyboard - use url for ALL buttons
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
-      const row = buttons.map(btn => {
-    // Check if it's a YzemanBot app link
-    if (btn.url && (btn.url.includes('yzemanbot-backend.onrender.com') || btn.url.includes('t.me/YzemanBot'))) {
-        return {
-            text: btn.text,
-            web_app: { url: btn.url }  // Opens in mini app without showing URL
-        };
-    } else {
-        return {
-            text: btn.text,
-            url: btn.url  // External links still show normally
-        };
-    }
-});
+      const row = buttons.map(btn => ({
+        text: btn.text,
+        url: btn.url
+      }));
       inlineKeyboard.push(row);
     }
     
@@ -2967,7 +2957,6 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       channelSent: false
     };
     
-    // Helper function to send a message
     async function sendTelegramMessage(chatId) {
       let method = 'sendMessage';
       const telegramBody = {
@@ -3002,9 +2991,6 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       return response.json();
     }
     
-    // ============================================
-    // SEND TO USERS
-    // ============================================
     if (target === 'users' || target === 'both') {
       const users = await pool.query('SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL');
       
@@ -3023,9 +3009,6 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       }
     }
     
-    // ============================================
-    // SEND TO CHANNEL
-    // ============================================
     if (target === 'channel' || target === 'both') {
       try {
         const channelRes = await sendTelegramMessage(CHANNEL_USERNAME);
@@ -3057,30 +3040,18 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard
+    // Build inline keyboard - use url for ALL buttons
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
-      const row = buttons.map(btn => {
-    // Check if it's a YzemanBot app link
-    if (btn.url && (btn.url.includes('yzemanbot-backend.onrender.com') || btn.url.includes('t.me/YzemanBot'))) {
-        return {
-            text: btn.text,
-            web_app: { url: btn.url }  // Opens in mini app without showing URL
-        };
-    } else {
-        return {
-            text: btn.text,
-            url: btn.url  // External links still show normally
-        };
-    }
-});
+      const row = buttons.map(btn => ({
+        text: btn.text,
+        url: btn.url
+      }));
       inlineKeyboard.push(row);
     }
     
-    // Determine chat ID: channel or user
     const chatId = target === 'channel' ? CHANNEL_USERNAME : parseInt(testTelegramId);
     
-    // Determine method: video > photo > text
     let method = 'sendMessage';
     const telegramBody = {
       chat_id: chatId,
