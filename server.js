@@ -2924,28 +2924,23 @@ app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Broadcast Message to All Users (with image/video + inline buttons)
+// ADMIN: Broadcast to Users + Channel
 // ============================================
 app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
-  const { message, imageUrl, videoUrl, buttons } = req.body;
+  const { message, imageUrl, videoUrl, buttons, target } = req.body;
+  const CHANNEL_USERNAME = '@YzemanEarnBotChannel';
   
   if (!message || message.trim().length === 0) {
     return res.status(400).json({ error: 'Message is required' });
   }
   
   try {
-    const users = await pool.query('SELECT telegram_id, first_name FROM users WHERE telegram_id IS NOT NULL');
-    
-    if (users.rows.length === 0) {
-      return res.json({ success: true, sent: 0, total: 0, failed: 0, failedUsers: [] });
-    }
-    
     const BOT_TOKEN = process.env.BOT_TOKEN;
     if (!BOT_TOKEN) {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard with buttons
+    // Build inline keyboard
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
       const row = buttons.map(btn => ({
@@ -2955,74 +2950,83 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       inlineKeyboard.push(row);
     }
     
-    let sent = 0;
-    let failed = 0;
-    const failedUsers = [];
+    const result = {
+      success: true,
+      usersSent: 0,
+      usersFailed: 0,
+      channelSent: false
+    };
     
-    for (const user of users.rows) {
-      try {
-        // Determine method: video > photo > text
-        let method = 'sendMessage';
-        const telegramBody = {
-          chat_id: user.telegram_id,
-          parse_mode: 'Markdown',
-          disable_web_page_preview: false
-        };
-        
-        if (videoUrl) {
-          // Send as video
-          method = 'sendVideo';
-          telegramBody.video = videoUrl;
-          telegramBody.caption = message;
-          telegramBody.supports_streaming = true;
-        } else if (imageUrl) {
-          // Send as photo
-          method = 'sendPhoto';
-          telegramBody.photo = imageUrl;
-          telegramBody.caption = message;
-        } else {
-          // Send as text only
-          telegramBody.text = message;
+    // Helper function to send a message
+    async function sendTelegramMessage(chatId) {
+      let method = 'sendMessage';
+      const telegramBody = {
+        chat_id: chatId,
+        parse_mode: 'Markdown',
+        disable_web_page_preview: false
+      };
+      
+      if (videoUrl) {
+        method = 'sendVideo';
+        telegramBody.video = videoUrl;
+        telegramBody.caption = message;
+        telegramBody.supports_streaming = true;
+      } else if (imageUrl) {
+        method = 'sendPhoto';
+        telegramBody.photo = imageUrl;
+        telegramBody.caption = message;
+      } else {
+        telegramBody.text = message;
+      }
+      
+      if (inlineKeyboard.length > 0) {
+        telegramBody.reply_markup = { inline_keyboard: inlineKeyboard };
+      }
+      
+      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(telegramBody)
+      });
+      
+      return response.json();
+    }
+    
+    // ============================================
+    // SEND TO USERS
+    // ============================================
+    if (target === 'users' || target === 'both') {
+      const users = await pool.query('SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL');
+      
+      for (const user of users.rows) {
+        try {
+          const res = await sendTelegramMessage(user.telegram_id);
+          if (res.ok) {
+            result.usersSent++;
+          } else {
+            result.usersFailed++;
+          }
+        } catch (err) {
+          result.usersFailed++;
         }
-        
-        // Add inline keyboard if buttons exist
-        if (inlineKeyboard.length > 0) {
-          telegramBody.reply_markup = {
-            inline_keyboard: inlineKeyboard
-          };
-        }
-        
-        const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(telegramBody)
-        });
-        
-        const result = await response.json();
-        
-        if (result.ok) {
-          sent++;
-        } else {
-          failed++;
-          failedUsers.push(user.telegram_id);
-        }
-        
         await new Promise(r => setTimeout(r, 50));
-      } catch (err) {
-        failed++;
-        failedUsers.push(user.telegram_id);
       }
     }
     
-    console.log(`📢 Broadcast completed: ${sent} sent, ${failed} failed`);
+    // ============================================
+    // SEND TO CHANNEL
+    // ============================================
+    if (target === 'channel' || target === 'both') {
+      try {
+        const channelRes = await sendTelegramMessage(CHANNEL_USERNAME);
+        result.channelSent = channelRes.ok;
+      } catch (err) {
+        result.channelSent = false;
+      }
+    }
     
-    res.json({
-      success: true,
-      sent,
-      failed,
-      failedUsers: failedUsers.slice(0, 20),
-      total: users.rows.length
-    });
+    console.log(`📢 Broadcast: Users=${result.usersSent}, Channel=${result.channelSent}`);
+    res.json(result);
     
   } catch (err) {
     console.error('Broadcast error:', err);
@@ -3031,12 +3035,13 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TEST BROADCAST - WITH VIDEO + INLINE BUTTONS
+// TEST BROADCAST - Supports Users + Channel
 // ============================================
 app.post('/api/admin/test-broadcast', async (req, res) => {
   try {
-    const { message, imageUrl, videoUrl, testTelegramId, buttons } = req.body;
+    const { message, imageUrl, videoUrl, testTelegramId, buttons, target } = req.body;
     const BOT_TOKEN = process.env.BOT_TOKEN;
+    const CHANNEL_USERNAME = '@YzemanEarnBotChannel';
     
     if (!BOT_TOKEN) {
       return res.status(500).json({ error: 'Bot token not configured' });
@@ -3052,10 +3057,13 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
       inlineKeyboard.push(row);
     }
     
+    // Determine chat ID: channel or user
+    const chatId = target === 'channel' ? CHANNEL_USERNAME : parseInt(testTelegramId);
+    
     // Determine method: video > photo > text
     let method = 'sendMessage';
     const telegramBody = {
-      chat_id: parseInt(testTelegramId),
+      chat_id: chatId,
       parse_mode: 'Markdown',
       disable_web_page_preview: false
     };
@@ -3074,9 +3082,7 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
     }
     
     if (inlineKeyboard.length > 0) {
-      telegramBody.reply_markup = {
-        inline_keyboard: inlineKeyboard
-      };
+      telegramBody.reply_markup = { inline_keyboard: inlineKeyboard };
     }
     
     const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
@@ -3096,7 +3102,6 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // ============================================
 // ADMIN: Award Monthly Prizes (Based on THIS Month's Earnings)
 // ============================================
