@@ -1118,7 +1118,7 @@ io.on('connection', (socket) => {
 
 
 // ============================================
-// USER API ENDPOINT (UPDATED FOR COINS)
+// USER API ENDPOINT (UPDATED FOR COINS + LAST SEEN)
 // ============================================
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -1139,12 +1139,13 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     let user;
     
     if (existingUser.rows.length > 0) {
-      // UPDATE EXISTING USER - Added last_login_date
+      // UPDATE EXISTING USER - Added last_seen
       const updateQuery = `
         UPDATE users 
         SET first_name = $1, last_name = $2, username = $3, photo_url = $4,
             wallet_address = COALESCE($5, wallet_address), 
             last_login_date = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date,
+            last_seen = NOW(),
             updated_at = NOW()
         WHERE telegram_id = $6
         RETURNING *
@@ -1153,14 +1154,14 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         first_name, last_name, username, photo_url, walletAddress, id
       ]);
       user = result.rows[0];
-      console.log(`✅ Existing user ${id} updated, last_login_date set`);
+      console.log(`✅ Existing user ${id} updated, last_seen set`);
     } else {
-      // NEW USER - Create account
+      // NEW USER - Create account with last_seen
       const userReferralCode = `ref-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
       
       const insertQuery = `
-        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code, wallet_address, last_login_date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date)
+        INSERT INTO users (telegram_id, first_name, last_name, username, photo_url, referral_code, wallet_address, last_login_date, last_seen)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date, NOW())
         RETURNING *
       `;
       const result = await client.query(insertQuery, [
@@ -1206,27 +1207,25 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
               [referrerId, user.id]
             );
             
-            // Give bonus to REFERRER (the person who shared the link)
+            // Give bonus to REFERRER
             await client.query(
               'UPDATE users SET coins = coins + $1, referrals = referrals + 1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
               [referrerReward, referrerId]
             );
             
-            // ✅ TRACK REFERRER'S BONUS IN HISTORY
+            // Track referrer's bonus in history
             await client.query(
               'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
               [referrerId, referrerReward, 'referral_bonus']
             );
             
-            // Give bonus to REFEREE (the new user)
+            // Give bonus to REFEREE
             await client.query(
               'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
               [refereeBonus, user.id]
             );
             
-            // ✅ REMOVED - Referee 2,000 bonus no longer counted in leaderboard
-// (The coins still go to the user's balance, just not tracked for rankings)
-console.log(`ℹ️ Referee ${user.id} received ${refereeBonus} COINS (not tracked in leaderboard)`);
+            console.log(`ℹ️ Referee ${user.id} received ${refereeBonus} COINS (not tracked in leaderboard)`);
             
             // Track monthly earnings for the referee's bonus
             await trackMonthlyEarnings(client, user.id, refereeBonus);
