@@ -639,6 +639,14 @@
                     <i class="fas fa-info-circle"></i> Upload image to Imgur or any image hosting service and paste the direct URL
                 </div>
             </div>
+
+            <div class="form-group">
+    <label class="form-label">Video URL (MP4, optional)</label>
+    <input type="text" class="form-input" id="broadcastVideoUrl" placeholder="https://example.com/video.mp4">
+    <div style="font-size: 11px; color: var(--gray); margin-top: 5px;">
+        <i class="fas fa-info-circle"></i> MP4 video URL. If both image and video provided, video will be used.
+    </div>
+</div>
             
             <!-- Button 1 -->
             <div class="form-group">
@@ -925,134 +933,140 @@
         previewDiv.style.display = 'block';
     }
     
-    async function testBroadcast() {
-        const message = document.getElementById('broadcastMessage').value;
-        const imageUrl = document.getElementById('broadcastImageUrl').value;
-        const testTelegramId = document.getElementById('testTelegramId').value;
-        
-        if (!message.trim()) {
-            showNotification('Please enter a message', true);
-            return;
-        }
-        
-        if (!testTelegramId) {
-            showNotification('Please enter your Telegram ID to test', true);
-            return;
-        }
-        
-        const testBtn = document.getElementById('testBroadcastBtn');
-        const originalText = testBtn.innerHTML;
-        testBtn.disabled = true;
-        testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
-        
-        const buttons = collectButtons();
-        
-        try {
-            const response = await fetch('/api/admin/test-broadcast', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': ADMIN_TOKEN
-                },
-                body: JSON.stringify({
-                    message: message,
-                    imageUrl: imageUrl || null,
-                    testTelegramId: parseInt(testTelegramId),
-                    buttons: buttons
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                showNotification('✅ Test message sent! Check your Telegram.');
-            } else {
-                showNotification('❌ Failed: ' + (result.error || 'Unknown error'), true);
-            }
-        } catch (err) {
-            showNotification('❌ Error: ' + err.message, true);
-        } finally {
-            testBtn.disabled = false;
-            testBtn.innerHTML = originalText;
-        }
+   async function testBroadcast() {
+    const message = document.getElementById('broadcastMessage').value;
+    const imageUrl = document.getElementById('broadcastImageUrl').value;
+    const videoUrl = document.getElementById('broadcastVideoUrl')?.value;
+    const testTelegramId = document.getElementById('testTelegramId').value;
+    
+    if (!message.trim()) {
+        showNotification('Please enter a message', true);
+        return;
     }
     
-    async function sendBroadcast() {
-        const message = document.getElementById('broadcastMessage').value;
-        const imageUrl = document.getElementById('broadcastImageUrl').value;
+    if (!testTelegramId) {
+        showNotification('Please enter your Telegram ID to test', true);
+        return;
+    }
+    
+    const testBtn = document.getElementById('testBroadcastBtn');
+    const originalText = testBtn.innerHTML;
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    
+    const buttons = collectButtons();
+    
+    try {
+        const response = await fetch('/api/admin/test-broadcast', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': ADMIN_TOKEN
+            },
+            body: JSON.stringify({
+                message: message,
+                imageUrl: imageUrl || null,
+                videoUrl: videoUrl || null,
+                testTelegramId: parseInt(testTelegramId),
+                buttons: buttons
+            })
+        });
         
-        if (!message.trim()) {
-            showNotification('Please enter a message', true);
-            return;
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('✅ Test message sent! Check your Telegram.');
+        } else {
+            showNotification('❌ Failed: ' + (result.error || 'Unknown error'), true);
         }
+    } catch (err) {
+        showNotification('❌ Error: ' + err.message, true);
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = originalText;
+    }
+}
+    
+    async function sendBroadcast() {
+    const message = document.getElementById('broadcastMessage').value;
+    const imageUrl = document.getElementById('broadcastImageUrl').value;
+    const videoUrl = document.getElementById('broadcastVideoUrl')?.value || '';
+    
+    if (!message.trim()) {
+        showNotification('Please enter a message', true);
+        return;
+    }
+    
+    const buttons = collectButtons();
+    
+    const mediaType = videoUrl ? 'video (MP4)' : imageUrl ? 'image' : 'text only';
+    const confirmMsg = `⚠️ WARNING!\n\nYou are about to send a message to ALL users.\n\nMessage: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\nMedia: ${mediaType}\n${buttons.length > 0 ? 'With ' + buttons.length + ' button(s)' : ''}\n\nAre you absolutely sure?`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    const sendBtn = document.getElementById('sendBroadcastBtn');
+    const statsDiv = document.getElementById('broadcastStats');
+    const originalText = sendBtn.innerHTML;
+    
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    statsDiv.style.display = 'block';
+    document.getElementById('statsContent').innerHTML = '<div style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Sending messages...</div>';
+    
+    try {
+        const response = await fetch('/api/admin/broadcast', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': ADMIN_TOKEN
+            },
+            body: JSON.stringify({
+                message: message,
+                imageUrl: imageUrl || null,
+                videoUrl: videoUrl || null,
+                buttons: buttons
+            })
+        });
         
-        const buttons = collectButtons();
+        const result = await response.json();
         
-        const confirmMsg = `⚠️ WARNING!\n\nYou are about to send a message to ALL users.\n\nMessage: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"\n${buttons.length > 0 ? 'With ' + buttons.length + ' button(s)' : ''}\n\nAre you absolutely sure?`;
-        
-        if (!confirm(confirmMsg)) return;
-        
-        const sendBtn = document.getElementById('sendBroadcastBtn');
-        const statsDiv = document.getElementById('broadcastStats');
-        const originalText = sendBtn.innerHTML;
-        
-        sendBtn.disabled = true;
-        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-        statsDiv.style.display = 'block';
-        document.getElementById('statsContent').innerHTML = '<div style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Sending messages...</div>';
-        
-        try {
-            const response = await fetch('/api/admin/broadcast', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': ADMIN_TOKEN
-                },
-                body: JSON.stringify({
-                    message: message,
-                    imageUrl: imageUrl || null,
-                    buttons: buttons
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                document.getElementById('statsContent').innerHTML = `
-                    <div style="text-align: center;">
-                        <div style="color: var(--success); font-size: 24px; margin-bottom: 10px;">✓</div>
-                        <div><strong>${result.sent}</strong> messages sent successfully</div>
-                        <div><strong>${result.failed}</strong> failed</div>
-                        <div>Total users: <strong>${result.total}</strong></div>
-                        ${result.failedUsers && result.failedUsers.length > 0 ? `<div style="margin-top: 10px; font-size: 11px;">Failed IDs: ${result.failedUsers.join(', ')}</div>` : ''}
-                        <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
-                    </div>
-                `;
-                showNotification(`✅ Broadcast completed! Sent: ${result.sent}, Failed: ${result.failed}`);
-                document.getElementById('broadcastMessage').value = '';
-                document.getElementById('broadcastImageUrl').value = '';
-                document.getElementById('broadcastPreview').style.display = 'none';
-            } else {
-                document.getElementById('statsContent').innerHTML = `
-                    <div style="text-align: center; color: var(--danger);">
-                        <div>❌ Failed to send broadcast</div>
-                        <div style="font-size: 12px; margin-top: 5px;">${result.error || 'Unknown error'}</div>
-                        <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
-                    </div>
-                `;
-            }
-        } catch (err) {
+        if (result.success) {
             document.getElementById('statsContent').innerHTML = `
-                <div style="text-align: center; color: var(--danger);">
-                    <div>❌ Error: ${err.message}</div>
+                <div style="text-align: center;">
+                    <div style="color: var(--success); font-size: 24px; margin-bottom: 10px;">✓</div>
+                    <div><strong>${result.sent}</strong> messages sent successfully</div>
+                    <div><strong>${result.failed}</strong> failed</div>
+                    <div>Total users: <strong>${result.total}</strong></div>
+                    ${result.failedUsers && result.failedUsers.length > 0 ? `<div style="margin-top: 10px; font-size: 11px;">Failed IDs: ${result.failedUsers.join(', ')}</div>` : ''}
                     <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
                 </div>
             `;
-        } finally {
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = originalText;
+            showNotification(`✅ Broadcast completed! Sent: ${result.sent}, Failed: ${result.failed}`);
+            document.getElementById('broadcastMessage').value = '';
+            document.getElementById('broadcastImageUrl').value = '';
+            if (document.getElementById('broadcastVideoUrl')) document.getElementById('broadcastVideoUrl').value = '';
+            document.getElementById('broadcastPreview').style.display = 'none';
+        } else {
+            document.getElementById('statsContent').innerHTML = `
+                <div style="text-align: center; color: var(--danger);">
+                    <div>❌ Failed to send broadcast</div>
+                    <div style="font-size: 12px; margin-top: 5px;">${result.error || 'Unknown error'}</div>
+                    <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
+                </div>
+            `;
         }
+    } catch (err) {
+        document.getElementById('statsContent').innerHTML = `
+            <div style="text-align: center; color: var(--danger);">
+                <div>❌ Error: ${err.message}</div>
+                <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
+            </div>
+        `;
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = originalText;
     }
+}
     
     async function loadWinnersData() {
         try {
