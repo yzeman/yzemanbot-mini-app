@@ -2924,21 +2924,20 @@ app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Broadcast Message to All Users (with optional image)
+// ADMIN: Broadcast Message to All Users (with optional image + inline buttons)
 // ============================================
 app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
-  const { message, imageUrl } = req.body;
+  const { message, imageUrl, buttons } = req.body;
   
   if (!message || message.trim().length === 0) {
     return res.status(400).json({ error: 'Message is required' });
   }
   
   try {
-    // Get all users with telegram_id
     const users = await pool.query('SELECT telegram_id, first_name FROM users WHERE telegram_id IS NOT NULL');
     
     if (users.rows.length === 0) {
-      return res.json({ success: true, sent: 0, message: 'No users found' });
+      return res.json({ success: true, sent: 0, total: 0, failed: 0, failedUsers: [] });
     }
     
     const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -2946,57 +2945,72 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    let successCount = 0;
-    let failCount = 0;
-    const failedUsers = [];
-    
-    // Send message to each user
-    for (const user of users.rows) {
-      try {
-        if (imageUrl) {
-          // Send with image
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: user.telegram_id,
-              photo: imageUrl,
-              caption: message,
-              parse_mode: 'Markdown'
-            })
-          });
-        } else {
-          // Send text only
-          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              chat_id: user.telegram_id,
-              text: message,
-              parse_mode: 'Markdown'
-            })
-          });
-        }
-        successCount++;
-      } catch (err) {
-        failCount++;
-        failedUsers.push(user.telegram_id);
-        console.error(`Failed to send to ${user.telegram_id}:`, err.message);
-      }
-      
-      // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 50));
+    // Build inline keyboard with web_app buttons
+    const inlineKeyboard = [];
+    if (buttons && buttons.length > 0) {
+      const row = buttons.map(btn => ({
+        text: btn.text,
+        web_app: { url: btn.url }  // ✅ Use web_app to open mini app
+      }));
+      inlineKeyboard.push(row);
     }
     
-    console.log(`📢 Broadcast completed: ${successCount} sent, ${failCount} failed`);
+    let sent = 0;
+    let failed = 0;
+    const failedUsers = [];
+    
+    for (const user of users.rows) {
+      try {
+        const telegramBody = {
+          chat_id: user.telegram_id,
+          text: message,
+          parse_mode: 'Markdown',
+          disable_web_page_preview: false
+        };
+        
+        if (imageUrl) {
+          telegramBody.caption = message;
+          telegramBody.photo = imageUrl;
+        }
+        
+        if (inlineKeyboard.length > 0) {
+          telegramBody.reply_markup = {
+            inline_keyboard: inlineKeyboard
+          };
+        }
+        
+        const method = imageUrl ? 'sendPhoto' : 'sendMessage';
+        
+        const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(telegramBody)
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+          sent++;
+        } else {
+          failed++;
+          failedUsers.push(user.telegram_id);
+        }
+        
+        await new Promise(r => setTimeout(r, 50));
+      } catch (err) {
+        failed++;
+        failedUsers.push(user.telegram_id);
+      }
+    }
+    
+    console.log(`📢 Broadcast completed: ${sent} sent, ${failed} failed`);
     
     res.json({
       success: true,
-      sent: successCount,
-      failed: failCount,
-      failedUsers: failedUsers,
-      total: users.rows.length,
-      message: `Broadcast sent to ${successCount} users`
+      sent,
+      failed,
+      failedUsers: failedUsers.slice(0, 20),
+      total: users.rows.length
     });
     
   } catch (err) {
@@ -3006,155 +3020,63 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TEST BROADCAST - WITH INLINE BUTTONS
+// TEST BROADCAST - WITH INLINE BUTTONS (web_app)
 // ============================================
 app.post('/api/admin/test-broadcast', async (req, res) => {
-    try {
-        const { message, imageUrl, testTelegramId, buttons } = req.body;
-        const BOT_TOKEN = process.env.BOT_TOKEN;
-        
-        if (!BOT_TOKEN) {
-            return res.status(500).json({ error: 'Bot token not configured' });
-        }
-        
-        // Build inline keyboard if buttons are provided
-        const inlineKeyboard = [];
-        if (buttons && buttons.length > 0) {
-            const row = buttons.map(btn => ({
-                text: btn.text,
-                url: btn.url
-            }));
-            inlineKeyboard.push(row);
-        }
-        
-        const telegramBody = {
-            chat_id: parseInt(testTelegramId),
-            text: message,
-            parse_mode: 'Markdown',
-            disable_web_page_preview: false
-        };
-        
-        // Add photo if provided
-        if (imageUrl) {
-            telegramBody.caption = message;
-            telegramBody.photo = imageUrl;
-        }
-        
-        // Add inline keyboard if buttons exist
-        if (inlineKeyboard.length > 0) {
-            telegramBody.reply_markup = {
-                inline_keyboard: inlineKeyboard
-            };
-        }
-        
-        const method = imageUrl ? 'sendPhoto' : 'sendMessage';
-        
-        const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(telegramBody)
-        });
-        
-        const result = await response.json();
-        
-        if (result.ok) {
-            res.json({ success: true });
-        } else {
-            res.json({ success: false, error: result.description });
-        }
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+  try {
+    const { message, imageUrl, testTelegramId, buttons } = req.body;
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    
+    if (!BOT_TOKEN) {
+      return res.status(500).json({ error: 'Bot token not configured' });
     }
-});
-
-// ============================================
-// SEND BROADCAST TO ALL USERS - WITH INLINE BUTTONS
-// ============================================
-app.post('/api/admin/broadcast', async (req, res) => {
-    try {
-        const { message, imageUrl, buttons } = req.body;
-        const BOT_TOKEN = process.env.BOT_TOKEN;
-        
-        if (!BOT_TOKEN) {
-            return res.status(500).json({ error: 'Bot token not configured' });
-        }
-        
-        // Get all users with telegram_id
-        const users = await pool.query(
-            'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL'
-        );
-        
-        let sent = 0;
-        let failed = 0;
-        const failedUsers = [];
-        
-        // Build inline keyboard
-        const inlineKeyboard = [];
-        if (buttons && buttons.length > 0) {
-            const row = buttons.map(btn => ({
-                text: btn.text,
-                url: btn.url
-            }));
-            inlineKeyboard.push(row);
-        }
-        
-        for (const user of users.rows) {
-            try {
-                const telegramBody = {
-                    chat_id: user.telegram_id,
-                    text: message,
-                    parse_mode: 'Markdown',
-                    disable_web_page_preview: false
-                };
-                
-                if (imageUrl) {
-                    telegramBody.caption = message;
-                    telegramBody.photo = imageUrl;
-                }
-                
-                if (inlineKeyboard.length > 0) {
-                    telegramBody.reply_markup = {
-                        inline_keyboard: inlineKeyboard
-                    };
-                }
-                
-                const method = imageUrl ? 'sendPhoto' : 'sendMessage';
-                
-                const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(telegramBody)
-                });
-                
-                const result = await response.json();
-                
-                if (result.ok) {
-                    sent++;
-                } else {
-                    failed++;
-                    failedUsers.push(user.telegram_id);
-                }
-                
-                // Small delay to avoid rate limiting
-                await new Promise(r => setTimeout(r, 50));
-                
-            } catch (err) {
-                failed++;
-                failedUsers.push(user.telegram_id);
-            }
-        }
-        
-        res.json({
-            success: true,
-            sent,
-            failed,
-            total: users.rows.length,
-            failedUsers: failedUsers.slice(0, 20) // Only show first 20
-        });
-        
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    
+    // Build inline keyboard with web_app buttons
+    const inlineKeyboard = [];
+    if (buttons && buttons.length > 0) {
+      const row = buttons.map(btn => ({
+        text: btn.text,
+        web_app: { url: btn.url }  // ✅ Use web_app to open mini app
+      }));
+      inlineKeyboard.push(row);
     }
+    
+    const telegramBody = {
+      chat_id: parseInt(testTelegramId),
+      text: message,
+      parse_mode: 'Markdown',
+      disable_web_page_preview: false
+    };
+    
+    if (imageUrl) {
+      telegramBody.caption = message;
+      telegramBody.photo = imageUrl;
+    }
+    
+    if (inlineKeyboard.length > 0) {
+      telegramBody.reply_markup = {
+        inline_keyboard: inlineKeyboard
+      };
+    }
+    
+    const method = imageUrl ? 'sendPhoto' : 'sendMessage';
+    
+    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(telegramBody)
+    });
+    
+    const result = await response.json();
+    
+    if (result.ok) {
+      res.json({ success: true });
+    } else {
+      res.json({ success: false, error: result.description });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ============================================
