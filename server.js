@@ -2943,10 +2943,20 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
     // Build inline keyboard
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
-      const row = buttons.map(btn => ({
-        text: btn.text,
-        url: btn.url
-      }));
+      const row = buttons.map(btn => {
+    // Check if it's a YzemanBot app link
+    if (btn.url && (btn.url.includes('yzemanbot-backend.onrender.com') || btn.url.includes('t.me/YzemanBot'))) {
+        return {
+            text: btn.text,
+            web_app: { url: btn.url }  // Opens in mini app without showing URL
+        };
+    } else {
+        return {
+            text: btn.text,
+            url: btn.url  // External links still show normally
+        };
+    }
+});
       inlineKeyboard.push(row);
     }
     
@@ -3050,10 +3060,20 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
     // Build inline keyboard
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
-      const row = buttons.map(btn => ({
-        text: btn.text,
-        url: btn.url
-      }));
+      const row = buttons.map(btn => {
+    // Check if it's a YzemanBot app link
+    if (btn.url && (btn.url.includes('yzemanbot-backend.onrender.com') || btn.url.includes('t.me/YzemanBot'))) {
+        return {
+            text: btn.text,
+            web_app: { url: btn.url }  // Opens in mini app without showing URL
+        };
+    } else {
+        return {
+            text: btn.text,
+            url: btn.url  // External links still show normally
+        };
+    }
+});
       inlineKeyboard.push(row);
     }
     
