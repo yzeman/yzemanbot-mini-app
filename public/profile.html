@@ -649,7 +649,7 @@
                 const user = await apiCall('/api/user');
                 currentUser = user;
                 
-                apiCall('/api/user/last-seen').catch(() => {});
+                apiCall('/api/user/update-last-seen').catch(() => {});
                 
                 if (targetUserId && parseInt(targetUserId) !== currentUser.id) {
                     isOwnProfile = false;
@@ -679,8 +679,8 @@
                     connectStatusWebSocket();
                     
                     setInterval(() => {
-                        apiCall('/api/user/last-seen').catch(() => {});
-                    }, 60000);
+    apiCall('/api/user/update-last-seen').catch(() => {});
+}, 60000);
                 }
             } catch (err) {
                 console.error('Profile error:', err);
