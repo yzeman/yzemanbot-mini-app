@@ -337,29 +337,25 @@
         ];
         
         function containsProfanity(text) {
-            const lowerText = text.toLowerCase();
-            
-            // Check exact words
-            for (const word of PROFANITY_WORDS) {
-                // Check for whole word or word with common substitutions
-                const regex = new RegExp(`\\b${word.replace(/[aeiou]/gi, '[aeiou]')}\\b`, 'i');
-                if (regex.test(lowerText)) {
-                    return true;
-                }
-                if (lowerText.includes(word)) {
-                    return true;
-                }
-            }
-            
-            // Check patterns
-            for (const pattern of PROFANITY_PATTERNS) {
-                if (pattern.test(lowerText)) {
-                    return true;
-                }
-            }
-            
-            return false;
+    const lowerText = text.toLowerCase();
+    
+    // Check exact words (whole word only)
+    for (const word of PROFANITY_WORDS) {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        if (regex.test(lowerText)) {
+            return true;
         }
+    }
+    
+    // Check patterns
+    for (const pattern of PROFANITY_PATTERNS) {
+        if (pattern.test(lowerText)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
         
         // Censor message (optional - replace with ***)
         function censorMessage(text) {
