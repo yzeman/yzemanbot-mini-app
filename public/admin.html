@@ -818,20 +818,20 @@
     // PAGE URL MAPPING FOR BROADCAST BUTTONS
     // ============================================
     function getPageUrl(page) {
-        const baseUrl = 'https://t.me/YzemanBot';
-        const pageMap = {
-            'app': `${baseUrl}/app`,
-            'wheel': `${baseUrl}?start=wheel`,
-            'daily': `${baseUrl}?start=daily`,
-            'leaderboard': `${baseUrl}?start=leaderboard`,
-            'tournament': `${baseUrl}?start=tournament`,
-            'team': `${baseUrl}?start=team`,
-            'achievements': `${baseUrl}?start=achievements`,
-            'history': `${baseUrl}?start=history`,
-            'faq': `${baseUrl}?start=faq`
-        };
-        return pageMap[page] || '';
-    }
+    const baseUrl = 'https://t.me/YzemanBot';
+    const pageMap = {
+        'app': `${baseUrl}/yzemanbot`,  // Opens the mini app directly
+        'wheel': `${baseUrl}/yzemanbot?startapp=wheel`,
+        'daily': `${baseUrl}/yzemanbot?startapp=daily`,
+        'leaderboard': `${baseUrl}/yzemanbot?startapp=leaderboard`,
+        'tournament': `${baseUrl}/yzemanbot?startapp=tournament`,
+        'team': `${baseUrl}/yzemanbot?startapp=team`,
+        'achievements': `${baseUrl}/yzemanbot?startapp=achievements`,
+        'history': `${baseUrl}/yzemanbot?startapp=history`,
+        'faq': `${baseUrl}/yzemanbot?startapp=faq`
+    };
+    return pageMap[page] || '';
+}
 
     function getButtonUrl(pageSelectId, customUrlId) {
         const pageSelect = document.getElementById(pageSelectId);
