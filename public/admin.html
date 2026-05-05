@@ -503,6 +503,7 @@
         <div class="stat-card" onclick="switchTab('analytics')"><div class="stat-value" id="totalReferrals">0</div><div class="stat-label">Referrals</div></div>
         <div class="stat-card" onclick="switchTab('analytics')"><div class="stat-value" id="activeToday">0</div><div class="stat-label">Active Today</div></div>
         <div class="stat-card" onclick="switchTab('analytics')"><div class="stat-value" id="activeWeek">0</div><div class="stat-label">Active Week</div></div>
+        <div class="stat-card" onclick="switchTab('analytics')" id="dbSizeCard" style="cursor:pointer;"><div class="stat-value" id="dbSize">--</div><div class="stat-label">DB Size</div></div>
     </div>
     
     <!-- Tabs -->
@@ -1019,14 +1020,15 @@
         }
         
         async function refreshAllStats() {
-            showNotification('Refreshing all stats...');
-            await loadUsers();
-            await loadWithdrawals();
-            await loadTeams();
-            await loadWinnersData();
-            await updateTopStats();
-            showNotification('✅ Stats refreshed!');
-        }
+    showNotification('Refreshing all stats...');
+    await loadUsers();
+    await loadWithdrawals();
+    await loadTeams();
+    await loadWinnersData();
+    await updateTopStats();
+    await loadDbSize();
+    showNotification('✅ Stats refreshed!');
+}
         
         function openUserDetail(user) {
             const coins = parseFloat(user.coins) || 0;
@@ -1223,6 +1225,32 @@
                 
             } catch (err) { console.error('Analytics error:', err); }
         }
+
+        async function loadDbSize() {
+    try {
+        // Call the detailed endpoint
+        const data = await apiCall('/api/admin/db-size-detail');
+        document.getElementById('dbSize').textContent = data.total_size || '--';
+        document.getElementById('dbSizeCard').title = 
+            `Users Table: ${data.users_table}\n` +
+            `Messages: ${data.team_messages}\n` +
+            `Ad Rewards: ${data.ad_rewards}\n` +
+            `Ref Commissions: ${data.referral_commissions}\n` +
+            `Private Msgs: ${data.private_messages}\n` +
+            `\nRow Counts:\n` +
+            `Users: ${data.user_count}\n` +
+            `Messages: ${data.message_count}\n` +
+            `Ad Records: ${data.ad_reward_count}`;
+    } catch (err) {
+        // Fallback to simple endpoint
+        try {
+            const data = await apiCall('/api/admin/db-size');
+            document.getElementById('dbSize').textContent = data.total_size || '--';
+        } catch(e) {
+            document.getElementById('dbSize').textContent = 'Error';
+        }
+    }
+}
         
         async function loadTodayUserActivity() {
             const container = document.getElementById('todayActivityList');
@@ -1263,12 +1291,13 @@
         
         window.onclick = e => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; if (e.target.classList.contains('user-detail-modal')) e.target.style.display = 'none'; };
         document.addEventListener('DOMContentLoaded', () => { 
-            loadUsers(); 
-            loadWithdrawals(); 
-            loadTeams(); 
-            loadBonusCodesDB();
-            loadUserCount();
-        });
+    loadUsers(); 
+    loadWithdrawals(); 
+    loadTeams(); 
+    loadBonusCodesDB();
+    loadUserCount();
+    loadDbSize();
+});
     </script>
 </body>
 </html>
