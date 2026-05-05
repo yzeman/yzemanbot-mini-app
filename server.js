@@ -2924,10 +2924,10 @@ app.get('/api/admin/daily-active', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Broadcast Message to All Users (with optional image + inline buttons)
+// ADMIN: Broadcast Message to All Users (with image/video + inline buttons)
 // ============================================
 app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
-  const { message, imageUrl, buttons } = req.body;
+  const { message, imageUrl, videoUrl, buttons } = req.body;
   
   if (!message || message.trim().length === 0) {
     return res.status(400).json({ error: 'Message is required' });
@@ -2945,12 +2945,12 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard with web_app buttons
+    // Build inline keyboard with buttons
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
       const row = buttons.map(btn => ({
         text: btn.text,
-        web_app: { url: btn.url }  // ✅ Use web_app to open mini app
+        url: btn.url
       }));
       inlineKeyboard.push(row);
     }
@@ -2961,25 +2961,36 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
     
     for (const user of users.rows) {
       try {
+        // Determine method: video > photo > text
+        let method = 'sendMessage';
         const telegramBody = {
           chat_id: user.telegram_id,
-          text: message,
           parse_mode: 'Markdown',
           disable_web_page_preview: false
         };
         
-        if (imageUrl) {
+        if (videoUrl) {
+          // Send as video
+          method = 'sendVideo';
+          telegramBody.video = videoUrl;
           telegramBody.caption = message;
+          telegramBody.supports_streaming = true;
+        } else if (imageUrl) {
+          // Send as photo
+          method = 'sendPhoto';
           telegramBody.photo = imageUrl;
+          telegramBody.caption = message;
+        } else {
+          // Send as text only
+          telegramBody.text = message;
         }
         
+        // Add inline keyboard if buttons exist
         if (inlineKeyboard.length > 0) {
           telegramBody.reply_markup = {
             inline_keyboard: inlineKeyboard
           };
         }
-        
-        const method = imageUrl ? 'sendPhoto' : 'sendMessage';
         
         const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
           method: 'POST',
@@ -3020,37 +3031,46 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// TEST BROADCAST - WITH INLINE BUTTONS (web_app)
+// TEST BROADCAST - WITH VIDEO + INLINE BUTTONS
 // ============================================
 app.post('/api/admin/test-broadcast', async (req, res) => {
   try {
-    const { message, imageUrl, testTelegramId, buttons } = req.body;
+    const { message, imageUrl, videoUrl, testTelegramId, buttons } = req.body;
     const BOT_TOKEN = process.env.BOT_TOKEN;
     
     if (!BOT_TOKEN) {
       return res.status(500).json({ error: 'Bot token not configured' });
     }
     
-    // Build inline keyboard with web_app buttons
+    // Build inline keyboard
     const inlineKeyboard = [];
     if (buttons && buttons.length > 0) {
       const row = buttons.map(btn => ({
         text: btn.text,
-        web_app: { url: btn.url }  // ✅ Use web_app to open mini app
+        url: btn.url
       }));
       inlineKeyboard.push(row);
     }
     
+    // Determine method: video > photo > text
+    let method = 'sendMessage';
     const telegramBody = {
       chat_id: parseInt(testTelegramId),
-      text: message,
       parse_mode: 'Markdown',
       disable_web_page_preview: false
     };
     
-    if (imageUrl) {
+    if (videoUrl) {
+      method = 'sendVideo';
+      telegramBody.video = videoUrl;
       telegramBody.caption = message;
+      telegramBody.supports_streaming = true;
+    } else if (imageUrl) {
+      method = 'sendPhoto';
       telegramBody.photo = imageUrl;
+      telegramBody.caption = message;
+    } else {
+      telegramBody.text = message;
     }
     
     if (inlineKeyboard.length > 0) {
@@ -3058,8 +3078,6 @@ app.post('/api/admin/test-broadcast', async (req, res) => {
         inline_keyboard: inlineKeyboard
       };
     }
-    
-    const method = imageUrl ? 'sendPhoto' : 'sendMessage';
     
     const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
       method: 'POST',
