@@ -3386,6 +3386,21 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
   }
 });
 
+app.get('/api/admin/db-size', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                pg_size_pretty(pg_database_size(current_database())) as total_size,
+                (SELECT COUNT(*) FROM users) as users,
+                (SELECT COUNT(*) FROM team_messages) as messages,
+                (SELECT COUNT(*) FROM ad_rewards) as ad_rewards_count
+        `);
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ============================================
 // FRIENDS SYSTEM API ENDPOINTS
 // ============================================
