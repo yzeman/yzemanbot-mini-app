@@ -866,46 +866,52 @@
         }
     }
     
-    async function claimDailyReward() {
-        if (!tg?.initData) {
-            showNotification('Please open from Telegram', true);
-            return;
-        }
-        const claimBtn = document.getElementById('claimBtn');
-        if (claimBtn.classList.contains('disabled')) {
-            showNotification('You already claimed your reward today! Come back tomorrow!', true);
-            return;
-        }
-        claimBtn.style.transform = 'scale(0.98)';
-        setTimeout(() => claimBtn.style.transform = '', 200);
-        claimBtn.style.pointerEvents = 'none';
-        claimBtn.style.opacity = '0.7';
-        
-        try {
-            const localDate = getLocalDate();
-            const data = await apiCall('/api/daily-reward', { initData: tg.initData, localDate });
-            const coins = data.reward.toFixed(2);
-            const streak = data.streak;
-            let message = `🎉 Daily reward claimed! +${coins} COINS!`;
-            if (streak >= 100) message = `💎 LEGENDARY! ${streak} day streak! +${coins} COINS! 💎`;
-            else if (streak >= 50) message = `👑 EPIC! ${streak} day streak! +${coins} COINS! 👑`;
-            else if (streak >= 30) message = `⭐ AMAZING! ${streak} day streak! +${coins} COINS! ⭐`;
-            else if (streak >= 14) message = `🌟 GREAT! ${streak} day streak! +${coins} COINS! 🌟`;
-            else if (streak >= 7) message = `🔥 ON FIRE! ${streak} day streak! +${coins} COINS! 🔥`;
-            else message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
-            showNotification(message);
-            await loadDailyStats(false);
-        } catch (err) {
-            let errorMsg = err.message;
-            try { const parsed = JSON.parse(errorMsg); errorMsg = parsed.error || errorMsg; } catch (e) {}
-            if (errorMsg.includes('Already claimed')) errorMsg = 'You already claimed your reward today! Come back tomorrow!';
-            showNotification(errorMsg, true);
-            await loadDailyStats(false);
-        } finally {
-            claimBtn.style.pointerEvents = '';
-            claimBtn.style.opacity = '';
-        }
+   async function claimDailyReward() {
+    if (!tg?.initData) {
+        showNotification('Please open from Telegram', true);
+        return;
     }
+    const claimBtn = document.getElementById('claimBtn');
+    if (claimBtn.classList.contains('disabled')) {
+        showNotification('You already claimed your reward today! Come back tomorrow!', true);
+        return;
+    }
+    claimBtn.style.transform = 'scale(0.98)';
+    setTimeout(() => claimBtn.style.transform = '', 200);
+    claimBtn.style.pointerEvents = 'none';
+    claimBtn.style.opacity = '0.7';
+    
+    try {
+        const localDate = getLocalDate();
+        const data = await apiCall('/api/daily-reward', { initData: tg.initData, localDate });
+        const coins = data.reward.toFixed(2);
+        const streak = data.streak;
+        let message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${streak} days 🔥`;
+        if (streak >= 100) message = `💎 LEGENDARY! ${streak} day streak! +${coins} COINS! 💎`;
+        else if (streak >= 50) message = `👑 EPIC! ${streak} day streak! +${coins} COINS! 👑`;
+        else if (streak >= 30) message = `⭐ AMAZING! ${streak} day streak! +${coins} COINS! ⭐`;
+        else if (streak >= 14) message = `🌟 GREAT! ${streak} day streak! +${coins} COINS! 🌟`;
+        else if (streak >= 7) message = `🔥 ON FIRE! ${streak} day streak! +${coins} COINS! 🔥`;
+        showNotification(message);
+        
+        // ✅ Force reload stats after claiming
+        await loadDailyStats(false);
+        
+        // ✅ Also refresh the user on index page if available
+        if (window.parent && window.parent.refreshUser) {
+            await window.parent.refreshUser();
+        }
+    } catch (err) {
+        let errorMsg = err.message;
+        try { const parsed = JSON.parse(errorMsg); errorMsg = parsed.error || errorMsg; } catch (e) {}
+        if (errorMsg.includes('Already claimed')) errorMsg = 'You already claimed your reward today! Come back tomorrow!';
+        showNotification(errorMsg, true);
+        await loadDailyStats(false);
+    } finally {
+        claimBtn.style.pointerEvents = '';
+        claimBtn.style.opacity = '';
+    }
+}
     
     // Pull to refresh
     function showRefreshIndicator(text, isError = false) {
