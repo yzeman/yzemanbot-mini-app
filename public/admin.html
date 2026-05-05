@@ -945,17 +945,23 @@
    async function testBroadcast() {
     const message = document.getElementById('broadcastMessage').value;
     const imageUrl = document.getElementById('broadcastImageUrl').value;
-    const videoUrl = document.getElementById('broadcastVideoUrl')?.value;
+    const videoUrl = document.getElementById('broadcastVideoUrl')?.value || '';
     const testTelegramId = document.getElementById('testTelegramId').value;
+    const target = document.getElementById('broadcastTarget')?.value || 'users';
     
     if (!message.trim()) {
         showNotification('Please enter a message', true);
         return;
     }
     
-    if (!testTelegramId) {
-        showNotification('Please enter your Telegram ID to test', true);
-        return;
+    // For channel test, no need for test Telegram ID
+    if (target === 'channel') {
+        if (!confirm('Send test message to @YzemanEarnBotChannel? This will send to the actual channel!')) return;
+    } else {
+        if (!testTelegramId) {
+            showNotification('Please enter your Telegram ID to test', true);
+            return;
+        }
     }
     
     const testBtn = document.getElementById('testBroadcastBtn');
@@ -976,15 +982,17 @@
                 message: message,
                 imageUrl: imageUrl || null,
                 videoUrl: videoUrl || null,
-                testTelegramId: parseInt(testTelegramId),
-                buttons: buttons
+                testTelegramId: target === 'channel' ? null : parseInt(testTelegramId),
+                buttons: buttons,
+                target: target
             })
         });
         
         const result = await response.json();
         
         if (result.success) {
-            showNotification('✅ Test message sent! Check your Telegram.');
+            const sentTo = target === 'channel' ? 'channel @YzemanEarnBotChannel' : 'your Telegram';
+            showNotification(`✅ Test message sent to ${sentTo}! Check it now.`);
         } else {
             showNotification('❌ Failed: ' + (result.error || 'Unknown error'), true);
         }
