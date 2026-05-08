@@ -48,12 +48,12 @@ const COIN_ECONOMY = {
     COMMISSION_RATE: 0.02,
     
     AD_STREAK_BONUSES: { 
-        5: 1,
-        10: 3,
-        25: 10,
-        50: 25,
-        100: 100
-    },
+    5: 3,     // Was 1
+    10: 8,    // Was 3
+    25: 25,   // Was 10
+    50: 75,   // Was 25
+    100: 250  // Was 100
+},
     
     LUCKY_AD_CHANCE: 0.15,
     GOLDEN_AD_CHANCE: 0.05,
@@ -61,19 +61,19 @@ const COIN_ECONOMY = {
     EPIC_AD_CHANCE: 0.002,
     
     DAILY_AD_GOAL: 20,
-    DAILY_AD_GOAL_REWARD: 2,
-    WEEKLY_AD_GOAL: 100,
-    WEEKLY_AD_GOAL_REWARD: 15,
+DAILY_AD_GOAL_REWARD: 10,     // Was 2
+WEEKLY_AD_GOAL: 100,
+WEEKLY_AD_GOAL_REWARD: 75,    // Was 15
     
     AD_MILESTONES: { 
-        100: 10,
-        250: 30,
-        500: 75,
-        1000: 200,
-        2500: 500,
-        5000: 1000,
-        10000: 2500
-    },
+    100: 25,      // Was 10 — now equals ~50 ads of earnings
+    250: 75,      // Was 30
+    500: 200,     // Was 75
+    1000: 500,    // Was 200
+    2500: 1500,   // Was 500
+    5000: 3500,   // Was 1000
+    10000: 7500   // Was 2500
+},
     
     DAILY_BASE_REWARD: 0.2,
     DAILY_STREAK_BONUS: 0.1,
