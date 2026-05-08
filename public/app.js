@@ -21,12 +21,12 @@ const COIN_ECONOMY = {
     MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
     
     AD_REWARDS: {
-        'Fresher': 0.2,
-        'Brute': 0.35,
-        'Silver': 0.5,
-        'Gold': 0.75,
-        'Platinum': 1.0
-    },
+    'Fresher': 0.5,
+    'Brute': 1.0,
+    'Silver': 1.5,
+    'Gold': 2.5,
+    'Platinum': 5.0
+},
     
     TIER_REQUIREMENTS: {
         'Fresher': 0,
