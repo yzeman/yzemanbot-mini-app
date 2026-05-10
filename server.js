@@ -4202,6 +4202,45 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
     }
 });
 
+// Add this temporary endpoint to your server.js
+app.get('/api/admin/test-failed-users', verifyAdmin, async (req, res) => {
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    const failedIds = [5234296323, 6185191213, 6638099517, 6834450485, 7248198947, 7635211009, 8126435892, 8145467604, 8322359356, 8376646392, 8545015977, 8743380717];
+    
+    const results = [];
+    
+    for (const id of failedIds) {
+        try {
+            const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: id,
+                    text: 'Test message from YzemanBot - please ignore'
+                })
+            });
+            
+            const result = await response.json();
+            
+            results.push({
+                telegram_id: id,
+                ok: result.ok,
+                error: result.description || 'Sent successfully',
+                error_code: result.error_code || null
+            });
+        } catch (err) {
+            results.push({
+                telegram_id: id,
+                ok: false,
+                error: err.message,
+                error_code: null
+            });
+        }
+    }
+    
+    res.json(results);
+});
+
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
