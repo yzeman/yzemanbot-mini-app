@@ -2962,6 +2962,7 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       success: true,
       usersSent: 0,
       usersFailed: 0,
+      failedUsers: [],  // ✅ Collect failed user IDs
       channelSent: false
     };
     
@@ -3013,9 +3014,11 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
             result.usersSent++;
           } else {
             result.usersFailed++;
+            result.failedUsers.push(user.telegram_id);  // ✅ Save failed ID
           }
         } catch (err) {
           result.usersFailed++;
+          result.failedUsers.push(user.telegram_id);  // ✅ Save failed ID
         }
         await new Promise(r => setTimeout(r, 50));
       }
@@ -3033,7 +3036,9 @@ app.post('/api/admin/broadcast', verifyAdmin, async (req, res) => {
       }
     }
     
-    console.log(`📢 Broadcast: Users=${result.usersSent}, Channel=${result.channelSent}`);
+    console.log(`📢 Broadcast: Users=${result.usersSent}/${result.usersSent + result.usersFailed}, Failed=${result.usersFailed}`);
+    console.log(`❌ Failed IDs:`, result.failedUsers.join(', '));  // ✅ Log to console
+    
     res.json(result);
     
   } catch (err) {
