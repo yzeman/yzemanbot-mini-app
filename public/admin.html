@@ -1053,19 +1053,31 @@
         const result = await response.json();
         
         if (result.success) {
+            const totalUsers = (result.usersSent || 0) + (result.usersFailed || 0);
             let statsHtml = `
                 <div style="text-align: center;">
                     <div style="color: var(--success); font-size: 24px; margin-bottom: 10px;">✓</div>`;
             
             if (result.usersSent !== undefined) {
-                statsHtml += `<div>👥 Users: <strong>${result.usersSent}</strong> sent, <strong>${result.usersFailed}</strong> failed</div>`;
+                statsHtml += `<div>👥 Users: <strong>${result.usersSent}</strong> sent, <strong>${result.usersFailed}</strong> failed (Total: ${totalUsers})</div>`;
             }
+            
+            // ✅ Show failed IDs
+            if (result.failedUsers && result.failedUsers.length > 0) {
+                statsHtml += `
+                    <div style="margin-top: 10px; background: rgba(244,67,54,0.1); border-radius: 8px; padding: 8px; max-height: 120px; overflow-y: auto; text-align: left;">
+                        <div style="font-size: 10px; color: var(--danger); margin-bottom: 5px;">❌ Failed User IDs (${result.failedUsers.length}):</div>
+                        <div style="font-size: 9px; color: var(--gray); word-break: break-all;">${result.failedUsers.join(', ')}</div>
+                    </div>`;
+            }
+            
             if (result.channelSent !== undefined) {
-                statsHtml += `<div>📢 Channel: ${result.channelSent ? '✅ Sent' : '❌ Failed'}</div>`;
+                statsHtml += `<div style="margin-top: 5px;">📢 Channel: ${result.channelSent ? '✅ Sent' : '❌ Failed'}</div>`;
             }
             
             statsHtml += `
                     <button class="action-btn btn-primary" onclick="document.getElementById('broadcastStats').style.display='none'" style="margin-top: 12px;">Close</button>
+                    <button class="action-btn btn-secondary" onclick="copyFailedIds('${result.failedUsers ? result.failedUsers.join(',') : ''}')" style="margin-top: 12px; margin-left: 5px;"><i class="fas fa-copy"></i> Copy Failed IDs</button>
                 </div>
             `;
             
@@ -1095,6 +1107,19 @@
         sendBtn.disabled = false;
         sendBtn.innerHTML = originalText;
     }
+}
+
+// ✅ Helper function to copy failed IDs
+function copyFailedIds(ids) {
+    if (!ids || ids === '') {
+        showNotification('No failed IDs to copy', true);
+        return;
+    }
+    navigator.clipboard.writeText(ids).then(() => {
+        showNotification('✅ Failed IDs copied to clipboard!');
+    }).catch(() => {
+        showNotification('Failed to copy', true);
+    });
 }
     
     async function loadWinnersData() {
