@@ -4203,7 +4203,16 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
 });
 
 // Add this temporary endpoint to your server.js
-app.get('/api/admin/test-failed-users', verifyAdmin, async (req, res) => {
+app.get('/api/admin/test-failed-users', async (req, res) => {
+    // Check token from header OR query parameter
+    const authHeader = req.headers.authorization;
+    const queryToken = req.query.token;
+    const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
+    
+    if (token !== 'admin123') {
+        return res.status(401).json({ error: 'Unauthorized. Add ?token=admin123 to URL' });
+    }
+    
     const BOT_TOKEN = process.env.BOT_TOKEN;
     const failedIds = [5234296323, 6185191213, 6638099517, 6834450485, 7248198947, 7635211009, 8126435892, 8145467604, 8322359356, 8376646392, 8545015977, 8743380717];
     
@@ -4240,7 +4249,6 @@ app.get('/api/admin/test-failed-users', verifyAdmin, async (req, res) => {
     
     res.json(results);
 });
-
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
