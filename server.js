@@ -2645,7 +2645,7 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Previous Tournament Winners (Last Week Only)
+// ADMIN: Previous Tournament Winners (Last Week Only) - FIXED
 // ============================================
 app.get('/api/admin/tournament-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
@@ -2655,7 +2655,6 @@ app.get('/api/admin/tournament-winners', async (req, res) => {
     if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
-        // Find the last completed tournament (not current week)
         const lastTournament = await pool.query(`
             SELECT id, week_start, week_end 
             FROM weekly_tournaments 
