@@ -2645,116 +2645,110 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Tournament Winners
+// ADMIN: Previous Tournament Winners
 // ============================================
 app.get('/api/admin/tournament-winners', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        ar.user_id, 
-        u.first_name, 
-        u.username, 
-        u.photo_url,
-        ar.reward_amount as prize_amount, 
-        ar.created_at,
-        ROW_NUMBER() OVER (ORDER BY ar.created_at DESC) as rank
-      FROM ad_rewards ar
-      JOIN users u ON ar.user_id = u.id
-      WHERE ar.ad_type = 'tournament_prize'
-      ORDER BY ar.created_at DESC
-      LIMIT 20
-    `);
-    res.json(result.rows);
-  } catch (err) { 
-    console.error('Tournament winners error:', err);
-    res.json([]); 
-  }
+    try {
+        const winners = await pool.query(`
+            SELECT 
+                u.first_name,
+                u.username,
+                tp.rank,
+                tp.prize_awarded,
+                wt.week_start,
+                wt.week_end,
+                CASE 
+                    WHEN tp.rank = 1 THEN 2000
+                    WHEN tp.rank = 2 THEN 1000
+                    WHEN tp.rank = 3 THEN 500
+                    ELSE 0
+                END as prize_amount
+            FROM tournament_participants tp
+            JOIN users u ON tp.user_id = u.id
+            JOIN weekly_tournaments wt ON tp.tournament_id = wt.id
+            WHERE tp.rank IS NOT NULL AND tp.prize_awarded = true
+            ORDER BY wt.week_start DESC, tp.rank ASC
+            LIMIT 15
+        `);
+        res.json(winners.rows);
+    } catch (err) {
+        console.error('Tournament winners error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ============================================
-// ADMIN: Leaderboard Winners (Monthly)
+// ADMIN: Previous Leaderboard (Monthly) Winners
 // ============================================
 app.get('/api/admin/leaderboard-winners', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        ar.user_id, 
-        u.first_name, 
-        u.username, 
-        u.photo_url,
-        ar.reward_amount as prize_amount, 
-        ar.created_at,
-        ROW_NUMBER() OVER (ORDER BY ar.created_at DESC) as rank
-      FROM ad_rewards ar
-      JOIN users u ON ar.user_id = u.id
-      WHERE ar.ad_type = 'leaderboard_prize'
-      ORDER BY ar.created_at DESC
-      LIMIT 20
-    `);
-    res.json(result.rows);
-  } catch (err) { 
-    console.error('Leaderboard winners error:', err);
-    res.json([]); 
-  }
+    try {
+        const winners = await pool.query(`
+            SELECT DISTINCT ON (ume.month_year, ume.user_id)
+                u.first_name,
+                u.username,
+                ume.month_year,
+                ume.coins_earned,
+                1000 as prize_amount
+            FROM user_monthly_earnings ume
+            JOIN users u ON ume.user_id = u.id
+            WHERE ume.coins_earned > 1000
+            ORDER BY ume.month_year DESC, ume.coins_earned DESC
+            LIMIT 15
+        `);
+        res.json(winners.rows);
+    } catch (err) {
+        console.error('Leaderboard winners error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ============================================
-// ADMIN: Weekly Referral Winners
+// ADMIN: Previous Referral Winners
 // ============================================
 app.get('/api/admin/referral-winners', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        ar.user_id, 
-        u.first_name, 
-        u.username, 
-        u.photo_url,
-        ar.reward_amount as prize_amount, 
-        ar.created_at,
-        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = ar.user_id 
-         AND r.created_at >= CURRENT_DATE - INTERVAL '7 days') as referral_count,
-        ROW_NUMBER() OVER (ORDER BY ar.created_at DESC) as rank
-      FROM ad_rewards ar
-      JOIN users u ON ar.user_id = u.id
-      WHERE ar.ad_type = 'weekly_prize'
-      ORDER BY ar.created_at DESC
-      LIMIT 20
-    `);
-    res.json(result.rows);
-  } catch (err) { 
-    console.error('Referral winners error:', err);
-    res.json([]); 
-  }
+    try {
+        const winners = await pool.query(`
+            SELECT 
+                u.first_name,
+                u.username,
+                u.referrals as referral_count,
+                u.referrals * 5 as prize_amount
+            FROM users u
+            WHERE u.referrals > 0
+            ORDER BY u.referrals DESC
+            LIMIT 15
+        `);
+        res.json(winners.rows);
+    } catch (err) {
+        console.error('Referral winners error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ============================================
-// ADMIN: Team Competition Winners
+// ADMIN: Previous Team Winners
 // ============================================
 app.get('/api/admin/team-winners', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        t.id, 
-        t.name as team_name, 
-        t.code,
-        COUNT(tm.user_id) as member_count,
-        COALESCE(SUM(u.coins), 0) as total_coins,
-        COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name,
-        ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(u.coins), 0) DESC) as rank
-      FROM teams t
-      JOIN team_members tm ON t.id = tm.team_id
-      JOIN users u ON tm.user_id = u.id
-      GROUP BY t.id
-      ORDER BY total_coins DESC
-      LIMIT 10
-    `);
-    res.json(result.rows);
-  } catch (err) { 
-    console.error('Team winners error:', err);
-    res.json([]); 
-  }
+    try {
+        const winners = await pool.query(`
+            SELECT 
+                t.name as team_name,
+                COUNT(tm.id) as member_count,
+                COALESCE(SUM(u.coins), 0) as total_coins
+            FROM teams t
+            LEFT JOIN team_members tm ON t.id = tm.team_id
+            LEFT JOIN users u ON tm.user_id = u.id
+            GROUP BY t.id, t.name
+            HAVING COUNT(tm.id) > 0
+            ORDER BY total_coins DESC
+            LIMIT 15
+        `);
+        res.json(winners.rows);
+    } catch (err) {
+        console.error('Team winners error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
-
 // ============================================
 // ADMIN: Top 10 Earners (All Time - Full List)
 // ============================================
