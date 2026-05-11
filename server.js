@@ -2645,155 +2645,186 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Previous Tournament Winners
+// ADMIN: Previous Tournament Winners (Last Week Only)
 // ============================================
 app.get('/api/admin/tournament-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
+        // Find the last completed tournament (not current week)
+        const lastTournament = await pool.query(`
+            SELECT id, week_start, week_end 
+            FROM weekly_tournaments 
+            WHERE week_end < CURRENT_DATE 
+            ORDER BY week_end DESC 
+            LIMIT 1
+        `);
+        
+        if (lastTournament.rows.length === 0) {
+            return res.json([]);
+        }
+        
+        const tid = lastTournament.rows[0].id;
+        const weekStart = lastTournament.rows[0].week_start;
+        const weekEnd = lastTournament.rows[0].week_end;
+        
         const winners = await pool.query(`
             SELECT 
                 u.first_name,
-                u.username,
                 tp.rank,
-                tp.coins_earned as weekly_coins,
-                CASE 
-                    WHEN tp.rank = 1 THEN 2000
-                    WHEN tp.rank = 2 THEN 1000
-                    WHEN tp.rank = 3 THEN 500
-                END as prize_amount,
-                to_char(wt.week_start, 'Mon DD') || ' - ' || to_char(wt.week_end, 'Mon DD, YYYY') as week_label
+                COALESCE(SUM(ar.reward_amount), 0) as weekly_coins,
+                CASE WHEN tp.rank = 1 THEN 2000 WHEN tp.rank = 2 THEN 1000 WHEN tp.rank = 3 THEN 500 END as prize_amount,
+                to_char($2::date, 'Mon DD') || ' - ' || to_char($3::date, 'Mon DD, YYYY') as week_label
             FROM tournament_participants tp
             JOIN users u ON tp.user_id = u.id
-            JOIN weekly_tournaments wt ON tp.tournament_id = wt.id
-            WHERE tp.rank IN (1, 2, 3) AND tp.prize_awarded = true
-            ORDER BY wt.week_start DESC, tp.rank ASC
-            LIMIT 9
-        `);
+            LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+                AND ar.created_at >= $2
+                AND ar.created_at < ($3::date + 1)::timestamp
+                AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
+            WHERE tp.tournament_id = $1 AND tp.rank IN (1, 2, 3)
+            GROUP BY u.id, u.first_name, tp.rank
+            ORDER BY tp.rank ASC
+        `, [tid, weekStart, weekEnd]);
+        
         res.json(winners.rows);
     } catch (err) {
-        console.error('Tournament winners error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 // ============================================
-// ADMIN: Previous Leaderboard Winners
+// ADMIN: Previous Leaderboard Winners (Last Month Only)
 // ============================================
 app.get('/api/admin/leaderboard-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
-        const winners = await pool.query(`
-            WITH ranked AS (
-                SELECT 
-                    u.first_name,
-                    u.username,
-                    ume.month_year,
-                    ume.coins_earned as monthly_coins,
-                    ROW_NUMBER() OVER (PARTITION BY ume.month_year ORDER BY ume.coins_earned DESC) as rank
-                FROM user_monthly_earnings ume
-                JOIN users u ON ume.user_id = u.id
-                WHERE ume.coins_earned > 0
-            )
-            SELECT 
-                first_name,
-                username,
-                rank,
-                monthly_coins,
-                CASE 
-                    WHEN rank = 1 THEN 5000
-                    WHEN rank = 2 THEN 3000
-                    WHEN rank = 3 THEN 1000
-                END as prize_amount,
-                to_char(month_year, 'Month YYYY') as month_label
-            FROM ranked
-            WHERE rank IN (1, 2, 3)
-            ORDER BY month_year DESC, rank ASC
-            LIMIT 9
+        // Get last month (previous completed month)
+        const lastMonth = await pool.query(`
+            SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start
         `);
-        res.json(winners.rows);
+        const monthStart = lastMonth.rows[0].month_start;
+        
+        const winners = await pool.query(`
+            SELECT 
+                u.first_name,
+                ume.coins_earned as monthly_coins,
+                ROW_NUMBER() OVER (ORDER BY ume.coins_earned DESC) as rank,
+                to_char($1::date, 'Month YYYY') as month_label
+            FROM user_monthly_earnings ume
+            JOIN users u ON ume.user_id = u.id
+            WHERE ume.month_year = $1 AND ume.coins_earned > 0
+            ORDER BY ume.coins_earned DESC
+            LIMIT 3
+        `, [monthStart]);
+        
+        // Add prize amounts
+        const prizes = { 1: 5000, 2: 3000, 3: 1000 };
+        const result = winners.rows.map(w => ({
+            ...w,
+            prize_amount: prizes[w.rank] || 0
+        }));
+        
+        res.json(result);
     } catch (err) {
-        console.error('Leaderboard winners error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 // ============================================
-// ADMIN: Previous Referral Winners
+// ADMIN: Previous Referral Winners (Last Week Only)
 // ============================================
 app.get('/api/admin/referral-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
+        // Get last week (previous Monday-Sunday)
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        let daysSinceMonday = dayOfWeek - 1;
+        if (daysSinceMonday < 0) daysSinceMonday += 7;
+        
+        const thisMonday = new Date(now);
+        thisMonday.setDate(now.getDate() - daysSinceMonday);
+        
+        const lastMonday = new Date(thisMonday);
+        lastMonday.setDate(thisMonday.getDate() - 7);
+        const lastSunday = new Date(lastMonday);
+        lastSunday.setDate(lastMonday.getDate() + 6);
+        
         const winners = await pool.query(`
             SELECT 
                 u.first_name,
-                u.username,
-                u.referrals as total_referrals,
-                u.referrals * 5 as prize_amount,
-                u.tier
-            FROM users u
-            WHERE u.referrals > 0
-            ORDER BY u.referrals DESC
+                COUNT(r.id) as weekly_referrals,
+                COUNT(r.id) * 5 as prize_amount,
+                to_char($1::date, 'Mon DD') || ' - ' || to_char($2::date, 'Mon DD, YYYY') as week_label
+            FROM referrals r
+            JOIN users u ON r.referrer_id = u.id
+            WHERE r.created_at >= $1 AND r.created_at < ($2::date + 1)::timestamp
+            GROUP BY u.id, u.first_name
+            ORDER BY weekly_referrals DESC
             LIMIT 3
-        `);
+        `, [lastMonday.toISOString().split('T')[0], lastSunday.toISOString().split('T')[0]]);
+        
         res.json(winners.rows);
     } catch (err) {
-        console.error('Referral winners error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
 // ============================================
-// ADMIN: Previous Team Winners
+// ADMIN: Previous Team Winners (Last Month Only)
 // ============================================
 app.get('/api/admin/team-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
+        const lastMonth = await pool.query(`
+            SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start
+        `);
+        const monthStart = lastMonth.rows[0].month_start;
+        
         const winners = await pool.query(`
             SELECT 
                 t.name as team_name,
                 COUNT(tm.id) as member_count,
                 COALESCE(SUM(ume.coins_earned), 0) as monthly_coins,
-                2500 as prize_amount
+                ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ume.coins_earned), 0) DESC) as rank,
+                to_char($1::date, 'Month YYYY') as month_label
             FROM teams t
             LEFT JOIN team_members tm ON t.id = tm.team_id
             LEFT JOIN users u ON tm.user_id = u.id
-            LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = date_trunc('month', NOW())::date
+            LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = $1
             GROUP BY t.id, t.name
             HAVING COUNT(tm.id) > 0
             ORDER BY monthly_coins DESC
             LIMIT 3
-        `);
-        res.json(winners.rows);
+        `, [monthStart]);
+        
+        const prizes = { 1: 2500, 2: 1000, 3: 500 };
+        const result = winners.rows.map(w => ({
+            ...w,
+            prize_amount: prizes[w.rank] || 0
+        }));
+        
+        res.json(result);
     } catch (err) {
-        console.error('Team winners error:', err);
         res.status(500).json({ error: err.message });
     }
 });
