@@ -1389,52 +1389,52 @@ try {
     async function deleteBonusCodeDB(code) { if (!confirm(`Delete ${code}?`)) return; try { await apiCall(`/api/admin/bonus-codes/${code}`, 'DELETE'); showNotification(`Deleted ${code}`); loadBonusCodesDB(); } catch { showNotification('Failed to delete', true); } }
     
     async function loadAnalytics() {
+    try {
+        const data = await apiCall('/api/admin/analytics');
+        
+        // Only update elements that exist
+        const safeSet = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        safeSet('analyticsTotalUsers', data.totalUsers || 0);
+        safeSet('analyticsTotalReferrals', data.totalReferrals || 0);
+        safeSet('analyticsTotalAds', data.totalAds || 0);
+        safeSet('analyticsAdsToday', data.adsToday || 0);
+        safeSet('analyticsTotalCoins', formatCoins(data.totalCoins || 0));
+        safeSet('analyticsPendingW', data.pendingWithdrawals || 0);
+        safeSet('analyticsActiveToday', data.activeToday || 0);
+        safeSet('analyticsActiveWeek', data.activeWeek || 0);
+        
+        const tierDiv = document.getElementById('tierDistribution');
+        if (tierDiv && data.tierDistribution && data.tierDistribution.length) {
+            tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
+        }
+        
+        const dailyDiv = document.getElementById('dailyActive');
+        if (dailyDiv && data.dailyActive && data.dailyActive.length) {
+            const last7Days = data.dailyActive.slice(0, 7);
+            dailyDiv.innerHTML = last7Days.map(d => {
+                const date = new Date(d.activity_date);
+                const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
+            }).join('');
+        }
+        
+        await loadTodayUserActivity();
+        
+        // Top Referrers
         try {
-            const data = await apiCall('/api/admin/analytics');
-            document.getElementById('analyticsTotalUsers').textContent = data.totalUsers || 0;
-            document.getElementById('analyticsTotalReferrals').textContent = data.totalReferrals || 0;
-            document.getElementById('analyticsTotalAds').textContent = data.totalAds || 0;
-            document.getElementById('analyticsAdsToday').textContent = data.adsToday || 0;
-            document.getElementById('analyticsTotalCoins').textContent = formatCoins(data.totalCoins || 0);
-            document.getElementById('analyticsPendingW').textContent = data.pendingWithdrawals || 0;
-            document.getElementById('analyticsActiveToday').textContent = data.activeToday || 0;
-            document.getElementById('analyticsActiveWeek').textContent = data.activeWeek || 0;
-            
-            const tierDiv = document.getElementById('tierDistribution');
-            if (data.tierDistribution && data.tierDistribution.length) {
-                tierDiv.innerHTML = data.tierDistribution.map(t => `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${t.tier}</span><span style="color:var(--gold);">${t.count} (${((t.count/data.totalUsers)*100).toFixed(1)}%)</span></div>`).join('');
-            } else tierDiv.innerHTML = '<div class="empty-state">No data</div>';
-            
-            const dailyDiv = document.getElementById('dailyActive');
-            if (data.dailyActive && data.dailyActive.length) {
-                const last7Days = data.dailyActive.slice(0, 7);
-                dailyDiv.innerHTML = last7Days.map(d => {
-                    const date = new Date(d.activity_date);
-                    const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    return `<div style="display:flex;justify-content:space-between;padding:6px 0;"><span>${formattedDate}</span><span style="color:var(--gold);">${d.count}</span></div>`;
-                }).join('');
-            } else dailyDiv.innerHTML = '<div class="empty-state">No data</div>';
-            
-            await loadTodayUserActivity();
-            
-            try {
-                const topEarners = await apiCall('/api/leaderboard/top-earners');
-                const topDiv = document.getElementById('topEarnersList');
-                if (topEarners && topEarners.length) {
-                    topDiv.innerHTML = topEarners.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${formatCoins(user.monthly_coins || 0)} COINS</span></div>`).join('');
-                } else topDiv.innerHTML = '<div class="empty-state">No data</div>';
-            } catch(e) { document.getElementById('topEarnersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
-            
-            try {
-                const topReferrers = await apiCall('/api/admin/top-referrers');
-                const refDiv = document.getElementById('topReferrersList');
-                if (topReferrers && topReferrers.length) {
-                    refDiv.innerHTML = topReferrers.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${user.referrals || 0} refs</span></div>`).join('');
-                } else refDiv.innerHTML = '<div class="empty-state">No referrals yet</div>';
-            } catch(e) { document.getElementById('topReferrersList').innerHTML = '<div class="empty-state">Failed to load</div>'; }
-            
-        } catch (err) { console.error('Analytics error:', err); }
-    }
+            const topReferrers = await apiCall('/api/admin/top-referrers');
+            const refDiv = document.getElementById('topReferrersList');
+            if (refDiv && topReferrers && topReferrers.length) {
+                refDiv.innerHTML = topReferrers.slice(0, 10).map((user, idx) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>#${idx+1} ${user.first_name || user.username || 'User'}</span><span style="color:var(--gold);">${user.referrals || 0} refs</span></div>`).join('');
+            }
+        } catch(e) { /* ignore */ }
+        
+    } catch (err) { console.error('Analytics error:', err); }
+}
 
     async function loadDbSize() {
         try {
