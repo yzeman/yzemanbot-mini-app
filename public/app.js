@@ -61,9 +61,9 @@ const COIN_ECONOMY = {
     EPIC_AD_CHANCE: 0.002,
     
     DAILY_AD_GOAL: 20,
-DAILY_AD_GOAL_REWARD: 10,     // Was 2
+DAILY_AD_GOAL_REWARD: 50,     // Was 2
 WEEKLY_AD_GOAL: 100,
-WEEKLY_AD_GOAL_REWARD: 75,    // Was 15
+WEEKLY_AD_GOAL_REWARD: 200,    // Was 15
     
     AD_MILESTONES: { 
     100: 25,      // Was 10 — now equals ~50 ads of earnings
