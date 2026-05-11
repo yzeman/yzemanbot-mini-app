@@ -2739,7 +2739,7 @@ app.get('/api/admin/leaderboard-winners', async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Previous Referral Winners (Last Week Only)
+// ADMIN: Previous Referral Winners (Most Recent Week With Referrals)
 // ============================================
 app.get('/api/admin/referral-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
@@ -2749,19 +2749,27 @@ app.get('/api/admin/referral-winners', async (req, res) => {
     if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
-        // Get last week (previous Monday-Sunday)
-        const now = new Date();
-        const dayOfWeek = now.getDay();
+        // Find the most recent week that had referrals
+        const lastReferralDate = await pool.query(`
+            SELECT MAX(created_at) as last_date FROM referrals
+        `);
+        
+        if (!lastReferralDate.rows[0].last_date) {
+            return res.json([]);
+        }
+        
+        const lastDate = new Date(lastReferralDate.rows[0].last_date);
+        const dayOfWeek = lastDate.getDay();
         let daysSinceMonday = dayOfWeek - 1;
         if (daysSinceMonday < 0) daysSinceMonday += 7;
         
-        const thisMonday = new Date(now);
-        thisMonday.setDate(now.getDate() - daysSinceMonday);
+        const weekStart = new Date(lastDate);
+        weekStart.setDate(lastDate.getDate() - daysSinceMonday);
+        weekStart.setHours(0, 0, 0, 0);
         
-        const lastMonday = new Date(thisMonday);
-        lastMonday.setDate(thisMonday.getDate() - 7);
-        const lastSunday = new Date(lastMonday);
-        lastSunday.setDate(lastMonday.getDate() + 6);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
         
         const winners = await pool.query(`
             SELECT 
@@ -2775,7 +2783,7 @@ app.get('/api/admin/referral-winners', async (req, res) => {
             GROUP BY u.id, u.first_name
             ORDER BY weekly_referrals DESC
             LIMIT 3
-        `, [lastMonday.toISOString().split('T')[0], lastSunday.toISOString().split('T')[0]]);
+        `, [weekStart.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]);
         
         res.json(winners.rows);
     } catch (err) {
