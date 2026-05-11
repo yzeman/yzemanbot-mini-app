@@ -1204,20 +1204,19 @@ try {
         document.getElementById('teamWinnersList').innerHTML = '<div class="empty-state">Failed to load</div>';
     }
 
-    // Top Earners
+   // Top Earners
 try {
     const topEarners = await apiCall('/api/admin/top-earners-full');
-        const html = (topEarners || []).slice(0, 10).map((user, idx) => `
-            <div class="top-earner-item">
-                <div class="top-earner-rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx+1}</div>
-                <div class="top-earner-name">${user.first_name || 'User'}</div>
-                <div class="top-earner-coins">${formatCoins(user.monthly_coins || user.coins || 0)} COINS</div>
-            </div>
-        `).join('');
-        document.getElementById('topEarnersFullList').innerHTML = html || '<div class="empty-state">No data</div>';
-    } catch (e) {
-        document.getElementById('topEarnersFullList').innerHTML = '<div class="empty-state">Failed to load</div>';
-    }
+    const html = (topEarners || []).slice(0, 10).map((user, idx) => `
+        <div class="top-earner-item">
+            <div class="top-earner-rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx+1}</div>
+            <div class="top-earner-name">${user.first_name || 'User'}</div>
+            <div class="top-earner-coins">${formatCoins(user.total_coins || 0)} COINS</div>
+        </div>
+    `).join('');
+    document.getElementById('topEarnersFullList').innerHTML = html || '<div class="empty-state">No data</div>';
+} catch (e) {
+    document.getElementById('topEarnersFullList').innerHTML = '<div class="empty-state">Failed to load</div>';
 }
     
     async function updateTopStats() {
