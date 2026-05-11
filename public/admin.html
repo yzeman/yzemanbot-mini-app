@@ -1205,8 +1205,8 @@ try {
     }
 
     // Top Earners
-    try {
-        const topEarners = await apiCall('/api/leaderboard/top-earners');
+try {
+    const topEarners = await apiCall('/api/admin/top-earners-full');
         const html = (topEarners || []).slice(0, 10).map((user, idx) => `
             <div class="top-earner-item">
                 <div class="top-earner-rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx+1}</div>
