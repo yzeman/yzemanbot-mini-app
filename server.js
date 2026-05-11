@@ -2662,20 +2662,19 @@ app.get('/api/admin/tournament-winners', async (req, res) => {
                 u.first_name,
                 u.username,
                 tp.rank,
-                wt.week_start,
-                wt.week_end,
+                tp.coins_earned as weekly_coins,
                 CASE 
                     WHEN tp.rank = 1 THEN 2000
                     WHEN tp.rank = 2 THEN 1000
                     WHEN tp.rank = 3 THEN 500
-                    ELSE 0
-                END as prize_amount
+                END as prize_amount,
+                to_char(wt.week_start, 'Mon DD') || ' - ' || to_char(wt.week_end, 'Mon DD, YYYY') as week_label
             FROM tournament_participants tp
             JOIN users u ON tp.user_id = u.id
             JOIN weekly_tournaments wt ON tp.tournament_id = wt.id
-            WHERE tp.rank IS NOT NULL
+            WHERE tp.rank IN (1, 2, 3) AND tp.prize_awarded = true
             ORDER BY wt.week_start DESC, tp.rank ASC
-            LIMIT 15
+            LIMIT 9
         `);
         res.json(winners.rows);
     } catch (err) {
@@ -2698,17 +2697,32 @@ app.get('/api/admin/leaderboard-winners', async (req, res) => {
     
     try {
         const winners = await pool.query(`
+            WITH ranked AS (
+                SELECT 
+                    u.first_name,
+                    u.username,
+                    ume.month_year,
+                    ume.coins_earned as monthly_coins,
+                    ROW_NUMBER() OVER (PARTITION BY ume.month_year ORDER BY ume.coins_earned DESC) as rank
+                FROM user_monthly_earnings ume
+                JOIN users u ON ume.user_id = u.id
+                WHERE ume.coins_earned > 0
+            )
             SELECT 
-                u.first_name,
-                u.username,
-                ume.month_year,
-                ume.coins_earned,
-                1000 as prize_amount
-            FROM user_monthly_earnings ume
-            JOIN users u ON ume.user_id = u.id
-            WHERE ume.coins_earned > 500
-            ORDER BY ume.month_year DESC, ume.coins_earned DESC
-            LIMIT 15
+                first_name,
+                username,
+                rank,
+                monthly_coins,
+                CASE 
+                    WHEN rank = 1 THEN 5000
+                    WHEN rank = 2 THEN 3000
+                    WHEN rank = 3 THEN 1000
+                END as prize_amount,
+                to_char(month_year, 'Month YYYY') as month_label
+            FROM ranked
+            WHERE rank IN (1, 2, 3)
+            ORDER BY month_year DESC, rank ASC
+            LIMIT 9
         `);
         res.json(winners.rows);
     } catch (err) {
@@ -2734,12 +2748,13 @@ app.get('/api/admin/referral-winners', async (req, res) => {
             SELECT 
                 u.first_name,
                 u.username,
-                u.referrals as referral_count,
-                u.referrals * 5 as prize_amount
+                u.referrals as total_referrals,
+                u.referrals * 5 as prize_amount,
+                u.tier
             FROM users u
             WHERE u.referrals > 0
             ORDER BY u.referrals DESC
-            LIMIT 15
+            LIMIT 3
         `);
         res.json(winners.rows);
     } catch (err) {
@@ -2765,14 +2780,16 @@ app.get('/api/admin/team-winners', async (req, res) => {
             SELECT 
                 t.name as team_name,
                 COUNT(tm.id) as member_count,
-                COALESCE(SUM(u.coins), 0) as total_coins
+                COALESCE(SUM(ume.coins_earned), 0) as monthly_coins,
+                2500 as prize_amount
             FROM teams t
             LEFT JOIN team_members tm ON t.id = tm.team_id
             LEFT JOIN users u ON tm.user_id = u.id
+            LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = date_trunc('month', NOW())::date
             GROUP BY t.id, t.name
             HAVING COUNT(tm.id) > 0
-            ORDER BY total_coins DESC
-            LIMIT 15
+            ORDER BY monthly_coins DESC
+            LIMIT 3
         `);
         res.json(winners.rows);
     } catch (err) {
