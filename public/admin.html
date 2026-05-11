@@ -1123,91 +1123,98 @@ function copyFailedIds(ids) {
 }
     
     async function loadWinnersData() {
-    // Load tournament winners
+    // Tournament Winners
     try {
-        const tournamentWinners = await apiCall('/api/admin/tournament-winners');
-        const tournamentHtml = (tournamentWinners || []).slice(0, 5).map((w, i) => `
+        const data = await apiCall('/api/admin/tournament-winners');
+        const html = (data || []).map((w, i) => `
             <div class="winner-item">
-                <div class="winner-rank rank-${i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 3 : ''}">#${w.rank || i+1}</div>
+                <div class="winner-rank ${w.rank === 1 ? 'rank-1' : w.rank === 2 ? 'rank-2' : 'rank-3'}">
+                    ${w.rank === 1 ? '🥇' : w.rank === 2 ? '🥈' : '🥉'}
+                </div>
                 <div class="winner-info">
                     <div class="winner-name">${w.first_name || 'User'}</div>
-                    <div class="winner-date">${w.week_start ? new Date(w.week_start).toLocaleDateString() : ''}</div>
+                    <div class="winner-date">🏆 Prize: ${formatCoins(w.prize_amount)} COINS</div>
+                    <div class="winner-date">📊 Earned: ${formatCoins(w.weekly_coins || 0)} COINS in ${w.week_label}</div>
                 </div>
-                <div class="winner-value">${formatCoins(w.prize_amount || 0)} COINS</div>
             </div>
         `).join('');
-        document.getElementById('tournamentWinnersList').innerHTML = tournamentHtml || '<div class="empty-state">No winners yet</div>';
-    } catch (err) {
+        document.getElementById('tournamentWinnersList').innerHTML = html || '<div class="empty-state">No winners yet</div>';
+    } catch (e) {
         document.getElementById('tournamentWinnersList').innerHTML = '<div class="empty-state">Failed to load</div>';
     }
 
-    // Load leaderboard winners
+    // Leaderboard Winners
     try {
-        const leaderboardWinners = await apiCall('/api/admin/leaderboard-winners');
-        const leaderboardHtml = (leaderboardWinners || []).slice(0, 5).map((w, i) => `
+        const data = await apiCall('/api/admin/leaderboard-winners');
+        const html = (data || []).map((w) => `
             <div class="winner-item">
-                <div class="winner-rank rank-${i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 3 : ''}">#${i+1}</div>
+                <div class="winner-rank ${w.rank === 1 ? 'rank-1' : w.rank === 2 ? 'rank-2' : 'rank-3'}">
+                    ${w.rank === 1 ? '🥇' : w.rank === 2 ? '🥈' : '🥉'}
+                </div>
                 <div class="winner-info">
                     <div class="winner-name">${w.first_name || 'User'}</div>
-                    <div class="winner-date">${w.month_year || ''}</div>
+                    <div class="winner-date">🏆 Prize: ${formatCoins(w.prize_amount)} COINS</div>
+                    <div class="winner-date">📊 Earned: ${formatCoins(w.monthly_coins || 0)} COINS in ${w.month_label}</div>
                 </div>
-                <div class="winner-value">${formatCoins(w.coins_earned || 0)} COINS</div>
             </div>
         `).join('');
-        document.getElementById('leaderboardWinnersList').innerHTML = leaderboardHtml || '<div class="empty-state">No winners yet</div>';
-    } catch (err) {
+        document.getElementById('leaderboardWinnersList').innerHTML = html || '<div class="empty-state">No winners yet</div>';
+    } catch (e) {
         document.getElementById('leaderboardWinnersList').innerHTML = '<div class="empty-state">Failed to load</div>';
     }
 
-    // Load referral winners
+    // Referral Winners
     try {
-        const referralWinners = await apiCall('/api/admin/referral-winners');
-        const referralHtml = (referralWinners || []).slice(0, 5).map((w, i) => `
+        const data = await apiCall('/api/admin/referral-winners');
+        const html = (data || []).map((w, i) => `
             <div class="winner-item">
-                <div class="winner-rank rank-${i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 3 : ''}">#${i+1}</div>
+                <div class="winner-rank ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : 'rank-3'}">
+                    ${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}
+                </div>
                 <div class="winner-info">
                     <div class="winner-name">${w.first_name || 'User'}</div>
-                    <div class="winner-date">${w.referral_count || 0} referrals</div>
+                    <div class="winner-date">👥 Referrals: ${w.total_referrals || 0}</div>
+                    <div class="winner-date">🏆 Prize: ${formatCoins(w.prize_amount || 0)} COINS</div>
                 </div>
-                <div class="winner-value">🏆 Top Referrer</div>
             </div>
         `).join('');
-        document.getElementById('referralWinnersList').innerHTML = referralHtml || '<div class="empty-state">No winners yet</div>';
-    } catch (err) {
+        document.getElementById('referralWinnersList').innerHTML = html || '<div class="empty-state">No winners yet</div>';
+    } catch (e) {
         document.getElementById('referralWinnersList').innerHTML = '<div class="empty-state">Failed to load</div>';
     }
 
-    // Load team winners
+    // Team Winners
     try {
-        const teamWinners = await apiCall('/api/admin/team-winners');
-        const teamHtml = (teamWinners || []).slice(0, 5).map((w, i) => `
+        const data = await apiCall('/api/admin/team-winners');
+        const html = (data || []).map((w, i) => `
             <div class="winner-item">
-                <div class="winner-rank rank-${i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 3 : ''}">#${i+1}</div>
+                <div class="winner-rank ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : 'rank-3'}">
+                    ${i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}
+                </div>
                 <div class="winner-info">
                     <div class="winner-name">${w.team_name || 'Team'}</div>
-                    <div class="winner-date">${w.member_count || 0} members</div>
+                    <div class="winner-date">👥 Members: ${w.member_count || 0}</div>
+                    <div class="winner-date">📊 Coins: ${formatCoins(w.monthly_coins || 0)} | 🏆 Prize: ${formatCoins(w.prize_amount)} COINS each</div>
                 </div>
-                <div class="winner-value">${formatCoins(w.total_coins || 0)} COINS</div>
             </div>
         `).join('');
-        document.getElementById('teamWinnersList').innerHTML = teamHtml || '<div class="empty-state">No winners yet</div>';
-    } catch (err) {
+        document.getElementById('teamWinnersList').innerHTML = html || '<div class="empty-state">No winners yet</div>';
+    } catch (e) {
         document.getElementById('teamWinnersList').innerHTML = '<div class="empty-state">Failed to load</div>';
     }
 
-    // Load top earners
+    // Top Earners
     try {
         const topEarners = await apiCall('/api/leaderboard/top-earners');
-        const top10Earners = (topEarners || []).slice(0, 10);
-        const topEarnersHtml = top10Earners.map((user, idx) => `
+        const html = (topEarners || []).slice(0, 10).map((user, idx) => `
             <div class="top-earner-item">
                 <div class="top-earner-rank ${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">#${idx+1}</div>
                 <div class="top-earner-name">${user.first_name || 'User'}</div>
-                <div class="top-earner-coins">${formatCoins(user.total_coins || user.coins || 0)} COINS</div>
+                <div class="top-earner-coins">${formatCoins(user.monthly_coins || user.coins || 0)} COINS</div>
             </div>
         `).join('');
-        document.getElementById('topEarnersFullList').innerHTML = topEarnersHtml || '<div class="empty-state">No data</div>';
-    } catch (err) {
+        document.getElementById('topEarnersFullList').innerHTML = html || '<div class="empty-state">No data</div>';
+    } catch (e) {
         document.getElementById('topEarnersFullList').innerHTML = '<div class="empty-state">Failed to load</div>';
     }
 }
