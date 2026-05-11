@@ -1217,8 +1217,8 @@ try {
     document.getElementById('topEarnersFullList').innerHTML = html || '<div class="empty-state">No data</div>';
 } catch (e) {
     document.getElementById('topEarnersFullList').innerHTML = '<div class="empty-state">Failed to load</div>';
-}
-    
+  } 
+}        
     async function updateTopStats() {
         document.getElementById('totalUsers').textContent = users.length;
         document.getElementById('pendingWithdrawals').textContent = withdrawals.filter(w => w.status === 'pending').length;
