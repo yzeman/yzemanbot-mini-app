@@ -2749,7 +2749,7 @@ app.get('/api/admin/referral-winners', async (req, res) => {
     if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
-        // Find the most recent week that had referrals
+        // Find the most recent referral date
         const lastReferralDate = await pool.query(`
             SELECT MAX(created_at) as last_date FROM referrals
         `);
@@ -2771,22 +2771,34 @@ app.get('/api/admin/referral-winners', async (req, res) => {
         weekEnd.setDate(weekStart.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
         
+        const weekStartStr = weekStart.toISOString();
+        const weekEndStr = weekEnd.toISOString();
+        
         const winners = await pool.query(`
             SELECT 
                 u.first_name,
                 COUNT(r.id) as weekly_referrals,
-                COUNT(r.id) * 5 as prize_amount,
                 to_char($1::date, 'Mon DD') || ' - ' || to_char($2::date, 'Mon DD, YYYY') as week_label
             FROM referrals r
             JOIN users u ON r.referrer_id = u.id
-            WHERE r.created_at >= $1 AND r.created_at < ($2::date + 1)::timestamp
+            WHERE r.created_at >= $1::timestamp 
+              AND r.created_at <= $2::timestamp
             GROUP BY u.id, u.first_name
             ORDER BY weekly_referrals DESC
             LIMIT 3
-        `, [weekStart.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]);
+        `, [weekStartStr, weekEndStr]);
         
-        res.json(winners.rows);
+        // Add proper prize amounts
+        const prizeTiers = { 1: 3500, 2: 2000, 3: 1000 };
+        const result = winners.rows.map((w, i) => ({
+            ...w,
+            rank: i + 1,
+            prize_amount: prizeTiers[i + 1] || 0
+        }));
+        
+        res.json(result);
     } catch (err) {
+        console.error('Referral winners error:', err);
         res.status(500).json({ error: err.message });
     }
 });
