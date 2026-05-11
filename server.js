@@ -3277,20 +3277,21 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
     const tournamentId = tournament.rows[0].id;
     
     const topParticipants = await client.query(`
-      SELECT 
-        u.id, u.first_name, u.telegram_id,
-        COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
-      FROM tournament_participants tp
-      JOIN users u ON tp.user_id = u.id
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
-        AND ar.created_at >= $2
-        AND ar.created_at < $3
-      WHERE tp.tournament_id = $1
-      GROUP BY u.id
-      ORDER BY weekly_coins DESC
-      LIMIT 3
-    `, [tournamentId, lastMondayStr, now.toISOString()]);
-    
+  SELECT 
+    u.id, u.first_name, u.telegram_id,
+    COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
+  FROM tournament_participants tp
+  JOIN users u ON tp.user_id = u.id
+  LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+    AND ar.created_at >= $2
+    AND ar.created_at < ($3::date + 1)::timestamp
+    AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
+  WHERE tp.tournament_id = $1
+  GROUP BY u.id
+  ORDER BY weekly_coins DESC
+  LIMIT 3
+`, [tournamentId, lastMondayStr, now.toISOString()]);
+      
     const prizes = [2000, 1000, 500];
     
     for (let i = 0; i < topParticipants.rows.length; i++) {
