@@ -27,16 +27,16 @@ const io = socketIo(server, {
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
-const MIN_WITHDRAWAL_COINS = 100000;
+const MIN_WITHDRAWAL_COINS = 1000000;  // 1,000,000 COINS to withdraw
 const INVITEE_BONUS_COINS = 2000;
 const COMMISSION_RATE = 0.02;
 
 const REFERRAL_REWARDS_COINS = {
-    'Fresher': 5,
-    'Brute': 10,
-    'Silver': 15,
-    'Gold': 20,
-    'Platinum': 25
+    'Fresher': 50,
+    'Brute': 100,
+    'Silver': 150,
+    'Gold': 250,
+    'Platinum': 500
 };
 
 const pool = new Pool({
@@ -3239,7 +3239,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       LIMIT 3
     `, [firstOfMonth]);
     
-    const prizes = [5000, 3000, 1000];
+    const prizes = [20000, 10000, 5000];
     
     for (let i = 0; i < topEarners.rows.length; i++) {
       const user = topEarners.rows[i];
@@ -3392,7 +3392,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
   LIMIT 3
 `, [tournamentId, lastMondayStr, now.toISOString()]);
       
-    const prizes = [2000, 1000, 500];
+    const prizes = [8000, 5000, 3000];
     
     for (let i = 0; i < topParticipants.rows.length; i++) {
       const user = topParticipants.rows[i];
@@ -3477,7 +3477,7 @@ app.post('/api/admin/award-team-prizes', verifyAdmin, async (req, res) => {
       return res.json({ success: true, message: 'No teams to award', awarded: 0 });
     }
     
-    const prizes = [2500, 1000, 500];
+    const prizes = [12000, 6000, 3000];
     let totalAwarded = 0;
     
     for (let i = 0; i < topTeams.rows.length; i++) {
