@@ -696,15 +696,15 @@
         }
     });
     
-    // ✅ Listen for new messages broadcast
-    tournamentSocket.on('new-message', (msg) => {
-        console.log('📨 New tournament message received on badge socket');
-        if (document.visibilityState === 'visible') {
-            tournamentUnreadCount++;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
-        }
-    });
+    // In connectTournamentSocket
+tournamentSocket.on('tournament-new-message', (msg) => {  // ✅ Changed
+    console.log('📨 Tournament badge received:', msg);
+    if (document.visibilityState === 'visible') {
+        tournamentUnreadCount++;
+        saveTournamentUnreadCount();
+        updateTournamentChatBadge();
+    }
+});
     
     tournamentSocket.on('disconnect', () => {
         setTimeout(connectTournamentSocket, 3000);
