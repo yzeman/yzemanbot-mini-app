@@ -376,24 +376,30 @@
         }
         
         async function init() {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
-                return;
-            }
-            
-            try {
-                const userRes = await fetch('/api/user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: tg.initData })
-                });
-                currentUser = await userRes.json();
-                connectWebSocket();
-            } catch (err) {
-                console.error('Init error:', err);
-                showNotification('Failed to load', true);
-            }
-        }
+    if (!tg?.initData) {
+        showNotification('Please open from Telegram', true);
+        return;
+    }
+    
+    try {
+        const userRes = await fetch('/api/user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
+        currentUser = await userRes.json();
+        connectWebSocket();
+        
+        // ✅ Auto-focus input and scroll to latest
+        setTimeout(() => {
+            document.getElementById('messageInput').focus();
+            scrollToBottom();
+        }, 500);
+    } catch (err) {
+        console.error('Init error:', err);
+        showNotification('Failed to load', true);
+    }
+}
         
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
