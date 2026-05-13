@@ -734,18 +734,43 @@ io.use(async (socket, next) => {
 io.on('connection', (socket) => {
     console.log('🟢 User connected:', socket.id);
     
-    // ============================================
-    // JOIN STATUS ROOM (for online status)
-    // ============================================
-    socket.on('join-status', (data) => {
-        const { userId } = data;
-        if (userId) {
-            socket.join(`user_${userId}`);
-            socket.userId = userId;
-            userSockets.set(userId, socket.id);
-            console.log(`👤 User ${userId} joined status room`);
+// ============================================
+// JOIN STATUS ROOM (for online status)
+// ============================================
+socket.on('join-status', async (data) => {
+    const { userId } = data;
+    if (userId) {
+        socket.join(`user_${userId}`);
+        socket.userId = userId;
+        userSockets.set(userId, socket.id);
+        console.log(`👤 User ${userId} joined status room`);
+        
+        // ✅ Broadcast to ACCEPTED FRIENDS only that user is online
+        try {
+            const friends = await pool.query(
+                `SELECT 
+                    CASE 
+                        WHEN f.user_id = $1 THEN f.friend_id 
+                        ELSE f.user_id 
+                    END as friend_id
+                 FROM friends f
+                 WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+                [userId]
+            );
+            friends.rows.forEach(friend => {
+                const friendSocketId = userSockets.get(friend.friend_id);
+                if (friendSocketId) {
+                    io.to(friendSocketId).emit('friend-online', { 
+                        userId: userId, 
+                        firstName: socket.user?.first_name || 'User' 
+                    });
+                }
+            });
+        } catch (err) {
+            console.error('Friend online broadcast error:', err);
         }
-    });
+    }
+});
     
     // ============================================
     // TEAM STATUS (for unread message badges)
@@ -792,22 +817,7 @@ io.on('connection', (socket) => {
         socket.join(`team_${teamId}`);
         
        // Broadcast to friends that user is online
-try {
-    const friends = await pool.query(
-        `SELECT u.id FROM users u
-         JOIN friends f ON (f.user_id = u.id OR f.friend_id = u.id)
-         WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
-        [userId]
-    );
-    friends.rows.forEach(friend => {
-        const friendSocketId = userSockets.get(friend.id);
-        if (friendSocketId) {
-            io.to(friendSocketId).emit('friend-online', { userId, firstName });
-        }
-    });
-} catch (err) {
-    console.error('Friend online broadcast error:', err);
-}
+socket.broadcast.emit('friend-online', { userId, firstName });
         
         // Update last seen
         await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
@@ -1121,13 +1131,17 @@ try {
            // Broadcast to friends that user went offline
 try {
     const friends = await pool.query(
-        `SELECT u.id FROM users u
-         JOIN friends f ON (f.user_id = u.id OR f.friend_id = u.id)
+        `SELECT 
+            CASE 
+                WHEN f.user_id = $1 THEN f.friend_id 
+                ELSE f.user_id 
+            END as friend_id
+         FROM friends f
          WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
         [user.userId]
     );
     friends.rows.forEach(friend => {
-        const friendSocketId = userSockets.get(friend.id);
+        const friendSocketId = userSockets.get(friend.friend_id);
         if (friendSocketId) {
             io.to(friendSocketId).emit('friend-offline', { userId: user.userId });
         }
