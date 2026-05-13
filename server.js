@@ -1558,7 +1558,8 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
         claimed_today: false,
         last_7_days: [],
         max_streak: 0,
-        current_streak: 0
+        current_streak: 0,
+        total_claims: 0
       });
     }
 
@@ -1594,6 +1595,12 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
       [userId]
     );
 
+    // ✅ Total lifetime claims
+    const totalClaims = await pool.query(
+      `SELECT COUNT(*) as total FROM daily_rewards WHERE user_id = $1`,
+      [userId]
+    );
+
     // Calculate current streak
     let currentStreak = 0;
     if (claimedToday.rows.length > 0) {
@@ -1609,7 +1616,8 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
       claimed_today: claimedToday.rows.length > 0,
       last_7_days: last7Days.rows,
       max_streak: parseInt(maxStreak.rows[0].max_streak) || 0,
-      current_streak: currentStreak
+      current_streak: currentStreak,
+      total_claims: parseInt(totalClaims.rows[0].total) || 0  // ✅ ADDED
     });
   } catch (err) {
     console.error('Daily stats error:', err);
