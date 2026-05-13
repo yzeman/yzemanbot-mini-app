@@ -1658,7 +1658,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
     }
 
     // Prizes (same as before)
-    const prizes = [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000];
+    const prizes = [200, 300, 500, 1000, 2000, 5000, 200, 300, 500, 1000, 2000, 500];
     const rewardCoins = prizes[Math.floor(Math.random() * prizes.length)];
 
     const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
@@ -1680,7 +1680,7 @@ app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
     );
     await awardReferralCommission(client, userId, finalReward);
     await trackMonthlyEarnings(client, userId, finalReward);
-    if (rewardCoins >= 20) await awardAchievement(userId, 'Wheel Champion', client);
+    if (rewardCoins >= 5000) await awardAchievement(userId, 'Wheel Champion', client);
     await client.query('COMMIT');
 
     res.json({ success: true, reward: finalReward });
