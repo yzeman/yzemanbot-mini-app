@@ -18,15 +18,15 @@ if (tg) {
 // ============================================================
 
 const COIN_ECONOMY = {
-    MIN_WITHDRAWAL_COINS: 100000,      // 100,000 COINS to withdraw
+    MIN_WITHDRAWAL_COINS: 1000000,      // 1,000,000 COINS to withdraw
     
     AD_REWARDS: {
-    'Fresher': 0.5,
-    'Brute': 1.0,
-    'Silver': 1.5,
-    'Gold': 2.5,
-    'Platinum': 5.0
-},
+        'Fresher': 5.0,
+        'Brute': 10.0,
+        'Silver': 15.0,
+        'Gold': 25.0,
+        'Platinum': 50.0
+    },
     
     TIER_REQUIREMENTS: {
         'Fresher': 0,
@@ -37,23 +37,23 @@ const COIN_ECONOMY = {
     },
     
     REFERRAL_REWARDS_COINS: {
-        'Fresher': 5,
-        'Brute': 10,
-        'Silver': 15,
-        'Gold': 20,
-        'Platinum': 25
+        'Fresher': 50,
+        'Brute': 100,
+        'Silver': 150,
+        'Gold': 250,
+        'Platinum': 500
     },
     
     INVITEE_BONUS_COINS: 2000,
     COMMISSION_RATE: 0.02,
     
     AD_STREAK_BONUSES: { 
-    5: 3,     // Was 1
-    10: 8,    // Was 3
-    25: 25,   // Was 10
-    50: 75,   // Was 25
-    100: 250  // Was 100
-},
+        5: 25,
+        10: 75,
+        25: 250,
+        50: 750,
+        100: 2500
+    },
     
     LUCKY_AD_CHANCE: 0.15,
     GOLDEN_AD_CHANCE: 0.05,
@@ -61,62 +61,60 @@ const COIN_ECONOMY = {
     EPIC_AD_CHANCE: 0.002,
     
     DAILY_AD_GOAL: 20,
-DAILY_AD_GOAL_REWARD: 50,     // Was 2
-WEEKLY_AD_GOAL: 100,
-WEEKLY_AD_GOAL_REWARD: 200,    // Was 15
+    DAILY_AD_GOAL_REWARD: 200,
+    WEEKLY_AD_GOAL: 100,
+    WEEKLY_AD_GOAL_REWARD: 1000,
     
     AD_MILESTONES: { 
-    100: 25,      // Was 10 — now equals ~50 ads of earnings
-    250: 75,      // Was 30
-    500: 200,     // Was 75
-    1000: 500,    // Was 200
-    2500: 1500,   // Was 500
-    5000: 3500,   // Was 1000
-    10000: 7500   // Was 2500
-},
-    
-    DAILY_BASE_REWARD: 0.2,
-    DAILY_STREAK_BONUS: 0.1,
-    
-    WHEEL_PRIZES: [50, 50, 50, 50, 100, 100, 100, 200, 200, 500, 1000, 2000],
-    
-    SOCIAL_TASK_REWARDS: {
-        'youtube1': 100,
-        'youtube2': 100,
-        'youtube3': 100,
-        'facebook': 100,
-        'instagram': 100,
-        'telegram': 100
+        100: 250,
+        250: 750,
+        500: 2000,
+        1000: 5000,
+        2500: 15000,
+        5000: 35000,
+        10000: 75000
     },
     
-    PLAY_EARN_REWARD: 200,
-    WEBSITE_TASK_REWARD: 5,
+    DAILY_BASE_REWARD: 2.0,
+    DAILY_STREAK_BONUS: 0.5,
+    
+    WHEEL_PRIZES: [200, 200, 300, 500, 500, 300, 1000, 500, 2000, 1000, 5000, 2000],
+    
+    SOCIAL_TASK_REWARDS: {
+        'youtube1': 500,
+        'youtube2': 500,
+        'youtube3': 500,
+        'facebook': 500,
+        'instagram': 500,
+        'telegram': 500
+    },
+    
+    PLAY_EARN_REWARD: 1000,
+    WEBSITE_TASK_REWARD: 50,
     
     ACHIEVEMENT_REWARDS: {
-        'Loyal User': 500,
-        'Referral Master': 3000,
-        'Points Millionaire': 2000,
-        'Social Butterfly': 15000,
-        'Tournament Winner': 1500,
-        'Team Player': 200,
-        'Platinum Elite': 10000,
-        'Wheel Champion': 1000,
-        'Daily Streak 7': 1000,
-        'Super Referrer': 7000,
-        'Ad Master': 2500,
-        'Team Winner': 5000,
-        'Leaderboard Winner': 3000,
-        'Ad Master Platinum': 10000,
-        'Referral King': 15000,
-        'Monthly Top Earner': 5000
+        'Loyal User': 5000,
+        'Referral Master': 10000,
+        'Points Millionaire': 15000,
+        'Social Butterfly': 50000,
+        'Tournament Winner': 10000,
+        'Team Player': 2000,
+        'Platinum Elite': 50000,
+        'Wheel Champion': 10000,
+        'Daily Streak 7': 5000,
+        'Super Referrer': 25000,
+        'Ad Master': 10000,
+        'Team Winner': 25000,
+        'Leaderboard Winner': 15000,
+        'Ad Master Platinum': 50000,
+        'Referral King': 50000,
+        'Monthly Top Earner': 25000
     },
     
     TOURNAMENT_PRIZES: {
-        1: 1000,
-        2: 500,
-        3: 200,
-        4: 100,
-        5: 50
+        1: 8000,
+        2: 5000,
+        3: 2000
     }
 };
 
