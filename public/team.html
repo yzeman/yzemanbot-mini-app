@@ -519,25 +519,25 @@
     
     <div class="tab-content" id="monthlyTab">
         <div class="prize-banner">
-            <h3><i class="fas fa-crown"></i> Monthly Prizes</h3>
-            <div class="prize-grid">
-                <div class="prize-card"><div class="prize-medal">🥇</div><div class="prize-value">2,500</div></div>
-                <div class="prize-card"><div class="prize-medal">🥈</div><div class="prize-value">1,000</div></div>
-                <div class="prize-card"><div class="prize-medal">🥉</div><div class="prize-value">500</div></div>
-            </div>
-            <p style="font-size:10px; margin-top:6px;">Every member gets the full prize!</p>
-        </div>
+    <h3><i class="fas fa-crown"></i> Monthly Prizes</h3>
+    <div class="prize-grid">
+        <div class="prize-card"><div class="prize-medal">🥇</div><div class="prize-value">12,000</div></div>
+        <div class="prize-card"><div class="prize-medal">🥈</div><div class="prize-value">6,000</div></div>
+        <div class="prize-card"><div class="prize-medal">🥉</div><div class="prize-value">3,000</div></div>
+    </div>
+    <p style="font-size:10px; margin-top:6px;">Every member gets the full prize!</p>
+</div>
         
         <div class="prize-info-box" id="prizeInfoBox">
-            <div class="prize-info-header">
-                <div class="prize-info-title"><i class="fas fa-info-circle"></i> How It Works</div>
-                <button class="close-info-btn" onclick="dismissPrizeInfo()"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="prize-info-row"><i class="fas fa-check-circle"></i> 🥇 1st — 2,500 COINS each</div>
-            <div class="prize-info-row"><i class="fas fa-check-circle"></i> 🥈 2nd — 1,000 COINS each</div>
-            <div class="prize-info-row"><i class="fas fa-check-circle"></i> 🥉 3rd — 500 COINS each</div>
-            <div class="prize-info-row"><i class="fas fa-calendar-check"></i> Awarded on the 1st of every month</div>
-        </div>
+    <div class="prize-info-header">
+        <div class="prize-info-title"><i class="fas fa-info-circle"></i> How It Works</div>
+        <button class="close-info-btn" onclick="dismissPrizeInfo()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="prize-info-row"><i class="fas fa-check-circle"></i> 🥇 1st — 12,000 COINS each</div>
+    <div class="prize-info-row"><i class="fas fa-check-circle"></i> 🥈 2nd — 6,000 COINS each</div>
+    <div class="prize-info-row"><i class="fas fa-check-circle"></i> 🥉 3rd — 3,000 COINS each</div>
+    <div class="prize-info-row"><i class="fas fa-calendar-check"></i> Awarded on the 1st of every month</div>
+</div>
         
         <div class="info-banner" id="monthlyInfoBanner">
             <div class="info-banner-content">Teams ranked by THIS MONTH'S earnings only. Resets on the 1st!</div>
@@ -606,7 +606,7 @@
     let currentTeamData = null;
     const CACHE_TTL = 60000;
     
-    const MONTHLY_PRIZES = { 1: 2500, 2: 1000, 3: 500 };
+    const MONTHLY_PRIZES = { 1: 12000, 2: 6000, 3: 3000 };
     
     // ============================================
     // WEBSOCKET - Team Chat Badge
