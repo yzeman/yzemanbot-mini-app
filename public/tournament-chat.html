@@ -206,7 +206,19 @@
             padding: 30px;
             color: var(--gray);
         }
-        
+        .chat-badge {
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.chat-badge.hidden {
+    display: none !important;
+}
         .notification {
             position: fixed; bottom: 80px; left: 15px; right: 15px;
             background: var(--success); color: white; padding: 12px 16px;
@@ -404,6 +416,10 @@
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const socketUrl = `${protocol}//${window.location.host}`;
+            // Clear tournament badge when entering chat
+sessionStorage.setItem('returned_from_tournament_chat', 'true');
+localStorage.setItem('tournament_unread_count', '0');
+
             
             socket = io(socketUrl, {
                 auth: { initData: tg.initData },
