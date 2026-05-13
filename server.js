@@ -1181,7 +1181,8 @@ socket.on('send-tournament-message', async (data) => {
             [userId, message.trim()]
         );
         
-        io.to('tournament_chat').emit('new-message', {
+        // Broadcast to ALL connected sockets (so badge on tournament page gets it too)
+io.emit('new-message', {
             id: result.rows[0].id,
             user_id: userId,
             first_name: firstName,
