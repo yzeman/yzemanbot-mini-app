@@ -668,7 +668,7 @@
         }
     }
 
-    function connectTournamentSocket() {
+   function connectTournamentSocket() {
     if (!tg?.initData) return;
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -682,11 +682,9 @@
     tournamentSocket.on('connect', () => {
         console.log('🏆 Tournament badge socket connected');
         
-        // ✅ JOIN the tournament chat room to receive new messages
-        tournamentSocket.emit('join-tournament', {
-            userId: currentUserId,
-            firstName: 'User'
-        });
+        // ✅ DO NOT emit join-tournament — just listen for new messages
+        // The server broadcasts new-message to ALL in 'tournament_chat' room
+        // But we need to receive it WITHOUT joining the room
         
         // Reset badge if returning from chat
         const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
@@ -698,9 +696,9 @@
         }
     });
     
-    // ✅ Listen for new messages from tournament chat
+    // ✅ Listen for new messages broadcast
     tournamentSocket.on('new-message', (msg) => {
-        console.log('📨 New tournament message received');
+        console.log('📨 New tournament message received on badge socket');
         if (document.visibilityState === 'visible') {
             tournamentUnreadCount++;
             saveTournamentUnreadCount();
