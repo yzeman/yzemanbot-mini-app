@@ -930,11 +930,12 @@
                 showNotification(err.message || 'Failed to join', true);
                 joinBtn.disabled = false;
                 joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
-            }
-                // ✅ ADD THIS RIGHT HERE
+            }               
+        }
+
+         // ✅ ADD THIS RIGHT HERE
         function openTournamentChat() {
             window.location.href = `/tournament-chat.html`;
-        }
         }
 
         // Pull to refresh
