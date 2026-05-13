@@ -1254,10 +1254,27 @@
             }
         });
         
-        statusSocket.on('friend-online', (data) => {
-            console.log('Friend online:', data);
-            showOnlineToast(data.firstName);
+        statusSocket.on('friend-online', async (data) => {
+    console.log('Friend online:', data);
+    
+    // ✅ Only show toast if this user is actually a friend
+    try {
+        const friendsRes = await fetch('/api/friends/list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
         });
+        const friendsData = await friendsRes.json();
+        const isFriend = (friendsData.friends || []).some(f => f.id === data.userId);
+        
+        if (isFriend) {
+            showOnlineToast(data.firstName);
+        }
+    } catch (err) {
+        // If we can't verify, still show it (better than missing)
+        showOnlineToast(data.firstName);
+    }
+});
         
         statusSocket.on('team-unread-update', (data) => {
             console.log('Team unread update:', data);
