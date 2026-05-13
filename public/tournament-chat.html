@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Tournament Chat - YzemanBot</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #2196F3;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #ffffff;
+            --gray: #888888;
+            --gold: #FFD700;
+            --danger: #f44336;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, #0f0f1a 100%);
+            color: var(--light);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,215,0,0.2);
+            flex-shrink: 0;
+        }
+        .back-btn {
+            color: white;
+            font-size: 20px;
+            text-decoration: none;
+            background: rgba(0,0,0,0.3);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .team-info h2 {
+            font-size: 18px;
+            margin-bottom: 2px;
+        }
+        .team-info p {
+            font-size: 11px;
+            color: var(--gray);
+        }
+        .member-count {
+            background: var(--primary);
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            margin-left: auto;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            display: flex;
+            gap: 10px;
+            max-width: 85%;
+            position: relative;
+        }
+        .message-own {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .message-bubble {
+            background: rgba(22, 33, 62, 0.9);
+            border-radius: 18px;
+            padding: 10px 14px;
+            max-width: 100%;
+            position: relative;
+        }
+        .message-own .message-bubble {
+            background: linear-gradient(135deg, var(--primary), #2E7D32);
+        }
+        .message-sender {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--gold);
+            margin-bottom: 3px;
+        }
+        .message-text {
+            font-size: 14px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .message-time {
+            font-size: 9px;
+            color: var(--gray);
+            margin-top: 4px;
+            text-align: right;
+        }
+        .edited-badge {
+            font-size: 8px;
+            color: var(--gray);
+            margin-left: 5px;
+        }
+        
+        .message-actions {
+            position: fixed;
+            background: var(--darker);
+            border-radius: 12px;
+            padding: 8px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .message-actions button {
+            background: none;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .message-actions button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .message-actions .delete-btn { color: #f44336; }
+        
+        .system-message {
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray);
+            padding: 5px;
+            margin: 5px 0;
+        }
+        
+        .warning-message {
+            text-align: center;
+            font-size: 11px;
+            color: var(--danger);
+            padding: 5px;
+            margin: 5px 0;
+            background: rgba(244,67,54,0.1);
+            border-radius: 8px;
+        }
+        
+        .typing-indicator {
+            padding: 8px 15px;
+            font-size: 11px;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+        }
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            background: var(--gold);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-4px); opacity: 1; }
+        }
+        
+        .input-area {
+            padding: 12px;
+            background: rgba(22, 33, 62, 0.95);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .message-input {
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--gray);
+            border-radius: 25px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        .message-input:focus {
+            border-color: var(--primary);
+        }
+        .send-btn {
+            background: linear-gradient(135deg, var(--primary), #2E7D32);
+            border: none;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .send-btn:active { transform: scale(0.95); }
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading-messages {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+        }
+        
+        .notification {
+            position: fixed; bottom: 80px; left: 15px; right: 15px;
+            background: var(--success); color: white; padding: 12px 16px;
+            border-radius: 12px; text-align: center; display: none; z-index: 1000;
+            font-size: 12px;
+        }
+        .notification.error { background: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="chat-header" id="chatHeader">
+        <a href="/tournament.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+        <div class="team-info">
+            <h2 id="teamName">Team Chat</h2>
+            <p id="teamStatus">Connecting...</p>
+        </div>
+        <div class="member-count" id="memberCount">0 members</div>
+    </div>
+    
+    <div class="messages-container" id="messagesContainer">
+        <div class="loading-messages">Loading messages...</div>
+    </div>
+    
+    <div class="typing-indicator" id="typingIndicator" style="display: none;">
+        <span>Someone is typing</span>
+        <div class="typing-dots">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <input type="text" class="message-input" id="messageInput" placeholder="Type a message...">
+        <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    
+    <div class="message-actions" id="messageActions">
+        <button id="editMessageBtn"><i class="fas fa-edit"></i> Edit</button>
+        <button id="deleteMessageBtn" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+    
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+        
+        let socket = null;
+        let currentUser = null;
+        let currentTeam = null;
+        let typingTimeout = null;
+        let selectedMessageId = null;
+        let selectedMessageElement = null;
+        
+        // ============================================
+        // PROFANITY FILTER - Add more words as needed
+        // ============================================
+        const PROFANITY_WORDS = [
+            // Common English profanity
+            'fuck', 'shit', 'asshole', 'bitch', 'cunt', 'dick', 'pussy',
+            'bastard', 'whore', 'slut', 'damn', 'hell', 'crap', 'idiot', 
+            'animal', 'stupid', 'theif', 'your mother', 'mad',
+            // Variations with common substitutions
+            'fuk', 'fck', 'sh1t', 'b1tch', 'a55hole', 'd1ck',
+            // Violence related
+            'kill', 'murder', 'death', 'die', 'blood', 'violence',
+            'terrorist', 'bomb', 'shoot', 'attack', 'hurt', 'injury',
+            // Hate speech
+            'nigger', 'faggot', 'retard', 'tranny',
+            // Add more in your language as needed
+        ];
+        
+        // Add common variations with numbers and symbols
+        const PROFANITY_PATTERNS = [
+            /f[u\*@]c?k/i,
+            /s[h\*@]i?t/i,
+            /a[s\$][s\$]h?o?l?e/i,
+            /b[i1!]tch/i,
+            /c[u\*@]nt/i,
+            /d[i1!]ck/i,
+            /k[i1!]ll/i,
+            /m[u\*@]rd[e3]r/i,
+            /d[i1!][e3]/i,
+        ];
+        
+        function containsProfanity(text) {
+    const lowerText = text.toLowerCase();
+    
+    // Check exact words (whole word only)
+    for (const word of PROFANITY_WORDS) {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        if (regex.test(lowerText)) {
+            return true;
+        }
+    }
+    
+    // Check patterns
+    for (const pattern of PROFANITY_PATTERNS) {
+        if (pattern.test(lowerText)) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+        
+        // Censor message (optional - replace with ***)
+        function censorMessage(text) {
+            let censored = text;
+            for (const word of PROFANITY_WORDS) {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                censored = censored.replace(regex, '***');
+            }
+            return censored;
+        }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const teamId = urlParams.get('teamId');
+        const teamName = decodeURIComponent(urlParams.get('teamName') || 'Team Chat');
+        
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 3000);
+        }
+        
+        function formatTime(dateString) {
+            if (!dateString) return 'Just now';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return 'Just now';
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return 'Just now';
+            }
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        function getInitials(name) {
+            if (!name) return '👤';
+            return name.charAt(0).toUpperCase();
+        }
+        
+        function getFirstName(fullName) {
+            if (!fullName) return 'User';
+            return fullName.split(' ')[0];
+        }
+        
+        function hideMessageActions() {
+            const menu = document.getElementById('messageActions');
+            menu.style.display = 'none';
+            selectedMessageId = null;
+            selectedMessageElement = null;
+        }
+        
+        function showMessageActions(event, messageId, element, isOwn) {
+            if (!isOwn) return;
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const menu = document.getElementById('messageActions');
+            selectedMessageId = messageId;
+            selectedMessageElement = element;
+            
+            menu.style.display = 'block';
+            menu.style.left = `${event.pageX - 50}px`;
+            menu.style.top = `${event.pageY - 20}px`;
+            
+            setTimeout(() => {
+                document.addEventListener('click', hideMessageActions);
+            }, 100);
+        }
+        
+        function showWarningMessage(text) {
+            const container = document.getElementById('messagesContainer');
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'warning-message';
+            warningDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${escapeHtml(text)}`;
+            container.appendChild(warningDiv);
+            setTimeout(() => warningDiv.remove(), 3000);
+            scrollToBottom();
+        }
+        
+        async function editMessage() {
+            if (!selectedMessageId) return;
+            const newMessage = prompt('Edit your message:');
+            if (newMessage && newMessage.trim()) {
+                if (containsProfanity(newMessage)) {
+                    showWarningMessage('Message contains inappropriate language and cannot be sent.');
+                    return;
+                }
+                socket.emit('edit-message', {
+                    messageId: selectedMessageId,
+                    newMessage: newMessage.trim(),
+                    userId: currentUser.id,
+                    teamId: parseInt(teamId)
+                });
+            }
+            hideMessageActions();
+        }
+        
+        async function deleteMessage() {
+            if (!selectedMessageId) return;
+            if (confirm('Delete this message?')) {
+                socket.emit('delete-message', {
+                    messageId: selectedMessageId,
+                    userId: currentUser.id,
+                    teamId: parseInt(teamId)
+                });
+            }
+            hideMessageActions();
+        }
+        
+        function addMessageToChat(msg) {
+            const container = document.getElementById('messagesContainer');
+            
+            if (container.querySelector('.loading-messages')) {
+                container.innerHTML = '';
+            }
+            
+            const time = formatTime(msg.created_at);
+            const isOwn = currentUser && msg.user_id === currentUser.id;
+            
+            let senderName = 'User';
+            if (msg.first_name) {
+                senderName = getFirstName(msg.first_name);
+            } else if (isOwn && currentUser && currentUser.first_name) {
+                senderName = getFirstName(currentUser.first_name);
+            }
+            
+            const initial = getInitials(senderName);
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOwn ? 'message-own' : ''}`;
+            messageDiv.dataset.messageId = msg.id;
+            messageDiv.dataset.userId = msg.user_id;
+            
+            let senderHtml = '';
+            if (!isOwn) {
+                senderHtml = `<div class="message-sender">${escapeHtml(senderName)}</div>`;
+            }
+            
+            // Check if message contains profanity (for warning on received messages)
+            const displayMessage = escapeHtml(msg.message);
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${escapeHtml(initial)}</div>
+                <div class="message-bubble">
+                    ${senderHtml}
+                    <div class="message-text">${displayMessage}</div>
+                    <div class="message-time">
+                        ${time}
+                        ${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}
+                    </div>
+                </div>
+            `;
+            
+            if (isOwn) {
+                messageDiv.addEventListener('contextmenu', (e) => {
+                    showMessageActions(e, msg.id, messageDiv, true);
+                });
+                let touchTimer;
+                messageDiv.addEventListener('touchstart', (e) => {
+                    touchTimer = setTimeout(() => {
+                        showMessageActions(e, msg.id, messageDiv, true);
+                    }, 500);
+                });
+                messageDiv.addEventListener('touchend', () => clearTimeout(touchTimer));
+                messageDiv.addEventListener('touchmove', () => clearTimeout(touchTimer));
+            }
+            
+            container.appendChild(messageDiv);
+            scrollToBottom();
+        }
+        
+        function updateMessageInChat(messageId, newMessage) {
+            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (messageDiv) {
+                const textSpan = messageDiv.querySelector('.message-text');
+                const timeSpan = messageDiv.querySelector('.message-time');
+                if (textSpan) textSpan.textContent = escapeHtml(newMessage);
+                if (timeSpan && !timeSpan.querySelector('.edited-badge')) {
+                    timeSpan.innerHTML += '<span class="edited-badge">(edited)</span>';
+                }
+            }
+        }
+        
+        function removeMessageFromChat(messageId) {
+            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (messageDiv) messageDiv.remove();
+        }
+        
+        function addSystemMessage(text) {
+            const container = document.getElementById('messagesContainer');
+            const systemDiv = document.createElement('div');
+            systemDiv.className = 'system-message';
+            systemDiv.textContent = text;
+            container.appendChild(systemDiv);
+            scrollToBottom();
+            setTimeout(() => systemDiv.remove(), 3000);
+        }
+        
+        function renderMessages(messages) {
+            const container = document.getElementById('messagesContainer');
+            if (!messages || messages.length === 0) {
+                container.innerHTML = '<div class="loading-messages">No messages yet. Say hi to your team!</div>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            messages.forEach(msg => {
+                addMessageToChat(msg);
+            });
+            scrollToBottom();
+        }
+        
+        function scrollToBottom() {
+            const container = document.getElementById('messagesContainer');
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+        
+        function showTypingIndicator(userName, isTyping) {
+            const indicator = document.getElementById('typingIndicator');
+            if (isTyping && userName !== currentUser?.first_name) {
+                indicator.style.display = 'flex';
+                indicator.querySelector('span').textContent = `${getFirstName(userName)} is typing`;
+                setTimeout(() => {
+                    if (indicator.style.display === 'flex') {
+                        indicator.style.display = 'none';
+                    }
+                }, 3000);
+            } else if (!isTyping) {
+                indicator.style.display = 'none';
+            }
+        }
+        
+        async function init() {
+            if (!tg?.initData) {
+                showNotification('Please open from Telegram', true);
+                document.getElementById('teamStatus').textContent = 'Error: Not in Telegram';
+                return;
+            }
+            
+            if (!teamId) {
+                showNotification('Invalid team', true);
+                document.getElementById('teamStatus').textContent = 'Error: No team selected';
+                return;
+            }
+            
+            document.getElementById('teamName').textContent = '🏆 Tournament Chat';
+            
+            try {
+                const userRes = await fetch('/api/user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                currentUser = await userRes.json();
+                console.log('Current user:', currentUser);
+                
+                const teamRes = await fetch('/api/team/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData })
+                });
+                const teamData = await teamRes.json();
+                
+                if (!teamData.has_team) {
+                    showNotification('You are not in a team', true);
+                    setTimeout(() => window.location.href = '/team.html', 2000);
+                    return;
+                }
+                
+                currentTeam = teamData.team;
+                document.getElementById('memberCount').textContent = `${teamData.members?.length || 0} members`;
+                document.getElementById('teamStatus').textContent = 'Connected';
+                
+                connectWebSocket();
+                
+            } catch (err) {
+                console.error('Init error:', err);
+                showNotification('Failed to load user data', true);
+                document.getElementById('teamStatus').textContent = 'Error loading data';
+            }
+        }
+        
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const socketUrl = `${protocol}//${window.location.host}`;
+            
+            socket = io(socketUrl, {
+                auth: { initData: tg.initData },
+                transports: ['websocket'],
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1000
+            });
+            
+            socket.on('connect', () => {
+    console.log('WebSocket connected');
+    document.getElementById('teamStatus').textContent = 'Connected';
+    
+    socket.emit('join-tournament', {
+    userId: currentUser.id,
+    firstName: currentUser.first_name || 'User'
+});
+    
+    // Clear unread badge in localStorage when entering chat
+    localStorage.setItem(`team_unread_${teamId}`, '0');
+    
+    // Mark all messages as read on the server
+    fetch('/api/team/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            initData: tg.initData,
+            teamId: parseInt(teamId) 
+        })
+    }).catch(err => console.error('Mark read error:', err));
+});
+            
+            socket.on('chat-history', (messages) => {
+                console.log('Chat history received:', messages?.length);
+                renderMessages(messages);
+            });
+            
+            socket.on('new-message', (message) => {
+                console.log('New message:', message);
+                addMessageToChat(message);
+            });
+            
+            socket.on('user-joined', (data) => {
+                addSystemMessage(`${getFirstName(data.firstName)} joined the chat`);
+            });
+            
+            socket.on('user-typing', (data) => {
+                if (data.userId !== currentUser.id) {
+                    showTypingIndicator(data.firstName, data.isTyping);
+                }
+            });
+            
+            socket.on('message-edited', (data) => {
+                updateMessageInChat(data.messageId, data.newMessage);
+            });
+            
+            socket.on('message-deleted', (data) => {
+                removeMessageFromChat(data.messageId);
+            });
+            
+            socket.on('message-error', (data) => {
+                showNotification(data.error, true);
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('teamStatus').textContent = 'Reconnecting...';
+            });
+            
+            socket.on('connect_error', (err) => {
+                console.error('Connection error:', err);
+                document.getElementById('teamStatus').textContent = 'Connection error';
+                showNotification('Connection error. Retrying...', true);
+            });
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Check for profanity before sending
+            if (containsProfanity(message)) {
+                showWarningMessage('⚠️ Message contains inappropriate language and cannot be sent.');
+                input.value = '';
+                return;
+            }
+            
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            
+            socket.emit('send-message', {
+                teamId: parseInt(teamId),
+                message: message,
+                userId: currentUser.id
+                // Note: firstName is NOT sent - server will get it from database
+            });
+            
+            input.value = '';
+            
+            // Re-enable button after short delay
+            setTimeout(() => {
+                sendBtn.disabled = false;
+            }, 500);
+        }
+        
+        function handleTyping() {
+            if (typingTimeout) clearTimeout(typingTimeout);
+            
+            socket.emit('typing', {
+                teamId: parseInt(teamId),
+                userId: currentUser.id,
+                firstName: currentUser.first_name || 'User',
+                isTyping: true
+            });
+            
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', {
+                    teamId: parseInt(teamId),
+                    userId: currentUser.id,
+                    firstName: currentUser.first_name || 'User',
+                    isTyping: false
+                });
+            }, 1000);
+        }
+        
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        document.getElementById('messageInput').addEventListener('input', handleTyping);
+        document.getElementById('editMessageBtn').addEventListener('click', editMessage);
+        document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
+        document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);
+        
+        init();
+    </script>
+</body>
+</html>
