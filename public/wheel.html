@@ -398,22 +398,23 @@
         </div>
         <div class="rarity-grid">
             <div class="rarity-card easy">
-                <div class="rarity-icon">🟢</div>
-                <div class="rarity-name easy">Easy Win</div>
-                <div class="rarity-values">50 - 100 COINS</div>
-                <div class="rarity-chance">🎲 58% Chance</div>
-            </div>
-            <div class="rarity-card medium">
-                <div class="rarity-icon">🟠</div>
-                <div class="rarity-name medium">Medium Win</div>
-                <div class="rarity-values">200 - 500 COINS</div>
-                <div class="rarity-chance">🎲 25% Chance</div>
-            </div>
-            <div class="rarity-card rare">
-                <div class="rarity-icon">🔴</div>
-                <div class="rarity-name rare">Rare Win</div>
-                <div class="rarity-values">1,000 - 2,000 COINS</div>
-                <div class="rarity-chance">🎲 17% Chance</div>
+    <div class="rarity-icon">🟢</div>
+    <div class="rarity-name easy">Easy Win</div>
+    <div class="rarity-values">200 - 500 COINS</div>
+    <div class="rarity-chance">🎲 58% Chance</div>
+</div>
+<div class="rarity-card medium">
+    <div class="rarity-icon">🟠</div>
+    <div class="rarity-name medium">Medium Win</div>
+    <div class="rarity-values">1,000 - 2,000 COINS</div>
+    <div class="rarity-chance">🎲 33% Chance</div>
+</div>
+<div class="rarity-card rare">
+    <div class="rarity-icon">🔴</div>
+    <div class="rarity-name rare">Rare Win</div>
+    <div class="rarity-values">5,000 COINS</div>
+    <div class="rarity-chance">🎲 8% Chance</div>
+</div>
             </div>
         </div>
         
@@ -421,10 +422,10 @@
             <h4><i class="fas fa-chart-line"></i> Tier Multiplier Bonus!</h4>
             <p>Your tier multiplies your winnings! Higher tier = Higher reward!</p>
             <div class="multiplier-example">
-                <strong>Example:</strong> Spin 100 COINS → 
-                Fresher (1x) = 100 | Brute (1.5x) = 150 | 
-                Silver (2x) = 200 | Gold (2.5x) = 250 | 
-                Platinum (3x) = <span style="color:var(--gold);">300 COINS!</span>
+                <strong>Example:</strong> Spin 500 COINS → 
+                Fresher (1x) = 500 | Brute (1.5x) = 750 | 
+                Silver (2x) = 1,000 | Gold (2.5x) = 1,250 | 
+                Platinum (3x) = <span style="color:var(--gold);">1,500 COINS!</span>
             </div>
         </div>
     </div>
@@ -458,19 +459,19 @@
     // 12 SEGMENT WHEEL CONFIGURATION
     // ============================================================
     const PRIZES = [
-        { value: 50, label: '50', color: '#4CAF50', rarity: 'easy' },
-        { value: 100, label: '100', color: '#8BC34A', rarity: 'easy' },
-        { value: 200, label: '200', color: '#FF9800', rarity: 'medium' },
-        { value: 500, label: '500', color: '#FF5722', rarity: 'medium' },
-        { value: 50, label: '50', color: '#66BB6A', rarity: 'easy' },
-        { value: 100, label: '100', color: '#9CCC65', rarity: 'easy' },
-        { value: 200, label: '200', color: '#FFA726', rarity: 'medium' },
-        { value: 1000, label: '1K', color: '#F44336', rarity: 'rare' },
-        { value: 50, label: '50', color: '#81C784', rarity: 'easy' },
-        { value: 100, label: '100', color: '#AED581', rarity: 'easy' },
-        { value: 2000, label: '2K', color: '#D32F2F', rarity: 'rare' },
-        { value: 500, label: '500', color: '#E64A19', rarity: 'medium' }
-    ];
+    { value: 200, label: '200', color: '#4CAF50', rarity: 'easy' },
+    { value: 200, label: '200', color: '#8BC34A', rarity: 'easy' },
+    { value: 300, label: '300', color: '#FF9800', rarity: 'easy' },
+    { value: 500, label: '500', color: '#FF5722', rarity: 'easy' },
+    { value: 500, label: '500', color: '#66BB6A', rarity: 'easy' },
+    { value: 300, label: '300', color: '#9CCC65', rarity: 'easy' },
+    { value: 1000, label: '1K', color: '#FFA726', rarity: 'medium' },
+    { value: 500, label: '500', color: '#F44336', rarity: 'easy' },
+    { value: 2000, label: '2K', color: '#81C784', rarity: 'medium' },
+    { value: 1000, label: '1K', color: '#AED581', rarity: 'medium' },
+    { value: 5000, label: '5K', color: '#D32F2F', rarity: 'rare' },
+    { value: 2000, label: '2K', color: '#E64A19', rarity: 'medium' }
+];
 
     let wheelSpinning = false;
     let wheelAnimationFrame = null;
@@ -723,8 +724,8 @@
             if (response.ok) {
                 const reward = parseFloat(data.reward);
                 let celebrationMsg = `🎡 You won ${reward.toFixed(2)} COINS!`;
-                if (reward >= 1000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
-                else if (reward >= 500) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
+                if (reward >= 5000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
+                else if (reward >= 2000) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
                 showNotification(celebrationMsg, false);
                 if (window.AudioManager) window.AudioManager.playSound('reward');
                 await loadWheelStatus(false);
