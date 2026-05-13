@@ -441,9 +441,10 @@ localStorage.setItem('tournament_unread_count', '0');
                 renderMessages(messages);
             });
             
-            socket.on('new-message', (message) => {
-                addMessageToChat(message);
-            });
+            // In connectWebSocket
+socket.on('tournament-new-message', (message) => {  // ✅ Changed
+    addMessageToChat(message);
+});
             
             socket.on('user-joined', (data) => {
                 addSystemMessage(`${getFirstName(data.firstName)} joined the chat`);
