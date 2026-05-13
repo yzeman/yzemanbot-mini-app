@@ -377,22 +377,22 @@ await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at O
     // ============================================
     await client.query(`
       INSERT INTO achievements (name, description, badge_icon, required_value, coins_reward) VALUES
-        ('Loyal User', '30 day login streak', '🔥', 30, 500),
-        ('Referral Master', 'Get 100 referrals', '👑', 100, 3000),
-        ('Points Millionaire', 'Earn 1,000,000 COINS', '💰', 1000000, 2000),
-        ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 15000),
-        ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 1500),
-        ('Team Player', 'Join a team', '🤝', 1, 200),
-        ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 10000),
-        ('Wheel Champion', 'Win 20 COINS on wheel', '🎡', 20, 1000),
-        ('Daily Streak 7', '7 day login streak', '📅', 7, 1000),
-        ('Super Referrer', 'Get 500 referrals', '⭐', 500, 7000),
-        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 2500),
-        ('Team Winner', 'Your team wins monthly competition', '🏅', 1, 5000),
-        ('Leaderboard Winner', 'Finish Top 3 on monthly leaderboard', '👑', 3, 3000),
-        ('Ad Master Platinum', 'Watch 5000 ads', '💎', 5000, 10000),
-        ('Referral King', 'Get 1000 referrals', '👑', 1000, 15000),
-        ('Monthly Top Earner', 'Finish #1 on monthly leaderboard', '⭐', 1, 5000)
+        ('Loyal User', '30 day login streak', '🔥', 30, 5000),
+        ('Referral Master', 'Get 100 referrals', '👑', 100, 20000),
+        ('Points Millionaire', 'Earn 1,000,000 COINS', '💰', 1000000, 15000),
+        ('Social Butterfly', 'Complete all social tasks', '🦋', 5, 100000),
+        ('Tournament Winner', 'Win a weekly tournament', '🏆', 1, 10000),
+        ('Team Player', 'Join a team', '🤝', 1, 2000),
+        ('Platinum Elite', 'Reach Platinum tier', '💎', 1500, 50000),
+        ('Wheel Champion', 'Win 20 COINS on wheel', '🎡', 20, 10000),
+        ('Daily Streak 7', '7 day login streak', '📅', 7, 5000),
+        ('Super Referrer', 'Get 500 referrals', '⭐', 500, 50000),
+        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 10000),
+        ('Team Winner', 'Your team wins monthly competition', '🏅', 1, 25000),
+        ('Leaderboard Winner', 'Finish Top 3 on monthly leaderboard', '👑', 3, 15000),
+        ('Ad Master Platinum', 'Watch 5000 ads', '💎', 5000, 50000),
+        ('Referral King', 'Get 1000 referrals', '👑', 1000, 200000),
+        ('Monthly Top Earner', 'Finish #1 on monthly leaderboard', '⭐', 1, 25000)
       ON CONFLICT (name) DO UPDATE SET
         description = EXCLUDED.description,
         coins_reward = EXCLUDED.coins_reward,
@@ -791,8 +791,23 @@ io.on('connection', (socket) => {
         userSockets.set(userId, socket.id);
         socket.join(`team_${teamId}`);
         
-        // Broadcast to friends that user is online
-        socket.broadcast.emit('friend-online', { userId, firstName });
+       // Broadcast to friends that user is online
+try {
+    const friends = await pool.query(
+        `SELECT u.id FROM users u
+         JOIN friends f ON (f.user_id = u.id OR f.friend_id = u.id)
+         WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+        [userId]
+    );
+    friends.rows.forEach(friend => {
+        const friendSocketId = userSockets.get(friend.id);
+        if (friendSocketId) {
+            io.to(friendSocketId).emit('friend-online', { userId, firstName });
+        }
+    });
+} catch (err) {
+    console.error('Friend online broadcast error:', err);
+}
         
         // Update last seen
         await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
@@ -1103,8 +1118,23 @@ io.on('connection', (socket) => {
             // Update last seen
             await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.userId]);
             
-            // Broadcast to friends that user went offline
-            socket.broadcast.emit('friend-offline', { userId: user.userId });
+           // Broadcast to friends that user went offline
+try {
+    const friends = await pool.query(
+        `SELECT u.id FROM users u
+         JOIN friends f ON (f.user_id = u.id OR f.friend_id = u.id)
+         WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+        [user.userId]
+    );
+    friends.rows.forEach(friend => {
+        const friendSocketId = userSockets.get(friend.id);
+        if (friendSocketId) {
+            io.to(friendSocketId).emit('friend-offline', { userId: user.userId });
+        }
+    });
+} catch (err) {
+    console.error('Friend offline broadcast error:', err);
+}
             
             connectedUsers.delete(socket.id);
             
