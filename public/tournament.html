@@ -669,38 +669,49 @@
     }
 
     function connectTournamentSocket() {
-        if (!tg?.initData) return;
+    if (!tg?.initData) return;
+    
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = `${protocol}//${window.location.host}`;
+    
+    tournamentSocket = io(socketUrl, {
+        auth: { initData: tg.initData },
+        transports: ['websocket']
+    });
+    
+    tournamentSocket.on('connect', () => {
+        console.log('🏆 Tournament badge socket connected');
         
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const socketUrl = `${protocol}//${window.location.host}`;
-        
-        tournamentSocket = io(socketUrl, {
-            auth: { initData: tg.initData },
-            transports: ['websocket']
+        // ✅ JOIN the tournament chat room to receive new messages
+        tournamentSocket.emit('join-tournament', {
+            userId: currentUserId,
+            firstName: 'User'
         });
         
-        tournamentSocket.on('connect', () => {
-            const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
-            if (returnedFromChat === 'true') {
-                tournamentUnreadCount = 0;
-                saveTournamentUnreadCount();
-                updateTournamentChatBadge();
-                sessionStorage.removeItem('returned_from_tournament_chat');
-            }
-        });
-        
-        tournamentSocket.on('new-message', (msg) => {
-            if (document.visibilityState === 'visible') {
-                tournamentUnreadCount++;
-                saveTournamentUnreadCount();
-                updateTournamentChatBadge();
-            }
-        });
-        
-        tournamentSocket.on('disconnect', () => {
-            setTimeout(connectTournamentSocket, 3000);
-        });
-    }
+        // Reset badge if returning from chat
+        const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
+        if (returnedFromChat === 'true') {
+            tournamentUnreadCount = 0;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+            sessionStorage.removeItem('returned_from_tournament_chat');
+        }
+    });
+    
+    // ✅ Listen for new messages from tournament chat
+    tournamentSocket.on('new-message', (msg) => {
+        console.log('📨 New tournament message received');
+        if (document.visibilityState === 'visible') {
+            tournamentUnreadCount++;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+        }
+    });
+    
+    tournamentSocket.on('disconnect', () => {
+        setTimeout(connectTournamentSocket, 3000);
+    });
+}
 
     // ✅ ONLY ONE openTournamentChat function
     function openTournamentChat() {
