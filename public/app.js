@@ -94,20 +94,20 @@ const COIN_ECONOMY = {
     
     ACHIEVEMENT_REWARDS: {
         'Loyal User': 5000,
-        'Referral Master': 10000,
+        'Referral Master': 20000,
         'Points Millionaire': 15000,
-        'Social Butterfly': 50000,
+        'Social Butterfly': 100000,
         'Tournament Winner': 10000,
         'Team Player': 2000,
         'Platinum Elite': 50000,
         'Wheel Champion': 10000,
         'Daily Streak 7': 5000,
-        'Super Referrer': 25000,
+        'Super Referrer': 50000,
         'Ad Master': 10000,
         'Team Winner': 25000,
         'Leaderboard Winner': 15000,
         'Ad Master Platinum': 50000,
-        'Referral King': 50000,
+        'Referral King': 200000,
         'Monthly Top Earner': 25000
     },
     
