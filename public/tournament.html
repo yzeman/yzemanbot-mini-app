@@ -452,6 +452,23 @@
         .skeleton-coins { width: 60px; height: 12px; background: rgba(255,255,255,0.08); border-radius: 4px; }
         
         .loading, .empty-state { text-align: center; padding: 30px; color: var(--gray); }
+        .chat-btn {
+    background: linear-gradient(135deg, #FF9800, #F44336);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    max-width: 260px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
         .retry-btn {
             background: var(--secondary);
             color: white;
@@ -546,6 +563,12 @@
             <i class="fas fa-check-circle"></i> You're in!
         </div>
     </div>
+    <!-- Tournament Chat Button -->
+<div class="join-section" id="chatSection" style="display: none;">
+    <button class="join-btn" onclick="openTournamentChat()" style="background: linear-gradient(135deg, #FF9800, #F44336);">
+        <i class="fas fa-comments"></i> TOURNAMENT CHAT
+    </button>
+</div>
     
     <!-- My Rank Container - STICKY, stays visible while scrolling -->
     <div class="sticky-rank-container" id="stickyRankContainer">
@@ -734,6 +757,12 @@
                 }
             }
 
+            // Show/hide tournament chat button
+            const chatSection = document.getElementById('chatSection');
+            if (chatSection) {
+                chatSection.style.display = hasJoinedTournament ? 'block' : 'none';
+            }
+
             // Update "My Rank" card - STICKY VERSION
             const myRankContainer = document.getElementById('myRankContainer');
             if (myRankContainer) {
@@ -902,6 +931,10 @@
                 joinBtn.disabled = false;
                 joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
             }
+                // ✅ ADD THIS RIGHT HERE
+        function openTournamentChat() {
+            window.location.href = `/tournament-chat.html`;
+        }
         }
 
         // Pull to refresh
