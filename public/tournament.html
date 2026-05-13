@@ -564,9 +564,26 @@
         </div>
     </div>
     <!-- Tournament Chat Button -->
-<div class="join-section" id="chatSection" style="display: none;">
-    <button class="join-btn" onclick="openTournamentChat()" style="background: linear-gradient(135deg, #FF9800, #F44336);">
+<div class="join-section" id="chatSection" style="display: none; position: relative;">
+    <button class="join-btn" onclick="openTournamentChat()" style="background: linear-gradient(135deg, #FF9800, #F44336); position: relative;">
         <i class="fas fa-comments"></i> TOURNAMENT CHAT
+        <span class="chat-badge hidden" id="tournamentChatBadge" style="
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #f44336;
+            color: white;
+            border-radius: 50%;
+            min-width: 22px;
+            height: 22px;
+            font-size: 11px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        ">0</span>
     </button>
 </div>
     
@@ -974,6 +991,82 @@
             }
         });
 
+        // ============================================
+// TOURNAMENT CHAT BADGE - WebSocket
+// ============================================
+let tournamentSocket = null;
+let tournamentUnreadCount = 0;
+
+function loadTournamentUnreadCount() {
+    const saved = localStorage.getItem('tournament_unread_count');
+    if (saved) {
+        tournamentUnreadCount = parseInt(saved) || 0;
+    }
+    updateTournamentChatBadge();
+}
+
+function saveTournamentUnreadCount() {
+    localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
+}
+
+function updateTournamentChatBadge() {
+    const badge = document.getElementById('tournamentChatBadge');
+    if (!badge) return;
+    
+    if (tournamentUnreadCount > 0) {
+        badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+function connectTournamentSocket() {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = `${protocol}//${window.location.host}`;
+    
+    tournamentSocket = io(socketUrl, {
+        auth: { initData: tg?.initData },
+        transports: ['websocket']
+    });
+    
+    tournamentSocket.on('connect', () => {
+        // Reset badge if returning from chat
+        const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
+        if (returnedFromChat === 'true') {
+            tournamentUnreadCount = 0;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+            sessionStorage.removeItem('returned_from_tournament_chat');
+        }
+        
+        // Listen for new messages
+        tournamentSocket.join('tournament_chat');
+    });
+    
+    tournamentSocket.on('new-message', (msg) => {
+        // Only increment if this page is visible (user is not in chat)
+        if (document.visibilityState === 'visible') {
+            tournamentUnreadCount++;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+        }
+    });
+    
+    tournamentSocket.on('disconnect', () => {
+        setTimeout(connectTournamentSocket, 3000);
+    });
+}
+
+function openTournamentChat() {
+    sessionStorage.setItem('returned_from_tournament_chat', 'true');
+    tournamentUnreadCount = 0;
+    saveTournamentUnreadCount();
+    updateTournamentChatBadge();
+    window.location.href = '/tournament-chat.html';
+}
+
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             // Setup collapsible banner
@@ -998,6 +1091,10 @@
                 joinBtn.addEventListener('click', joinTournament);
             }
         });
+        // Load badge and connect socket
+    loadTournamentUnreadCount();
+    setTimeout(connectTournamentSocket, 1000);
+});
     </script>
 </body>
 </html>
