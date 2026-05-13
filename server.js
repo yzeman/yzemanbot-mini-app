@@ -1116,6 +1116,78 @@ socket.broadcast.emit('friend-online', { userId, firstName });
             isTyping
         });
     });
+
+    // ============================================
+// TOURNAMENT CHAT
+// ============================================
+socket.on('join-tournament', async (data) => {
+    const { userId, firstName } = data;
+    
+    connectedUsers.set(socket.id, {
+        userId,
+        firstName,
+        socketId: socket.id,
+        connectedAt: Date.now()
+    });
+    
+    userSockets.set(userId, socket.id);
+    socket.join('tournament_chat');
+    
+    try {
+        const messages = await pool.query(`
+            SELECT tm.*, u.first_name, u.photo_url
+            FROM tournament_messages tm
+            JOIN users u ON tm.user_id = u.id
+            ORDER BY tm.created_at DESC
+            LIMIT 50
+        `);
+        
+        socket.emit('chat-history', messages.rows.reverse());
+        
+        socket.to('tournament_chat').emit('user-joined', {
+            userId,
+            firstName,
+            message: `${firstName} joined the tournament chat`
+        });
+    } catch (err) {
+        console.error('Tournament chat history error:', err);
+    }
+});
+
+socket.on('send-tournament-message', async (data) => {
+    const { message, userId } = data;
+    
+    if (!message || message.trim().length === 0) return;
+    if (message.length > 500) return;
+    
+    try {
+        const userResult = await pool.query(
+            'SELECT first_name FROM users WHERE id = $1',
+            [userId]
+        );
+        const firstName = userResult.rows[0]?.first_name || 'User';
+        
+        const result = await pool.query(`
+            INSERT INTO tournament_messages (user_id, message)
+            VALUES ($1, $2)
+            RETURNING id, created_at
+        `, [userId, message.trim()]);
+        
+        const messageData = {
+            id: result.rows[0].id,
+            user_id: userId,
+            first_name: firstName,
+            message: message.trim(),
+            created_at: result.rows[0].created_at,
+            is_edited: false
+        };
+        
+        io.to('tournament_chat').emit('new-message', messageData);
+    } catch (err) {
+        console.error('Tournament message error:', err);
+        socket.emit('message-error', { error: 'Failed to send message' });
+    }
+});
     
     // ============================================
     // DISCONNECT
