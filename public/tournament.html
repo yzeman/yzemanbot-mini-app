@@ -625,476 +625,403 @@
     <div class="notification" id="notification"></div>
     
     <script>
-        const tg = window.Telegram?.WebApp;
-        if (tg) { tg.ready(); tg.expand(); }
+    const tg = window.Telegram?.WebApp;
+    if (tg) { tg.ready(); tg.expand(); }
 
-        let countdownInterval = null;
-        let isRefreshing = false;
-        let touchStartY = 0;
-        const refreshIndicator = document.getElementById('refreshIndicator');
-        let hasJoinedTournament = false;
-        let currentUserId = null;
+    let countdownInterval = null;
+    let isRefreshing = false;
+    let touchStartY = 0;
+    const refreshIndicator = document.getElementById('refreshIndicator');
+    let hasJoinedTournament = false;
+    let currentUserId = null;
+    
+    // Collapsible banner state
+    let prizeBannerCollapsed = localStorage.getItem('prizeBannerCollapsed') === 'true';
+
+    // ============================================
+    // TOURNAMENT CHAT BADGE - WebSocket
+    // ============================================
+    let tournamentSocket = null;
+    let tournamentUnreadCount = 0;
+
+    function loadTournamentUnreadCount() {
+        const saved = localStorage.getItem('tournament_unread_count');
+        if (saved) {
+            tournamentUnreadCount = parseInt(saved) || 0;
+        }
+        updateTournamentChatBadge();
+    }
+
+    function saveTournamentUnreadCount() {
+        localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
+    }
+
+    function updateTournamentChatBadge() {
+        const badge = document.getElementById('tournamentChatBadge');
+        if (!badge) return;
         
-        // Collapsible banner state
-        let prizeBannerCollapsed = localStorage.getItem('prizeBannerCollapsed') === 'true';
+        if (tournamentUnreadCount > 0) {
+            badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
 
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            if (notif) {
-                notif.textContent = msg;
-                notif.className = 'notification' + (isError ? ' error' : '');
-                notif.style.display = 'block';
-                setTimeout(() => notif.style.display = 'none', 4000);
+    function connectTournamentSocket() {
+        if (!tg?.initData) return;
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${protocol}//${window.location.host}`;
+        
+        tournamentSocket = io(socketUrl, {
+            auth: { initData: tg.initData },
+            transports: ['websocket']
+        });
+        
+        tournamentSocket.on('connect', () => {
+            const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
+            if (returnedFromChat === 'true') {
+                tournamentUnreadCount = 0;
+                saveTournamentUnreadCount();
+                updateTournamentChatBadge();
+                sessionStorage.removeItem('returned_from_tournament_chat');
             }
-        }
-
-        // Format number with commas
-        function formatNumberWithCommas(num) {
-            if (num === undefined || num === null) return '0.00';
-            const number = parseFloat(num);
-            if (isNaN(number)) return '0.00';
-            const parts = number.toFixed(2).split('.');
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            return parts.join('.');
-        }
-
-        // Toggle prize banner
-        function togglePrizeBanner() {
-            prizeBannerCollapsed = !prizeBannerCollapsed;
-            localStorage.setItem('prizeBannerCollapsed', prizeBannerCollapsed);
-            
-            const prizeContent = document.getElementById('prizeContent');
-            const prizeHeader = document.getElementById('prizeToggle');
-            const toggleIcon = document.getElementById('toggleIcon');
-            
-            if (prizeBannerCollapsed) {
-                prizeContent.classList.add('collapsed');
-                prizeHeader.classList.add('collapsed');
-                toggleIcon.classList.remove('fa-chevron-up');
-                toggleIcon.classList.add('fa-chevron-down');
-            } else {
-                prizeContent.classList.remove('collapsed');
-                prizeHeader.classList.remove('collapsed');
-                toggleIcon.classList.remove('fa-chevron-down');
-                toggleIcon.classList.add('fa-chevron-up');
+        });
+        
+        tournamentSocket.on('new-message', (msg) => {
+            if (document.visibilityState === 'visible') {
+                tournamentUnreadCount++;
+                saveTournamentUnreadCount();
+                updateTournamentChatBadge();
             }
-        }
+        });
+        
+        tournamentSocket.on('disconnect', () => {
+            setTimeout(connectTournamentSocket, 3000);
+        });
+    }
 
-        async function apiCall(endpoint, data = null) {
-            const options = {
-                method: data ? 'POST' : 'GET',
-                headers: { 'Content-Type': 'application/json' }
-            };
-            if (data) options.body = JSON.stringify(data);
-            const response = await fetch(endpoint, options);
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
-            }
-            return response.json();
-        }
+    // ✅ ONLY ONE openTournamentChat function
+    function openTournamentChat() {
+        sessionStorage.setItem('returned_from_tournament_chat', 'true');
+        tournamentUnreadCount = 0;
+        saveTournamentUnreadCount();
+        updateTournamentChatBadge();
+        window.location.href = '/tournament-chat.html';
+    }
 
-        // Show skeleton loading
-        function showSkeleton() {
-            const myRankContainer = document.getElementById('myRankContainer');
-            if (myRankContainer) {
-                myRankContainer.innerHTML = `
-                    <div class="skeleton-my-rank-card">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div class="skeleton-name" style="width: 30%;"></div>
-                            <div class="skeleton-coins" style="width: 50px;"></div>
-                        </div>
-                        <div class="skeleton-username" style="width: 40%; margin-top: 8px;"></div>
+    function showNotification(msg, isError = false) {
+        const notif = document.getElementById('notification');
+        if (notif) {
+            notif.textContent = msg;
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.style.display = 'block';
+            setTimeout(() => notif.style.display = 'none', 4000);
+        }
+    }
+
+    function formatNumberWithCommas(num) {
+        if (num === undefined || num === null) return '0.00';
+        const number = parseFloat(num);
+        if (isNaN(number)) return '0.00';
+        const parts = number.toFixed(2).split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return parts.join('.');
+    }
+
+    function togglePrizeBanner() {
+        prizeBannerCollapsed = !prizeBannerCollapsed;
+        localStorage.setItem('prizeBannerCollapsed', prizeBannerCollapsed);
+        
+        const prizeContent = document.getElementById('prizeContent');
+        const prizeHeader = document.getElementById('prizeToggle');
+        const toggleIcon = document.getElementById('toggleIcon');
+        
+        if (prizeBannerCollapsed) {
+            prizeContent.classList.add('collapsed');
+            prizeHeader.classList.add('collapsed');
+            toggleIcon.classList.remove('fa-chevron-up');
+            toggleIcon.classList.add('fa-chevron-down');
+        } else {
+            prizeContent.classList.remove('collapsed');
+            prizeHeader.classList.remove('collapsed');
+            toggleIcon.classList.remove('fa-chevron-down');
+            toggleIcon.classList.add('fa-chevron-up');
+        }
+    }
+
+    async function apiCall(endpoint, data = null) {
+        const options = { method: data ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json' } };
+        if (data) options.body = JSON.stringify(data);
+        const response = await fetch(endpoint, options);
+        if (!response.ok) { const error = await response.text(); throw new Error(error); }
+        return response.json();
+    }
+
+    function showSkeleton() {
+        const myRankContainer = document.getElementById('myRankContainer');
+        if (myRankContainer) {
+            myRankContainer.innerHTML = `
+                <div class="skeleton-my-rank-card">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div class="skeleton-name" style="width: 30%;"></div>
+                        <div class="skeleton-coins" style="width: 50px;"></div>
+                    </div>
+                    <div class="skeleton-username" style="width: 40%; margin-top: 8px;"></div>
+                </div>
+            `;
+        }
+        
+        const standingsList = document.getElementById('standingsList');
+        if (standingsList) {
+            let skeletonItems = '';
+            for (let i = 0; i < 8; i++) {
+                skeletonItems += `
+                    <div class="skeleton-standings-item">
+                        <div class="skeleton-rank"></div>
+                        <div class="skeleton-avatar"></div>
+                        <div class="skeleton-info"><div class="skeleton-name"></div><div class="skeleton-username"></div></div>
+                        <div class="skeleton-coins"></div>
                     </div>
                 `;
             }
-            
+            standingsList.innerHTML = skeletonItems;
+        }
+    }
+
+    function getRankClass(rank) {
+        if (rank === 1) return 'rank-1';
+        if (rank === 2) return 'rank-2';
+        if (rank === 3) return 'rank-3';
+        return '';
+    }
+
+    function getRankEmoji(rank) {
+        if (rank === 1) return '🥇';
+        if (rank === 2) return '🥈';
+        if (rank === 3) return '🥉';
+        return `#${rank}`;
+    }
+
+    function getAvatarInitials(name) {
+        if (!name) return '👤';
+        return name.charAt(0).toUpperCase();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return 'Anonymous';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function updateTournamentUI(data) {
+        hasJoinedTournament = data.has_joined;
+        
+        const joinBtn = document.getElementById('joinBtn');
+        const joinedBadge = document.getElementById('joinedBadge');
+        if (joinBtn && joinedBadge) {
+            if (hasJoinedTournament) {
+                joinBtn.style.display = 'none';
+                joinedBadge.style.display = 'inline-flex';
+            } else {
+                joinBtn.style.display = 'flex';
+                joinedBadge.style.display = 'none';
+            }
+        }
+
+        const chatSection = document.getElementById('chatSection');
+        if (chatSection) {
+            chatSection.style.display = hasJoinedTournament ? 'block' : 'none';
+        }
+
+        const myRankContainer = document.getElementById('myRankContainer');
+        if (myRankContainer) {
+            if (data.my_rank && hasJoinedTournament) {
+                const rankEmoji = getRankEmoji(data.my_rank);
+                const formattedCoins = formatNumberWithCommas(data.my_coins);
+                myRankContainer.innerHTML = `
+                    <div class="my-rank-card">
+                        <div class="my-rank-header">
+                            <div class="my-rank-title"><i class="fas fa-crown"></i> YOUR RANK</div>
+                            <div class="my-rank-value">${rankEmoji}</div>
+                        </div>
+                        <div class="my-rank-stats">
+                            <span><i class="fas fa-coins"></i> ${formattedCoins} COINS</span>
+                            <span><i class="fas fa-chart-line"></i> This week</span>
+                        </div>
+                    </div>
+                `;
+            } else if (hasJoinedTournament) {
+                myRankContainer.innerHTML = `
+                    <div class="my-rank-card">
+                        <div class="my-rank-header">
+                            <div class="my-rank-title"><i class="fas fa-chart-line"></i> YOUR RANK</div>
+                            <div class="my-rank-value">📊</div>
+                        </div>
+                        <div class="my-rank-stats"><span>⭐ Watch ads to earn COINS!</span></div>
+                    </div>
+                `;
+            } else {
+                myRankContainer.innerHTML = '';
+            }
+        }
+
+        const standingsList = document.getElementById('standingsList');
+        if (standingsList) {
+            if (!data.standings || data.standings.length === 0) {
+                standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join to compete!</p></div>';
+                return;
+            }
+
+            standingsList.innerHTML = data.standings.map(entry => {
+                const rankClass = getRankClass(entry.rank);
+                const displayName = entry.first_name || 'Anonymous User';
+                const avatarInitial = getAvatarInitials(displayName);
+                const shortName = displayName.length > 18 ? displayName.substring(0, 15) + '...' : displayName;
+                const formattedCoins = formatNumberWithCommas(entry.weekly_coins);
+                const isCurrentUser = currentUserId && entry.id === currentUserId;
+                
+                let rankDisplay = entry.rank;
+                if (entry.rank === 1) rankDisplay = '🥇';
+                else if (entry.rank === 2) rankDisplay = '🥈';
+                else if (entry.rank === 3) rankDisplay = '🥉';
+                
+                return `
+                    <div class="standings-item ${isCurrentUser ? 'current-user' : ''}">
+                        <div class="rank ${rankClass}">${rankDisplay}</div>
+                        <div class="avatar"><span>${avatarInitial}</span></div>
+                        <div class="info">
+                            <div class="name">
+                                ${escapeHtml(shortName)}
+                                ${isCurrentUser ? '<span class="tier-badge" style="background:var(--gold); color:var(--dark);">YOU</span>' : ''}
+                            </div>
+                            <div class="name" style="font-size:10px; color:var(--gray); font-weight:normal;">${entry.tier || 'Fresher'} Tier</div>
+                        </div>
+                        <div class="coins">${formattedCoins}<small> COINS</small></div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    function updateTournamentTimer() {
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        let daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+        const nextMonday = new Date(now);
+        nextMonday.setDate(now.getDate() + daysUntilMonday);
+        nextMonday.setHours(0, 0, 0, 0);
+        
+        const diff = nextMonday - now;
+        if (diff <= 0) { loadTournamentData(); return; }
+        
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const minutes = Math.floor((diff % 3600000) / 60000);
+        
+        const timerElement = document.getElementById('tournamentTimer');
+        if (timerElement) timerElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
+    }
+
+    async function loadTournamentData(showSkeletonLoader = true) {
+        if (!tg?.initData) { showNotification('Please open from Telegram', true); return; }
+        if (showSkeletonLoader) showSkeleton();
+        
+        try {
+            const userData = await apiCall('/api/user', { initData: tg.initData });
+            currentUserId = userData.id;
+            const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
+            updateTournamentUI(data);
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(updateTournamentTimer, 60000);
+            updateTournamentTimer();
+        } catch (err) {
+            console.error('Failed to load tournament:', err);
             const standingsList = document.getElementById('standingsList');
-            if (standingsList) {
-                let skeletonItems = '';
-                for (let i = 0; i < 8; i++) {
-                    skeletonItems += `
-                        <div class="skeleton-standings-item">
-                            <div class="skeleton-rank"></div>
-                            <div class="skeleton-avatar"></div>
-                            <div class="skeleton-info">
-                                <div class="skeleton-name"></div>
-                                <div class="skeleton-username"></div>
-                            </div>
-                            <div class="skeleton-coins"></div>
-                        </div>
-                    `;
-                }
-                standingsList.innerHTML = skeletonItems;
-            }
+            if (standingsList) standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load. Pull to refresh.</p></div>';
         }
+    }
 
-        function getRankClass(rank) {
-            if (rank === 1) return 'rank-1';
-            if (rank === 2) return 'rank-2';
-            if (rank === 3) return 'rank-3';
-            return '';
-        }
-
-        function getRankEmoji(rank) {
-            if (rank === 1) return '🥇';
-            if (rank === 2) return '🥈';
-            if (rank === 3) return '🥉';
-            return `#${rank}`;
-        }
-
-        function getAvatarInitials(name) {
-            if (!name) return '👤';
-            return name.charAt(0).toUpperCase();
-        }
-
-        function escapeHtml(str) {
-            if (!str) return 'Anonymous';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-
-        function updateTournamentUI(data) {
-            hasJoinedTournament = data.has_joined;
-            
-            // Update join button UI
-            const joinBtn = document.getElementById('joinBtn');
-            const joinedBadge = document.getElementById('joinedBadge');
-            if (joinBtn && joinedBadge) {
-                if (hasJoinedTournament) {
-                    joinBtn.style.display = 'none';
-                    joinedBadge.style.display = 'inline-flex';
-                } else {
-                    joinBtn.style.display = 'flex';
-                    joinedBadge.style.display = 'none';
-                }
-            }
-
-            // Show/hide tournament chat button
-            const chatSection = document.getElementById('chatSection');
-            if (chatSection) {
-                chatSection.style.display = hasJoinedTournament ? 'block' : 'none';
-            }
-
-            // Update "My Rank" card - STICKY VERSION
-            const myRankContainer = document.getElementById('myRankContainer');
-            if (myRankContainer) {
-                if (data.my_rank && hasJoinedTournament) {
-                    const rankEmoji = getRankEmoji(data.my_rank);
-                    const formattedCoins = formatNumberWithCommas(data.my_coins);
-                    
-                    myRankContainer.innerHTML = `
-                        <div class="my-rank-card">
-                            <div class="my-rank-header">
-                                <div class="my-rank-title">
-                                    <i class="fas fa-crown"></i> YOUR RANK
-                                </div>
-                                <div class="my-rank-value">${rankEmoji}</div>
-                            </div>
-                            <div class="my-rank-stats">
-                                <span><i class="fas fa-coins"></i> ${formattedCoins} COINS</span>
-                                <span><i class="fas fa-chart-line"></i> This week</span>
-                            </div>
-                        </div>
-                    `;
-                } else if (hasJoinedTournament) {
-                    myRankContainer.innerHTML = `
-                        <div class="my-rank-card">
-                            <div class="my-rank-header">
-                                <div class="my-rank-title">
-                                    <i class="fas fa-chart-line"></i> YOUR RANK
-                                </div>
-                                <div class="my-rank-value">📊 </div>
-                            </div>
-                            <div class="my-rank-stats">
-                                <span>⭐ Watch ads to earn COINS!</span>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    myRankContainer.innerHTML = '';
-                }
-            }
-
-            // Update standings list
-            const standingsList = document.getElementById('standingsList');
-            if (standingsList) {
-                if (!data.standings || data.standings.length === 0) {
-                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-trophy"></i><p>No participants yet. Join to compete!</p></div>';
-                    return;
-                }
-
-                standingsList.innerHTML = data.standings.map(entry => {
-                    const rankClass = getRankClass(entry.rank);
-                    const rankNumber = entry.rank;
-                    const displayName = entry.first_name || 'Anonymous User';
-                    const avatarInitial = getAvatarInitials(displayName);
-                    const shortName = displayName.length > 18 ? displayName.substring(0, 15) + '...' : displayName;
-                    const formattedCoins = formatNumberWithCommas(entry.weekly_coins);
-                    const isCurrentUser = currentUserId && entry.id === currentUserId;
-                    const currentUserClass = isCurrentUser ? 'current-user' : '';
-                    
-                    // Rank display with medal for top 3
-                    let rankDisplay = rankNumber;
-                    if (rankNumber === 1) rankDisplay = '🥇';
-                    else if (rankNumber === 2) rankDisplay = '🥈';
-                    else if (rankNumber === 3) rankDisplay = '🥉';
-                    else rankDisplay = rankNumber;
-                    
-                    return `
-                        <div class="standings-item ${currentUserClass}">
-                            <div class="rank ${rankClass}">${rankDisplay}</div>
-                            <div class="avatar">
-                                <span>${avatarInitial}</span>
-                            </div>
-                            <div class="info">
-                                <div class="name">
-                                    ${escapeHtml(shortName)}
-                                    ${isCurrentUser ? '<span class="tier-badge" style="background:var(--gold); color:var(--dark);">YOU</span>' : ''}
-                                </div>
-                                <div class="name" style="font-size:10px; color:var(--gray); font-weight:normal;">
-                                    ${entry.tier || 'Fresher'} Tier
-                                </div>
-                            </div>
-                            <div class="coins">${formattedCoins}<small> COINS</small></div>
-                        </div>
-                    `;
-                }).join('');
-            }
-        }
-
-        function updateTournamentTimer() {
-            const now = new Date();
-            const dayOfWeek = now.getDay();
-            let daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-            const nextMonday = new Date(now);
-            nextMonday.setDate(now.getDate() + daysUntilMonday);
-            nextMonday.setHours(0, 0, 0, 0);
-            
-            const diff = nextMonday - now;
-            
-            if (diff <= 0) {
-                loadTournamentData();
-                return;
-            }
-            
-            const days = Math.floor(diff / 86400000);
-            const hours = Math.floor((diff % 86400000) / 3600000);
-            const minutes = Math.floor((diff % 3600000) / 60000);
-            
-            const timerElement = document.getElementById('tournamentTimer');
-            if (timerElement) {
-                timerElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
-            }
-        }
-
-        async function loadTournamentData(showSkeletonLoader = true) {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
-                return;
-            }
-            
-            if (showSkeletonLoader) {
-                showSkeleton();
-            }
-            
-            try {
-                // Get current user info
-                const userData = await apiCall('/api/user', { initData: tg.initData });
-                currentUserId = userData.id;
-                
-                const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
-                updateTournamentUI(data);
-                
-                if (countdownInterval) clearInterval(countdownInterval);
-                countdownInterval = setInterval(updateTournamentTimer, 60000);
-                updateTournamentTimer();
-                
-            } catch (err) {
-                console.error('Failed to load tournament:', err);
-                const standingsList = document.getElementById('standingsList');
-                if (standingsList) {
-                    standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load. Pull to refresh.</p></div>';
-                }
-            }
-        }
-
-        async function joinTournament() {
-            if (!tg?.initData) {
-                showNotification('Please open from Telegram', true);
-                return;
-            }
-            
-            const joinBtn = document.getElementById('joinBtn');
-            joinBtn.disabled = true;
-            joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
-            
-            try {
-                const result = await apiCall('/api/tournament/join', { initData: tg.initData });
-                if (result.success) {
-                    showNotification('🎉 You joined the tournament! Good luck! 🏆');
-                    await loadTournamentData(false);
-                } else {
-                    showNotification(result.error || 'Failed to join', true);
-                    joinBtn.disabled = false;
-                    joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
-                }
-            } catch (err) {
-                showNotification(err.message || 'Failed to join', true);
+    async function joinTournament() {
+        if (!tg?.initData) { showNotification('Please open from Telegram', true); return; }
+        const joinBtn = document.getElementById('joinBtn');
+        joinBtn.disabled = true;
+        joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> JOINING...';
+        
+        try {
+            const result = await apiCall('/api/tournament/join', { initData: tg.initData });
+            if (result.success) {
+                showNotification('🎉 You joined the tournament! Good luck! 🏆');
+                await loadTournamentData(false);
+            } else {
+                showNotification(result.error || 'Failed to join', true);
                 joinBtn.disabled = false;
                 joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
-            }               
-        }
-
-         // ✅ ADD THIS RIGHT HERE
-        function openTournamentChat() {
-            window.location.href = `/tournament-chat.html`;
-        }
-
-        // Pull to refresh
-        function showRefreshIndicator(text, isError = false) {
-            refreshIndicator.textContent = text;
-            refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
-            refreshIndicator.classList.add('show');
-            setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
-        }
-        
-        async function refreshData() {
-            if (isRefreshing) return;
-            isRefreshing = true;
-            showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
-            try {
-                await loadTournamentData(true);
-                showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-                showNotification('Tournament standings refreshed!', false);
-            } catch (err) {
-                showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
-            } finally {
-                isRefreshing = false;
             }
+        } catch (err) {
+            showNotification(err.message || 'Failed to join', true);
+            joinBtn.disabled = false;
+            joinBtn.innerHTML = '<i class="fas fa-trophy"></i> JOIN TOURNAMENT';
         }
-        
-        document.addEventListener('touchstart', (e) => {
-            if (window.scrollY === 0) touchStartY = e.touches[0].clientY;
-        });
-        document.addEventListener('touchmove', (e) => {
-            if (window.scrollY === 0 && !isRefreshing) {
-                const diff = e.touches[0].clientY - touchStartY;
-                if (diff > 60) {
-                    e.preventDefault();
-                    refreshData();
-                }
-            }
-        });
-
-        // ============================================
-// TOURNAMENT CHAT BADGE - WebSocket
-// ============================================
-let tournamentSocket = null;
-let tournamentUnreadCount = 0;
-
-function loadTournamentUnreadCount() {
-    const saved = localStorage.getItem('tournament_unread_count');
-    if (saved) {
-        tournamentUnreadCount = parseInt(saved) || 0;
     }
-    updateTournamentChatBadge();
-}
 
-function saveTournamentUnreadCount() {
-    localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
-}
-
-function updateTournamentChatBadge() {
-    const badge = document.getElementById('tournamentChatBadge');
-    if (!badge) return;
-    
-    if (tournamentUnreadCount > 0) {
-        badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
+    function showRefreshIndicator(text, isError = false) {
+        refreshIndicator.textContent = text;
+        refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
+        refreshIndicator.classList.add('show');
+        setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
     }
-}
-
-function connectTournamentSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socketUrl = `${protocol}//${window.location.host}`;
     
-    tournamentSocket = io(socketUrl, {
-        auth: { initData: tg?.initData },
-        transports: ['websocket']
+    async function refreshData() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        try {
+            await loadTournamentData(true);
+            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+            showNotification('Tournament standings refreshed!', false);
+        } catch (err) {
+            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+        } finally { isRefreshing = false; }
+    }
+    
+    document.addEventListener('touchstart', (e) => { if (window.scrollY === 0) touchStartY = e.touches[0].clientY; });
+    document.addEventListener('touchmove', (e) => {
+        if (window.scrollY === 0 && !isRefreshing) {
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 60) { e.preventDefault(); refreshData(); }
+        }
     });
-    
-    tournamentSocket.on('connect', () => {
-        // Reset badge if returning from chat
-        const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
-        if (returnedFromChat === 'true') {
-            tournamentUnreadCount = 0;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
-            sessionStorage.removeItem('returned_from_tournament_chat');
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        const prizeToggle = document.getElementById('prizeToggle');
+        if (prizeToggle) {
+            prizeToggle.addEventListener('click', togglePrizeBanner);
+            if (prizeBannerCollapsed) {
+                const prizeContent = document.getElementById('prizeContent');
+                const toggleIcon = document.getElementById('toggleIcon');
+                prizeContent.classList.add('collapsed');
+                prizeToggle.classList.add('collapsed');
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            }
         }
         
-        // Listen for new messages
-        tournamentSocket.join('tournament_chat');
-    });
-    
-    tournamentSocket.on('new-message', (msg) => {
-        // Only increment if this page is visible (user is not in chat)
-        if (document.visibilityState === 'visible') {
-            tournamentUnreadCount++;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
-        }
-    });
-    
-    tournamentSocket.on('disconnect', () => {
-        setTimeout(connectTournamentSocket, 3000);
-    });
-}
-
-function openTournamentChat() {
-    sessionStorage.setItem('returned_from_tournament_chat', 'true');
-    tournamentUnreadCount = 0;
-    saveTournamentUnreadCount();
-    updateTournamentChatBadge();
-    window.location.href = '/tournament-chat.html';
-}
-
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            // Setup collapsible banner
-            const prizeToggle = document.getElementById('prizeToggle');
-            if (prizeToggle) {
-                prizeToggle.addEventListener('click', togglePrizeBanner);
-                // Restore collapsed state
-                if (prizeBannerCollapsed) {
-                    const prizeContent = document.getElementById('prizeContent');
-                    const toggleIcon = document.getElementById('toggleIcon');
-                    prizeContent.classList.add('collapsed');
-                    prizeToggle.classList.add('collapsed');
-                    toggleIcon.classList.remove('fa-chevron-up');
-                    toggleIcon.classList.add('fa-chevron-down');
-                }
-            }
-            
-            loadTournamentData(true);
-            
-            const joinBtn = document.getElementById('joinBtn');
-            if (joinBtn) {
-                joinBtn.addEventListener('click', joinTournament);
-            }
-        });
+        loadTournamentData(true);
+        
+        const joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) joinBtn.addEventListener('click', joinTournament);
+        
         // Load badge and connect socket
-    loadTournamentUnreadCount();
-    setTimeout(connectTournamentSocket, 1000);
-});
-    </script>
+        loadTournamentUnreadCount();
+        setTimeout(connectTournamentSocket, 1000);
+    });
+</script>
 </body>
 </html>
