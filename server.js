@@ -465,6 +465,28 @@ setInterval(runCleanupJob, 86400000);
 setTimeout(runCleanupJob, 60000); // Wait 1 minute after server starts
 
 // ============================================
+// TOURNAMENT CHAT CLEANUP - Delete messages older than 24 hours
+// ============================================
+async function cleanupTournamentChat() {
+    try {
+        const result = await pool.query(
+            "DELETE FROM tournament_messages WHERE created_at < NOW() - INTERVAL '24 hours'"
+        );
+        if (result.rowCount > 0) {
+            console.log(`🗑️ Deleted ${result.rowCount} old tournament messages`);
+        }
+    } catch (err) {
+        console.error('Tournament chat cleanup error:', err);
+    }
+}
+
+// Run every hour (3600000 ms)
+setInterval(cleanupTournamentChat, 3600000);
+
+// Also run once on startup
+setTimeout(cleanupTournamentChat, 30000);
+
+// ============================================
 // HELPER: Track Monthly Earnings
 // ============================================
 async function trackMonthlyEarnings(client, userId, coinsEarned) {
@@ -1126,6 +1148,11 @@ socket.on('join-tournament', async (data) => {
     socket.join('tournament_chat');
     
     try {
+        // ✅ Auto-delete messages older than 24 hours
+        await pool.query(
+            "DELETE FROM tournament_messages WHERE created_at < NOW() - INTERVAL '24 hours'"
+        );
+        
         const messages = await pool.query(`
             SELECT tm.*, u.first_name
             FROM tournament_messages tm
