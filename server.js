@@ -2473,6 +2473,16 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
     
     const team = teamResult.rows[0];
     
+    // ✅ CHECK MEMBER LIMIT (max 10)
+    const memberCount = await client.query(
+      'SELECT COUNT(*) as count FROM team_members WHERE team_id = $1',
+      [team.id]
+    );
+    
+    if (parseInt(memberCount.rows[0].count) >= 10) {
+      return res.status(400).json({ error: 'Team is full! Maximum 10 members allowed.' });
+    }
+    
     await client.query('BEGIN');
     
     await client.query(
