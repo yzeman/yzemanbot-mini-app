@@ -6,6 +6,7 @@
     <title>Tournament - YzemanBot</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root {
             --primary: #4CAF50;
@@ -638,141 +639,118 @@
     // Collapsible banner state
     let prizeBannerCollapsed = localStorage.getItem('prizeBannerCollapsed') === 'true';
 
-   // ============================================
-// TOURNAMENT CHAT BADGE - WebSocket
-// ============================================
-let tournamentSocket = null;
-let tournamentUnreadCount = 0;
+    // ============================================
+    // TOURNAMENT CHAT BADGE
+    // ============================================
+    let tournamentSocket = null;
+    let tournamentUnreadCount = 0;
 
-function saveTournamentUnreadCount() {
-    localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
-}
-
-function updateTournamentChatBadge() {
-    const badge = document.getElementById('tournamentChatBadge');
-    if (!badge) return;
-    
-    if (tournamentUnreadCount > 0) {
-        badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
+    function saveTournamentUnreadCount() {
+        localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
     }
-}
 
-// ✅ Load unread count from SERVER first, then fallback to localStorage
-async function loadTournamentUnreadCount() {
-    // First try to show saved count from localStorage
-    const saved = localStorage.getItem('tournament_unread_count');
-    if (saved) {
-        tournamentUnreadCount = parseInt(saved) || 0;
-        updateTournamentChatBadge();
+    function updateTournamentChatBadge() {
+        const badge = document.getElementById('tournamentChatBadge');
+        if (!badge) return;
+        
+        if (tournamentUnreadCount > 0) {
+            badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
     }
-    
-    // Then fetch from server for the real count
-    if (!tg?.initData) return;
-    
-    try {
-        const response = await fetch('/api/tournament/unread-count', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: tg.initData })
+
+    async function loadTournamentUnreadCount() {
+        // First show saved count from localStorage
+        const saved = localStorage.getItem('tournament_unread_count');
+        if (saved) {
+            tournamentUnreadCount = parseInt(saved) || 0;
+            updateTournamentChatBadge();
+        }
+        
+        // Then fetch real count from server
+        if (!tg?.initData) return;
+        
+        try {
+            const response = await fetch('/api/tournament/unread-count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: tg.initData })
+            });
+            const data = await response.json();
+            
+            console.log('📊 HTTP unread count:', data.unread_count);
+            tournamentUnreadCount = data.unread_count || 0;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+        } catch (err) {
+            console.error('Failed to load tournament unread count:', err);
+        }
+    }
+
+    function connectTournamentSocket() {
+        if (!tg?.initData) {
+            console.log('❌ No initData, skipping tournament socket');
+            return;
+        }
+        
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socketUrl = `${protocol}//${window.location.host}`;
+        
+        console.log('🔌 Connecting tournament badge socket...');
+        
+        tournamentSocket = io(socketUrl, {
+            auth: { initData: tg.initData },
+            transports: ['websocket']
         });
-        const data = await response.json();
         
-        console.log('📊 HTTP unread count:', data.unread_count);
-        tournamentUnreadCount = data.unread_count || 0;
-        saveTournamentUnreadCount();
-        updateTournamentChatBadge();
-    } catch (err) {
-        console.error('Failed to load tournament unread count:', err);
-    }
-}
-
-function connectTournamentSocket() {
-    if (!tg?.initData) {
-        console.log('❌ No initData, skipping tournament socket');
-        return;
-    }
-    
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socketUrl = `${protocol}//${window.location.host}`;
-    
-    console.log('🔌 Connecting tournament badge socket...');
-    
-    tournamentSocket = io(socketUrl, {
-        auth: { initData: tg.initData },
-        transports: ['websocket']
-    });
-    
-    tournamentSocket.on('connect', async () => {
-        console.log('✅ Tournament badge socket CONNECTED with ID:', tournamentSocket.id);
-        
-        // ✅ If currentUserId is null, fetch it from API
-        if (!currentUserId) {
-            try {
-                const userData = await apiCall('/api/user', { initData: tg.initData });
-                currentUserId = userData.id;
-            } catch (err) {
-                console.error('Failed to get user ID:', err);
-                return;
+        tournamentSocket.on('connect', async () => {
+            console.log('✅ Tournament badge socket CONNECTED');
+            
+            if (!currentUserId) {
+                try {
+                    const userData = await apiCall('/api/user', { initData: tg.initData });
+                    currentUserId = userData.id;
+                } catch (err) {
+                    console.error('Failed to get user ID:', err);
+                    return;
+                }
             }
-        }
-        
-        // ✅ Now emit with correct userId
-        console.log('📡 Joining tournament status room with userId:', currentUserId);
-        tournamentSocket.emit('join-tournament-status', {
-            userId: currentUserId
+            
+            tournamentSocket.emit('join-tournament-status', {
+                userId: currentUserId
+            });
+            
+            const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
+            if (returnedFromChat === 'true') {
+                tournamentUnreadCount = 0;
+                saveTournamentUnreadCount();
+                updateTournamentChatBadge();
+                sessionStorage.removeItem('returned_from_tournament_chat');
+            }
         });
         
-        // Reset badge if returning from chat
-        const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
-        if (returnedFromChat === 'true') {
-            console.log('🔄 Just returned from chat, resetting badge');
-            tournamentUnreadCount = 0;
+        tournamentSocket.on('tournament-unread-count', (data) => {
+            console.log('📊 Received unread count:', data.count);
+            tournamentUnreadCount = data.count || 0;
             saveTournamentUnreadCount();
             updateTournamentChatBadge();
-            sessionStorage.removeItem('returned_from_tournament_chat');
-        }
-    });
-    
-    // ✅ Listen for unread count from server
-    tournamentSocket.on('tournament-unread-count', (data) => {
-        console.log('📊 Received unread count:', data.count);
-        tournamentUnreadCount = data.count || 0;
-        saveTournamentUnreadCount();
-        updateTournamentChatBadge();
-    });
-    
-    // ✅ Listen for new messages
-    tournamentSocket.on('tournament-new-message', (msg) => {
-        console.log('📨 New tournament message received on badge');
-        tournamentUnreadCount++;
-        saveTournamentUnreadCount();
-        updateTournamentChatBadge();
-    });
-    
-    tournamentSocket.on('disconnect', (reason) => {
-        console.log('🔴 Tournament badge socket disconnected:', reason);
-        setTimeout(connectTournamentSocket, 3000);
-    });
-}
-
-// Add this to load current unread count when tournament page loads
-async function loadTournamentUnreadCount() {
-    try {
-        const response = await apiCall('/api/tournament/unread-count', { initData: tg.initData });
-        if (response && response.count !== undefined) {
-            tournamentUnreadCount = response.count;
+        });
+        
+        tournamentSocket.on('tournament-new-message', (msg) => {
+            console.log('📨 New tournament message on badge');
+            tournamentUnreadCount++;
             saveTournamentUnreadCount();
             updateTournamentChatBadge();
-        }
-    } catch (err) {
-        console.error('Failed to load unread count:', err);
+        });
+        
+        tournamentSocket.on('disconnect', (reason) => {
+            console.log('🔴 Tournament badge socket disconnected:', reason);
+            setTimeout(connectTournamentSocket, 3000);
+        });
     }
-}
 
-    // ✅ ONLY ONE openTournamentChat function
     function openTournamentChat() {
         sessionStorage.setItem('returned_from_tournament_chat', 'true');
         tournamentUnreadCount = 0;
@@ -1070,28 +1048,28 @@ async function loadTournamentUnreadCount() {
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-    const prizeToggle = document.getElementById('prizeToggle');
-    if (prizeToggle) {
-        prizeToggle.addEventListener('click', togglePrizeBanner);
-        if (prizeBannerCollapsed) {
-            const prizeContent = document.getElementById('prizeContent');
-            const toggleIcon = document.getElementById('toggleIcon');
-            prizeContent.classList.add('collapsed');
-            prizeToggle.classList.add('collapsed');
-            toggleIcon.classList.remove('fa-chevron-up');
-            toggleIcon.classList.add('fa-chevron-down');
+        const prizeToggle = document.getElementById('prizeToggle');
+        if (prizeToggle) {
+            prizeToggle.addEventListener('click', togglePrizeBanner);
+            if (prizeBannerCollapsed) {
+                const prizeContent = document.getElementById('prizeContent');
+                const toggleIcon = document.getElementById('toggleIcon');
+                prizeContent.classList.add('collapsed');
+                prizeToggle.classList.add('collapsed');
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            }
         }
-    }
-    
-    loadTournamentData(true);
-    
-    const joinBtn = document.getElementById('joinBtn');
-    if (joinBtn) joinBtn.addEventListener('click', joinTournament);
-    
-    // ✅ Load badge and connect socket
-    loadTournamentUnreadCount();
-    setTimeout(connectTournamentSocket, 1500);
-});
+        
+        loadTournamentData(true);
+        
+        const joinBtn = document.getElementById('joinBtn');
+        if (joinBtn) joinBtn.addEventListener('click', joinTournament);
+        
+        // Load badge and connect socket
+        loadTournamentUnreadCount();
+        setTimeout(connectTournamentSocket, 1500);
+    });
 </script>
 </body>
 </html>
