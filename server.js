@@ -1144,6 +1144,11 @@ socket.broadcast.emit('friend-online', { userId, firstName });
 // ============================================
 socket.on('join-tournament', async (data) => {
     const { userId, firstName } = data;
+    console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
+    
+    socket.join('tournament_chat');
+    // ... rest of code
+});
     
     socket.join('tournament_chat');
     
