@@ -2086,11 +2086,14 @@ app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
     await awardReferralCommission(client, userId, coins);
     await trackMonthlyEarnings(client, userId, coins);
     
-    const socialTasks = ['youtube1', 'youtube2', 'youtube3', 'facebook', 'instagram', 'telegram'];
-    const completed = await client.query('SELECT task_name FROM social_tasks WHERE user_id = $1 AND task_name = ANY($2::text[])', [userId, socialTasks]);
-    if (completed.rows.length === socialTasks.length) {
-      await awardAchievement(userId, 'Social Butterfly', client);
-    }
+    const socialTasks = ['YouTube', 'twitter', 'facebook', 'instagram', 'tiktok', 'telegram'];
+const completed = await client.query(
+    'SELECT task_name FROM social_tasks WHERE user_id = $1 AND task_name = ANY($2::text[])', 
+    [userId, socialTasks]
+);
+if (completed.rows.length === socialTasks.length) {
+    await awardAchievement(userId, 'Social Butterfly', client);
+}
     
     await client.query('COMMIT');
     res.json({ success: true, message: `+${coins} COINS earned!` });
