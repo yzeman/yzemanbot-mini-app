@@ -1147,10 +1147,6 @@ socket.on('join-tournament', async (data) => {
     console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
     
     socket.join('tournament_chat');
-    // ... rest of code
-});
-    
-    socket.join('tournament_chat');
     
     try {
         // ✅ Auto-delete messages older than 24 hours
