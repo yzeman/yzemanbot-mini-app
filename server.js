@@ -1576,6 +1576,23 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
       await awardAchievement(userId, 'Points Millionaire', client);
     }
     
+    // ✅ ADD THIS: Check for Ad Master achievements
+    const adStats = await client.query(
+      'SELECT total_ads FROM ad_statistics WHERE user_id = $1',
+      [userId]
+    );
+    if (adStats.rows.length > 0) {
+      const totalAds = parseInt(adStats.rows[0].total_ads);
+      if (totalAds >= 1000) {
+        await awardAchievement(userId, 'Ad Master', client);
+      }
+      if (totalAds >= 5000) {
+        await awardAchievement(userId, 'Ad Master Platinum', client);
+      }
+    }
+    
+    await client.query('COMMIT');
+      
     await client.query('COMMIT');
     res.json({ success: true, coins: userCoins.rows[0].coins });
   } catch (err) {
