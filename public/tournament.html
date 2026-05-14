@@ -686,10 +686,22 @@ function connectTournamentSocket() {
         transports: ['websocket']
     });
     
-    tournamentSocket.on('connect', () => {
+    tournamentSocket.on('connect', async () => {
         console.log('✅ Tournament badge socket CONNECTED with ID:', tournamentSocket.id);
         
-        // ✅ Join the status room to receive unread counts
+        // ✅ If currentUserId is null, fetch it from API
+        if (!currentUserId) {
+            try {
+                const userData = await apiCall('/api/user', { initData: tg.initData });
+                currentUserId = userData.id;
+            } catch (err) {
+                console.error('Failed to get user ID:', err);
+                return;
+            }
+        }
+        
+        // ✅ Now emit with correct userId
+        console.log('📡 Joining tournament status room with userId:', currentUserId);
         tournamentSocket.emit('join-tournament-status', {
             userId: currentUserId
         });
@@ -713,7 +725,7 @@ function connectTournamentSocket() {
         updateTournamentChatBadge();
     });
     
-    // ✅ Also listen for new messages as fallback
+    // ✅ Listen for new messages
     tournamentSocket.on('tournament-new-message', (msg) => {
         console.log('📨 New tournament message received on badge');
         tournamentUnreadCount++;
@@ -724,10 +736,6 @@ function connectTournamentSocket() {
     tournamentSocket.on('disconnect', (reason) => {
         console.log('🔴 Tournament badge socket disconnected:', reason);
         setTimeout(connectTournamentSocket, 3000);
-    });
-    
-    tournamentSocket.on('connect_error', (err) => {
-        console.error('❌ Tournament badge socket error:', err.message);
     });
 }
 
