@@ -1181,15 +1181,17 @@ socket.on('send-tournament-message', async (data) => {
             [userId, message.trim()]
         );
         
-        // Broadcast to ALL connected sockets (so badge on tournament page gets it // In send-tournament-message handler
-io.emit('tournament-new-message', {  // ✅ Changed from 'new-message'
-    id: result.rows[0].id,
-    user_id: userId,
-    first_name: firstName,
-    message: message.trim(),
-    created_at: result.rows[0].created_at
-});
+        // ✅ FIXED: Broadcast to ALL connected sockets
+        io.emit('tournament-new-message', {
+            id: result.rows[0].id,
+            user_id: userId,
+            first_name: firstName,
+            message: message.trim(),
+            created_at: result.rows[0].created_at
+        });
+        
     } catch (err) {
+        console.error('Send tournament message error:', err);
         socket.emit('message-error', { error: 'Failed to send' });
     }
 });
