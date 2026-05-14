@@ -590,7 +590,7 @@ async function sendPrizeNotification(telegramId, prizeType, prizeAmount, rank, e
 }
 
 // ============================================
-// HELPER: Award Achievement (UPDATED FOR COINS WITH TRACKING)
+// HELPER: Award Achievement (UPDATED FOR COINS WITH TRACKING + COMPLETIONIST)
 // ============================================
 async function awardAchievement(userId, achievementName, clientParam = null) {
     const client = clientParam || await pool.connect();
@@ -637,7 +637,31 @@ async function awardAchievement(userId, achievementName, clientParam = null) {
                 [userId, coinsReward, 'achievement']
             );
             
+            // Track monthly earnings
+            await trackMonthlyEarnings(client, userId, coinsReward);
+            
             console.log(`🎉 Achievement "${achievementName}" awarded to user ${userId} +${coinsReward} COINS`);
+        }
+        
+        // ✅ CHECK FOR COMPLETIONIST (unlocked all achievements)
+        if (achievementName !== 'Completionist') {
+            const totalAchievements = await client.query(
+                'SELECT COUNT(*) as total FROM achievements WHERE name != $1',
+                ['Completionist']
+            );
+            const unlockedCount = await client.query(
+                'SELECT COUNT(*) as total FROM user_achievements WHERE user_id = $1',
+                [userId]
+            );
+            
+            const total = parseInt(totalAchievements.rows[0].total);
+            const unlocked = parseInt(unlockedCount.rows[0].total);
+            
+            if (unlocked >= total) {
+                // Award Completionist (call recursively, but this time it will skip the check)
+                await awardAchievementInternal(userId, 'Completionist', client);
+                console.log(`🌟 COMPLETIONIST awarded to user ${userId}! All ${total} achievements unlocked!`);
+            }
         }
         
         if (!clientParam) await client.query('COMMIT');
@@ -651,6 +675,44 @@ async function awardAchievement(userId, achievementName, clientParam = null) {
     }
 }
 
+// Internal helper to avoid infinite loop with Completionist check
+async function awardAchievementInternal(userId, achievementName, client) {
+    const achievement = await client.query(
+        'SELECT id, coins_reward FROM achievements WHERE name = $1',
+        [achievementName]
+    );
+    
+    if (achievement.rows.length === 0) return false;
+    
+    const achievementId = achievement.rows[0].id;
+    const coinsReward = achievement.rows[0].coins_reward;
+    
+    const existing = await client.query(
+        'SELECT * FROM user_achievements WHERE user_id = $1 AND achievement_id = $2',
+        [userId, achievementId]
+    );
+    
+    if (existing.rows.length > 0) return false;
+    
+    await client.query(
+        'INSERT INTO user_achievements (user_id, achievement_id) VALUES ($1, $2)',
+        [userId, achievementId]
+    );
+    
+    if (coinsReward > 0) {
+        await client.query(
+            'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+            [coinsReward, userId]
+        );
+        await client.query(
+            'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
+            [userId, coinsReward, 'achievement']
+        );
+        await trackMonthlyEarnings(client, userId, coinsReward);
+    }
+    
+    return true;
+}
 // ============================================
 // TELEGRAM VERIFICATION
 // ============================================
