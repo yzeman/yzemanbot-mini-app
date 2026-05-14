@@ -470,24 +470,30 @@ socket.on('tournament-new-message', (message) => {  // ✅ Changed
         }
         
         function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-            if (!message) return;
-            
-            if (containsProfanity(message)) {
-                showWarningMessage('⚠️ Inappropriate message blocked.');
-                input.value = '';
-                return;
-            }
-            
-            socket.emit('send-tournament-message', {
-                message: message,
-                userId: currentUser.id
-            });
-            
-            input.value = '';
-        }
-        
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    if (containsProfanity(message)) {
+        showWarningMessage('⚠️ Inappropriate message blocked.');
+        input.value = '';
+        return;
+    }
+    
+    socket.emit('send-tournament-message', {
+        message: message,
+        userId: currentUser.id
+    });
+    
+    // ✅ Update last_read_at immediately after sending
+    fetch('/api/tournament/update-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initData: tg.initData })
+    }).catch(err => console.error('Update read error:', err));
+    
+    input.value = '';
+}      
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
