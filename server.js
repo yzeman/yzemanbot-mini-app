@@ -1457,6 +1457,40 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
+// TOURNAMENT UNREAD COUNT
+// ============================================
+app.post('/api/tournament/unread-count', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) {
+            return res.json({ unread_count: 0 });
+        }
+        
+        const userId = userResult.rows[0].id;
+        
+        // Get last read time
+        const lastReadResult = await pool.query(
+            'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
+            [userId]
+        );
+        const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
+        
+        // Count unread messages
+        const unreadResult = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM tournament_messages
+            WHERE created_at > $1
+        `, [lastReadAt]);
+        
+        res.json({ unread_count: parseInt(unreadResult.rows[0].count) });
+    } catch (err) {
+        console.error('Tournament unread count error:', err);
+        res.json({ unread_count: 0 });
+    }
+});
+
+// ============================================
 // AD REWARD ENDPOINT (WITH COMMISSION)
 // ============================================
 app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
