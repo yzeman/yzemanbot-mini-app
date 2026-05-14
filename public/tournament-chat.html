@@ -403,15 +403,11 @@ async function init() {
         currentUser = await userRes.json();
         connectWebSocket();
         
-        // Reset unread count when entering chat
+        // Just reset the local unread count
         localStorage.setItem('tournament_unread_count', '0');
         
-        // Tell server we're viewing the chat (this will reset last_read_at)
-        await fetch('/api/tournament/mark-read', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: tg.initData })
-        });
+        // ❌ REMOVE THIS LINE - Don't call /api/tournament/mark-read
+        // await fetch('/api/tournament/mark-read', { ... });
         
         setTimeout(() => {
             document.getElementById('messageInput').focus();
@@ -422,26 +418,6 @@ async function init() {
         showNotification('Failed to load', true);
     }
 }
-
-// Add this API endpoint in server.js:
-app.post('/api/tournament/mark-read', async (req, res) => {
-    try {
-        const { initData } = req.body;
-        const user = await verifyTelegramAuth(initData);
-        
-        await pool.query(`
-            INSERT INTO tournament_chat_reads (user_id, last_read_at)
-            VALUES ($1, NOW())
-            ON CONFLICT (user_id) 
-            DO UPDATE SET last_read_at = NOW()
-        `, [user.id]);
-        
-        res.json({ success: true });
-    } catch (err) {
-        console.error('Mark read error:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
         
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
