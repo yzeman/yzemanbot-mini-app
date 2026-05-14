@@ -669,10 +669,15 @@
     }
 
    function connectTournamentSocket() {
-    if (!tg?.initData) return;
+    if (!tg?.initData) {
+        console.error('❌ No initData for socket');
+        return;
+    }
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socketUrl = `${protocol}//${window.location.host}`;
+    
+    console.log('🔌 Connecting to socket...', socketUrl);
     
     tournamentSocket = io(socketUrl, {
         auth: { initData: tg.initData },
@@ -680,33 +685,20 @@
     });
     
     tournamentSocket.on('connect', () => {
-        console.log('🏆 Tournament badge socket connected');
-        
-        // ✅ DO NOT emit join-tournament — just listen for new messages
-        // The server broadcasts new-message to ALL in 'tournament_chat' room
-        // But we need to receive it WITHOUT joining the room
-        
-        // Reset badge if returning from chat
-        const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
-        if (returnedFromChat === 'true') {
-            tournamentUnreadCount = 0;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
-            sessionStorage.removeItem('returned_from_tournament_chat');
-        }
+        console.log('✅ Tournament badge socket connected, ID:', tournamentSocket.id);
     });
     
-    // In connectTournamentSocket
-tournamentSocket.on('tournament-new-message', (msg) => {  // ✅ Changed
-    console.log('📨 Tournament badge received:', msg);
-    if (document.visibilityState === 'visible') {
-        tournamentUnreadCount++;
-        saveTournamentUnreadCount();
-        updateTournamentChatBadge();
-    }
-});
+    tournamentSocket.on('connect_error', (error) => {
+        console.error('❌ Socket connect_error:', error);
+    });
     
-    tournamentSocket.on('disconnect', () => {
+    tournamentSocket.on('tournament-new-message', (msg) => {
+        console.log('📨 Tournament badge received:', msg);
+        // Your existing code...
+    });
+    
+    tournamentSocket.on('disconnect', (reason) => {
+        console.log('🔌 Socket disconnected:', reason);
         setTimeout(connectTournamentSocket, 3000);
     });
 }
