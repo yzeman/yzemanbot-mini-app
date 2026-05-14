@@ -638,37 +638,56 @@
     // Collapsible banner state
     let prizeBannerCollapsed = localStorage.getItem('prizeBannerCollapsed') === 'true';
 
-    // ============================================
-    // TOURNAMENT CHAT BADGE - WebSocket
-    // ============================================
-    let tournamentSocket = null;
-    let tournamentUnreadCount = 0;
+   // ============================================
+// TOURNAMENT CHAT BADGE - WebSocket
+// ============================================
+let tournamentSocket = null;
+let tournamentUnreadCount = 0;
 
-    function loadTournamentUnreadCount() {
-        const saved = localStorage.getItem('tournament_unread_count');
-        if (saved) {
-            tournamentUnreadCount = parseInt(saved) || 0;
-        }
+function saveTournamentUnreadCount() {
+    localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
+}
+
+function updateTournamentChatBadge() {
+    const badge = document.getElementById('tournamentChatBadge');
+    if (!badge) return;
+    
+    if (tournamentUnreadCount > 0) {
+        badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// ✅ Load unread count from SERVER first, then fallback to localStorage
+async function loadTournamentUnreadCount() {
+    // First try to show saved count from localStorage
+    const saved = localStorage.getItem('tournament_unread_count');
+    if (saved) {
+        tournamentUnreadCount = parseInt(saved) || 0;
         updateTournamentChatBadge();
     }
-
-    function saveTournamentUnreadCount() {
-        localStorage.setItem('tournament_unread_count', tournamentUnreadCount);
-    }
-
-    function updateTournamentChatBadge() {
-        const badge = document.getElementById('tournamentChatBadge');
-        if (!badge) return;
+    
+    // Then fetch from server for the real count
+    if (!tg?.initData) return;
+    
+    try {
+        const response = await fetch('/api/tournament/unread-count', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ initData: tg.initData })
+        });
+        const data = await response.json();
         
-        if (tournamentUnreadCount > 0) {
-            badge.textContent = tournamentUnreadCount > 99 ? '99+' : tournamentUnreadCount;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
+        console.log('📊 HTTP unread count:', data.unread_count);
+        tournamentUnreadCount = data.unread_count || 0;
+        saveTournamentUnreadCount();
+        updateTournamentChatBadge();
+    } catch (err) {
+        console.error('Failed to load tournament unread count:', err);
     }
-
-   // Replace your existing connectTournamentSocket function with:
+}
 
 function connectTournamentSocket() {
     if (!tg?.initData) {
@@ -1051,28 +1070,28 @@ async function loadTournamentUnreadCount() {
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-        const prizeToggle = document.getElementById('prizeToggle');
-        if (prizeToggle) {
-            prizeToggle.addEventListener('click', togglePrizeBanner);
-            if (prizeBannerCollapsed) {
-                const prizeContent = document.getElementById('prizeContent');
-                const toggleIcon = document.getElementById('toggleIcon');
-                prizeContent.classList.add('collapsed');
-                prizeToggle.classList.add('collapsed');
-                toggleIcon.classList.remove('fa-chevron-up');
-                toggleIcon.classList.add('fa-chevron-down');
-            }
+    const prizeToggle = document.getElementById('prizeToggle');
+    if (prizeToggle) {
+        prizeToggle.addEventListener('click', togglePrizeBanner);
+        if (prizeBannerCollapsed) {
+            const prizeContent = document.getElementById('prizeContent');
+            const toggleIcon = document.getElementById('toggleIcon');
+            prizeContent.classList.add('collapsed');
+            prizeToggle.classList.add('collapsed');
+            toggleIcon.classList.remove('fa-chevron-up');
+            toggleIcon.classList.add('fa-chevron-down');
         }
-        
-        loadTournamentData(true);
-        
-        const joinBtn = document.getElementById('joinBtn');
-        if (joinBtn) joinBtn.addEventListener('click', joinTournament);
-        
-        // Load badge and connect socket
-        loadTournamentUnreadCount();
-        setTimeout(connectTournamentSocket, 1000);
-    });
+    }
+    
+    loadTournamentData(true);
+    
+    const joinBtn = document.getElementById('joinBtn');
+    if (joinBtn) joinBtn.addEventListener('click', joinTournament);
+    
+    // ✅ Load badge and connect socket
+    loadTournamentUnreadCount();
+    setTimeout(connectTournamentSocket, 1500);
+});
 </script>
 </body>
 </html>
