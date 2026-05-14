@@ -668,7 +668,9 @@
         }
     }
 
-   function connectTournamentSocket() {
+   // Replace your existing connectTournamentSocket function with:
+
+function connectTournamentSocket() {
     if (!tg?.initData) {
         console.error('❌ No initData for socket');
         return;
@@ -687,38 +689,51 @@
     tournamentSocket.on('connect', () => {
         console.log('✅ Tournament badge socket connected, ID:', tournamentSocket.id);
         
-        // Test: Send a test event to verify server communication
-        tournamentSocket.emit('test-connection', { message: 'Badge socket connected' });
+        // Join tournament chat status room
+        tournamentSocket.emit('join-tournament-status', { userId: currentUserId });
+    });
+    
+    tournamentSocket.on('tournament-unread-count', (data) => {
+        console.log('📊 Received unread count from server:', data.count);
+        tournamentUnreadCount = data.count;
+        saveTournamentUnreadCount();
+        updateTournamentChatBadge();
+    });
+    
+    tournamentSocket.on('tournament-new-message', (msg) => {
+        console.log('📨 Tournament badge RECEIVED message:', msg);
+        
+        // Only increment if we're on the tournament page (not in chat)
+        const isOnChatPage = window.location.pathname.includes('tournament-chat.html');
+        if (!isOnChatPage) {
+            tournamentUnreadCount++;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+        }
     });
     
     tournamentSocket.on('connect_error', (error) => {
         console.error('❌ Socket connect_error:', error);
     });
     
-    tournamentSocket.on('tournament-new-message', (msg) => {
-        console.log('📨 Tournament badge RECEIVED message:', msg);
-        console.log('Current visibility:', document.visibilityState);
-        console.log('Current unread count before:', tournamentUnreadCount);
-        
-        if (document.visibilityState === 'visible') {
-            tournamentUnreadCount++;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
-            console.log('New unread count:', tournamentUnreadCount);
-        } else {
-            console.log('Page not visible, not incrementing count');
-        }
-    });
-    
-    // Also listen for any other events that might be coming through
-    tournamentSocket.onAny((event, ...args) => {
-        console.log('🔔 Any socket event:', event, args);
-    });
-    
     tournamentSocket.on('disconnect', (reason) => {
         console.log('🔌 Socket disconnected:', reason);
         setTimeout(connectTournamentSocket, 3000);
     });
+}
+
+// Add this to load current unread count when tournament page loads
+async function loadTournamentUnreadCount() {
+    try {
+        const response = await apiCall('/api/tournament/unread-count', { initData: tg.initData });
+        if (response && response.count !== undefined) {
+            tournamentUnreadCount = response.count;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+        }
+    } catch (err) {
+        console.error('Failed to load unread count:', err);
+    }
 }
 
     // ✅ ONLY ONE openTournamentChat function
