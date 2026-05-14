@@ -3524,7 +3524,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Weekly Prizes (Based on Sunday-to-Sunday Referrals)
+// ADMIN: Award Weekly Prizes (Full Monday-Sunday Week)
 // ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
@@ -3533,22 +3533,31 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
     
     const now = new Date();
     const dayOfWeek = now.getDay();
-    const daysSinceSunday = dayOfWeek;
     
-    const lastSunday = new Date(now);
-    lastSunday.setDate(now.getDate() - daysSinceSunday);
-    lastSunday.setHours(0, 0, 0, 0);
-    const lastSundayStr = lastSunday.toISOString();
+    // Calculate last Monday (start of last week)
+    let daysSinceMonday = dayOfWeek - 1;
+    if (daysSinceMonday < 0) daysSinceMonday += 7;
+    
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - daysSinceMonday - 7); // Go back 1 week
+    lastMonday.setHours(0, 0, 0, 0);
+    
+    // Last Sunday (end of last week)
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    lastSunday.setHours(23, 59, 59, 999);
     
     const topReferrers = await client.query(`
       SELECT u.id, u.first_name, u.telegram_id, COUNT(r.id) as referral_count
       FROM users u
       LEFT JOIN referrals r ON u.id = r.referrer_id 
         AND r.created_at >= $1
+        AND r.created_at <= $2
       GROUP BY u.id
+      HAVING COUNT(r.id) > 0
       ORDER BY referral_count DESC
       LIMIT 3
-    `, [lastSundayStr]);
+    `, [lastMonday.toISOString(), lastSunday.toISOString()]);
     
     const prizes = [10000, 5000, 2500];
     
@@ -3557,6 +3566,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       const prize = prizes[i];
       const rank = i + 1;
       
+      // ✅ Already has HAVING COUNT(r.id) > 0, but double check
       if (user.referral_count > 0) {
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
@@ -3567,11 +3577,10 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
           [user.id, prize, 'weekly_prize']
         );
         
-        // ✅ SEND TELEGRAM NOTIFICATION
         const extraInfo = `\n\n📊 You referred *${user.referral_count} friends* this week!`;
         await sendPrizeNotification(user.telegram_id, 'referral', prize, rank, extraInfo);
         
-        console.log(`🏆 Weekly prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals this week)`);
+        console.log(`🏆 Weekly referral prize: ${prize} COINS awarded to ${user.first_name} (${user.referral_count} referrals)`);
       }
     }
     
