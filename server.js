@@ -1491,6 +1491,33 @@ app.post('/api/tournament/unread-count', verifyTelegramData, async (req, res) =>
 });
 
 // ============================================
+// TOURNAMENT: Update last read time
+// ============================================
+app.post('/api/tournament/update-read', verifyTelegramData, async (req, res) => {
+    try {
+        const telegramId = req.telegramUser.id;
+        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+        if (userResult.rows.length === 0) {
+            return res.json({ success: false });
+        }
+        
+        const userId = userResult.rows[0].id;
+        
+        await pool.query(`
+            INSERT INTO tournament_chat_reads (user_id, last_read_at)
+            VALUES ($1, NOW())
+            ON CONFLICT (user_id) 
+            DO UPDATE SET last_read_at = NOW()
+        `, [userId]);
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Update tournament read error:', err);
+        res.json({ success: false });
+    }
+});
+
+// ============================================
 // AD REWARD ENDPOINT (WITH COMMISSION)
 // ============================================
 app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
