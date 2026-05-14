@@ -1142,15 +1142,14 @@ socket.broadcast.emit('friend-online', { userId, firstName });
    // ============================================
 // TOURNAMENT CHAT
 // ============================================
-// When user joins tournament chat - update their last read time and send unread count
-socket.on('join-tournament', async (data) => {
+// When user joins tournament chat - update their last read time and send unread countsocket.on('join-tournament', async (data) => {
     const { userId, firstName } = data;
     console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
     
     socket.join('tournament_chat');
     
     try {
-        // Update last read time for this user
+        // ✅ Update last read time for this user when they join the chat
         await pool.query(`
             INSERT INTO tournament_chat_reads (user_id, last_read_at)
             VALUES ($1, NOW())
@@ -1158,30 +1157,12 @@ socket.on('join-tournament', async (data) => {
             DO UPDATE SET last_read_at = NOW()
         `, [userId]);
         
-        // Get user's last read time
-        const lastReadResult = await pool.query(
-            'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
-            [userId]
-        );
-        const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
-        
-        // Get unread count for messages sent AFTER last read time
-        const unreadResult = await pool.query(`
-            SELECT COUNT(*) as count 
-            FROM tournament_messages tm
-            WHERE tm.created_at > $1
-        `, [lastReadAt]);
-        
-        const unreadCount = parseInt(unreadResult.rows[0].count);
-        
-        // Send current unread count to this specific socket
-        socket.emit('tournament-unread-count', { count: unreadCount });
-        
         // Auto-delete messages older than 24 hours
         await pool.query(
             "DELETE FROM tournament_messages WHERE created_at < NOW() - INTERVAL '24 hours'"
         );
         
+        // Load recent messages (last 50)
         const messages = await pool.query(`
             SELECT tm.*, u.first_name
             FROM tournament_messages tm
@@ -1196,6 +1177,39 @@ socket.on('join-tournament', async (data) => {
     } catch (err) {
         console.error('Join tournament error:', err);
         socket.emit('chat-history', []);
+    }
+});
+
+socket.on('join-tournament-status', async (data) => {
+    const { userId } = data;
+    if (userId) {
+        socket.join(`tournament_status_${userId}`);
+        
+        try {
+            // Get user's last read time
+            const lastReadResult = await pool.query(
+                'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
+                [userId]
+            );
+            const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
+            
+            // Count unread messages
+            const unreadResult = await pool.query(`
+                SELECT COUNT(*) as count 
+                FROM tournament_messages
+                WHERE created_at > $1
+            `, [lastReadAt]);
+            
+            const unreadCount = parseInt(unreadResult.rows[0].count);
+            
+            // Send current unread count to this specific socket
+            socket.emit('tournament-unread-count', { count: unreadCount });
+            
+            console.log(`📊 Sent unread count ${unreadCount} to user ${userId}`);
+        } catch (err) {
+            console.error('Tournament status error:', err);
+            socket.emit('tournament-unread-count', { count: 0 });
+        }
     }
 });
 
@@ -1226,7 +1240,7 @@ socket.on('send-tournament-message', async (data) => {
         console.log('📡 Broadcasting tournament message to ALL clients:', messageData);
         io.emit('tournament-new-message', messageData);
         
-        // Calculate new unread count for each user (except sender) based on their last read time
+        // ✅ Update unread counts for all users except sender
         const users = await pool.query('SELECT id FROM users');
         for (const user of users.rows) {
             if (user.id === userId) continue; // Skip sender
@@ -1239,17 +1253,14 @@ socket.on('send-tournament-message', async (data) => {
             
             const unreadResult = await pool.query(`
                 SELECT COUNT(*) as count 
-                FROM tournament_messages tm
-                WHERE tm.created_at > $1
+                FROM tournament_messages
+                WHERE created_at > $1
             `, [lastReadAt]);
             
             const unreadCount = parseInt(unreadResult.rows[0].count);
             
-            // Send unread count to the specific user
-            const userSocketId = userSockets.get(user.id);
-            if (userSocketId) {
-                io.to(userSocketId).emit('tournament-unread-count', { count: unreadCount });
-            }
+            // Send unread count to the specific user's status room
+            io.to(`tournament_status_${user.id}`).emit('tournament-unread-count', { count: unreadCount });
         }
         
     } catch (err) {
@@ -1468,30 +1479,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
   } finally {
     client.release();
   }
-});
-
-app.post('/api/tournament/unread-count', async (req, res) => {
-    try {
-        const { initData } = req.body;
-        const user = await verifyTelegramAuth(initData);
-        
-        const lastReadResult = await pool.query(
-            'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
-            [user.id]
-        );
-        const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
-        
-        const unreadResult = await pool.query(`
-            SELECT COUNT(*) as count 
-            FROM tournament_messages
-            WHERE created_at > $1
-        `, [lastReadAt]);
-        
-        res.json({ count: parseInt(unreadResult.rows[0].count) });
-    } catch (err) {
-        console.error('Unread count error:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
 });
 
 // ============================================
