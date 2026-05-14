@@ -1470,6 +1470,30 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
   }
 });
 
+app.post('/api/tournament/unread-count', async (req, res) => {
+    try {
+        const { initData } = req.body;
+        const user = await verifyTelegramAuth(initData);
+        
+        const lastReadResult = await pool.query(
+            'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
+            [user.id]
+        );
+        const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
+        
+        const unreadResult = await pool.query(`
+            SELECT COUNT(*) as count 
+            FROM tournament_messages
+            WHERE created_at > $1
+        `, [lastReadAt]);
+        
+        res.json({ count: parseInt(unreadResult.rows[0].count) });
+    } catch (err) {
+        console.error('Unread count error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 // ============================================
 // AD REWARD ENDPOINT (WITH COMMISSION)
 // ============================================
