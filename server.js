@@ -1139,10 +1139,12 @@ socket.broadcast.emit('friend-online', { userId, firstName });
         });
     });
 
-   // ============================================
+ // ============================================
 // TOURNAMENT CHAT
 // ============================================
-// When user joins tournament chat - update their last read time and send unread countsocket.on('join-tournament', async (data) => {
+
+// When user joins tournament chat
+socket.on('join-tournament', async (data) => {
     const { userId, firstName } = data;
     console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
     
@@ -1180,20 +1182,19 @@ socket.broadcast.emit('friend-online', { userId, firstName });
     }
 });
 
+// When tournament page badge socket connects (for unread counts)
 socket.on('join-tournament-status', async (data) => {
     const { userId } = data;
     if (userId) {
         socket.join(`tournament_status_${userId}`);
         
         try {
-            // Get user's last read time
             const lastReadResult = await pool.query(
                 'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
                 [userId]
             );
             const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
             
-            // Count unread messages
             const unreadResult = await pool.query(`
                 SELECT COUNT(*) as count 
                 FROM tournament_messages
@@ -1201,10 +1202,7 @@ socket.on('join-tournament-status', async (data) => {
             `, [lastReadAt]);
             
             const unreadCount = parseInt(unreadResult.rows[0].count);
-            
-            // Send current unread count to this specific socket
             socket.emit('tournament-unread-count', { count: unreadCount });
-            
             console.log(`📊 Sent unread count ${unreadCount} to user ${userId}`);
         } catch (err) {
             console.error('Tournament status error:', err);
@@ -1237,31 +1235,8 @@ socket.on('send-tournament-message', async (data) => {
             created_at: result.rows[0].created_at
         };
         
-        console.log('📡 Broadcasting tournament message to ALL clients:', messageData);
+        console.log('📡 Broadcasting tournament message to ALL:', messageData);
         io.emit('tournament-new-message', messageData);
-        
-        // ✅ Update unread counts for all users except sender
-        const users = await pool.query('SELECT id FROM users');
-        for (const user of users.rows) {
-            if (user.id === userId) continue; // Skip sender
-            
-            const lastReadResult = await pool.query(
-                'SELECT last_read_at FROM tournament_chat_reads WHERE user_id = $1',
-                [user.id]
-            );
-            const lastReadAt = lastReadResult.rows[0]?.last_read_at || new Date(0);
-            
-            const unreadResult = await pool.query(`
-                SELECT COUNT(*) as count 
-                FROM tournament_messages
-                WHERE created_at > $1
-            `, [lastReadAt]);
-            
-            const unreadCount = parseInt(unreadResult.rows[0].count);
-            
-            // Send unread count to the specific user's status room
-            io.to(`tournament_status_${user.id}`).emit('tournament-unread-count', { count: unreadCount });
-        }
         
     } catch (err) {
         console.error('Send tournament message error:', err);
