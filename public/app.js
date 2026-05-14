@@ -96,7 +96,7 @@ const COIN_ECONOMY = {
         'Loyal User': 5000,
         'Referral Master': 20000,
         'Points Millionaire': 15000,
-        'Social Butterfly': 100000,
+        'Social Butterfly': 15000,
         'Tournament Winner': 10000,
         'Team Player': 2000,
         'Platinum Elite': 50000,
@@ -108,7 +108,8 @@ const COIN_ECONOMY = {
         'Leaderboard Winner': 15000,
         'Ad Master Platinum': 50000,
         'Referral King': 200000,
-        'Monthly Top Earner': 25000
+        'Monthly Top Earner': 25000,
+        'Completionist': 100000
     },
     
     TOURNAMENT_PRIZES: {
