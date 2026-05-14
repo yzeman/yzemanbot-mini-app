@@ -1169,8 +1169,10 @@ socket.on('join-tournament', async (data) => {
     }
 });
 
-socket.on('send-tournament-message', async (data) => {
+    socket.on('send-tournament-message', async (data) => {
     const { message, userId } = data;
+    console.log('📤 Tournament message received:', { message, userId });
+    
     if (!message || message.trim().length === 0 || message.length > 500) return;
     
     try {
@@ -1182,14 +1184,16 @@ socket.on('send-tournament-message', async (data) => {
             [userId, message.trim()]
         );
         
-        // ✅ FIXED: Broadcast to ALL connected sockets
-        io.emit('tournament-new-message', {
+        const messageData = {
             id: result.rows[0].id,
             user_id: userId,
             first_name: firstName,
             message: message.trim(),
             created_at: result.rows[0].created_at
-        });
+        };
+        
+        console.log('📡 Broadcasting tournament message to ALL clients:', messageData);
+        io.emit('tournament-new-message', messageData);
         
     } catch (err) {
         console.error('Send tournament message error:', err);
