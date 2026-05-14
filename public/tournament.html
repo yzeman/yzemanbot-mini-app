@@ -672,14 +672,14 @@
 
 function connectTournamentSocket() {
     if (!tg?.initData) {
-        console.error('❌ No initData for socket');
+        console.log('❌ No initData, skipping tournament socket');
         return;
     }
     
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socketUrl = `${protocol}//${window.location.host}`;
     
-    console.log('🔌 Connecting to socket...', socketUrl);
+    console.log('🔌 Connecting tournament badge socket...');
     
     tournamentSocket = io(socketUrl, {
         auth: { initData: tg.initData },
@@ -687,38 +687,47 @@ function connectTournamentSocket() {
     });
     
     tournamentSocket.on('connect', () => {
-        console.log('✅ Tournament badge socket connected, ID:', tournamentSocket.id);
+        console.log('✅ Tournament badge socket CONNECTED with ID:', tournamentSocket.id);
         
-        // Join tournament chat status room
-        tournamentSocket.emit('join-tournament-status', { userId: currentUserId });
+        // ✅ Join the status room to receive unread counts
+        tournamentSocket.emit('join-tournament-status', {
+            userId: currentUserId
+        });
+        
+        // Reset badge if returning from chat
+        const returnedFromChat = sessionStorage.getItem('returned_from_tournament_chat');
+        if (returnedFromChat === 'true') {
+            console.log('🔄 Just returned from chat, resetting badge');
+            tournamentUnreadCount = 0;
+            saveTournamentUnreadCount();
+            updateTournamentChatBadge();
+            sessionStorage.removeItem('returned_from_tournament_chat');
+        }
     });
     
+    // ✅ Listen for unread count from server
     tournamentSocket.on('tournament-unread-count', (data) => {
-        console.log('📊 Received unread count from server:', data.count);
-        tournamentUnreadCount = data.count;
+        console.log('📊 Received unread count:', data.count);
+        tournamentUnreadCount = data.count || 0;
         saveTournamentUnreadCount();
         updateTournamentChatBadge();
     });
     
+    // ✅ Also listen for new messages as fallback
     tournamentSocket.on('tournament-new-message', (msg) => {
-        console.log('📨 Tournament badge RECEIVED message:', msg);
-        
-        // Only increment if we're on the tournament page (not in chat)
-        const isOnChatPage = window.location.pathname.includes('tournament-chat.html');
-        if (!isOnChatPage) {
-            tournamentUnreadCount++;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
-        }
-    });
-    
-    tournamentSocket.on('connect_error', (error) => {
-        console.error('❌ Socket connect_error:', error);
+        console.log('📨 New tournament message received on badge');
+        tournamentUnreadCount++;
+        saveTournamentUnreadCount();
+        updateTournamentChatBadge();
     });
     
     tournamentSocket.on('disconnect', (reason) => {
-        console.log('🔌 Socket disconnected:', reason);
+        console.log('🔴 Tournament badge socket disconnected:', reason);
         setTimeout(connectTournamentSocket, 3000);
+    });
+    
+    tournamentSocket.on('connect_error', (err) => {
+        console.error('❌ Tournament badge socket error:', err.message);
     });
 }
 
