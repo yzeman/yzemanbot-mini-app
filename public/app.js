@@ -81,13 +81,13 @@ const COIN_ECONOMY = {
     WHEEL_PRIZES: [200, 200, 300, 500, 500, 300, 1000, 500, 2000, 1000, 5000, 2000],
     
     SOCIAL_TASK_REWARDS: {
-        'youtube1': 500,
-        'youtube2': 500,
-        'youtube3': 500,
-        'facebook': 500,
-        'instagram': 500,
-        'telegram': 500
-    },
+    'youtube1': 500,    // Subscribe on YouTube
+    'twitter': 500,     // Follow on X
+    'facebook': 500,    // Like on Facebook
+    'instagram': 500,   // Follow on Instagram
+    'tiktok': 500,      // Follow on TikTok
+    'telegram': 500     // Join Telegram
+},
     
     PLAY_EARN_REWARD: 1000,
     WEBSITE_TASK_REWARD: 50,
