@@ -777,22 +777,22 @@
     `;
     
     document.getElementById('streakInfoContainer').innerHTML = `
-        <div class="streak-info">
-            <div class="streak-header">
-                <div class="streak-fire">🔥</div>
-                <div class="streak-info-text">
-                    <h3>How Streak Works</h3>
-                    <p>Claim daily without missing a day to increase your streak!</p>
-                </div>
-            </div>
-            <div class="bonus-list">
-                <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.1/day</div>
-                <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +1 every 7 days</div>
-                <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +100</div>
-                <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +500</div>
+    <div class="streak-info">
+        <div class="streak-header">
+            <div class="streak-fire">🔥</div>
+            <div class="streak-info-text">
+                <h3>How Streak Works</h3>
+                <p>Claim daily without missing a day to increase your streak!</p>
             </div>
         </div>
-    `;
+        <div class="bonus-list">
+            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.5/day</div>
+            <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +10 every 7 days</div>
+            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +1000</div>
+            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +5000</div>
+        </div>
+    </div>
+`;
     
     const claimBtn = document.getElementById('claimBtn');
     if (claimBtn) {
