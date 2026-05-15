@@ -3251,7 +3251,7 @@ app.delete('/api/admin/bonus-codes/:code', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Today's Activity (Detailed)
+// ADMIN: Today's Activity (Detailed) - FIXED
 // ============================================
 app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
   try {
@@ -3260,14 +3260,19 @@ app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
         u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
         u.coins, u.tier, u.referrals,
         COALESCE(ads.total_ads, 0) as total_ads,
-        COALESCE(ads.ads_today, 0) as ads_today,
+        COUNT(ar_today.id) as ads_today,
         COALESCE(ads.ads_week, 0) as ads_week,
         u.last_login_date,
-        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos') as referrals_today
+        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos') AND r.created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')) as referrals_today
       FROM users u
       LEFT JOIN ad_statistics ads ON u.id = ads.user_id
-      WHERE DATE(u.last_login_date AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos'
-      ORDER BY u.coins DESC
+      LEFT JOIN ad_rewards ar_today ON u.id = ar_today.user_id 
+        AND ar_today.ad_type = 'ad'
+        AND ar_today.created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')
+        AND ar_today.created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')
+      WHERE ar_today.id IS NOT NULL
+      GROUP BY u.id, ads.total_ads, ads.ads_week
+      ORDER BY ads_today DESC, u.coins DESC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -3277,33 +3282,28 @@ app.get('/api/admin/today-activity', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Today's User Activity (Detailed)
+// ADMIN: Today's User Activity (Detailed) - FIXED
 // ============================================
 app.get('/api/admin/today-user-activity', verifyAdmin, async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
     const result = await pool.query(`
       SELECT 
         u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
         u.coins, u.tier,
         COALESCE(ads.total_ads, 0) as total_ads,
-        COALESCE((
-          SELECT COUNT(*) FROM ad_rewards ar 
-          WHERE ar.user_id = u.id AND ar.created_at::date = $1
-        ), 0) as ads_today,
-        COALESCE((
-          SELECT SUM(ar.reward_amount) FROM ad_rewards ar 
-          WHERE ar.user_id = u.id AND ar.created_at::date = $1
-        ), 0) as coins_earned_today,
-        COALESCE((
-          SELECT COUNT(*) FROM referrals r 
-          WHERE r.referrer_id = u.id AND r.created_at::date = $1
-        ), 0) as referrals_today
+        COUNT(ar_today.id) as ads_today,
+        COALESCE(SUM(ar_today.reward_amount), 0) as coins_earned_today,
+        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos') AND r.created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')) as referrals_today
       FROM users u
       LEFT JOIN ad_statistics ads ON u.id = ads.user_id
-      WHERE u.last_login_date = $1
+      LEFT JOIN ad_rewards ar_today ON u.id = ar_today.user_id 
+        AND ar_today.ad_type = 'ad'
+        AND ar_today.created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')
+        AND ar_today.created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')
+      WHERE ar_today.id IS NOT NULL
+      GROUP BY u.id, ads.total_ads
       ORDER BY coins_earned_today DESC, ads_today DESC
-    `, [today]);
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error('Today user activity error:', err);
