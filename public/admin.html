@@ -647,18 +647,21 @@
             <div class="form-group">
                 <label class="form-label">🔘 Button 1 - Page</label>
                 <select class="form-input" id="btn1Page">
-                    <option value="">-- Select Page --</option>
-                    <option value="app">🏠 Open App (Home)</option>
-                    <option value="wheel">🎡 Wheel</option>
-                    <option value="daily">📅 Daily Rewards</option>
-                    <option value="leaderboard">🏆 Leaderboard</option>
-                    <option value="tournament">👑 Tournament</option>
-                    <option value="team">👥 Team</option>
-                    <option value="achievements">🏅 Achievements</option>
-                    <option value="history">📋 History</option>
-                    <option value="faq">❓ FAQ</option>
-                    <option value="custom">🔗 Custom URL</option>
-                </select>
+    <option value="">-- Select Page --</option>
+    <option value="app">🏠 Open App (Home)</option>
+    <option value="wheel">🎡 Wheel</option>
+    <option value="daily">📅 Daily Rewards</option>
+    <option value="leaderboard">🏆 Leaderboard</option>
+    <option value="tournament">👑 Tournament</option>
+    <option value="team">👥 Team</option>
+    <option value="achievements">🏅 Achievements</option>
+    <option value="history">📋 History</option>
+    <option value="faq">❓ FAQ</option>
+    <option value="bonus">🎁 Bonus Codes</option>
+    <option value="withdraw">💳 Withdraw</option>
+    <option value="refer">👥 Referrals</option>
+    <option value="custom">🔗 Custom URL</option>
+</select>
             </div>
             <div class="form-group" id="btn1CustomUrlGroup" style="display:none;">
                 <label class="form-label">Custom URL</label>
@@ -825,7 +828,7 @@
     // ============================================
     // PAGE URL MAPPING FOR BROADCAST BUTTONS
     // ============================================
-   function getPageUrl(page) {
+  function getPageUrl(page) {
     const baseUrl = 'https://yzemanbot-backend.onrender.com';
     
     const pageMap = {
