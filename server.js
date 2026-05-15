@@ -2909,7 +2909,7 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Analytics Dashboard
+// ADMIN: Analytics Dashboard (FIXED)
 // ============================================
 app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
   try {
@@ -2919,41 +2919,40 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     const tierDistribution = await pool.query('SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY tier');
     
-    const today = new Date().toISOString().split('T')[0];
-    
     // Total ads all time
-    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards');
+    const totalAds = await pool.query('SELECT COUNT(*) FROM ad_rewards WHERE ad_type = $1', ['ad']);
     
-    // Ads today
-    const adsToday = await pool.query("SELECT COUNT(*) FROM ad_rewards WHERE created_at::date = CURRENT_DATE");
+    // ✅ Ads today (using Africa/Lagos timezone)
+    const adsToday = await pool.query(`
+      SELECT COUNT(*) FROM ad_rewards 
+      WHERE ad_type = 'ad'
+      AND created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')
+      AND created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')
+    `);
     
-    // Active Today = users who watched ads today OR logged in today
+    // ✅ Active Today = users who watched ads today ONLY
     const activeToday = await pool.query(`
-      SELECT COUNT(DISTINCT u.id) FROM users u
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at::date = $1
-      WHERE u.last_login_date = $1 OR ar.id IS NOT NULL
-    `, [today]);
+      SELECT COUNT(DISTINCT user_id) FROM ad_rewards 
+      WHERE ad_type = 'ad'
+      AND created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')
+      AND created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')
+    `);
     
+    // ✅ Active Week = users who watched ads in last 7 days
     const activeWeek = await pool.query(`
-      SELECT COUNT(DISTINCT u.id) FROM users u
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.created_at >= CURRENT_DATE - INTERVAL '7 days'
-      WHERE u.last_login_date >= CURRENT_DATE - INTERVAL '7 days' OR ar.id IS NOT NULL
+      SELECT COUNT(DISTINCT user_id) FROM ad_rewards 
+      WHERE ad_type = 'ad'
+      AND created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '6 days')
     `);
     
     const dailyActive = await pool.query(`
       SELECT 
-        activity_date,
+        DATE(created_at AT TIME ZONE 'Africa/Lagos') as activity_date,
         COUNT(DISTINCT user_id) as count
-      FROM (
-        SELECT u.id as user_id, u.last_login_date as activity_date
-        FROM users u
-        WHERE u.last_login_date >= CURRENT_DATE - INTERVAL '7 days'
-        UNION ALL
-        SELECT ar.user_id, ar.created_at::date
-        FROM ad_rewards ar
-        WHERE ar.created_at::date >= CURRENT_DATE - INTERVAL '7 days'
-      ) activities
-      GROUP BY activity_date
+      FROM ad_rewards
+      WHERE ad_type = 'ad'
+      AND created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '6 days')
+      GROUP BY DATE(created_at AT TIME ZONE 'Africa/Lagos')
       ORDER BY activity_date DESC
     `);
     
@@ -2965,8 +2964,8 @@ app.get('/api/admin/analytics', verifyAdmin, async (req, res) => {
       totalCoins: parseFloat(totalCoins.rows[0].total) || 0,
       pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
       tierDistribution: tierDistribution.rows,
-      activeToday: parseInt(activeToday.rows[0].count),
-      activeWeek: parseInt(activeWeek.rows[0].count),
+      activeToday: parseInt(activeToday.rows[0].count) || 0,
+      activeWeek: parseInt(activeWeek.rows[0].count) || 0,
       dailyActive: dailyActive.rows
     });
   } catch (err) {
