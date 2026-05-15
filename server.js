@@ -1801,11 +1801,10 @@ app.post('/api/daily-reward', verifyTelegramData, async (req, res) => {
       }
     }
 
-    // Calculate reward
-    const baseReward = 0.2;
-    const streakBonus = streak * 0.1;
-    let rewardCoins = baseReward + streakBonus;
-    if (streak % 7 === 0) rewardCoins += 1;
+    const baseReward = 2.0;
+const streakBonus = streak * 0.5;
+let rewardCoins = baseReward + streakBonus;
+if (streak % 7 === 0) rewardCoins += 10;
 
     const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
     const multipliers = { Fresher: 1.0, Brute: 1.5, Silver: 2.0, Gold: 2.5, Platinum: 3.0 };
