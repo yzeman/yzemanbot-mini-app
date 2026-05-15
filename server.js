@@ -4642,9 +4642,7 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
     }
 });
 
-// Add this temporary endpoint to your server.js
 app.get('/api/admin/test-failed-users', async (req, res) => {
-    // Check token from header OR query parameter
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
@@ -4654,7 +4652,12 @@ app.get('/api/admin/test-failed-users', async (req, res) => {
     }
     
     const BOT_TOKEN = process.env.BOT_TOKEN;
-    const failedIds = [7906788428, 6862957369];
+    
+    // ✅ Use IDs from URL, or fallback to default list
+    const idsParam = req.query.ids;
+    const failedIds = idsParam 
+        ? idsParam.split(',').map(id => parseInt(id.trim())) 
+        : [7906788428, 6862957369];
     
     const results = [];
     
