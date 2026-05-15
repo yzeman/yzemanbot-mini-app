@@ -4654,7 +4654,7 @@ app.get('/api/admin/test-failed-users', async (req, res) => {
     }
     
     const BOT_TOKEN = process.env.BOT_TOKEN;
-    const failedIds = [5234296323, 6185191213, 6638099517, 6834450485, 7248198947, 7635211009, 8126435892, 8145467604, 8322359356, 8376646392, 8545015977, 8743380717];
+    const failedIds = [7906788428, 6862957369];
     
     const results = [];
     
