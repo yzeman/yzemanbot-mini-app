@@ -3686,7 +3686,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   }
 });
 
-// TEMPORARY: Test weekly prize endpoint via GET
+// TEMPORARY: Test weekly prize endpoint via GET (FIXED DATE)
 app.get('/api/admin/test-weekly-prizes', async (req, res) => {
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token;
@@ -3698,18 +3698,21 @@ app.get('/api/admin/test-weekly-prizes', async (req, res) => {
   
   try {
     const now = new Date();
-    const dayOfWeek = now.getDay();
-    let daysSinceMonday = dayOfWeek - 1;
-    if (daysSinceMonday < 0) daysSinceMonday += 7;
+    // Today is Sunday May 18. Last week: Monday May 11 - Sunday May 17
+    const today = new Date();
+    const currentDay = today.getDay(); // 0=Sunday, 1=Monday...
     
-    const lastMonday = new Date(now);
-    lastMonday.setDate(now.getDate() - daysSinceMonday - 7);
+    // Last Sunday (end of last week) = today or most recent Sunday
+    const lastSunday = new Date(today);
+    lastSunday.setDate(today.getDate() - currentDay);
+    lastSunday.setHours(23, 59, 59, 999);
+    const lastSundayStr = lastSunday.toISOString().split('T')[0];
+    
+    // Last Monday (start of last week) = 6 days before last Sunday
+    const lastMonday = new Date(lastSunday);
+    lastMonday.setDate(lastSunday.getDate() - 6);
     lastMonday.setHours(0, 0, 0, 0);
     const lastMondayStr = lastMonday.toISOString().split('T')[0];
-    
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastMonday.getDate() + 6);
-    const lastSundayStr = lastSunday.toISOString().split('T')[0];
     
     const topReferrers = await pool.query(`
       SELECT u.first_name, COUNT(r.id) as referral_count
@@ -3724,6 +3727,8 @@ app.get('/api/admin/test-weekly-prizes', async (req, res) => {
     `, [lastMondayStr, lastSundayStr]);
     
     res.json({
+      today: today.toISOString().split('T')[0],
+      currentDay: currentDay,
       week: `${lastMondayStr} to ${lastSundayStr}`,
       top_referrers: topReferrers.rows
     });
@@ -3731,7 +3736,6 @@ app.get('/api/admin/test-weekly-prizes', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // ============================================
 // ADMIN: Award Tournament Prizes (Every Monday Midnight)
 // ============================================
