@@ -4763,18 +4763,18 @@ app.get('/api/admin/test-tournament-prizes', async (req, res) => {
     const lastMondayStr = lastMonday.toISOString().split('T')[0];
     
     const topParticipants = await pool.query(`
-      SELECT u.first_name, COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
-      FROM tournament_participants tp
-      JOIN users u ON tp.user_id = u.id
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
-        AND ar.created_at >= $2::date
-        AND ar.created_at < ($3::date + INTERVAL '1 day')::timestamp
-        AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
-      WHERE tp.tournament_id = (SELECT id FROM weekly_tournaments WHERE week_start = $2)
-      GROUP BY u.id, u.first_name
-      ORDER BY weekly_coins DESC
-      LIMIT 5
-    `, [null, lastMondayStr, lastSundayStr]);
+  SELECT u.first_name, COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
+  FROM tournament_participants tp
+  JOIN users u ON tp.user_id = u.id
+  LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+    AND ar.created_at >= $1::date
+    AND ar.created_at < ($2::date + INTERVAL '1 day')::timestamp
+    AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
+  WHERE tp.tournament_id = (SELECT id FROM weekly_tournaments WHERE week_start = $1)
+  GROUP BY u.id, u.first_name
+  ORDER BY weekly_coins DESC
+  LIMIT 5
+`, [lastMondayStr, lastSundayStr]);
     
     res.json({ week: `${lastMondayStr} to ${lastSundayStr}`, top_participants: topParticipants.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
