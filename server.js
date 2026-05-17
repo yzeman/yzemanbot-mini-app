@@ -3686,6 +3686,48 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   }
 });
 
+// TEMPORARY: Test weekly prize endpoint via GET
+app.get('/api/admin/test-weekly-prizes', verifyAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    let daysSinceMonday = dayOfWeek - 1;
+    if (daysSinceMonday < 0) daysSinceMonday += 7;
+    
+    const lastMonday = new Date(now);
+    lastMonday.setDate(now.getDate() - daysSinceMonday - 7);
+    lastMonday.setHours(0, 0, 0, 0);
+    const lastMondayStr = lastMonday.toISOString().split('T')[0];
+    
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    const lastSundayStr = lastSunday.toISOString().split('T')[0];
+    
+    // Just check what the query returns (don't award)
+    const topReferrers = await client.query(`
+      SELECT u.first_name, COUNT(r.id) as referral_count
+      FROM users u
+      LEFT JOIN referrals r ON u.id = r.referrer_id 
+        AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') >= $1
+        AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') <= $2
+      GROUP BY u.id, u.first_name
+      HAVING COUNT(r.id) > 0
+      ORDER BY referral_count DESC
+      LIMIT 3
+    `, [lastMondayStr, lastSundayStr]);
+    
+    res.json({
+      week: `${lastMondayStr} to ${lastSundayStr}`,
+      top_referrers: topReferrers.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // ============================================
 // ADMIN: Award Tournament Prizes (Every Monday Midnight)
 // ============================================
