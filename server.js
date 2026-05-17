@@ -3119,7 +3119,7 @@ app.get('/api/admin/referral-winners', async (req, res) => {
         `, [weekStartStr, weekEndStr]);
         
         // Add proper prize amounts
-        const prizeTiers = { 1: 3500, 2: 2000, 3: 1000 };
+        const prizeTiers = { 1: 10000, 2: 5000, 3: 2500 };
         const result = winners.rows.map((w, i) => ({
             ...w,
             rank: i + 1,
