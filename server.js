@@ -3614,31 +3614,30 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Weekly Prizes (FIXED DATE RANGE)
+// ADMIN: Award Weekly Prizes (CORRECTED DATE)
 // ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    const now = new Date();
-    const dayOfWeek = now.getDay();
+    const today = new Date();
+    const currentDay = today.getDay(); // 0=Sunday, 1=Monday...
     
-    // Calculate last Monday (start of last week)
-    let daysSinceMonday = dayOfWeek - 1;
-    if (daysSinceMonday < 0) daysSinceMonday += 7;
+    // Last Sunday (end of last week) = most recent Sunday
+    const lastSunday = new Date(today);
+    lastSunday.setDate(today.getDate() - currentDay);
+    lastSunday.setHours(23, 59, 59, 999);
+    const lastSundayStr = lastSunday.toISOString().split('T')[0];
     
-    const lastMonday = new Date(now);
-    lastMonday.setDate(now.getDate() - daysSinceMonday - 7);
+    // Last Monday (start of last week) = 6 days before last Sunday
+    const lastMonday = new Date(lastSunday);
+    lastMonday.setDate(lastSunday.getDate() - 6);
     lastMonday.setHours(0, 0, 0, 0);
-    const lastMondayStr = lastMonday.toISOString().split('T')[0]; // "2026-05-11"
+    const lastMondayStr = lastMonday.toISOString().split('T')[0];
     
-    // Last Sunday (end of last week)
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastMonday.getDate() + 6);
-    const lastSundayStr = lastSunday.toISOString().split('T')[0]; // "2026-05-17"
+    console.log(`📅 Referral week: ${lastMondayStr} to ${lastSundayStr}`);
     
-    // ✅ FIXED: Use DATE() with Africa/Lagos timezone
     const topReferrers = await client.query(`
       SELECT u.id, u.first_name, u.telegram_id, COUNT(r.id) as referral_count
       FROM users u
