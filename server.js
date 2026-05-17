@@ -3614,7 +3614,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Weekly Prizes (Full Monday-Sunday Week)
+// ADMIN: Award Weekly Prizes (FIXED DATE RANGE)
 // ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
@@ -3629,25 +3629,27 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
     if (daysSinceMonday < 0) daysSinceMonday += 7;
     
     const lastMonday = new Date(now);
-    lastMonday.setDate(now.getDate() - daysSinceMonday - 7); // Go back 1 week
+    lastMonday.setDate(now.getDate() - daysSinceMonday - 7);
     lastMonday.setHours(0, 0, 0, 0);
+    const lastMondayStr = lastMonday.toISOString().split('T')[0]; // "2026-05-11"
     
     // Last Sunday (end of last week)
     const lastSunday = new Date(lastMonday);
     lastSunday.setDate(lastMonday.getDate() + 6);
-    lastSunday.setHours(23, 59, 59, 999);
+    const lastSundayStr = lastSunday.toISOString().split('T')[0]; // "2026-05-17"
     
+    // ✅ FIXED: Use DATE() with Africa/Lagos timezone
     const topReferrers = await client.query(`
       SELECT u.id, u.first_name, u.telegram_id, COUNT(r.id) as referral_count
       FROM users u
       LEFT JOIN referrals r ON u.id = r.referrer_id 
-        AND r.created_at >= $1
-        AND r.created_at <= $2
+        AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') >= $1
+        AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') <= $2
       GROUP BY u.id
       HAVING COUNT(r.id) > 0
       ORDER BY referral_count DESC
       LIMIT 3
-    `, [lastMonday.toISOString(), lastSunday.toISOString()]);
+    `, [lastMondayStr, lastSundayStr]);
     
     const prizes = [10000, 5000, 2500];
     
@@ -3656,7 +3658,6 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       const prize = prizes[i];
       const rank = i + 1;
       
-      // ✅ Already has HAVING COUNT(r.id) > 0, but double check
       if (user.referral_count > 0) {
         await client.query(
           'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
