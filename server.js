@@ -4742,10 +4742,95 @@ app.get('/api/admin/test-failed-users', async (req, res) => {
     
     res.json(results);
 });
-// ============================================
-// HEALTH CHECK & WEBHOOK
-// ============================================
+// TEMPORARY: Test tournament prize query
+app.get('/api/admin/test-tournament-prizes', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const queryToken = req.query.token;
+  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
+  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
+  
+  try {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const lastSunday = new Date(today);
+    lastSunday.setDate(today.getDate() - currentDay);
+    lastSunday.setHours(23, 59, 59, 999);
+    const lastSundayStr = lastSunday.toISOString().split('T')[0];
+    
+    const lastMonday = new Date(lastSunday);
+    lastMonday.setDate(lastSunday.getDate() - 6);
+    lastMonday.setHours(0, 0, 0, 0);
+    const lastMondayStr = lastMonday.toISOString().split('T')[0];
+    
+    const topParticipants = await pool.query(`
+      SELECT u.first_name, COALESCE(SUM(ar.reward_amount), 0) as weekly_coins
+      FROM tournament_participants tp
+      JOIN users u ON tp.user_id = u.id
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
+        AND ar.created_at >= $2::date
+        AND ar.created_at < ($3::date + INTERVAL '1 day')::timestamp
+        AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
+      WHERE tp.tournament_id = (SELECT id FROM weekly_tournaments WHERE week_start = $2)
+      GROUP BY u.id, u.first_name
+      ORDER BY weekly_coins DESC
+      LIMIT 5
+    `, [null, lastMondayStr, lastSundayStr]);
+    
+    res.json({ week: `${lastMondayStr} to ${lastSundayStr}`, top_participants: topParticipants.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
+// TEMPORARY: Test leaderboard prize query
+app.get('/api/admin/test-leaderboard-prizes', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const queryToken = req.query.token;
+  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
+  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
+  
+  try {
+    const lastMonth = await pool.query(`SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start`);
+    const monthStart = lastMonth.rows[0].month_start;
+    
+    const topEarners = await pool.query(`
+      SELECT u.first_name, ume.coins_earned as monthly_coins
+      FROM user_monthly_earnings ume
+      JOIN users u ON ume.user_id = u.id
+      WHERE ume.month_year = $1 AND ume.coins_earned > 0
+      ORDER BY ume.coins_earned DESC
+      LIMIT 5
+    `, [monthStart]);
+    
+    res.json({ month: monthStart.toISOString().split('T')[0], top_earners: topEarners.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// TEMPORARY: Test team prize query
+app.get('/api/admin/test-team-prizes', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const queryToken = req.query.token;
+  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
+  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
+  
+  try {
+    const lastMonth = await pool.query(`SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start`);
+    const monthStart = lastMonth.rows[0].month_start;
+    
+    const topTeams = await pool.query(`
+      SELECT t.name as team_name, COUNT(tm.id) as members,
+        COALESCE(SUM(ume.coins_earned), 0) as monthly_coins
+      FROM teams t
+      LEFT JOIN team_members tm ON t.id = tm.team_id
+      LEFT JOIN users u ON tm.user_id = u.id
+      LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = $1
+      GROUP BY t.id, t.name
+      HAVING COUNT(tm.id) > 0
+      ORDER BY monthly_coins DESC
+      LIMIT 3
+    `, [monthStart]);
+    
+    res.json({ month: monthStart.toISOString().split('T')[0], top_teams: topTeams.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
