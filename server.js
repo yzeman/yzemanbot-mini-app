@@ -3006,14 +3006,14 @@ app.get('/api/admin/tournament-winners', async (req, res) => {
                 u.first_name,
                 tp.rank,
                 COALESCE(SUM(ar.reward_amount), 0) as weekly_coins,
-                CASE WHEN tp.rank = 1 THEN 2000 WHEN tp.rank = 2 THEN 1000 WHEN tp.rank = 3 THEN 500 END as prize_amount,
+                CASE WHEN tp.rank = 1 THEN 8000 WHEN tp.rank = 2 THEN 5000 WHEN tp.rank = 3 THEN 3000 END as prize_amount,
                 to_char($2::date, 'Mon DD') || ' - ' || to_char($3::date, 'Mon DD, YYYY') as week_label
             FROM tournament_participants tp
             JOIN users u ON tp.user_id = u.id
             LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
                 AND ar.created_at >= $2
                 AND ar.created_at < ($3::date + 1)::timestamp
-                AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
+                AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
             WHERE tp.tournament_id = $1 AND tp.rank IN (1, 2, 3)
             GROUP BY u.id, u.first_name, tp.rank
             ORDER BY tp.rank ASC
