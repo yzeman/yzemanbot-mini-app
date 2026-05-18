@@ -31,8 +31,10 @@
             overflow-x: hidden;
         }
         body {
-    overscroll-behavior-y: none;
-    -webkit-overscroll-behavior-y: none;
+    overscroll-behavior: none;
+    -webkit-overscroll-behavior: none;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
 }
         /* Refresh Indicator */
         .refresh-indicator {
@@ -1686,6 +1688,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 })();
+</script>
+<script>
+    // Prevent accidental mini app close on scroll
+let touchStartY = 0;
+let isScrolling = false;
+
+document.addEventListener('touchstart', function(e) {
+    touchStartY = e.touches[0].clientY;
+    isScrolling = false;
+}, { passive: true });
+
+document.addEventListener('touchmove', function(e) {
+    const touchY = e.touches[0].clientY;
+    const diff = touchY - touchStartY;
+    
+    // If user is clearly scrolling the page content, prevent close
+    if (Math.abs(diff) > 10 && window.scrollY > 0) {
+        isScrolling = true;
+    }
+}, { passive: true });
 </script>
 </body>
 </html>
