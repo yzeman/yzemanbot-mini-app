@@ -448,16 +448,57 @@ async function runCleanupJob() {
         );
         console.log(`🗑️ Deleted ${typeResult.rowCount} old typing statuses`);
         
-        // ✅ Delete inactive users (4 months)
-        const inactiveUsers = await client.query(`
+        // ============================================
+        // ✅ SOFT DELETE: Users inactive for 4-12 months
+        // ============================================
+        const softDeleteUsers = await client.query(`
             SELECT id, telegram_id, first_name 
             FROM users 
             WHERE last_seen IS NOT NULL 
             AND last_seen < NOW() - INTERVAL '4 months'
+            AND last_seen >= NOW() - INTERVAL '1 year'
+            AND coins > 0
         `);
-        
-        if (inactiveUsers.rows.length > 0) {
-            for (const user of inactiveUsers.rows) {
+
+        if (softDeleteUsers.rows.length > 0) {
+            for (const user of softDeleteUsers.rows) {
+                // Delete personal history data
+                await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM user_achievements WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM social_tasks WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM user_monthly_earnings WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM team_members WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM private_messages WHERE sender_id = $1 OR receiver_id = $1', [user.id]);
+                
+                // ✅ KEEP user account but reset coins
+                await client.query(`
+                    UPDATE users SET 
+                        coins = 0, 
+                        total_coins_earned = 0, 
+                        last_seen = NULL,
+                        wallet_address = NULL
+                    WHERE id = $1
+                `, [user.id]);
+            }
+            console.log(`🧹 Soft deleted ${softDeleteUsers.rows.length} users (4+ months inactive)`);
+        }
+
+        // ============================================
+        // ✅ FULL DELETE: Users inactive for 1+ year
+        // ============================================
+        const fullDeleteUsers = await client.query(`
+            SELECT id, telegram_id, first_name 
+            FROM users 
+            WHERE last_seen IS NOT NULL 
+            AND last_seen < NOW() - INTERVAL '1 year'
+        `);
+
+        if (fullDeleteUsers.rows.length > 0) {
+            for (const user of fullDeleteUsers.rows) {
                 await client.query('DELETE FROM referral_commissions WHERE referrer_id = $1 OR referred_id = $1', [user.id]);
                 await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [user.id]);
                 await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [user.id]);
@@ -472,9 +513,11 @@ async function runCleanupJob() {
                 await client.query('DELETE FROM private_messages WHERE sender_id = $1 OR receiver_id = $1', [user.id]);
                 await client.query('DELETE FROM users WHERE id = $1', [user.id]);
             }
-            console.log(`🗑️ Deleted ${inactiveUsers.rows.length} inactive users (4+ months)`);
-        } else {
-            console.log('✅ No inactive users to delete');
+            console.log(`🗑️ Fully deleted ${fullDeleteUsers.rows.length} users (1+ year inactive)`);
+        }
+
+        if (softDeleteUsers.rows.length === 0 && fullDeleteUsers.rows.length === 0) {
+            console.log('✅ No inactive users to clean up');
         }
         
         // Reclaim space
@@ -1380,7 +1423,7 @@ try {
 
 
 // ============================================
-// USER API ENDPOINT (UPDATED FOR COINS + LAST SEEN)
+// USER API ENDPOINT (UPDATED FOR COINS + LAST SEEN + RETURNING USER)
 // ============================================
 app.post('/api/user', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -1399,8 +1442,38 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     );
     
     let user;
+    let isReturningUser = false; // ✅ Track if user was soft-deleted
     
     if (existingUser.rows.length > 0) {
+      // ✅ CHECK IF USER WAS SOFT-DELETED (coins = 0 and last_seen was null)
+      if (parseFloat(existingUser.rows[0].coins) === 0 && existingUser.rows[0].last_seen === null) {
+        isReturningUser = true;
+        console.log(`👋 Returning user detected: ${first_name} (${id}) — balance was reset due to inactivity`);
+        
+        // Send welcome back message via Telegram bot
+        const BOT_TOKEN = process.env.BOT_TOKEN;
+        if (BOT_TOKEN) {
+          const referrals = existingUser.rows[0].referrals || 0;
+          const tier = existingUser.rows[0].tier || 'Fresher';
+          const welcomeMessage = `👋 *WELCOME BACK TO YZEMANBOT\\!*\n\nYou've been inactive for a while, so your COINS balance was reset to *0*\\.\n\nBut don't worry — your progress is safe:\n👥 *Referrals:* ${referrals}\n🏆 *Tier:* ${tier}\n\nHere's a fresh start — watch ads, spin the wheel, and join tournaments to rebuild your earnings\\!\n\n🚀 *Start earning again now\\!*`;
+          
+          try {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: id,
+                text: welcomeMessage,
+                parse_mode: 'Markdown'
+              })
+            });
+            console.log(`📨 Welcome back message sent to returning user ${id}`);
+          } catch (e) {
+            console.error('Failed to send welcome back message:', e);
+          }
+        }
+      }
+      
       // UPDATE EXISTING USER - Added last_seen
       const updateQuery = `
         UPDATE users 
@@ -1416,6 +1489,7 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         first_name, last_name, username, photo_url, walletAddress, id
       ]);
       user = result.rows[0];
+      user.is_returning = isReturningUser; // ✅ Add flag to user object
       console.log(`✅ Existing user ${id} updated, last_seen set`);
     } else {
       // NEW USER - Create account with last_seen
@@ -1536,8 +1610,8 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     );
     
     await client.query('COMMIT');
-    console.log(`📤 Response sent for user ${id}: coins=${user.coins}, referrals=${stats?.referrals || 0}`);
-    res.json({ ...user, ...stats });
+    console.log(`📤 Response sent for user ${id}: coins=${user.coins}, referrals=${stats?.referrals || 0}, returning=${isReturningUser}`);
+    res.json({ ...user, ...stats, is_returning: isReturningUser });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('❌ User Error:', err);
@@ -1546,7 +1620,6 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
     client.release();
   }
 });
-
 // ============================================
 // TOURNAMENT UNREAD COUNT
 // ============================================
