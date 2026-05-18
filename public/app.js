@@ -9,8 +9,18 @@
 
 const tg = window.Telegram?.WebApp;
 if (tg) {
-    tg.expand();
     tg.ready();
+    tg.expand();
+    
+    // ✅ Prevent accidental close when scrolling
+    tg.onEvent('viewportChanged', function(data) {
+        if (data.isStateStable) {
+            // Viewport is stable, user isn't trying to close
+        }
+    });
+    
+    // Disable vertical swipes closing the app
+    tg.disableVerticalSwipes();
 }
 
 // ============================================================
