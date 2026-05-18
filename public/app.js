@@ -581,6 +581,15 @@ function updateUI() {
         if (!currentUser) return;
     }
     
+    // ✅ CHECK IF USER IS RETURNING AFTER SOFT DELETE
+    if (currentUser.is_returning) {
+        const referrals = currentUser.referrals || 0;
+        const tier = currentUser.tier || 'Fresher';
+        const welcomeMsg = `👋 Welcome back! Your coins were reset due to inactivity, but your referrals (${referrals}) and tier (${tier}) are safe. Start earning again!`;
+        showNotification(welcomeMsg, false);
+        currentUser.is_returning = false;
+    }
+    
     const coins = parseFloat(currentUser.coins) || 0;
     const progress = Math.min((coins / COIN_ECONOMY.MIN_WITHDRAWAL_COINS) * 100, 100);
     
