@@ -499,6 +499,13 @@ async function runCleanupJob() {
 
         if (fullDeleteUsers.rows.length > 0) {
             for (const user of fullDeleteUsers.rows) {
+                // ✅ Decrease referral count for whoever referred this user
+                await client.query(`
+                    UPDATE users SET referrals = GREATEST(referrals - 1, 0)
+                    WHERE id IN (SELECT referrer_id FROM referrals WHERE referred_id = $1)
+                `, [user.id]);
+                
+                // Delete all related records
                 await client.query('DELETE FROM referral_commissions WHERE referrer_id = $1 OR referred_id = $1', [user.id]);
                 await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [user.id]);
                 await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [user.id]);
@@ -513,6 +520,14 @@ async function runCleanupJob() {
                 await client.query('DELETE FROM private_messages WHERE sender_id = $1 OR receiver_id = $1', [user.id]);
                 await client.query('DELETE FROM users WHERE id = $1', [user.id]);
             }
+            
+            // ✅ Recalculate all referral counts to ensure accuracy
+            await client.query(`
+                UPDATE users u SET referrals = COALESCE((
+                    SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id
+                ), 0)
+            `);
+            
             console.log(`🗑️ Fully deleted ${fullDeleteUsers.rows.length} users (1+ year inactive)`);
         }
 
