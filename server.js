@@ -448,6 +448,35 @@ async function runCleanupJob() {
         );
         console.log(`🗑️ Deleted ${typeResult.rowCount} old typing statuses`);
         
+        // ✅ Delete inactive users (4 months)
+        const inactiveUsers = await client.query(`
+            SELECT id, telegram_id, first_name 
+            FROM users 
+            WHERE last_seen IS NOT NULL 
+            AND last_seen < NOW() - INTERVAL '4 months'
+        `);
+        
+        if (inactiveUsers.rows.length > 0) {
+            for (const user of inactiveUsers.rows) {
+                await client.query('DELETE FROM referral_commissions WHERE referrer_id = $1 OR referred_id = $1', [user.id]);
+                await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [user.id]);
+                await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM user_achievements WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM social_tasks WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM user_monthly_earnings WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM team_members WHERE user_id = $1', [user.id]);
+                await client.query('DELETE FROM private_messages WHERE sender_id = $1 OR receiver_id = $1', [user.id]);
+                await client.query('DELETE FROM users WHERE id = $1', [user.id]);
+            }
+            console.log(`🗑️ Deleted ${inactiveUsers.rows.length} inactive users (4+ months)`);
+        } else {
+            console.log('✅ No inactive users to delete');
+        }
+        
         // Reclaim space
         await client.query('VACUUM');
         console.log('✅ Cleanup completed successfully');
