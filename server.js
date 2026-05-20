@@ -2492,7 +2492,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
       JOIN users u ON tp.user_id = u.id
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $2
-        AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
+        AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
       WHERE tp.tournament_id = $1
       GROUP BY u.id
       ORDER BY weekly_coins DESC
@@ -3130,7 +3130,7 @@ app.get('/api/admin/tournament-winners', async (req, res) => {
             LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
                 AND ar.created_at >= $2
                 AND ar.created_at < ($3::date + 1)::timestamp
-                AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
+                AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
             WHERE tp.tournament_id = $1 AND tp.rank IN (1, 2, 3)
             GROUP BY u.id, u.first_name, tp.rank
             ORDER BY tp.rank ASC
@@ -3891,7 +3891,7 @@ app.post('/api/admin/award-tournament-prizes', verifyAdmin, async (req, res) => 
   LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
     AND ar.created_at >= $2
     AND ar.created_at < ($3::date + 1)::timestamp
-    AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
+    AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
   WHERE tp.tournament_id = $1
   GROUP BY u.id
   ORDER BY weekly_coins DESC
@@ -4886,7 +4886,7 @@ app.get('/api/admin/test-tournament-prizes', async (req, res) => {
   LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
     AND ar.created_at >= $1::date
     AND ar.created_at < ($2::date + INTERVAL '1 day')::timestamp
-    AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task')
+    AND ar.ad_type IN ('ad', 'daily', 'wheel', 'task')
   WHERE tp.tournament_id = (SELECT id FROM weekly_tournaments WHERE week_start = $1)
   GROUP BY u.id, u.first_name
   ORDER BY weekly_coins DESC
