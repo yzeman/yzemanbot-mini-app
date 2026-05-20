@@ -4948,6 +4948,27 @@ app.get('/api/admin/test-team-prizes', async (req, res) => {
     res.json({ month: monthStart.toISOString().split('T')[0], top_teams: topTeams.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// Download user IDs as text file
+app.get('/api/admin/download-user-ids', async (req, res) => {
+  const queryToken = req.query.token;
+  if (queryToken !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
+  
+  try {
+    const result = await pool.query(
+      'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL ORDER BY telegram_id'
+    );
+    
+    const ids = result.rows.map(row => row.telegram_id).join('\n');
+    
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', 'attachment; filename=bot_users.txt');
+    res.send(ids);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
