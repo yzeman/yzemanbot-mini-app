@@ -491,6 +491,9 @@
         <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
         <p>Manage users, withdrawals, teams & bonus codes</p>
         <button class="header-refresh-btn" onclick="refreshAllStats()"><i class="fas fa-sync"></i> Refresh All Stats</button>
+        <button onclick="downloadUserIds()" style="background: var(--secondary); color: white; border: none; padding: 10px 15px; border-radius: 20px; cursor: pointer; margin-top: 10px;">
+    <i class="fas fa-download"></i> Download User IDs
+</button>
     </div>
     
     <!-- Stats Cards -->
@@ -1454,6 +1457,10 @@ try {
             }
         }
     }
+
+     async function downloadUserIds() {
+    window.open('/api/admin/download-user-ids?token=admin123', '_blank');
+}   
     
     async function loadTodayUserActivity() {
         const container = document.getElementById('todayActivityList');
