@@ -58,12 +58,17 @@ const COIN_ECONOMY = {
     COMMISSION_RATE: 0.02,
     
     AD_STREAK_BONUSES: { 
-        5: 25,
-        10: 75,
-        25: 250,
-        50: 750,
-        100: 2500
-    },
+    5: 25,
+    10: 75,
+    25: 250,
+    50: 750,
+    100: 2500,
+    200: 5000,
+    300: 10000,
+    500: 25000,
+    750: 50000,
+    1000: 100000
+},
     
     LUCKY_AD_CHANCE: 0.15,
     GOLDEN_AD_CHANCE: 0.05,
@@ -91,7 +96,7 @@ const COIN_ECONOMY = {
     WHEEL_PRIZES: [200, 200, 300, 500, 500, 300, 1000, 500, 2000, 1000, 5000, 2000],
     
     SOCIAL_TASK_REWARDS: {
-    'youtube1': 500,    // Subscribe on YouTube
+    'youtube': 500,    // Subscribe on YouTube
     'twitter': 500,     // Follow on X
     'facebook': 500,    // Like on Facebook
     'instagram': 500,   // Follow on Instagram
