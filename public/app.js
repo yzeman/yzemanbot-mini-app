@@ -93,7 +93,7 @@ const COIN_ECONOMY = {
     DAILY_BASE_REWARD: 2.0,
     DAILY_STREAK_BONUS: 0.5,
     
-    WHEEL_PRIZES: [200, 200, 300, 500, 500, 300, 1000, 500, 2000, 1000, 5000, 2000],
+    WHEEL_PRIZES: [200, 300, 500, 1000, 2000, 5000, 200, 300, 500, 1000, 2000, 500],
     
     SOCIAL_TASK_REWARDS: {
     'youtube': 500,    // Subscribe on YouTube
