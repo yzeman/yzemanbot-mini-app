@@ -3731,7 +3731,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Weekly Prizes (CORRECTED DATE)
+// ADMIN: Award Weekly Prizes (FIXED DATE RANGE)
 // ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
@@ -3759,8 +3759,8 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       SELECT u.id, u.first_name, u.telegram_id, COUNT(r.id) as referral_count
       FROM users u
       LEFT JOIN referrals r ON u.id = r.referrer_id 
-        AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') >= $1
-        AND DATE(r.created_at AT TIME ZONE 'Africa/Lagos') <= $2
+        AND r.created_at::date >= $1::date
+        AND r.created_at::date <= $2::date
       GROUP BY u.id
       HAVING COUNT(r.id) > 0
       ORDER BY referral_count DESC
