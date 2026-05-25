@@ -723,25 +723,21 @@
                 const totalCoins = parseFloat(user.coins) || parseFloat(user.total_coins) || 0;
                 
                 return `
-                    <div class="leaderboard-item ${tierClass} ${currentUserClass}">
-                        <div class="${rank <= 3 ? 'medal-badge' : 'rank-badge'}">${rankDisplay}</div>
-                        <div class="avatar">
-                            ${user.photo_url ? `<img src="${user.photo_url}" alt="${escapeHtml(shortName)}">` : avatarInitial}
-                        </div>
-                        <div class="info">
-                            <div class="name-row">
-                                <span class="name">${escapeHtml(shortName)}</span>
-                                <span class="tier-badge">${user.tier || 'Fresher'}</span>
-                                ${isCurrentUser ? '<span class="you-badge">YOU</span>' : ''}
-                            </div>
-                            <div class="stats-row">
-                                <span><i class="fas fa-user-plus"></i> ${(user.referrals || 0).toLocaleString()}</span>
-                                <span><i class="fas fa-coins"></i> ${formatNumberWithCommas(totalCoins)}</span>
-                            </div>
-                        </div>
-                        <div class="score">${score} <small>${scoreLabel}</small></div>
-                    </div>
-                `;
+    <div class="leaderboard-item ${tierClass} ${currentUserClass}">
+        <div class="${rank <= 3 ? 'medal-badge' : 'rank-badge'}">${rankDisplay}</div>
+        <div class="avatar">
+            ${user.photo_url ? `<img src="${user.photo_url}" alt="${escapeHtml(shortName)}">` : avatarInitial}
+        </div>
+        <div class="info">
+            <div class="name-row">
+                <span class="name">${escapeHtml(shortName)}</span>
+                <span class="tier-badge">${user.tier || 'Fresher'}</span>
+                ${isCurrentUser ? '<span class="you-badge">YOU</span>' : ''}
+            </div>
+        </div>
+        <div class="score">${score} <small>${scoreLabel}</small></div>
+    </div>
+`;
             }).join('');
         }
 
