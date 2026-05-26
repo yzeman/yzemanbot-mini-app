@@ -1264,10 +1264,16 @@
     
     // ✅ Only show toast if this user is actually a friend
     try {
+        const initData = window.Telegram?.WebApp?.initData;
+        if (!initData) {
+            showOnlineToast(data.firstName);
+            return;
+        }
+        
         const friendsRes = await fetch('/api/friends/list', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: tg.initData })
+            body: JSON.stringify({ initData: initData })
         });
         const friendsData = await friendsRes.json();
         const isFriend = (friendsData.friends || []).some(f => f.id === data.userId);
@@ -1276,7 +1282,7 @@
             showOnlineToast(data.firstName);
         }
     } catch (err) {
-        // If we can't verify, still show it (better than missing)
+        // If we can't verify, still show it
         showOnlineToast(data.firstName);
     }
 });
