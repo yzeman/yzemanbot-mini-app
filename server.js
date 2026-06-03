@@ -1392,6 +1392,34 @@ socket.on('send-tournament-message', async (data) => {
         socket.emit('message-error', { error: 'Failed to send' });
     }
 });
+
+    // Tournament Chat - Edit & Delete
+socket.on('edit-tournament-message', async (data) => {
+    const { messageId, newMessage, userId } = data;
+    if (!newMessage || newMessage.trim().length === 0 || newMessage.length > 500) return;
+    try {
+        const result = await pool.query(
+            'UPDATE tournament_messages SET message = $1, is_edited = true, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING id',
+            [newMessage.trim(), messageId, userId]
+        );
+        if (result.rows.length > 0) {
+            io.to('tournament_chat').emit('message-edited', { messageId, newMessage: newMessage.trim() });
+        }
+    } catch (err) { socket.emit('message-error', { error: 'Failed to edit' }); }
+});
+
+socket.on('delete-tournament-message', async (data) => {
+    const { messageId, userId } = data;
+    try {
+        const result = await pool.query(
+            'DELETE FROM tournament_messages WHERE id = $1 AND user_id = $2 RETURNING id',
+            [messageId, userId]
+        );
+        if (result.rows.length > 0) {
+            io.to('tournament_chat').emit('message-deleted', { messageId });
+        }
+    } catch (err) { socket.emit('message-error', { error: 'Failed to delete' }); }
+});
     
     // ============================================
     // DISCONNECT
