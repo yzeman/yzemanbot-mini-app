@@ -29,201 +29,82 @@
             flex-direction: column;
             overflow: hidden;
         }
-        
         .chat-header {
             background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1a 100%);
-            padding: 15px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-bottom: 1px solid rgba(255,215,0,0.2);
-            flex-shrink: 0;
+            padding: 15px; display: flex; align-items: center; gap: 12px;
+            border-bottom: 1px solid rgba(255,215,0,0.2); flex-shrink: 0;
         }
         .back-btn {
-            color: white;
-            font-size: 20px;
-            text-decoration: none;
-            background: rgba(0,0,0,0.3);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            color: white; font-size: 20px; text-decoration: none;
+            background: rgba(0,0,0,0.3); width: 36px; height: 36px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
         }
-        .chat-info h2 {
-            font-size: 18px;
-            margin-bottom: 2px;
-        }
-        .chat-info p {
-            font-size: 11px;
-            color: var(--gray);
-        }
-        
-        .messages-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .message {
-            display: flex;
-            gap: 10px;
-            max-width: 85%;
-            position: relative;
-        }
-        .message-own {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
+        .chat-info h2 { font-size: 18px; margin-bottom: 2px; }
+        .chat-info p { font-size: 11px; color: var(--gray); }
+        .messages-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .message { display: flex; gap: 10px; max-width: 85%; position: relative; }
+        .message-own { align-self: flex-end; flex-direction: row-reverse; }
         .message-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
+            width: 36px; height: 36px; border-radius: 50%;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            flex-shrink: 0;
-            color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; font-weight: bold; flex-shrink: 0; color: white;
         }
         .message-bubble {
-            background: rgba(22, 33, 62, 0.9);
-            border-radius: 18px;
-            padding: 10px 14px;
-            max-width: 100%;
-            position: relative;
+            background: rgba(22, 33, 62, 0.9); border-radius: 18px;
+            padding: 10px 14px; max-width: 100%; position: relative;
         }
-        .message-own .message-bubble {
-            background: linear-gradient(135deg, #FF9800, #F44336);
-        }
-        .message-sender {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--gold);
-            margin-bottom: 3px;
-        }
-        .message-text {
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-        .message-time {
-            font-size: 9px;
-            color: var(--gray);
-            margin-top: 4px;
-            text-align: right;
-        }
-        
-        .system-message {
-            text-align: center;
-            font-size: 11px;
-            color: var(--gray);
-            padding: 5px;
-            margin: 5px 0;
-        }
-        
+        .message-own .message-bubble { background: linear-gradient(135deg, #FF9800, #F44336); }
+        .message-sender { font-size: 11px; font-weight: 600; color: var(--gold); margin-bottom: 3px; }
+        .message-text { font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+        .message-time { font-size: 9px; color: var(--gray); margin-top: 4px; text-align: right; }
+        .edited-badge { font-size: 8px; color: var(--gray); margin-left: 5px; }
+        .system-message { text-align: center; font-size: 11px; color: var(--gray); padding: 5px; margin: 5px 0; }
         .warning-message {
-            text-align: center;
-            font-size: 11px;
-            color: var(--danger);
-            padding: 5px;
-            margin: 5px 0;
-            background: rgba(244,67,54,0.1);
-            border-radius: 8px;
+            text-align: center; font-size: 11px; color: var(--danger); padding: 5px;
+            margin: 5px 0; background: rgba(244,67,54,0.1); border-radius: 8px;
         }
-        
-        .typing-indicator {
-            padding: 8px 15px;
-            font-size: 11px;
-            color: var(--gray);
-            display: flex;
-            align-items: center;
-            gap: 5px;
+        .message-actions {
+            position: fixed; background: var(--darker); border-radius: 12px; padding: 8px;
+            display: none; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
         }
-        .typing-dots {
-            display: flex;
-            gap: 3px;
+        .message-actions button {
+            background: none; border: none; color: white; padding: 8px 16px;
+            width: 100%; text-align: left; cursor: pointer; border-radius: 8px; font-size: 13px;
         }
-        .typing-dots span {
-            width: 6px;
-            height: 6px;
-            background: var(--gold);
-            border-radius: 50%;
-            animation: typing 1.4s infinite;
-        }
+        .message-actions button:hover { background: rgba(255,255,255,0.1); }
+        .message-actions .delete-btn { color: #f44336; }
+        .typing-indicator { padding: 8px 15px; font-size: 11px; color: var(--gray); display: flex; align-items: center; gap: 5px; }
+        .typing-dots { display: flex; gap: 3px; }
+        .typing-dots span { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: typing 1.4s infinite; }
         .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
         .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes typing {
             0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
             30% { transform: translateY(-4px); opacity: 1; }
         }
-        
         .input-area {
-            padding: 12px;
-            background: rgba(22, 33, 62, 0.95);
-            border-top: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            gap: 10px;
-            flex-shrink: 0;
+            padding: 12px; background: rgba(22, 33, 62, 0.95);
+            border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; flex-shrink: 0;
         }
         .message-input {
-            flex: 1;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--gray);
-            border-radius: 25px;
-            padding: 12px 16px;
-            color: white;
-            font-size: 14px;
-            outline: none;
+            flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--gray);
+            border-radius: 25px; padding: 12px 16px; color: white; font-size: 14px; outline: none;
         }
-        .message-input:focus {
-            border-color: var(--primary);
-        }
+        .message-input:focus { border-color: var(--primary); }
         .send-btn {
-            background: linear-gradient(135deg, #FF9800, #F44336);
-            border: none;
-            width: 46px;
-            height: 46px;
-            border-radius: 50%;
-            color: white;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: linear-gradient(135deg, #FF9800, #F44336); border: none;
+            width: 46px; height: 46px; border-radius: 50%; color: white;
+            font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
         .send-btn:active { transform: scale(0.95); }
         .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .loading-messages {
-            text-align: center;
-            padding: 30px;
-            color: var(--gray);
-        }
-        .chat-badge {
-    animation: badgePulse 2s infinite;
-}
-
-@keyframes badgePulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); }
-    100% { transform: scale(1); }
-}
-
-.chat-badge.hidden {
-    display: none !important;
-}
+        .loading-messages { text-align: center; padding: 30px; color: var(--gray); }
         .notification {
             position: fixed; bottom: 80px; left: 15px; right: 15px;
             background: var(--success); color: white; padding: 12px 16px;
-            border-radius: 12px; text-align: center; display: none; z-index: 1000;
-            font-size: 12px;
+            border-radius: 12px; text-align: center; display: none; z-index: 1000; font-size: 12px;
         }
         .notification.error { background: var(--danger); }
     </style>
@@ -243,14 +124,17 @@
     
     <div class="typing-indicator" id="typingIndicator" style="display: none;">
         <span>Someone is typing</span>
-        <div class="typing-dots">
-            <span></span><span></span><span></span>
-        </div>
+        <div class="typing-dots"><span></span><span></span><span></span></div>
     </div>
     
     <div class="input-area">
         <input type="text" class="message-input" id="messageInput" placeholder="Chat with tournament players...">
         <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    
+    <div class="message-actions" id="messageActions">
+        <button id="editMessageBtn"><i class="fas fa-edit"></i> Edit</button>
+        <button id="deleteMessageBtn" class="delete-btn"><i class="fas fa-trash"></i> Delete</button>
     </div>
     
     <div class="notification" id="notification"></div>
@@ -262,8 +146,8 @@
         let socket = null;
         let currentUser = null;
         let typingTimeout = null;
+        let selectedMessageId = null;
         
-        // Profanity filter
         const PROFANITY_WORDS = [
             'fuck', 'shit', 'asshole', 'bitch', 'cunt', 'dick', 'pussy',
             'bastard', 'whore', 'slut', 'damn', 'crap', 'idiot',
@@ -277,8 +161,7 @@
         function containsProfanity(text) {
             const lowerText = text.toLowerCase();
             for (const word of PROFANITY_WORDS) {
-                const regex = new RegExp(`\\b${word}\\b`, 'i');
-                if (regex.test(lowerText)) return true;
+                if (new RegExp(`\\b${word}\\b`, 'i').test(lowerText)) return true;
             }
             return false;
         }
@@ -293,211 +176,169 @@
         
         function formatTime(dateString) {
             if (!dateString) return 'Just now';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return 'Just now';
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } catch (e) { return 'Just now'; }
+            try { const date = new Date(dateString); if (isNaN(date.getTime())) return 'Just now'; return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return 'Just now'; }
         }
         
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
+            return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
         }
         
-        function getInitials(name) {
-            if (!name) return '👤';
-            return name.charAt(0).toUpperCase();
+        function getInitials(name) { return name ? name.charAt(0).toUpperCase() : '👤'; }
+        function getFirstName(n) { return n ? n.split(' ')[0] : 'User'; }
+
+        function hideMessageActions() {
+            document.getElementById('messageActions').style.display = 'none';
+            selectedMessageId = null;
         }
         
-        function getFirstName(fullName) {
-            if (!fullName) return 'User';
-            return fullName.split(' ')[0];
+        function showMessageActions(event, messageId, isOwn) {
+            if (!isOwn) return;
+            event.preventDefault();
+            const menu = document.getElementById('messageActions');
+            selectedMessageId = messageId;
+            menu.style.display = 'block';
+            menu.style.left = `${Math.min(event.pageX, window.innerWidth - 120)}px`;
+            menu.style.top = `${event.pageY - 60}px`;
+            setTimeout(() => document.addEventListener('click', hideMessageActions, { once: true }), 100);
+        }
+        
+        async function editMessage() {
+            if (!selectedMessageId) return;
+            const newMsg = prompt('Edit your message:');
+            if (newMsg && newMsg.trim() && !containsProfanity(newMsg)) {
+                socket.emit('edit-tournament-message', { messageId: selectedMessageId, newMessage: newMsg.trim(), userId: currentUser.id });
+            }
+            hideMessageActions();
+        }
+        
+        async function deleteMessage() {
+            if (!selectedMessageId) return;
+            if (confirm('Delete this message?')) {
+                socket.emit('delete-tournament-message', { messageId: selectedMessageId, userId: currentUser.id });
+            }
+            hideMessageActions();
         }
         
         function addMessageToChat(msg) {
             const container = document.getElementById('messagesContainer');
-            if (container.querySelector('.loading-messages')) {
-                container.innerHTML = '';
-            }
-            
+            if (container.querySelector('.loading-messages')) container.innerHTML = '';
             const time = formatTime(msg.created_at);
             const isOwn = currentUser && msg.user_id === currentUser.id;
             let senderName = msg.first_name ? getFirstName(msg.first_name) : 'User';
             const initial = getInitials(senderName);
-            
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isOwn ? 'message-own' : ''}`;
-            
-            let senderHtml = '';
-            if (!isOwn) {
-                senderHtml = `<div class="message-sender">${escapeHtml(senderName)}</div>`;
-            }
-            
+            messageDiv.dataset.messageId = msg.id;
             messageDiv.innerHTML = `
                 <div class="message-avatar">${escapeHtml(initial)}</div>
                 <div class="message-bubble">
-                    ${senderHtml}
+                    ${!isOwn ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}
                     <div class="message-text">${escapeHtml(msg.message)}</div>
-                    <div class="message-time">${time}</div>
+                    <div class="message-time">${time}${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>
                 </div>
             `;
-            
+            if (isOwn) {
+                messageDiv.addEventListener('contextmenu', e => showMessageActions(e, msg.id, true));
+                let timer;
+                messageDiv.addEventListener('touchstart', e => { timer = setTimeout(() => showMessageActions(e, msg.id, true), 500); });
+                messageDiv.addEventListener('touchend', () => clearTimeout(timer));
+                messageDiv.addEventListener('touchmove', () => clearTimeout(timer));
+            }
             container.appendChild(messageDiv);
             scrollToBottom();
         }
         
+        function updateMessageInChat(messageId, newMessage) {
+            const div = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (div) {
+                div.querySelector('.message-text').textContent = newMessage;
+                const timeSpan = div.querySelector('.message-time');
+                if (timeSpan && !timeSpan.querySelector('.edited-badge')) timeSpan.innerHTML += '<span class="edited-badge">(edited)</span>';
+            }
+        }
+        
+        function removeMessageFromChat(messageId) {
+            const div = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (div) div.remove();
+        }
+        
         function addSystemMessage(text) {
-            const container = document.getElementById('messagesContainer');
-            const systemDiv = document.createElement('div');
-            systemDiv.className = 'system-message';
-            systemDiv.textContent = text;
-            container.appendChild(systemDiv);
+            const div = document.createElement('div');
+            div.className = 'system-message';
+            div.textContent = text;
+            document.getElementById('messagesContainer').appendChild(div);
             scrollToBottom();
         }
         
         function renderMessages(messages) {
             const container = document.getElementById('messagesContainer');
-            if (!messages || messages.length === 0) {
-                container.innerHTML = '<div class="loading-messages">No messages yet. Chat with other tournament players!</div>';
-                return;
-            }
+            if (!messages || messages.length === 0) { container.innerHTML = '<div class="loading-messages">No messages yet.</div>'; return; }
             container.innerHTML = '';
-            messages.forEach(msg => addMessageToChat(msg));
+            messages.forEach(addMessageToChat);
             scrollToBottom();
         }
         
         function scrollToBottom() {
-            const container = document.getElementById('messagesContainer');
-            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+            const c = document.getElementById('messagesContainer');
+            setTimeout(() => c.scrollTop = c.scrollHeight, 100);
         }
         
         function showWarningMessage(text) {
-            const container = document.getElementById('messagesContainer');
-            const warningDiv = document.createElement('div');
-            warningDiv.className = 'warning-message';
-            warningDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${escapeHtml(text)}`;
-            container.appendChild(warningDiv);
-            setTimeout(() => warningDiv.remove(), 3000);
+            const div = document.createElement('div');
+            div.className = 'warning-message';
+            div.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${escapeHtml(text)}`;
+            document.getElementById('messagesContainer').appendChild(div);
+            setTimeout(() => div.remove(), 3000);
             scrollToBottom();
         }
         
-       // In tournament-chat.html, modify the init function:
-async function init() {
-    if (!tg?.initData) {
-        showNotification('Please open from Telegram', true);
-        return;
-    }
-    
-    try {
-        const userRes = await fetch('/api/user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: tg.initData })
-        });
-        currentUser = await userRes.json();
-        connectWebSocket();
-        
-        // Just reset the local unread count
-        localStorage.setItem('tournament_unread_count', '0');
-        
-        // ❌ REMOVE THIS LINE - Don't call /api/tournament/mark-read
-        // await fetch('/api/tournament/mark-read', { ... });
-        
-        setTimeout(() => {
-            document.getElementById('messageInput').focus();
-            scrollToBottom();
-        }, 500);
-    } catch (err) {
-        console.error('Init error:', err);
-        showNotification('Failed to load', true);
-    }
-}
+        async function init() {
+            if (!tg?.initData) { showNotification('Please open from Telegram', true); return; }
+            try {
+                const res = await fetch('/api/user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg.initData }) });
+                currentUser = await res.json();
+                connectWebSocket();
+                localStorage.setItem('tournament_unread_count', '0');
+                setTimeout(() => { document.getElementById('messageInput').focus(); scrollToBottom(); }, 500);
+            } catch (err) { showNotification('Failed to load', true); }
+        }
         
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const socketUrl = `${protocol}//${window.location.host}`;
-            // Clear tournament badge when entering chat
-sessionStorage.setItem('returned_from_tournament_chat', 'true');
-localStorage.setItem('tournament_unread_count', '0');
-
+            sessionStorage.setItem('returned_from_tournament_chat', 'true');
+            localStorage.setItem('tournament_unread_count', '0');
             
-            socket = io(socketUrl, {
-                auth: { initData: tg.initData },
-                transports: ['websocket'],
-                reconnection: true,
-                reconnectionAttempts: 10,
-                reconnectionDelay: 1000
-            });
+            socket = io(`${protocol}//${window.location.host}`, { auth: { initData: tg.initData }, transports: ['websocket'], reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
             
             socket.on('connect', () => {
                 document.getElementById('chatStatus').textContent = 'Connected';
-                socket.emit('join-tournament', {
-                    userId: currentUser.id,
-                    firstName: currentUser.first_name || 'User'
-                });
+                socket.emit('join-tournament', { userId: currentUser.id, firstName: currentUser.first_name || 'User' });
             });
-            
-            socket.on('chat-history', (messages) => {
-                renderMessages(messages);
-            });
-            
-            // In connectWebSocket
-socket.on('tournament-new-message', (message) => {  // ✅ Changed
-    addMessageToChat(message);
-});
-            
-            socket.on('user-joined', (data) => {
-                addSystemMessage(`${getFirstName(data.firstName)} joined the chat`);
-            });
-            
-            socket.on('message-error', (data) => {
-                showNotification(data.error, true);
-            });
-            
-            socket.on('disconnect', () => {
-                document.getElementById('chatStatus').textContent = 'Reconnecting...';
-            });
-            
-            socket.on('connect_error', () => {
-                document.getElementById('chatStatus').textContent = 'Connection error';
-            });
+            socket.on('chat-history', renderMessages);
+            socket.on('new-message', addMessageToChat);
+            socket.on('user-joined', data => addSystemMessage(`${getFirstName(data.firstName)} joined the chat`));
+            socket.on('message-edited', data => updateMessageInChat(data.messageId, data.newMessage));
+            socket.on('message-deleted', data => removeMessageFromChat(data.messageId));
+            socket.on('message-error', data => showNotification(data.error, true));
+            socket.on('disconnect', () => document.getElementById('chatStatus').textContent = 'Reconnecting...');
+            socket.on('connect_error', () => document.getElementById('chatStatus').textContent = 'Connection error');
         }
         
         function sendMessage() {
-    const input = document.getElementById('messageInput');
-    const message = input.value.trim();
-    if (!message) return;
-    
-    if (containsProfanity(message)) {
-        showWarningMessage('⚠️ Inappropriate message blocked.');
-        input.value = '';
-        return;
-    }
-    
-    socket.emit('send-tournament-message', {
-        message: message,
-        userId: currentUser.id
-    });
-    
-    // ✅ Update last_read_at immediately after sending
-    fetch('/api/tournament/update-read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData })
-    }).catch(err => console.error('Update read error:', err));
-    
-    input.value = '';
-}      
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+            if (containsProfanity(message)) { showWarningMessage('⚠️ Inappropriate message blocked.'); input.value = ''; return; }
+            socket.emit('send-tournament-message', { message, userId: currentUser.id });
+            input.value = '';
+        }
+        
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
+        document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+        document.getElementById('editMessageBtn').addEventListener('click', editMessage);
+        document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
+        document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);
         
         init();
     </script>
