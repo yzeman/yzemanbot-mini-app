@@ -29,41 +29,27 @@
         }
         .header {
             background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 25px;
-            border-radius: 0 0 30px 30px;
-            text-align: center;
-            position: relative;
+            padding: 20px 15px 25px; border-radius: 0 0 30px 30px; text-align: center; position: relative;
         }
         .header h1 { font-size: 24px; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .header h1 i { color: var(--gold); }
         .header p { color: var(--gray); font-size: 13px; }
-        .back-btn-header {
-            position: absolute; top: 20px; left: 20px;
-            color: white; font-size: 22px; text-decoration: none; z-index: 10;
-        }
+        .back-btn-header { position: absolute; top: 20px; left: 20px; color: white; font-size: 22px; text-decoration: none; z-index: 10; }
         .content-container { padding: 20px 15px; }
         .hero-section {
             background: linear-gradient(135deg, #2196F320, #1976D220);
-            border-radius: 20px; padding: 25px; margin-bottom: 20px;
-            text-align: center; border: 1px solid rgba(33,150,243,0.3);
+            border-radius: 20px; padding: 25px; margin-bottom: 20px; text-align: center; border: 1px solid rgba(33,150,243,0.3);
         }
         .hero-section h2 { font-size: 22px; margin-bottom: 10px; color: var(--gold); }
         .hero-section p { color: var(--gray); font-size: 14px; line-height: 1.5; }
-        .value-badge {
-            background: var(--primary); border-radius: 30px; padding: 8px 20px;
-            display: inline-block; margin-top: 15px; font-weight: bold; font-size: 13px;
-        }
+        .value-badge { background: var(--primary); border-radius: 30px; padding: 8px 20px; display: inline-block; margin-top: 15px; font-weight: bold; font-size: 13px; }
         .info-card { background: var(--darker); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
         .info-card h3 { font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--gold); }
         .info-card h3 i { font-size: 22px; }
         .info-card p { color: var(--gray); font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
         .steps-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
         .step-item { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 15px; text-align: center; }
-        .step-number {
-            width: 35px; height: 35px; background: var(--primary); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 10px; font-weight: bold; font-size: 18px;
-        }
+        .step-number { width: 35px; height: 35px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: bold; font-size: 18px; }
         .step-title { font-weight: 600; font-size: 14px; margin-bottom: 5px; }
         .step-desc { font-size: 11px; color: var(--gray); }
         .earnings-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -76,29 +62,15 @@
         .prize-medal-small { font-size: 24px; margin-bottom: 5px; }
         .prize-amount-small { font-size: 14px; font-weight: bold; color: var(--gold); }
         .faq-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 0; }
-        .faq-question {
-            font-weight: 600; font-size: 15px; display: flex; align-items: center;
-            gap: 8px; cursor: pointer; margin-bottom: 8px;
-        }
+        .faq-question { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px; }
         .faq-question i { color: var(--gold); transition: transform 0.3s; }
         .faq-answer { color: var(--gray); font-size: 13px; line-height: 1.5; padding-left: 28px; display: none; }
         .faq-answer.show { display: block; }
-        .bottom-nav {
-            position: fixed; bottom: 0; left: 0; right: 0; background: var(--darker);
-            display: flex; padding: 8px 15px; border-top: 1px solid rgba(255,255,255,0.1); z-index: 100;
-        }
-        .nav-item {
-            flex: 1; text-align: center; color: var(--gray); text-decoration: none;
-            font-size: 11px; padding: 5px; border-radius: 8px;
-            display: flex; flex-direction: column; align-items: center; gap: 2px;
-        }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--darker); display: flex; padding: 8px 15px; border-top: 1px solid rgba(255,255,255,0.1); z-index: 100; }
+        .nav-item { flex: 1; text-align: center; color: var(--gray); text-decoration: none; font-size: 11px; padding: 5px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
         .nav-item i { font-size: 20px; }
         .nav-item.active { color: var(--primary); background: rgba(76, 175, 80, 0.1); }
-        .notification {
-            position: fixed; bottom: 80px; left: 15px; right: 15px;
-            background: #00c853; color: white; padding: 12px 18px;
-            border-radius: 10px; text-align: center; display: none; z-index: 1000; font-size: 13px;
-        }
+        .notification { position: fixed; bottom: 80px; left: 15px; right: 15px; background: #00c853; color: white; padding: 12px 18px; border-radius: 10px; text-align: center; display: none; z-index: 1000; font-size: 13px; }
     </style>
 </head>
 <body>
@@ -109,14 +81,12 @@
     </div>
     <div class="content-container">
         
-        <!-- Hero -->
         <div class="hero-section">
             <h2>💰 Earn COINS, Win Prizes, Withdraw Value!</h2>
             <p>YzemanBot is a Telegram Mini App that rewards you with COINS for watching ads, referring friends, completing daily tasks, and competing in tournaments. The more active you are, the more you earn!</p>
             <div class="value-badge"><i class="fas fa-chart-line"></i> 1,000,000 COINS = Dynamic USD Value</div>
         </div>
         
-        <!-- Value of COINS -->
         <div class="info-card">
             <h3><i class="fas fa-dollar-sign"></i> 💎 The Value of Your COINS</h3>
             <p><strong>1,000,000 COINS = $2,000 USD (Current Rate)</strong></p>
@@ -132,7 +102,6 @@
             </ul>
         </div>
         
-        <!-- How to Earn -->
         <div class="info-card">
             <h3><i class="fas fa-play-circle"></i> How to Earn COINS</h3>
             <div class="steps-grid">
@@ -140,14 +109,13 @@
                 <div class="step-item"><div class="step-number">2</div><div class="step-title">Refer Friends</div><div class="step-desc">50-500 COINS per referral + 2% lifetime commission</div></div>
                 <div class="step-item"><div class="step-number">3</div><div class="step-title">Daily Rewards</div><div class="step-desc">Claim daily. Streak = bigger rewards!</div></div>
                 <div class="step-item"><div class="step-number">4</div><div class="step-title">Spin the Wheel</div><div class="step-desc">Win 200-5,000 COINS every 3 days!</div></div>
-                <div class="step-item"><div class="step-number">5</div><div class="step-title">Achievements</div><div class="step-desc">Unlock badges for bonus COINS (up to 50,000!)</div></div>
+                <div class="step-item"><div class="step-number">5</div><div class="step-title">Achievements</div><div class="step-desc">Unlock badges for bonus COINS (up to 200,000!)</div></div>
                 <div class="step-item"><div class="step-number">6</div><div class="step-title">Tournaments</div><div class="step-desc">Weekly prizes: 8,000 / 5,000 / 3,000 COINS</div></div>
                 <div class="step-item"><div class="step-number">7</div><div class="step-title">Team Battles</div><div class="step-desc">Monthly team prizes: 12,000 each!</div></div>
                 <div class="step-item"><div class="step-number">8</div><div class="step-title">Bonus Codes</div><div class="step-desc">Redeem codes for extra COINS</div></div>
             </div>
         </div>
         
-        <!-- Tier System -->
         <div class="info-card">
             <h3><i class="fas fa-chart-line"></i> Tier System</h3>
             <p>Your tier determines how many COINS you earn per ad. Increase your tier by referring friends!</p>
@@ -164,7 +132,6 @@
             <p style="margin-top: 10px; font-size: 12px;"><i class="fas fa-gift"></i> <strong>Plus:</strong> Each referral gives you 50-500 COINS + 2% lifetime commission!</p>
         </div>
         
-        <!-- Ad Rewards -->
         <div class="info-card">
             <h3><i class="fas fa-ad"></i> Ad Rewards & Lucky Bonuses</h3>
             <ul style="color: var(--gray); font-size: 13px; line-height: 1.8; padding-left: 20px;">
@@ -173,11 +140,10 @@
                 <li>🌟 <strong>MEGA Ad (1%)</strong> - 10x reward</li>
                 <li>🔥 <strong>EPIC Ad (0.2%)</strong> - 25x reward!</li>
             </ul>
-            <p style="font-size: 12px; color: var(--gold); margin-top: 5px;"><i class="fas fa-trophy"></i> <strong>Milestones:</strong> 100 (+250), 250 (+750), 500 (+2K), 1K (+5K), 2.5K (+15K), 5K (+35K), 10K (+75K)</p>
-            <p style="font-size: 12px; color: var(--success); margin-top: 5px;"><i class="fas fa-calendar-check"></i> <strong>Daily Goal:</strong> 20 ads = +200 COINS | <strong>Weekly Goal:</strong> 100 ads = +1,000 COINS</p>
+            <p style="font-size: 12px; color: var(--gold); margin-top: 5px;"><i class="fas fa-trophy"></i> <strong>Milestones:</strong> 100 (+250), 250 (+750), 500 (+2K), 1K (+5K), 2.5K (+15K), 5K (+30K), 10K (+100K)</p>
+            <p style="font-size: 12px; color: var(--success); margin-top: 5px;"><i class="fas fa-calendar-check"></i> <strong>Daily Goal:</strong> 100 ads = +1,000 COINS | <strong>Weekly Goal:</strong> 1,000 ads = +5,000 COINS</p>
         </div>
         
-        <!-- Prizes -->
         <div class="info-card">
             <h3><i class="fas fa-trophy"></i> Competitions & Prizes</h3>
             <div class="prize-grid-small" style="margin-bottom:15px;">
@@ -188,23 +154,22 @@
             <div class="prize-grid-small">
                 <div class="prize-card-small"><strong>👥 Team</strong><br>🥇12,000 🥈6,000 🥉3,000<br><small>Monthly each</small></div>
                 <div class="prize-card-small"><strong>💬 Chat</strong><br>Team & Tournament<br><small>Real-time</small></div>
-                <div class="prize-card-small"><strong>🌟 Completionist</strong><br>100,000 COINS<br><small>All achievements</small></div>
+                <div class="prize-card-small"><strong>🌟 Completionist</strong><br>200,000 COINS<br><small>All achievements</small></div>
             </div>
         </div>
         
-        <!-- Tournament Chat -->
         <div class="info-card">
             <h3><i class="fas fa-comments"></i> Tournament Chat</h3>
             <p>Chat with other tournament participants in real-time! Once you join the weekly tournament, you can access the Tournament Chat to discuss strategies, celebrate wins, and connect with other players.</p>
             <ul style="color: var(--gray); font-size: 13px; line-height: 1.8; padding-left: 20px;">
                 <li>💬 <strong>Real-time Chat</strong> - Talk with tournament players</li>
                 <li>🔔 <strong>Unread Badge</strong> - See when new messages arrive</li>
+                <li>✏️ <strong>Edit & Delete</strong> - Edit or delete your own messages</li>
                 <li>⏰ <strong>24hr Auto-Clean</strong> - Messages auto-delete after 24 hours</li>
                 <li>🚫 <strong>Profanity Filter</strong> - Inappropriate messages blocked</li>
             </ul>
         </div>
         
-        <!-- Friends & Team Chat -->
         <div class="info-card">
             <h3><i class="fas fa-user-friends"></i> Friends & Team Chat</h3>
             <p>Connect with users, send friend requests, chat privately, and chat with your team!</p>
@@ -218,7 +183,20 @@
             </ul>
         </div>
         
-        <!-- Inactive Policy -->
+        <div class="info-card">
+            <h3><i class="fas fa-medal"></i> Achievements & Rewards</h3>
+            <div class="steps-grid">
+                <div class="step-item"><div class="step-title">🔥 Loyal User</div><div class="step-desc">30-day streak → +5,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">👑 Referral Master</div><div class="step-desc">100 referrals → +10,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">🦋 Social Butterfly</div><div class="step-desc">All social tasks → +15,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">🎡 Wheel Champion</div><div class="step-desc">Win 5,000 COINS on wheel → +10,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">📺 Ad Master</div><div class="step-desc">5,000 ads watched → +30,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">💎 Ad Master Platinum</div><div class="step-desc">10,000 ads watched → +100,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">🌟 Completionist</div><div class="step-desc">Unlock all achievements → +200,000 COINS</div></div>
+                <div class="step-item"><div class="step-title">🏆 Tournament Winner</div><div class="step-desc">Win tournament → +10,000 COINS</div></div>
+            </div>
+        </div>
+        
         <div class="info-card">
             <h3><i class="fas fa-clock"></i> Inactive Account Policy</h3>
             <p>To keep the platform fair and save database space, inactive accounts are managed as follows:</p>
@@ -229,7 +207,6 @@
             </ul>
         </div>
         
-        <!-- FAQ -->
         <div class="info-card">
             <h3><i class="fas fa-question-circle"></i> Frequently Asked Questions</h3>
             <div class="faq-item">
@@ -258,7 +235,7 @@
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFAQ(this)"><i class="fas fa-chevron-right"></i> How does tournament chat work?</div>
-                <div class="faq-answer">Once you join the tournament, a chat button appears. Tap it to chat with other participants. Messages auto-delete after 24 hours. Great for discussing strategies and celebrating wins!</div>
+                <div class="faq-answer">Once you join the tournament, a chat button appears. Tap it to chat with other participants. You can edit or delete your own messages. Messages auto-delete after 24 hours.</div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFAQ(this)"><i class="fas fa-chevron-right"></i> How does the 2% referral commission work?</div>
@@ -266,7 +243,7 @@
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFAQ(this)"><i class="fas fa-chevron-right"></i> Can I chat with other users?</div>
-                <div class="faq-answer">Yes! Private chat with friends, team chat with teammates, and tournament chat with participants. All have real-time messaging and profanity filters.</div>
+                <div class="faq-answer">Yes! Private chat with friends, team chat with teammates, and tournament chat with participants. All have real-time messaging, edit/delete, and profanity filters.</div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFAQ(this)"><i class="fas fa-chevron-right"></i> What happens if I'm inactive?</div>
@@ -274,7 +251,7 @@
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFAQ(this)"><i class="fas fa-chevron-right"></i> Is there a limit to how many ads I can watch?</div>
-                <div class="faq-answer">No! Unlimited ads. More ads = more COINS + more chances for lucky bonuses. Hit milestones for extra rewards!</div>
+                <div class="faq-answer">No! Unlimited ads. More ads = more COINS + more chances for lucky bonuses. Hit milestones at 5K (+30K COINS), 10K (+100K COINS) for massive rewards!</div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFAQ(this)"><i class="fas fa-chevron-right"></i> Is my privacy protected?</div>
@@ -282,7 +259,6 @@
             </div>
         </div>
         
-        <!-- Pro Tips -->
         <div class="info-card">
             <h3><i class="fas fa-lightbulb"></i> Pro Tips</h3>
             <ul style="color: var(--gray); font-size: 13px; line-height: 1.8; padding-left: 20px;">
@@ -290,9 +266,10 @@
                 <li>✅ <strong>Refer friends.</strong> Higher tier = up to 10x more per ad!</li>
                 <li>✅ <strong>Watch ads consistently.</strong> Lucky bonuses (2x-25x) boost earnings.</li>
                 <li>✅ <strong>Join a team.</strong> Team prizes give every member COINS.</li>
-                <li>✅ <strong>Complete achievements.</strong> Big one-time bonuses!</li>
+                <li>✅ <strong>Complete achievements.</strong> Big one-time bonuses up to 200K!</li>
                 <li>✅ <strong>Spin the wheel every 3 days.</strong> Win up to 5,000 COINS!</li>
                 <li>✅ <strong>Join weekly tournaments.</strong> Free to enter, prizes every Monday.</li>
+                <li>✅ <strong>Hit ad milestones.</strong> 5K ads (+30K), 10K ads (+100K)!</li>
                 <li>✅ <strong>Chat with others.</strong> Team and tournament chat for tips!</li>
                 <li>✅ <strong>Stay active.</strong> Open the app at least once every 4 months.</li>
                 <li>✅ <strong>Follow our Telegram channel</strong> for bonus codes!</li>
