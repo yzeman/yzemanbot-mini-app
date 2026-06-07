@@ -124,7 +124,7 @@ WEEKLY_AD_GOAL_REWARD: 5000,
         'Ad Master Platinum': 100000,
         'Referral King': 200000,
         'Monthly Top Earner': 25000,
-        'Completionist': 100000
+        'Completionist': 200000
     },
     
     TOURNAMENT_PRIZES: {
