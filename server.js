@@ -387,10 +387,10 @@ await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at O
         ('Wheel Champion', 'Win 20 COINS on wheel', '🎡', 20, 10000),
         ('Daily Streak 7', '7 day login streak', '📅', 7, 5000),
         ('Super Referrer', 'Get 500 referrals', '⭐', 500, 50000),
-        ('Ad Master', 'Watch 1000 ads', '📺', 1000, 10000),
+        ('Ad Master', 'Watch 5000 ads', '📺', 5000, 30000),
         ('Team Winner', 'Your team wins monthly competition', '🏅', 1, 25000),
         ('Leaderboard Winner', 'Finish Top 3 on monthly leaderboard', '👑', 3, 15000),
-        ('Ad Master Platinum', 'Watch 5000 ads', '💎', 5000, 50000),
+        ('Ad Master Platinum', 'Watch 10000 ads', '💎', 10000, 100000),
         ('Referral King', 'Get 1000 referrals', '👑', 1000, 200000),
         ('Monthly Top Earner', 'Finish #1 on monthly leaderboard', '⭐', 1, 25000)
       ON CONFLICT (name) DO UPDATE SET
@@ -1790,10 +1790,10 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     );
     if (adStats.rows.length > 0) {
       const totalAds = parseInt(adStats.rows[0].total_ads);
-      if (totalAds >= 1000) {
+      if (totalAds >= 5000) {
         await awardAchievement(userId, 'Ad Master', client);
       }
-      if (totalAds >= 5000) {
+      if (totalAds >= 10000) {
         await awardAchievement(userId, 'Ad Master Platinum', client);
       }
     }
