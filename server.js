@@ -3759,29 +3759,41 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // ============================================
-// ADMIN: Award Weekly Prizes (FIXED DATE RANGE)
+// ADMIN: Award Weekly Prizes (FIXED - Current Week)
 // ============================================
 app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    
+    // ✅ Only run on Sundays
     const today = new Date();
-    const currentDay = today.getDay(); // 0=Sunday, 1=Monday...
+    if (today.getDay() !== 0) {
+      return res.json({ success: false, error: 'Weekly prizes can only be awarded on Sundays' });
+    }
     
-    // Last Sunday (end of last week) = most recent Sunday
-    const lastSunday = new Date(today);
-    lastSunday.setDate(today.getDate() - currentDay);
-    lastSunday.setHours(23, 59, 59, 999);
-    const lastSundayStr = lastSunday.toISOString().split('T')[0];
+    // ✅ Calculate THIS week (Monday to Sunday)
+    const thisSunday = new Date(today);
+    thisSunday.setHours(23, 59, 59, 999);
+    const sundayStr = thisSunday.toISOString().split('T')[0];
     
-    // Last Monday (start of last week) = 6 days before last Sunday
-    const lastMonday = new Date(lastSunday);
-    lastMonday.setDate(lastSunday.getDate() - 6);
-    lastMonday.setHours(0, 0, 0, 0);
-    const lastMondayStr = lastMonday.toISOString().split('T')[0];
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - 6);
+    thisMonday.setHours(0, 0, 0, 0);
+    const mondayStr = thisMonday.toISOString().split('T')[0];
     
-    console.log(`📅 Referral week: ${lastMondayStr} to ${lastSundayStr}`);
+    console.log(`📅 Referral week: ${mondayStr} to ${sundayStr}`);
+    
+    // ✅ Check if prizes already awarded for this week
+    const alreadyAwarded = await client.query(`
+      SELECT COUNT(*) FROM ad_rewards 
+      WHERE ad_type = 'weekly_prize' 
+      AND created_at::date = $1
+    `, [sundayStr]);
+    
+    if (parseInt(alreadyAwarded.rows[0].count) > 0) {
+      return res.json({ success: false, error: 'Prizes already awarded for this week' });
+    }
+    
+    await client.query('BEGIN');
     
     const topReferrers = await client.query(`
       SELECT u.id, u.first_name, u.telegram_id, COUNT(r.id) as referral_count
@@ -3793,7 +3805,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
       HAVING COUNT(r.id) > 0
       ORDER BY referral_count DESC
       LIMIT 3
-    `, [lastMondayStr, lastSundayStr]);
+    `, [mondayStr, sundayStr]);
     
     const prizes = [10000, 5000, 2500];
     
@@ -3820,7 +3832,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
     }
     
     await client.query('COMMIT');
-    res.json({ success: true, awarded: topReferrers.rows.length });
+    res.json({ success: true, awarded: topReferrers.rows.length, week: `${mondayStr} to ${sundayStr}` });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Award weekly error:', err);
