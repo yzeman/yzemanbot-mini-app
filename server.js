@@ -5010,6 +5010,406 @@ app.get('/api/admin/download-user-ids', async (req, res) => {
 });
 
 // ============================================
+// ADMIN: Data Analysis Endpoints
+// ============================================
+
+// 1. Growth — new users over time
+app.get('/api/admin/analysis/growth', verifyAdmin, async (req, res) => {
+  try {
+    const daily = await pool.query(`
+      SELECT DATE(created_at AT TIME ZONE 'Africa/Lagos') as date,
+             COUNT(*) as new_users
+      FROM users
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(created_at AT TIME ZONE 'Africa/Lagos')
+      ORDER BY date ASC
+    `);
+    
+    const weekly = await pool.query(`
+      SELECT DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')::date as week,
+             COUNT(*) as new_users
+      FROM users
+      WHERE created_at >= NOW() - INTERVAL '12 weeks'
+      GROUP BY DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')
+      ORDER BY week ASC
+    `);
+    
+    res.json({ daily: daily.rows, weekly: weekly.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 2. Retention — do users come back?
+app.get('/api/admin/analysis/retention', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      WITH user_activity AS (
+        SELECT user_id, MIN(created_at) as first_seen, MAX(created_at) as last_seen
+        FROM ad_rewards WHERE ad_type = 'ad'
+        GROUP BY user_id
+      )
+      SELECT 
+        COUNT(*) FILTER (WHERE last_seen >= first_seen + INTERVAL '1 day') as day1,
+        COUNT(*) FILTER (WHERE last_seen >= first_seen + INTERVAL '7 days') as day7,
+        COUNT(*) FILTER (WHERE last_seen >= first_seen + INTERVAL '30 days') as day30,
+        COUNT(*) as total
+      FROM user_activity
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 3. Funnel — user journey
+app.get('/api/admin/analysis/funnel', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM users) as joined,
+        (SELECT COUNT(DISTINCT user_id) FROM ad_rewards WHERE ad_type = 'ad') as watched_first_ad,
+        (SELECT COUNT(*) FROM (SELECT user_id FROM ad_rewards WHERE ad_type='ad' GROUP BY user_id HAVING COUNT(*) >= 50) s) as watched_50_ads,
+        (SELECT COUNT(*) FROM (SELECT user_id FROM ad_rewards WHERE ad_type='ad' GROUP BY user_id HAVING COUNT(*) >= 500) s) as watched_500_ads,
+        (SELECT COUNT(*) FROM users WHERE coins >= 100000) as reached_100k,
+        (SELECT COUNT(*) FROM users WHERE coins >= 1000000) as reached_1m
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 4. Segments — user types
+app.get('/api/admin/analysis/segments', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        CASE
+          WHEN last_seen IS NULL THEN 'Never Active'
+          WHEN last_seen >= NOW() - INTERVAL '1 day' THEN 'Daily Active'
+          WHEN last_seen >= NOW() - INTERVAL '7 days' THEN 'Weekly Active'
+          WHEN last_seen >= NOW() - INTERVAL '30 days' THEN 'Monthly Active'
+          ELSE 'Inactive'
+        END as segment,
+        COUNT(*) as users,
+        ROUND(AVG(coins), 2) as avg_coins
+      FROM users
+      GROUP BY segment
+      ORDER BY users DESC
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 5. Activity Heatmap — when users are active
+app.get('/api/admin/analysis/heatmap', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        EXTRACT(DOW FROM created_at AT TIME ZONE 'Africa/Lagos') as day_of_week,
+        EXTRACT(HOUR FROM created_at AT TIME ZONE 'Africa/Lagos') as hour,
+        COUNT(*) as activity
+      FROM ad_rewards
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY day_of_week, hour
+      ORDER BY day_of_week, hour
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 6. Earnings Distribution — who's close to withdrawal
+app.get('/api/admin/analysis/earnings-distribution', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE coins < 10000) as under_10k,
+        COUNT(*) FILTER (WHERE coins >= 10000 AND coins < 50000) as from_10k_50k,
+        COUNT(*) FILTER (WHERE coins >= 50000 AND coins < 100000) as from_50k_100k,
+        COUNT(*) FILTER (WHERE coins >= 100000 AND coins < 500000) as from_100k_500k,
+        COUNT(*) FILTER (WHERE coins >= 500000 AND coins < 1000000) as from_500k_1m,
+        COUNT(*) FILTER (WHERE coins >= 1000000) as reached_1m,
+        ROUND(SUM(coins), 2) as total_coins_in_circulation,
+        ROUND(AVG(coins), 2) as avg_coins_per_user
+      FROM users
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 7. Referral Network — top referrers + quality
+app.get('/api/admin/analysis/referrals', verifyAdmin, async (req, res) => {
+  try {
+    const topReferrers = await pool.query(`
+      SELECT u.first_name, u.username, COUNT(r.id) as total_refs
+      FROM users u
+      LEFT JOIN referrals r ON u.id = r.referrer_id
+      GROUP BY u.id, u.first_name, u.username
+      HAVING COUNT(r.id) > 0
+      ORDER BY total_refs DESC
+      LIMIT 10
+    `);
+    
+    const quality = await pool.query(`
+      SELECT
+        COUNT(DISTINCT r.referred_id) as total_referred,
+        COUNT(DISTINCT CASE WHEN u.last_seen >= NOW() - INTERVAL '7 days' THEN u.id END) as active_referred,
+        ROUND(
+          COUNT(DISTINCT CASE WHEN u.last_seen >= NOW() - INTERVAL '7 days' THEN u.id END) * 100.0 /
+          NULLIF(COUNT(DISTINCT r.referred_id), 0), 1
+        ) as retention_percent
+      FROM referrals r
+      JOIN users u ON r.referred_id = u.id
+    `);
+    
+    res.json({ top_referrers: topReferrers.rows, quality: quality.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+// ============================================
+// 8. COHORT ANALYSIS — Retention by join week
+// ============================================
+app.get('/api/admin/analysis/cohort', verifyAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      WITH cohorts AS (
+        SELECT id,
+          DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')::date as cohort_week
+        FROM users
+        WHERE created_at >= NOW() - INTERVAL '8 weeks'
+      ),
+      activity AS (
+        SELECT DISTINCT user_id,
+          DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')::date as activity_week
+        FROM ad_rewards WHERE ad_type = 'ad'
+      )
+      SELECT 
+        c.cohort_week,
+        COUNT(DISTINCT c.id) as cohort_size,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week THEN c.id END) as week_0,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '1 week' THEN c.id END) as week_1,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '2 weeks' THEN c.id END) as week_2,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '3 weeks' THEN c.id END) as week_3
+      FROM cohorts c
+      LEFT JOIN activity a ON c.id = a.user_id
+      GROUP BY c.cohort_week
+      ORDER BY c.cohort_week DESC
+      LIMIT 8
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// 9. CHURN PREDICTION — At-risk users
+// ============================================
+app.get('/api/admin/analysis/churn', verifyAdmin, async (req, res) => {
+  try {
+    const atRisk = await pool.query(`
+      SELECT u.first_name, u.username, u.telegram_id,
+        u.coins, u.last_seen,
+        EXTRACT(DAY FROM NOW() - u.last_seen)::int as days_inactive,
+        COUNT(ar.id) as lifetime_ads
+      FROM users u
+      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.ad_type = 'ad'
+      WHERE u.last_seen IS NOT NULL
+        AND u.last_seen < NOW() - INTERVAL '3 days'
+        AND u.last_seen > NOW() - INTERVAL '30 days'
+      GROUP BY u.id, u.first_name, u.username, u.telegram_id, u.coins, u.last_seen
+      HAVING COUNT(ar.id) >= 10
+      ORDER BY u.coins DESC
+      LIMIT 20
+    `);
+
+    const summary = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE last_seen >= NOW() - INTERVAL '1 day') as active_24h,
+        COUNT(*) FILTER (WHERE last_seen BETWEEN NOW() - INTERVAL '3 days' AND NOW() - INTERVAL '1 day') as warm,
+        COUNT(*) FILTER (WHERE last_seen BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '3 days') as cooling,
+        COUNT(*) FILTER (WHERE last_seen BETWEEN NOW() - INTERVAL '30 days' AND NOW() - INTERVAL '7 days') as at_risk,
+        COUNT(*) FILTER (WHERE last_seen < NOW() - INTERVAL '30 days') as churned
+      FROM users WHERE last_seen IS NOT NULL
+    `);
+
+    res.json({ at_risk_users: atRisk.rows, summary: summary.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// 10. REVENUE / ARPU ANALYTICS
+// ============================================
+app.get('/api/admin/analysis/revenue', verifyAdmin, async (req, res) => {
+  try {
+    // Estimated Monetag revenue (rough eCPM ~$1.5 per 1000 impressions)
+    const ecpm = 1.5;
+
+    const daily = await pool.query(`
+      SELECT 
+        DATE(created_at AT TIME ZONE 'Africa/Lagos') as date,
+        COUNT(*) as ad_views,
+        COUNT(DISTINCT user_id) as unique_users
+      FROM ad_rewards
+      WHERE ad_type = 'ad' AND created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(created_at AT TIME ZONE 'Africa/Lagos')
+      ORDER BY date ASC
+    `);
+
+    const summary = await pool.query(`
+      SELECT
+        COUNT(*) as total_ad_views,
+        COUNT(DISTINCT user_id) as total_advertisers,
+        COUNT(DISTINCT user_id) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as dau_30d
+      FROM ad_rewards WHERE ad_type = 'ad'
+    `);
+
+    const total = summary.rows[0];
+    const totalViews = parseInt(total.total_ad_views) || 0;
+    const estimatedRevenue = (totalViews / 1000) * ecpm;
+    const arpu = totalViews > 0 ? estimatedRevenue / parseInt(total.dau_30d || 1) : 0;
+
+    res.json({
+      daily: daily.rows,
+      totals: {
+        total_ad_views: totalViews,
+        estimated_revenue: parseFloat(estimatedRevenue.toFixed(2)),
+        arpu: parseFloat(arpu.toFixed(4)),
+        ecpm_used: ecpm
+      }
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// 11. FAKE REFERRAL DETECTION
+// ============================================
+app.get('/api/admin/analysis/fake-referrals', verifyAdmin, async (req, res) => {
+  try {
+    // Users who referred others but those referred users never watched an ad
+    const suspicious = await pool.query(`
+      SELECT 
+        referrer.first_name as referrer_name,
+        referrer.username as referrer_username,
+        referrer.telegram_id as referrer_id,
+        COUNT(DISTINCT r.referred_id) as total_referred,
+        COUNT(DISTINCT CASE WHEN NOT EXISTS (
+          SELECT 1 FROM ad_rewards ar 
+          WHERE ar.user_id = r.referred_id AND ar.ad_type = 'ad'
+        ) THEN r.referred_id END) as dormant_refs
+      FROM users referrer
+      JOIN referrals r ON referrer.id = r.referrer_id
+      GROUP BY referrer.id, referrer.first_name, referrer.username, referrer.telegram_id
+      HAVING COUNT(DISTINCT r.referred_id) >= 3
+        AND COUNT(DISTINCT CASE WHEN NOT EXISTS (
+          SELECT 1 FROM ad_rewards ar 
+          WHERE ar.user_id = r.referred_id AND ar.ad_type = 'ad'
+        ) THEN r.referred_id END) >= 3
+      ORDER BY dormant_refs DESC
+      LIMIT 20
+    `);
+
+    res.json(suspicious.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// 12. BLOCKED BOT USERS — Users who blocked the bot
+// ============================================
+app.get('/api/admin/analysis/blocked-users', verifyAdmin, async (req, res) => {
+  try {
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    if (!BOT_TOKEN) return res.status(500).json({ error: 'Bot token missing' });
+
+    // Get all users to test
+    const users = await pool.query(`
+      SELECT id, first_name, username, telegram_id, coins, last_seen
+      FROM users 
+      WHERE telegram_id IS NOT NULL
+      ORDER BY last_seen DESC NULLS LAST
+    `);
+
+    const blocked = [];
+    const deactivated = [];
+    const unknown = [];
+
+    // Test each user (with rate limit)
+    for (const user of users.rows) {
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: user.telegram_id, action: 'typing' })
+        });
+        const result = await response.json();
+
+        if (!result.ok) {
+          if (result.description?.includes('blocked')) {
+            blocked.push(user);
+          } else if (result.description?.includes('deactivated')) {
+            deactivated.push(user);
+          } else if (result.description?.includes('chat not found')) {
+            unknown.push(user);
+          }
+        }
+        // Wait 50ms between checks to avoid rate limits
+        await new Promise(r => setTimeout(r, 50));
+      } catch (err) {
+        unknown.push(user);
+      }
+    }
+
+    res.json({
+      blocked: blocked.map(u => ({ id: u.id, name: u.first_name, username: u.username, telegram_id: u.telegram_id, coins: u.coins })),
+      deactivated: deactivated.map(u => ({ id: u.id, name: u.first_name, telegram_id: u.telegram_id })),
+      unreachable: unknown.map(u => ({ id: u.id, name: u.first_name, telegram_id: u.telegram_id })),
+      summary: {
+        total_checked: users.rows.length,
+        blocked_count: blocked.length,
+        deactivated_count: deactivated.length,
+        unreachable_count: unknown.length
+      }
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================
+// 13. DELETE MULTIPLE USERS (for blocked cleanup)
+// ============================================
+app.post('/api/admin/analysis/delete-users', verifyAdmin, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { telegramIds } = req.body;
+    if (!Array.isArray(telegramIds) || telegramIds.length === 0) {
+      return res.status(400).json({ error: 'No telegram IDs provided' });
+    }
+
+    await client.query('BEGIN');
+    let deleted = 0;
+
+    for (const tid of telegramIds) {
+      const u = await client.query('SELECT id FROM users WHERE telegram_id = $1', [tid]);
+      if (u.rows.length === 0) continue;
+      const uid = u.rows[0].id;
+
+      await client.query('DELETE FROM referral_commissions WHERE referrer_id = $1 OR referred_id = $1', [uid]);
+      await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [uid]);
+      await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM user_achievements WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM social_tasks WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM user_monthly_earnings WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM team_members WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM private_messages WHERE sender_id = $1 OR receiver_id = $1', [uid]);
+      await client.query('DELETE FROM users WHERE id = $1', [uid]);
+      deleted++;
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, deleted });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+// ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
 app.get('/health', async (req, res) => {
