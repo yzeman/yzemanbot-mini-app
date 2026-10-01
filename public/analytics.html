@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Data Analysis - YzemanBot</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --primary: #4CAF50; --secondary: #2196F3; --warning: #FF9800;
+  --danger: #f44336; --dark: #1a1a2e; --darker: #16213e;
+  --light: #fff; --gray: #888; --gold: #FFD700; --success: #00c853;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--dark); color: var(--light);
+  min-height: 100vh; padding-bottom: 30px;
+}
+.header {
+  background: linear-gradient(135deg, var(--secondary) 0%, #0D47A1 100%);
+  padding: 18px 15px 20px; border-radius: 0 0 25px 25px;
+  text-align: center; position: relative; margin-bottom: 15px;
+}
+.header h1 { font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.header h1 i { color: var(--gold); }
+.header p { color: rgba(255,255,255,0.85); font-size: 11px; margin-top: 4px; }
+.back-btn {
+  position: absolute; top: 18px; left: 18px; color: white;
+  font-size: 18px; text-decoration: none;
+  background: rgba(0,0,0,0.3); width: 36px; height: 36px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.refresh-btn {
+  position: absolute; top: 18px; right: 18px;
+  background: rgba(0,0,0,0.3); color: white; border: none;
+  width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 14px;
+}
+.refresh-btn:active { transform: scale(0.95); }
+.container { padding: 0 15px; }
+.section {
+  background: var(--darker); border-radius: 16px; padding: 15px;
+  margin-bottom: 15px;
+}
+.section-title {
+  font-size: 14px; font-weight: 600; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px; color: var(--gold);
+}
+.section-title i { font-size: 16px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kpi {
+  background: rgba(255,255,255,0.05); border-radius: 12px;
+  padding: 12px 8px; text-align: center;
+}
+.kpi-value { font-size: 20px; font-weight: bold; color: var(--gold); word-break: break-word; }
+.kpi-label { font-size: 10px; color: var(--gray); margin-top: 4px; }
+.chart-wrap { position: relative; height: 220px; margin-top: 10px; }
+.funnel-step {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: rgba(255,255,255,0.05);
+  border-radius: 10px; margin-bottom: 6px;
+  border-left: 4px solid var(--primary);
+}
+.funnel-label { font-size: 12px; }
+.funnel-value { font-size: 14px; font-weight: bold; color: var(--gold); }
+.segment-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 12px; gap: 10px;
+}
+.segment-row:last-child { border-bottom: none; }
+.segment-badge {
+  padding: 3px 10px; border-radius: 12px; font-size: 11px;
+  font-weight: 600; background: var(--primary); color: white;
+  flex-shrink: 0;
+}
+.loading { text-align: center; padding: 30px; color: var(--gray); font-size: 12px; }
+.action-btn {
+  background: var(--danger); color: white; border: none;
+  padding: 10px 16px; border-radius: 20px; font-size: 12px;
+  cursor: pointer; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 10px;
+}
+.action-btn:active { transform: scale(0.97); }
+.scan-btn {
+  background: var(--secondary);
+  position: static; width: auto; height: auto; border-radius: 20px;
+  padding: 10px 18px; font-size: 12px; font-weight: 600;
+  margin-bottom: 10px;
+}
+.cohort-table {
+  width: 100%; font-size: 10px; border-collapse: collapse;
+}
+.cohort-table th {
+  color: var(--gold); padding: 6px 4px; text-align: center;
+  font-weight: 600;
+}
+.cohort-table th:first-child { text-align: left; }
+.cohort-table td { padding: 6px 4px; text-align: center; }
+.cohort-table td:first-child { text-align: left; color: var(--gray); }
+.cohort-table tr { border-bottom: 1px solid rgba(255,255,255,0.05); }
+</style>
+</head>
+<body>
+
+<a href="/admin.html" class="back-btn"><i class="fas fa-arrow-left"></i></a>
+<button class="refresh-btn" onclick="loadAll()"><i class="fas fa-sync"></i></button>
+
+<div class="header">
+  <h1><i class="fas fa-chart-line"></i> Data Analysis</h1>
+  <p>Deep insights into your app performance</p>
+</div>
+
+<div class="container">
+
+  <!-- Growth -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-user-plus"></i> User Growth (30 days)</div>
+    <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
+  </div>
+
+  <!-- Retention -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-redo"></i> Retention Rate</div>
+    <div class="grid-3">
+      <div class="kpi"><div class="kpi-value" id="day1">--</div><div class="kpi-label">Day 1 Return</div></div>
+      <div class="kpi"><div class="kpi-value" id="day7">--</div><div class="kpi-label">Day 7 Return</div></div>
+      <div class="kpi"><div class="kpi-value" id="day30">--</div><div class="kpi-label">Day 30 Return</div></div>
+    </div>
+  </div>
+
+  <!-- Funnel -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-filter"></i> Conversion Funnel</div>
+    <div id="funnelContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Segments -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-users"></i> User Segments</div>
+    <div id="segmentsContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-clock"></i> Activity by Hour</div>
+    <div class="chart-wrap"><canvas id="heatmapChart"></canvas></div>
+  </div>
+
+  <!-- Earnings Distribution -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-coins"></i> Earnings Distribution</div>
+    <div class="chart-wrap"><canvas id="earningsChart"></canvas></div>
+  </div>
+
+  <!-- Referral Network -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-network-wired"></i> Referral Quality</div>
+    <div class="grid-3">
+      <div class="kpi"><div class="kpi-value" id="totalReferred">--</div><div class="kpi-label">Total Referred</div></div>
+      <div class="kpi"><div class="kpi-value" id="activeReferred">--</div><div class="kpi-label">Active Referred</div></div>
+      <div class="kpi"><div class="kpi-value" id="retentionPct">--</div><div class="kpi-label">Retention %</div></div>
+    </div>
+  </div>
+
+  <!-- Cohort Analysis -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-layer-group"></i> Cohort Retention (Last 8 Weeks)</div>
+    <div id="cohortContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Churn -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-user-slash"></i> Churn Risk Analysis</div>
+    <div class="grid-3" style="margin-bottom: 12px;">
+      <div class="kpi"><div class="kpi-value" id="active24h">--</div><div class="kpi-label">Active 24h</div></div>
+      <div class="kpi"><div class="kpi-value" id="atRisk">--</div><div class="kpi-label">At Risk</div></div>
+      <div class="kpi"><div class="kpi-value" id="churned">--</div><div class="kpi-label">Churned</div></div>
+    </div>
+    <div id="churnContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Revenue -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-dollar-sign"></i> Revenue & ARPU</div>
+    <div class="grid-3" style="margin-bottom: 12px;">
+      <div class="kpi"><div class="kpi-value" id="estRevenue">--</div><div class="kpi-label">Est. Revenue</div></div>
+      <div class="kpi"><div class="kpi-value" id="arpuValue">--</div><div class="kpi-label">ARPU</div></div>
+      <div class="kpi"><div class="kpi-value" id="totalAdViews">--</div><div class="kpi-label">Total Ad Views</div></div>
+    </div>
+    <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+  </div>
+
+  <!-- Fake Referrals -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-user-secret"></i> Suspicious Referrers</div>
+    <p style="font-size: 11px; color: var(--gray); margin-bottom: 10px;">
+      Users with 3+ referrals where referred accounts never watched an ad.
+    </p>
+    <div id="fakeRefContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Blocked Users -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-ban"></i> Blocked Bot Users</div>
+    <div class="grid-3" style="margin-bottom: 12px;">
+      <div class="kpi"><div class="kpi-value" id="blockedCount">--</div><div class="kpi-label">Blocked</div></div>
+      <div class="kpi"><div class="kpi-value" id="deactivatedCount">--</div><div class="kpi-label">Deactivated</div></div>
+      <div class="kpi"><div class="kpi-value" id="totalChecked">--</div><div class="kpi-label">Total Checked</div></div>
+    </div>
+    <button class="refresh-btn scan-btn" onclick="loadBlocked()">
+      <i class="fas fa-search"></i> Scan Users (may take 1-2 min)
+    </button>
+    <div id="blockedContainer">
+      <p style="font-size: 11px; color: var(--gray); text-align: center;">
+        Click "Scan Users" to check which users blocked the bot.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const ADMIN_TOKEN = 'Bearer admin123';
+
+// Chart instances
+let growthChart, heatmapChart, earningsChart, revenueChart;
+
+// ============================================
+// API Helper
+// ============================================
+async function api(endpoint) {
+  const res = await fetch(endpoint, { headers: { 'Authorization': ADMIN_TOKEN } });
+  if (!res.ok) throw new Error('Failed');
+  return res.json();
+}
+
+// ============================================
+// Load All (auto on page load)
+// ============================================
+async function loadAll() {
+  await Promise.all([
+    loadGrowth(),
+    loadRetention(),
+    loadFunnel(),
+    loadSegments(),
+    loadHeatmap(),
+    loadEarnings(),
+    loadReferrals(),
+    loadCohort(),
+    loadChurn(),
+    loadRevenue(),
+    loadFakeReferrals()
+    // Note: loadBlocked() is manual — slow operation
+  ]);
+}
+
+// ============================================
+// 1. Growth
+// ============================================
+async function loadGrowth() {
+  try {
+    const data = await api('/api/admin/analysis/growth');
+    const labels = data.daily.map(d => new Date(d.date).toLocaleDateString('en', {month:'short', day:'numeric'}));
+    const values = data.daily.map(d => parseInt(d.new_users));
+
+    if (growthChart) growthChart.destroy();
+    growthChart = new Chart(document.getElementById('growthChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'New Users',
+          data: values,
+          borderColor: '#4CAF50',
+          backgroundColor: 'rgba(76,175,80,0.2)',
+          tension: 0.3,
+          fill: true,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  } catch (e) { console.error('Growth error:', e); }
+}
+
+// ============================================
+// 2. Retention
+// ============================================
+async function loadRetention() {
+  try {
+    const d = await api('/api/admin/analysis/retention');
+    const total = parseInt(d.total) || 1;
+    document.getElementById('day1').textContent = Math.round((d.day1 / total) * 100) + '%';
+    document.getElementById('day7').textContent = Math.round((d.day7 / total) * 100) + '%';
+    document.getElementById('day30').textContent = Math.round((d.day30 / total) * 100) + '%';
+  } catch (e) { console.error('Retention error:', e); }
+}
+
+// ============================================
+// 3. Funnel
+// ============================================
+async function loadFunnel() {
+  try {
+    const d = await api('/api/admin/analysis/funnel');
+    const steps = [
+      { label: '👥 Joined', value: d.joined },
+      { label: '📺 Watched 1st Ad', value: d.watched_first_ad },
+      { label: '🔥 Watched 50 Ads', value: d.watched_50_ads },
+      { label: '💪 Watched 500 Ads', value: d.watched_500_ads },
+      { label: '💰 Reached 100K COINS', value: d.reached_100k },
+      { label: '🏆 Reached 1M COINS', value: d.reached_1m }
+    ];
+    document.getElementById('funnelContainer').innerHTML = steps.map(s => `
+      <div class="funnel-step">
+        <span class="funnel-label">${s.label}</span>
+        <span class="funnel-value">${parseInt(s.value).toLocaleString()}</span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Funnel error:', e); }
+}
+
+// ============================================
+// 4. Segments
+// ============================================
+async function loadSegments() {
+  try {
+    const data = await api('/api/admin/analysis/segments');
+    document.getElementById('segmentsContainer').innerHTML = data.map(s => `
+      <div class="segment-row">
+        <span>${s.segment}</span>
+        <span class="segment-badge">${s.users} users</span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Segments error:', e); }
+}
+
+// ============================================
+// 5. Heatmap
+// ============================================
+async function loadHeatmap() {
+  try {
+    const data = await api('/api/admin/analysis/heatmap');
+    const hourly = new Array(24).fill(0);
+    data.forEach(d => { hourly[parseInt(d.hour)] += parseInt(d.activity); });
+
+    if (heatmapChart) heatmapChart.destroy();
+    heatmapChart = new Chart(document.getElementById('heatmapChart'), {
+      type: 'bar',
+      data: {
+        labels: hourly.map((_, i) => i + 'h'),
+        datasets: [{
+          data: hourly,
+          backgroundColor: 'rgba(33,150,243,0.7)',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 9 } }, grid: { display: false } },
+          y: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  } catch (e) { console.error('Heatmap error:', e); }
+}
+
+// ============================================
+// 6. Earnings Distribution
+// ============================================
+async function loadEarnings() {
+  try {
+    const d = await api('/api/admin/analysis/earnings-distribution');
+    const labels = ['<10K', '10K-50K', '50K-100K', '100K-500K', '500K-1M', '1M+'];
+    const values = [
+      d.under_10k, d.from_10k_50k, d.from_50k_100k,
+      d.from_100k_500k, d.from_500k_1m, d.reached_1m
+    ].map(v => parseInt(v) || 0);
+
+    if (earningsChart) earningsChart.destroy();
+    earningsChart = new Chart(document.getElementById('earningsChart'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: ['#888', '#FF9800', '#4CAF50', '#2196F3', '#9C27B0', '#FFD700']
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#888', font: { size: 10 }, padding: 8, boxWidth: 12 } }
+        }
+      }
+    });
+  } catch (e) { console.error('Earnings error:', e); }
+}
+
+// ============================================
+// 7. Referral Quality
+// ============================================
+async function loadReferrals() {
+  try {
+    const d = await api('/api/admin/analysis/referrals');
+    document.getElementById('totalReferred').textContent = d.quality.total_referred || 0;
+    document.getElementById('activeReferred').textContent = d.quality.active_referred || 0;
+    document.getElementById('retentionPct').textContent = (d.quality.retention_percent || 0) + '%';
+  } catch (e) { console.error('Referrals error:', e); }
+}
+
+// ============================================
+// 8. Cohort Analysis
+// ============================================
+async function loadCohort() {
+  try {
+    const data = await api('/api/admin/analysis/cohort');
+    if (!data || data.length === 0) {
+      document.getElementById('cohortContainer').innerHTML = '<div class="loading">No cohort data yet</div>';
+      return;
+    }
+    const html = `
+      <table class="cohort-table">
+        <thead>
+          <tr>
+            <th>Week</th>
+            <th>Size</th>
+            <th>W0</th>
+            <th>W1</th>
+            <th>W2</th>
+            <th>W3</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(r => {
+            const size = parseInt(r.cohort_size);
+            const pct = v => size > 0 ? Math.round((parseInt(v) / size) * 100) + '%' : '–';
+            return `
+              <tr>
+                <td>${new Date(r.cohort_week).toLocaleDateString('en',{month:'short',day:'numeric'})}</td>
+                <td style="color:var(--gold); font-weight:bold;">${size}</td>
+                <td style="color:var(--success);">${pct(r.week_0)}</td>
+                <td>${pct(r.week_1)}</td>
+                <td>${pct(r.week_2)}</td>
+                <td>${pct(r.week_3)}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+    document.getElementById('cohortContainer').innerHTML = html;
+  } catch (e) {
+    document.getElementById('cohortContainer').innerHTML = '<div class="loading">Failed to load</div>';
+  }
+}
+
+// ============================================
+// 9. Churn
+// ============================================
+async function loadChurn() {
+  try {
+    const d = await api('/api/admin/analysis/churn');
+    document.getElementById('active24h').textContent = d.summary.active_24h || 0;
+    document.getElementById('atRisk').textContent = d.summary.at_risk || 0;
+    document.getElementById('churned').textContent = d.summary.churned || 0;
+
+    const container = document.getElementById('churnContainer');
+    if (!d.at_risk_users || d.at_risk_users.length === 0) {
+      container.innerHTML = '<p style="text-align:center; color:var(--success); font-size:11px;">No at-risk users 🎉</p>';
+      return;
+    }
+    container.innerHTML = d.at_risk_users.slice(0, 10).map(u => `
+      <div class="segment-row">
+        <span>${u.first_name} <span style="color:#888; font-size:10px;">(${u.days_inactive}d ago)</span></span>
+        <span class="segment-badge" style="background:${u.days_inactive > 14 ? 'var(--danger)' : 'var(--warning)'};">
+          ${parseFloat(u.coins).toFixed(0)}
+        </span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Churn error:', e); }
+}
+
+// ============================================
+// 10. Revenue / ARPU
+// ============================================
+async function loadRevenue() {
+  try {
+    const d = await api('/api/admin/analysis/revenue');
+    document.getElementById('estRevenue').textContent = '$' + d.totals.estimated_revenue;
+    document.getElementById('arpuValue').textContent = '$' + d.totals.arpu;
+    document.getElementById('totalAdViews').textContent = d.totals.total_ad_views.toLocaleString();
+
+    if (revenueChart) revenueChart.destroy();
+    const labels = d.daily.map(x => new Date(x.date).toLocaleDateString('en',{month:'short',day:'numeric'}));
+    const values = d.daily.map(x => parseInt(x.ad_views));
+    revenueChart = new Chart(document.getElementById('revenueChart'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Ad Views',
+          data: values,
+          backgroundColor: 'rgba(76,175,80,0.7)',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 9 } }, grid: { display: false } },
+          y: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  } catch (e) { console.error('Revenue error:', e); }
+}
+
+// ============================================
+// 11. Fake Referrals
+// ============================================
+async function loadFakeReferrals() {
+  try {
+    const data = await api('/api/admin/analysis/fake-referrals');
+    const container = document.getElementById('fakeRefContainer');
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="text-align:center; color:var(--success); font-size:11px;">✅ No suspicious referrers</p>';
+      return;
+    }
+    container.innerHTML = data.map(u => `
+      <div class="segment-row">
+        <span>${u.referrer_name}
+          <span style="color:#888; font-size:10px;">${u.referrer_username ? '@' + u.referrer_username : ''}</span>
+        </span>
+        <span class="segment-badge" style="background:var(--danger);">
+          ${u.dormant_refs}/${u.total_referred} dormant
+        </span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Fake refs error:', e); }
+}
+
+// ============================================
+// 12. Blocked Users (MANUAL)
+// ============================================
+async function loadBlocked() {
+  const container = document.getElementById('blockedContainer');
+  container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Scanning users... please wait 1-2 minutes</div>';
+
+  try {
+    const d = await api('/api/admin/analysis/blocked-users');
+    document.getElementById('blockedCount').textContent = d.summary.blocked_count;
+    document.getElementById('deactivatedCount').textContent = d.summary.deactivated_count;
+    document.getElementById('totalChecked').textContent = d.summary.total_checked;
+
+    if (!d.blocked || d.blocked.length === 0) {
+      container.innerHTML = '<p style="text-align:center; color:var(--success); font-size:11px;">✅ No blocked users found</p>';
+      return;
+    }
+
+    container.innerHTML = `
+      <p style="font-size:11px; color:var(--gray); margin-bottom:8px;">
+        Found <strong style="color:var(--danger);">${d.blocked.length}</strong> blocked users
+      </p>
+      <button class="action-btn" onclick="deleteAllBlocked()">
+        <i class="fas fa-trash"></i> Delete All Blocked Users
+      </button>
+      <div>
+        ${d.blocked.map(u => `
+          <div class="segment-row">
+            <span>${u.name}
+              <span style="color:#888; font-size:10px;">ID: ${u.telegram_id}</span>
+            </span>
+            <span class="segment-badge" style="background:var(--danger);">
+              ${parseFloat(u.coins||0).toFixed(0)} COINS
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    window.blockedUsersData = d.blocked.map(u => u.telegram_id);
+  } catch (e) {
+    container.innerHTML = '<div class="loading" style="color:var(--danger);">Failed to scan. Please try again.</div>';
+  }
+}
+
+async function deleteAllBlocked() {
+  if (!window.blockedUsersData || window.blockedUsersData.length === 0) return;
+  if (!confirm(`Delete ${window.blockedUsersData.length} blocked users permanently? This cannot be undone.`)) return;
+
+  try {
+    const res = await fetch('/api/admin/analysis/delete-users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN },
+      body: JSON.stringify({ telegramIds: window.blockedUsersData })
+    });
+    const d = await res.json();
+    if (d.success) {
+      alert(`✅ Deleted ${d.deleted} users`);
+      loadBlocked();
+    } else {
+      alert('Failed: ' + (d.error || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Network error');
+  }
+}
+
+// ============================================
+// Initialize
+// ============================================
+loadAll();
+</script>
+</body>
+</html>
