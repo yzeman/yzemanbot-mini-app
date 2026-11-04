@@ -3075,7 +3075,7 @@ app.get('/api/admin/analytics', async (req, res) => {
     const totalRefs = await pool.query('SELECT SUM(referrals) as total FROM users');
     const totalCoins = await pool.query('SELECT SUM(coins) as total FROM users');
 
-    // ✅ Total Ads (Only real video ads, ignoring commissions/wheel/errors)
+    // ✅ Total Ads (Only real video ads)
     const totalAds = await pool.query(`
       SELECT COUNT(*) FROM ad_rewards 
       WHERE ad_type = 'ad'
@@ -3088,22 +3088,27 @@ app.get('/api/admin/analytics', async (req, res) => {
       AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
     `);
 
-    // ✅ Active Today & Week
-    const activeToday = await pool.query(`
-      SELECT COUNT(*) FROM users 
-      WHERE DATE(last_seen AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
-    `);
-    const activeWeek = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '7 days'`);
-
-    // ✅ Tier Distribution
-    const tiers = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC`);
-
     // ✅ Active Today (Only users who watched an ad today)
     const activeToday = await pool.query(`
       SELECT COUNT(DISTINCT user_id) 
       FROM ad_rewards 
       WHERE ad_type = 'ad' 
       AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
+    `);
+    
+    // ✅ Active Week
+    const activeWeek = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '7 days'`);
+
+    // ✅ Tier Distribution
+    const tiers = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC`);
+
+    // ✅ Daily Active Users (Last 7 Days) - RESTORED
+    const dailyActive = await pool.query(`
+      SELECT DATE(last_seen AT TIME ZONE 'Africa/Lagos') as activity_date, COUNT(*) as count
+      FROM users 
+      WHERE last_seen >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(last_seen AT TIME ZONE 'Africa/Lagos')
+      ORDER BY activity_date DESC
     `);
 
     res.json({
