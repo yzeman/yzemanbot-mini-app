@@ -904,6 +904,20 @@ window.watchAd = async function() {
         
     } catch (error) {
         console.error('Monetag ad error or skipped:', error);
+        
+        // 🛑 ADD THIS BLOCK: Log the failure to the server for Ad Network Health
+        try {
+            fetch('/api/ad-reward', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    initData: tg.initData, 
+                    rewardAmount: 0, 
+                    adType: 'error' 
+                })
+            });
+        } catch (e) {}
+
         adStreak = 0;
         localStorage.setItem('adStreak', '0');
         updateAdStreakDisplay();
