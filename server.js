@@ -1744,20 +1744,20 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     const { rewardAmount, adType } = req.body;
     const telegramId = req.telegramUser.id;
 
-    const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
+    const userResult = await client.query('SELECT id, coins FROM users WHERE telegram_id = $1', [telegramId]);
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     
     const userId = userResult.rows[0].id;
     
     await client.query('BEGIN');
     
-    // ✅ FIX: Use the adType sent from the frontend (either 'ad' or 'error')
+    // ✅ 1. Log the ad (either 'ad' or 'error')
     await client.query(
       'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
-      [userId, rewardAmount, adType || 'ad'] // Fallback to 'ad' if missing
+      [userId, rewardAmount, adType || 'ad'] 
     );
     
-    // ✅ ONLY process rewards, streaks, and commissions if it was a SUCCESSFUL ad
+    // ✅ 2. ONLY process rewards if it was a SUCCESSFUL ad
     if (adType !== 'error' && rewardAmount > 0) {
         // Update user's coin balance
         await client.query(
@@ -1771,19 +1771,19 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
         // Track monthly earnings
         await trackMonthlyEarnings(client, userId, rewardAmount);
         
-        // Update ad_statistics
+        // ✅ 3. Update ad_statistics (This fixes the "Ads Today" counter)
         await client.query(`
           INSERT INTO ad_statistics (user_id, total_ads, ads_today, ads_week, updated_at)
           VALUES ($1, 1, 1, 1, NOW())
           ON CONFLICT (user_id) DO UPDATE SET
             total_ads = ad_statistics.total_ads + 1,
             ads_today = CASE 
-              WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos' 
+              WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
               THEN ad_statistics.ads_today + 1 
               ELSE 1 
             END,
             ads_week = CASE 
-              WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '6 days')::date
+              WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') >= ((CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date - INTERVAL '6 days')
               THEN ad_statistics.ads_week + 1 
               ELSE 1 
             END,
@@ -1791,30 +1791,28 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
         `, [userId]);
         
         // Check for Points Millionaire achievement
-        const userCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
-        if (parseFloat(userCoins.rows[0].coins) >= 1000000) {
+        if (parseFloat(userResult.rows[0].coins) + rewardAmount >= 1000000) {
           await awardAchievement(userId, 'Points Millionaire', client);
         }
         
-        // ✅ Check for Ad Master achievements
+        // Check for Ad Master achievements
         const adStats = await client.query(
           'SELECT total_ads FROM ad_statistics WHERE user_id = $1',
           [userId]
         );
         if (adStats.rows.length > 0) {
           const totalAds = parseInt(adStats.rows[0].total_ads);
-          if (totalAds >= 5000) {
-            await awardAchievement(userId, 'Ad Master', client);
-          }
-          if (totalAds >= 10000) {
-            await awardAchievement(userId, 'Ad Master Platinum', client);
-          }
+          if (totalAds >= 5000) await awardAchievement(userId, 'Ad Master', client);
+          if (totalAds >= 10000) await awardAchievement(userId, 'Ad Master Platinum', client);
         }
     }
     
     await client.query('COMMIT');
       
-    res.json({ success: true });
+    // Fetch the updated coins to send back to the frontend
+    const finalCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
+    res.json({ success: true, coins: finalCoins.rows[0].coins });
+    
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Ad Reward Error:', err);
