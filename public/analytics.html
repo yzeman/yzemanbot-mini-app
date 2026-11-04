@@ -846,9 +846,12 @@ async function loadSecurity() {
       return;
     }
     container.innerHTML = data.map(ip => `
-      <div class="segment-row">
-        <span style="font-family:monospace;">${ip.ip_address}</span>
-        <span class="segment-badge" style="background:var(--danger);">${ip.account_count} Accounts</span>
+      <div class="segment-row" style="flex-direction: column; align-items: flex-start; gap: 5px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; justify-content: space-between; width: 100%;">
+          <span style="font-family:monospace; font-weight: bold; color: var(--gold);">${ip.ip_address}</span>
+          <span class="segment-badge" style="background:var(--danger);">${ip.account_count} Accounts</span>
+        </div>
+        <div style="font-size: 10px; color: var(--gray);">Users: ${ip.users}</div>
       </div>
     `).join('');
   } catch (e) { console.error('Security error:', e); }
