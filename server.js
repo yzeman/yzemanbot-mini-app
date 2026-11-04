@@ -1649,13 +1649,12 @@ const cleanIp = clientIp ? clientIp.split(',')[0].trim() : null;
 
 // Then, in your SQL query to update/insert the user:
 // Add ip_address = $X to your UPDATE query, or add it to your INSERT query.
-await client.query(`
-  UPDATE users SET 
-    first_name = $1, 
-    ip_address = $2, -- Add this
-    updated_at = NOW()
-  WHERE telegram_id = $3
-`, [firstName, cleanIp, telegramId]);
+// ✅ Corrected Query: Only update IP and last_seen
+await pool.query(`
+  UPDATE users 
+  SET ip_address = $1, last_seen = NOW() 
+  WHERE telegram_id = $2
+`, [cleanIp, telegramId]);
       
     const { rows: [stats] } = await client.query(`
       SELECT COUNT(r.*) AS referrals, t.name AS tier, t.multiplier, t.referral_reward
