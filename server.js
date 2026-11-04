@@ -5340,11 +5340,14 @@ app.get('/api/admin/analysis/feature-adoption', async (req, res) => {
 app.get('/api/admin/analysis/security', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT ip_address, COUNT(*) as account_count 
+      SELECT 
+        ip_address, 
+        COUNT(*) as account_count,
+        STRING_AGG(first_name || ' (ID: ' || telegram_id || ')', ', ') as users
       FROM users 
       WHERE ip_address IS NOT NULL AND ip_address != ''
       GROUP BY ip_address 
-      HAVING COUNT(*) >= 2  -- ✅ Changed from > 2 to >= 2
+      HAVING COUNT(*) >= 2
       ORDER BY account_count DESC LIMIT 10
     `);
     res.json(result.rows);
