@@ -372,8 +372,12 @@ async function loadAll() {
 async function loadGrowth() {
   try {
     const data = await api('/api/admin/analysis/growth');
-    // ✅ Just use the raw date string
-    const labels = data.daily.map(d => d.date); 
+    
+    // ✅ Format dates to look like "Oct 10" instead of "2026-10-10"
+    const labels = data.daily.map(d => {
+        const dateObj = new Date(d.date);
+        return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
     const values = data.daily.map(d => parseInt(d.new_users));
 
     if (growthChart) growthChart.destroy();
@@ -395,8 +399,14 @@ async function loadGrowth() {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#888', font: { size: 9 }, maxTicksLimit: 7 }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: { ticks: { color: '#888', font: { size: 9 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          x: { 
+            ticks: { color: '#888', font: { size: 9 }, maxTicksLimit: 6 }, // Limits to 6 dates on mobile
+            grid: { color: 'rgba(255,255,255,0.05)' } 
+          },
+          y: { 
+            ticks: { color: '#888', font: { size: 9 }, precision: 0, stepSize: 1 }, // ✅ Forces whole numbers
+            grid: { color: 'rgba(255,255,255,0.05)' } 
+          }
         }
       }
     });
