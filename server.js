@@ -1643,18 +1643,15 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
       }
     }
 
-// At the top of your /api/user route:
+// ✅ CORRECTED IP TRACKING
 const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
 const cleanIp = clientIp ? clientIp.split(',')[0].trim() : null;
 
-// Then, in your SQL query to update/insert the user:
-// Add ip_address = $X to your UPDATE query, or add it to your INSERT query.
-// ✅ Corrected Query: Only update IP and last_seen
-await pool.query(`
+await client.query(`
   UPDATE users 
-  SET ip_address = $1, last_seen = NOW() 
+  SET ip_address = $1 
   WHERE telegram_id = $2
-`, [cleanIp, telegramId]);
+`, [cleanIp, id]); // 'id' is the correct variable name!
       
     const { rows: [stats] } = await client.query(`
       SELECT COUNT(r.*) AS referrals, t.name AS tier, t.multiplier, t.referral_reward
