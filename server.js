@@ -1736,7 +1736,7 @@ app.post('/api/tournament/update-read', verifyTelegramData, async (req, res) => 
 });
 
 // ============================================
-// AD REWARD ENDPOINT (WITH COMMISSION)
+// AD REWARD ENDPOINT (WITH COMMISSION & ERROR TRACKING)
 // ============================================
 app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
@@ -1751,68 +1751,70 @@ app.post('/api/ad-reward', verifyTelegramData, async (req, res) => {
     
     await client.query('BEGIN');
     
-    // ✅ FORCE 'ad' AS THE AD_TYPE FOR TOURNAMENT/LEADERBOARD TRACKING
+    // ✅ FIX: Use the adType sent from the frontend (either 'ad' or 'error')
     await client.query(
       'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
-      [userId, rewardAmount, 'ad']
+      [userId, rewardAmount, adType || 'ad'] // Fallback to 'ad' if missing
     );
     
-    // Update user's coin balance
-    await client.query(
-      'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
-      [rewardAmount, userId]
-    );
-    
-    // Award referral commission
-    await awardReferralCommission(client, userId, rewardAmount);
-    
-    // Track monthly earnings
-    await trackMonthlyEarnings(client, userId, rewardAmount);
-    
-    // Update ad_statistics
-    await client.query(`
-      INSERT INTO ad_statistics (user_id, total_ads, ads_today, ads_week, updated_at)
-      VALUES ($1, 1, 1, 1, NOW())
-      ON CONFLICT (user_id) DO UPDATE SET
-        total_ads = ad_statistics.total_ads + 1,
-        ads_today = CASE 
-          WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos' 
-          THEN ad_statistics.ads_today + 1 
-          ELSE 1 
-        END,
-        ads_week = CASE 
-          WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '6 days')::date
-          THEN ad_statistics.ads_week + 1 
-          ELSE 1 
-        END,
-        updated_at = NOW()
-    `, [userId]);
-    
-    // Check for Points Millionaire achievement
-    const userCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
-    if (parseFloat(userCoins.rows[0].coins) >= 1000000) {
-      await awardAchievement(userId, 'Points Millionaire', client);
-    }
-    
-    // ✅ ADD THIS: Check for Ad Master achievements
-    const adStats = await client.query(
-      'SELECT total_ads FROM ad_statistics WHERE user_id = $1',
-      [userId]
-    );
-    if (adStats.rows.length > 0) {
-      const totalAds = parseInt(adStats.rows[0].total_ads);
-      if (totalAds >= 5000) {
-        await awardAchievement(userId, 'Ad Master', client);
-      }
-      if (totalAds >= 10000) {
-        await awardAchievement(userId, 'Ad Master Platinum', client);
-      }
+    // ✅ ONLY process rewards, streaks, and commissions if it was a SUCCESSFUL ad
+    if (adType !== 'error' && rewardAmount > 0) {
+        // Update user's coin balance
+        await client.query(
+          'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
+          [rewardAmount, userId]
+        );
+        
+        // Award referral commission
+        await awardReferralCommission(client, userId, rewardAmount);
+        
+        // Track monthly earnings
+        await trackMonthlyEarnings(client, userId, rewardAmount);
+        
+        // Update ad_statistics
+        await client.query(`
+          INSERT INTO ad_statistics (user_id, total_ads, ads_today, ads_week, updated_at)
+          VALUES ($1, 1, 1, 1, NOW())
+          ON CONFLICT (user_id) DO UPDATE SET
+            total_ads = ad_statistics.total_ads + 1,
+            ads_today = CASE 
+              WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') = CURRENT_DATE AT TIME ZONE 'Africa/Lagos' 
+              THEN ad_statistics.ads_today + 1 
+              ELSE 1 
+            END,
+            ads_week = CASE 
+              WHEN DATE(ad_statistics.updated_at AT TIME ZONE 'Africa/Lagos') >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' - INTERVAL '6 days')::date
+              THEN ad_statistics.ads_week + 1 
+              ELSE 1 
+            END,
+            updated_at = NOW()
+        `, [userId]);
+        
+        // Check for Points Millionaire achievement
+        const userCoins = await client.query('SELECT coins FROM users WHERE id = $1', [userId]);
+        if (parseFloat(userCoins.rows[0].coins) >= 1000000) {
+          await awardAchievement(userId, 'Points Millionaire', client);
+        }
+        
+        // ✅ Check for Ad Master achievements
+        const adStats = await client.query(
+          'SELECT total_ads FROM ad_statistics WHERE user_id = $1',
+          [userId]
+        );
+        if (adStats.rows.length > 0) {
+          const totalAds = parseInt(adStats.rows[0].total_ads);
+          if (totalAds >= 5000) {
+            await awardAchievement(userId, 'Ad Master', client);
+          }
+          if (totalAds >= 10000) {
+            await awardAchievement(userId, 'Ad Master Platinum', client);
+          }
+        }
     }
     
     await client.query('COMMIT');
       
-    await client.query('COMMIT');
-    res.json({ success: true, coins: userCoins.rows[0].coins });
+    res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Ad Reward Error:', err);
