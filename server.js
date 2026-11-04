@@ -5453,6 +5453,62 @@ app.get('/api/admin/analysis/tournament', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.get('/api/admin/analysis/blocked-users', verifyAdmin, async (req, res) => {
+  try {
+    const users = await pool.query('SELECT telegram_id, first_name, last_name, coins FROM users');
+    const botToken = process.env.BOT_TOKEN;
+    
+    if (!botToken) return res.status(500).json({ error: 'BOT_TOKEN missing' });
+
+    let blockedCount = 0;
+    let deactivatedCount = 0;
+    const blockedUsers = [];
+    
+    // ✅ Process in chunks of 20 to avoid hitting Telegram rate limits
+    const chunkSize = 20;
+    for (let i = 0; i < users.rows.length; i += chunkSize) {
+        const chunk = users.rows.slice(i, i + chunkSize);
+        
+        await Promise.all(chunk.map(async (user) => {
+            try {
+                const response = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${user.telegram_id}`);
+                const data = await response.json();
+                
+                if (!data.ok) {
+                    if (data.description && data.description.includes('blocked')) {
+                        blockedCount++;
+                        blockedUsers.push({
+                            telegram_id: user.telegram_id,
+                            name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+                            coins: user.coins
+                        });
+                    } else if (data.description && data.description.includes('deactivated')) {
+                        deactivatedCount++;
+                    }
+                }
+            } catch (e) {
+                // Ignore network errors for individual users
+            }
+        }));
+        
+        // Small delay between chunks to be polite to Telegram API
+        await new Promise(r => setTimeout(r, 200));
+    }
+
+    res.json({
+      summary: {
+        blocked_count: blockedCount,
+        deactivated_count: deactivatedCount,
+        total_checked: users.rows.length
+      },
+      blocked: blockedUsers
+    });
+  } catch (err) { 
+    console.error('Blocked scan error:', err);
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
