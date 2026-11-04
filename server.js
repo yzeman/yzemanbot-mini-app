@@ -3098,13 +3098,12 @@ app.get('/api/admin/analytics', async (req, res) => {
     // ✅ Tier Distribution
     const tiers = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC`);
 
-    // ✅ Daily Active Users (Last 7 Days)
-    const dailyActive = await pool.query(`
-      SELECT DATE(last_seen AT TIME ZONE 'Africa/Lagos') as activity_date, COUNT(*) as count
-      FROM users 
-      WHERE last_seen >= NOW() - INTERVAL '7 days'
-      GROUP BY DATE(last_seen AT TIME ZONE 'Africa/Lagos')
-      ORDER BY activity_date DESC
+    // ✅ Active Today (Only users who watched an ad today)
+    const activeToday = await pool.query(`
+      SELECT COUNT(DISTINCT user_id) 
+      FROM ad_rewards 
+      WHERE ad_type = 'ad' 
+      AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
     `);
 
     res.json({
