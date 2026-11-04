@@ -5475,14 +5475,19 @@ app.get('/api/admin/analysis/blocked-users', verifyAdmin, async (req, res) => {
                 const data = await response.json();
                 
                 if (!data.ok) {
-                    if (data.description && data.description.includes('blocked')) {
+                    const desc = (data.description || '').toLowerCase();
+                    
+                    // ✅ Catch ALL variations of being blocked
+                    if (desc.includes('blocked') || desc.includes('kicked') || desc.includes('chat not found') || desc.includes('bot was blocked')) {
                         blockedCount++;
                         blockedUsers.push({
                             telegram_id: user.telegram_id,
-                            name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+                            name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown',
                             coins: user.coins
                         });
-                    } else if (data.description && data.description.includes('deactivated')) {
+                    } 
+                    // ✅ Catch deactivated accounts
+                    else if (desc.includes('deactivated') || desc.includes('user is deactivated')) {
                         deactivatedCount++;
                     }
                 }
