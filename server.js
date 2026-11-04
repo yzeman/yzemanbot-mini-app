@@ -5027,14 +5027,22 @@ app.get('/api/admin/download-user-ids', async (req, res) => {
 // 1. Growth
 app.get('/api/admin/analysis/growth', async (req, res) => {
   try {
+    // ✅ This generates a list of the last 30 days and LEFT JOINS the users
     const result = await pool.query(`
+      WITH date_series AS (
+        SELECT generate_series(
+          (CURRENT_DATE - INTERVAL '30 days')::date,
+          CURRENT_DATE,
+          '1 day'::interval
+        )::date AS date
+      )
       SELECT 
-        TO_CHAR(created_at AT TIME ZONE 'Africa/Lagos', 'YYYY-MM-DD') as date, 
-        COUNT(*) as new_users
-      FROM users 
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY date 
-      ORDER BY date ASC
+        TO_CHAR(ds.date, 'YYYY-MM-DD') as date,
+        COUNT(u.id) as new_users
+      FROM date_series ds
+      LEFT JOIN users u ON DATE(u.created_at AT TIME ZONE 'Africa/Lagos') = ds.date
+      GROUP BY ds.date
+      ORDER BY ds.date ASC
     `);
     res.json({ daily: result.rows });
   } catch (err) { 
