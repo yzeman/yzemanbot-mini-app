@@ -3069,40 +3069,46 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
 // ============================================
 app.get('/api/admin/analytics', async (req, res) => {
   try {
-    const users = await pool.query('SELECT COUNT(*) FROM users');
-    const teams = await pool.query('SELECT COUNT(*) FROM teams');
-    const withdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
+    const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
+    const totalTeams = await pool.query('SELECT COUNT(*) FROM teams');
+    const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     
-    // ✅ 1. Total Ads Watched (All time successful ads)
-    const totalAds = await pool.query(`
-      SELECT COUNT(*) FROM ad_rewards WHERE ad_type != 'error'
-    `);
+    // ✅ Total Ads (Successful only)
+    const totalAds = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type != 'error'`);
     
-    // ✅ 2. Ads Today (Successful ads watched today based on Lagos time)
+    // ✅ Ads Today (Successful only, Lagos Time)
     const adsToday = await pool.query(`
       SELECT COUNT(*) FROM ad_rewards 
       WHERE ad_type != 'error' 
       AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
     `);
 
-    // ✅ 3. Active Today & Week (Using last_seen)
-    const activeToday = await pool.query(`
-      SELECT COUNT(*) FROM users 
-      WHERE last_seen >= NOW() - INTERVAL '1 day'
-    `);
-    const activeWeek = await pool.query(`
-      SELECT COUNT(*) FROM users 
+    // ✅ Active Today & Week
+    const activeToday = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '1 day'`);
+    const activeWeek = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '7 days'`);
+
+    // ✅ Tier Distribution (RESTORED)
+    const tiers = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC`);
+
+    // ✅ Daily Active Users (Last 7 Days) (RESTORED)
+    const dailyActive = await pool.query(`
+      SELECT DATE(last_seen AT TIME ZONE 'Africa/Lagos') as activity_date, COUNT(*) as count
+      FROM users 
       WHERE last_seen >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(last_seen AT TIME ZONE 'Africa/Lagos')
+      ORDER BY activity_date DESC
     `);
 
     res.json({
-      totalUsers: parseInt(users.rows[0].count),
-      totalTeams: parseInt(teams.rows[0].count),
-      pendingWithdrawals: parseInt(withdrawals.rows[0].count),
+      totalUsers: parseInt(totalUsers.rows[0].count),
+      totalTeams: parseInt(totalTeams.rows[0].count),
+      pendingWithdrawals: parseInt(pendingWithdrawals.rows[0].count),
       totalAds: parseInt(totalAds.rows[0].count),
       adsToday: parseInt(adsToday.rows[0].count),
       activeToday: parseInt(activeToday.rows[0].count),
-      activeWeek: parseInt(activeWeek.rows[0].count)
+      activeWeek: parseInt(activeWeek.rows[0].count),
+      tierDistribution: tiers.rows,
+      dailyActive: dailyActive.rows
     });
   } catch (err) {
     console.error('Analytics error:', err);
