@@ -54,7 +54,7 @@ body {
   background: rgba(255,255,255,0.05); border-radius: 12px;
   padding: 12px 8px; text-align: center;
 }
-.kpi-value { font-size: 20px; font-weight: bold; color: var(--gold); word-break: break-word; }
+.kpi-value { font-size: 18px; font-weight: bold; color: var(--gold); word-break: break-word; }
 .kpi-label { font-size: 10px; color: var(--gray); margin-top: 4px; }
 .chart-wrap { position: relative; height: 220px; margin-top: 10px; }
 .funnel-step {
@@ -132,6 +132,36 @@ body {
     </div>
   </div>
 
+  <!-- Withdrawal Pipeline -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-wallet"></i> Withdrawal Pipeline</div>
+    <div class="grid-3">
+      <div class="kpi"><div class="kpi-value" id="readyToWithdraw">--</div><div class="kpi-label">Ready (100K+)</div></div>
+      <div class="kpi"><div class="kpi-value" id="closeToWithdraw">--</div><div class="kpi-label">Close (50K-99K)</div></div>
+      <div class="kpi"><div class="kpi-value" id="pendingWithdrawals">--</div><div class="kpi-label">Pending Requests</div></div>
+    </div>
+  </div>
+
+  <!-- Economy Health -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-balance-scale"></i> Coin Economy Health</div>
+    <div class="grid-2">
+      <div class="kpi"><div class="kpi-value" id="totalCoinsGenerated">--</div><div class="kpi-label">Total Generated</div></div>
+      <div class="kpi"><div class="kpi-value" id="totalCoinsWithdrawn">--</div><div class="kpi-label">Total Withdrawn</div></div>
+    </div>
+    <div class="chart-wrap" style="height: 180px; margin-top: 10px;">
+      <canvas id="economyChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Tier Distribution -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-layer-group"></i> Tier Distribution</div>
+    <div class="chart-wrap" style="height: 200px;">
+      <canvas id="tierChart"></canvas>
+    </div>
+  </div>
+
   <!-- Funnel -->
   <div class="section">
     <div class="section-title"><i class="fas fa-filter"></i> Conversion Funnel</div>
@@ -164,6 +194,12 @@ body {
       <div class="kpi"><div class="kpi-value" id="activeReferred">--</div><div class="kpi-label">Active Referred</div></div>
       <div class="kpi"><div class="kpi-value" id="retentionPct">--</div><div class="kpi-label">Retention %</div></div>
     </div>
+  </div>
+
+  <!-- Top Referrers -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-crown"></i> Top Referrers (All Time)</div>
+    <div id="topReferrersContainer"><div class="loading">Loading...</div></div>
   </div>
 
   <!-- Cohort Analysis -->
@@ -227,7 +263,18 @@ body {
 const ADMIN_TOKEN = 'Bearer admin123';
 
 // Chart instances
-let growthChart, heatmapChart, earningsChart, revenueChart;
+let growthChart, heatmapChart, earningsChart, revenueChart, economyChart, tierChart;
+
+// ============================================
+// Helper: Format Large Numbers
+// ============================================
+function formatNum(num) {
+  if (!num) return '0';
+  const n = parseFloat(num);
+  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
 
 // ============================================
 // API Helper
@@ -245,16 +292,20 @@ async function loadAll() {
   await Promise.all([
     loadGrowth(),
     loadRetention(),
+    loadWithdrawalPipeline(),
+    loadEconomyHealth(),
+    loadTierDistribution(),
     loadFunnel(),
     loadSegments(),
     loadHeatmap(),
     loadEarnings(),
     loadReferrals(),
+    loadTopReferrers(),
     loadCohort(),
     loadChurn(),
     loadRevenue(),
     loadFakeReferrals()
-    // Note: loadBlocked() is manual — slow operation
+    // loadBlocked() is manual
   ]);
 }
 
@@ -308,7 +359,77 @@ async function loadRetention() {
 }
 
 // ============================================
-// 3. Funnel
+// 3. Withdrawal Pipeline
+// ============================================
+async function loadWithdrawalPipeline() {
+  try {
+    const d = await api('/api/admin/analysis/withdrawal-pipeline');
+    document.getElementById('readyToWithdraw').textContent = d.ready.toLocaleString();
+    document.getElementById('closeToWithdraw').textContent = d.close.toLocaleString();
+    document.getElementById('pendingWithdrawals').textContent = d.pending.toLocaleString();
+  } catch (e) { console.error('Withdrawal pipeline error:', e); }
+}
+
+// ============================================
+// 4. Economy Health
+// ============================================
+async function loadEconomyHealth() {
+  try {
+    const d = await api('/api/admin/analysis/economy-health');
+    document.getElementById('totalCoinsGenerated').textContent = formatNum(d.generated);
+    document.getElementById('totalCoinsWithdrawn').textContent = formatNum(d.withdrawn);
+
+    if (economyChart) economyChart.destroy();
+    economyChart = new Chart(document.getElementById('economyChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Generated', 'Withdrawn', 'Current Supply'],
+        datasets: [{
+          data: [d.generated, d.withdrawn, d.supply],
+          backgroundColor: ['#4CAF50', '#f44336', '#FFD700'],
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+        }
+      }
+    });
+  } catch (e) { console.error('Economy health error:', e); }
+}
+
+// ============================================
+// 5. Tier Distribution
+// ============================================
+async function loadTierDistribution() {
+  try {
+    const d = await api('/api/admin/analysis/tier-distribution');
+    if (tierChart) tierChart.destroy();
+    tierChart = new Chart(document.getElementById('tierChart'), {
+      type: 'pie',
+      data: {
+        labels: ['Fresher', 'Brute', 'Silver', 'Gold', 'Platinum'],
+        datasets: [{
+          data: [d.fresher, d.brute, d.silver, d.gold, d.platinum],
+          backgroundColor: ['#888', '#FF9800', '#C0C0C0', '#FFD700', '#E5E4E2']
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: '#888', font: { size: 10 }, padding: 10 } }
+        }
+      }
+    });
+  } catch (e) { console.error('Tier dist error:', e); }
+}
+
+// ============================================
+// 6. Funnel
 // ============================================
 async function loadFunnel() {
   try {
@@ -331,7 +452,7 @@ async function loadFunnel() {
 }
 
 // ============================================
-// 4. Segments
+// 7. Segments
 // ============================================
 async function loadSegments() {
   try {
@@ -346,7 +467,7 @@ async function loadSegments() {
 }
 
 // ============================================
-// 5. Heatmap
+// 8. Heatmap
 // ============================================
 async function loadHeatmap() {
   try {
@@ -378,7 +499,7 @@ async function loadHeatmap() {
 }
 
 // ============================================
-// 6. Earnings Distribution
+// 9. Earnings Distribution
 // ============================================
 async function loadEarnings() {
   try {
@@ -410,7 +531,7 @@ async function loadEarnings() {
 }
 
 // ============================================
-// 7. Referral Quality
+// 10. Referral Quality
 // ============================================
 async function loadReferrals() {
   try {
@@ -422,7 +543,28 @@ async function loadReferrals() {
 }
 
 // ============================================
-// 8. Cohort Analysis
+// 11. Top Referrers
+// ============================================
+async function loadTopReferrers() {
+  try {
+    const data = await api('/api/admin/analysis/top-referrers');
+    const container = document.getElementById('topReferrersContainer');
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="text-align:center;color:var(--gray);font-size:11px;">No referrers yet</p>';
+      return;
+    }
+    container.innerHTML = data.map((u, i) => `
+      <div class="segment-row">
+        <span>#${i + 1} ${u.first_name || 'User'}</span>
+        <span style="color:var(--gold);font-size:11px;">${u.referrals} refs</span>
+        <span class="segment-badge">${formatNum(u.commission)} COINS</span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Top referrers error:', e); }
+}
+
+// ============================================
+// 12. Cohort Analysis
 // ============================================
 async function loadCohort() {
   try {
@@ -468,7 +610,7 @@ async function loadCohort() {
 }
 
 // ============================================
-// 9. Churn
+// 13. Churn
 // ============================================
 async function loadChurn() {
   try {
@@ -494,7 +636,7 @@ async function loadChurn() {
 }
 
 // ============================================
-// 10. Revenue / ARPU
+// 14. Revenue / ARPU
 // ============================================
 async function loadRevenue() {
   try {
@@ -530,7 +672,7 @@ async function loadRevenue() {
 }
 
 // ============================================
-// 11. Fake Referrals
+// 15. Fake Referrals
 // ============================================
 async function loadFakeReferrals() {
   try {
@@ -554,7 +696,7 @@ async function loadFakeReferrals() {
 }
 
 // ============================================
-// 12. Blocked Users (MANUAL)
+// 16. Blocked Users (MANUAL)
 // ============================================
 async function loadBlocked() {
   const container = document.getElementById('blockedContainer');
