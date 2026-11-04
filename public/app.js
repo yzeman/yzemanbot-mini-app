@@ -577,6 +577,10 @@ window.refreshUser = refreshUser;
 async function addCoins(amount, reason = 'reward') {
     try {
         await apiCall('/api/ad-reward', { initData: tg.initData, rewardAmount: amount, adType: reason });
+        
+        // ✅ Wait 500ms for the database to finish writing the ad
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         await refreshUser();
         return true;
     } catch (err) { showNotification('Failed: ' + err.message, true); return false; }
