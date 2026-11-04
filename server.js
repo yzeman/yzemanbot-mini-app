@@ -5038,18 +5038,40 @@ app.get('/api/admin/analysis/growth', async (req, res) => {
 
 // 2. Retention
 app.get('/api/admin/analysis/retention', async (req, res) => {
-  try {
-    const total = await pool.query(`SELECT COUNT(*) FROM users`);
-    const day1 = await pool.query(`SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '1 day'`);
-    const day7 = await pool.query(`SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`);
-    const day30 = await pool.query(`SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`);
+   try {
+    const total = await pool.query('SELECT COUNT(*) FROM users10');
+    
+    // ✅ Day 1 Return: Joined 1+ days ago AND opened the app again
+    const day1 = await pool.query(`
+      SELECT COUNT(*) FROM users 
+      WHERE created_at <= NOW() - INTERVAL '1 day' 
+      AND last_seen > created_at + INTERVAL '1 day'
+    `);
+    
+    // ✅ Day 7 Return: Joined 7+ days ago AND opened the app after day 1
+    const day7 = await pool.query(`
+      SELECT COUNT(*) FROM users 
+      WHERE created_at <= NOW() - INTERVAL '7 days' 
+      AND last_seen > created_at + INTERVAL '1 day'
+    `);
+    
+    // ✅ Day 30 Return: Joined 30+ days ago AND opened the app after day 1
+    const day30 = await pool.query(`
+      SELECT COUNT(*) FROM users 
+      WHERE created_at <= NOW() - INTERVAL '30 days' 
+      AND last_seen > created_at + INTERVAL '1 day'
+    `);
+
     res.json({
-      total: parseInt(total.rows[0].count),
+      total: parseInt(total.rows[0].count) || 1,
       day1: parseInt(day1.rows[0].count),
       day7: parseInt(day7.rows[0].count),
       day30: parseInt(day30.rows[0].count)
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error('Retention error:', err);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 // 3. Withdrawal Pipeline
