@@ -212,11 +212,21 @@ body {
   <div class="section">
     <div class="section-title"><i class="fas fa-user-slash"></i> Churn Risk Analysis</div>
     <div class="grid-3" style="margin-bottom: 12px;">
-      <div class="kpi"><div class="kpi-value" id="active24h">--</div><div class="kpi-label">Active 24h</div></div>
-      <div class="kpi"><div class="kpi-value" id="atRisk">--</div><div class="kpi-label">At Risk</div></div>
-      <div class="kpi"><div class="kpi-value" id="churned">--</div><div class="kpi-label">Churned</div></div>
+      <div class="kpi clickable-kpi" onclick="showChurnList('active')" style="cursor: pointer;">
+        <div class="kpi-value" id="active24h">--</div>
+        <div class="kpi-label">Active 24h</div>
+      </div>
+      <div class="kpi clickable-kpi" onclick="showChurnList('at_risk')" style="cursor: pointer;">
+        <div class="kpi-value" id="atRisk">--</div>
+        <div class="kpi-label">At Risk</div>
+      </div>
+      <div class="kpi clickable-kpi" onclick="showChurnList('churned')" style="cursor: pointer;">
+        <div class="kpi-value" id="churned">--</div>
+        <div class="kpi-label">Churned</div>
+      </div>
     </div>
-    <div id="churnContainer"><div class="loading">Loading...</div></div>
+    <!-- New container for the list -->
+    <div id="churnDetailList" style="margin-top: 10px;"></div>
   </div>
 
   <!-- Revenue -->
@@ -612,27 +622,72 @@ async function loadCohort() {
 // ============================================
 // 13. Churn
 // ============================================
+// Global variable to store churn data
+window.churnData = { active: [], at_risk: [], churned: [] };
+
+// 1. Update your existing loadChurn function to save the lists
 async function loadChurn() {
   try {
     const d = await api('/api/admin/analysis/churn');
+    
+    // Save data for clicking later
+    window.churnData.active = d.active_users || [];
+    window.churnData.at_risk = d.at_risk_users || [];
+    window.churnData.churned = d.churned_users || [];
+
+    // Update KPIs
     document.getElementById('active24h').textContent = d.summary.active_24h || 0;
     document.getElementById('atRisk').textContent = d.summary.at_risk || 0;
     document.getElementById('churned').textContent = d.summary.churned || 0;
 
-    const container = document.getElementById('churnContainer');
-    if (!d.at_risk_users || d.at_risk_users.length === 0) {
-      container.innerHTML = '<p style="text-align:center; color:var(--success); font-size:11px;">No at-risk users 🎉</p>';
-      return;
-    }
-    container.innerHTML = d.at_risk_users.slice(0, 10).map(u => `
-      <div class="segment-row">
-        <span>${u.first_name} <span style="color:#888; font-size:10px;">(${u.days_inactive}d ago)</span></span>
-        <span class="segment-badge" style="background:${u.days_inactive > 14 ? 'var(--danger)' : 'var(--warning)'};">
-          ${parseFloat(u.coins).toFixed(0)}
-        </span>
-      </div>
-    `).join('');
+    // Clear the detail list on fresh load
+    document.getElementById('churnDetailList').innerHTML = '';
+
   } catch (e) { console.error('Churn error:', e); }
+}
+
+// 2. Function to handle clicking the KPIs
+function showChurnList(type) {
+  const container = document.getElementById('churnDetailList');
+  let users = window.churnData[type] || [];
+  
+  let title = '';
+  let badgeColor = '';
+  
+  if (type === 'active') {
+    title = '🟢 Active (Last 24h)';
+    badgeColor = 'var(--success)';
+  } else if (type === 'at_risk') {
+    title = '🟠 At Risk (7-30 days inactive)';
+    badgeColor = 'var(--warning)';
+  } else {
+    title = '🔴 Churned (30+ days inactive)';
+    badgeColor = 'var(--danger)';
+  }
+
+  if (users.length === 0) {
+    container.innerHTML = `<p style="text-align:center; color:var(--gray); font-size:11px; margin-top:10px;">No users in this category 🎉</p>`;
+    return;
+  }
+
+  // Build the list
+  container.innerHTML = `
+    <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: ${badgeColor}; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
+      ${title} (${users.length})
+    </div>
+    <div style="max-height: 200px; overflow-y: auto;">
+      ${users.map(u => `
+        <div class="segment-row">
+          <span>${u.first_name || 'User'} 
+            <span style="color:#888; font-size:10px;">(${u.days_inactive !== undefined ? u.days_inactive + 'd ago' : 'today'})</span>
+          </span>
+          <span class="segment-badge" style="background:${badgeColor};">
+            ${parseFloat(u.coins || 0).toFixed(0)} C
+          </span>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 // ============================================
