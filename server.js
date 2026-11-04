@@ -5197,38 +5197,54 @@ app.get('/api/admin/analysis/cohort', verifyAdmin, async (req, res) => {
 // ============================================
 // 9. CHURN PREDICTION — At-risk users
 // ============================================
-app.get('/api/admin/analysis/churn', verifyAdmin, async (req, res) => {
+app.get('/api/admin/analysis/churn', async (req, res) => {
   try {
-    const atRisk = await pool.query(`
-      SELECT u.first_name, u.username, u.telegram_id,
-        u.coins, u.last_seen,
-        EXTRACT(DAY FROM NOW() - u.last_seen)::int as days_inactive,
-        COUNT(ar.id) as lifetime_ads
-      FROM users u
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id AND ar.ad_type = 'ad'
-      WHERE u.last_seen IS NOT NULL
-        AND u.last_seen < NOW() - INTERVAL '3 days'
-        AND u.last_seen > NOW() - INTERVAL '30 days'
-      GROUP BY u.id, u.first_name, u.username, u.telegram_id, u.coins, u.last_seen
-      HAVING COUNT(ar.id) >= 10
-      ORDER BY u.coins DESC
-      LIMIT 20
+    // 1. Get Summary Counts
+    const active = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '1 day'`);
+    const atRisk = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen < NOW() - INTERVAL '7 days' AND last_seen >= NOW() - INTERVAL '30 days'`);
+    const churned = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen < NOW() - INTERVAL '30 days' OR last_seen IS NULL`);
+
+    // 2. Get Active Users List (Limit 100 to save bandwidth)
+    const activeList = await pool.query(`
+      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
+      FROM users 
+      WHERE last_seen >= NOW() - INTERVAL '1 day' 
+      ORDER BY last_seen DESC LIMIT 100
     `);
 
-    const summary = await pool.query(`
-      SELECT
-        COUNT(*) FILTER (WHERE last_seen >= NOW() - INTERVAL '1 day') as active_24h,
-        COUNT(*) FILTER (WHERE last_seen BETWEEN NOW() - INTERVAL '3 days' AND NOW() - INTERVAL '1 day') as warm,
-        COUNT(*) FILTER (WHERE last_seen BETWEEN NOW() - INTERVAL '7 days' AND NOW() - INTERVAL '3 days') as cooling,
-        COUNT(*) FILTER (WHERE last_seen BETWEEN NOW() - INTERVAL '30 days' AND NOW() - INTERVAL '7 days') as at_risk,
-        COUNT(*) FILTER (WHERE last_seen < NOW() - INTERVAL '30 days') as churned
-      FROM users WHERE last_seen IS NOT NULL
+    // 3. Get At Risk Users List (Limit 100)
+    const atRiskList = await pool.query(`
+      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
+      FROM users 
+      WHERE last_seen < NOW() - INTERVAL '7 days' 
+      AND last_seen >= NOW() - INTERVAL '30 days'
+      ORDER BY coins DESC LIMIT 100
     `);
 
-    res.json({ at_risk_users: atRisk.rows, summary: summary.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    // 4. Get Churned Users List (Limit 100)
+    const churnedList = await pool.query(`
+      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
+      FROM users 
+      WHERE last_seen < NOW() - INTERVAL '30 days' OR last_seen IS NULL
+      ORDER BY coins DESC LIMIT 100
+    `);
+
+    res.json({
+      summary: {
+        active_24h: parseInt(active.rows[0].count),
+        at_risk: parseInt(atRisk.rows[0].count),
+        churned: parseInt(churned.rows[0].count)
+      },
+      active_users: activeList.rows,
+      at_risk_users: atRiskList.rows,
+      churned_users: churnedList.rows
+    });
+
+  } catch (err) {
+    console.error('Churn API Error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
-
 // ============================================
 // 10. REVENUE / ARPU ANALYTICS
 // ============================================
