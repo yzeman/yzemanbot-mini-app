@@ -3072,7 +3072,10 @@ app.get('/api/admin/analytics', async (req, res) => {
     const totalUsers = await pool.query('SELECT COUNT(*) FROM users');
     const totalTeams = await pool.query('SELECT COUNT(*) FROM teams');
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
-    
+    const totalRefs = await pool.query('SELECT SUM(referrals) as total FROM users');
+const totalCoins = await pool.query('SELECT SUM(coins) as total FROM users');
+
+      
     // ✅ Total Ads (Successful only)
     const totalAds = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type != 'error'`);
     
@@ -3108,7 +3111,9 @@ app.get('/api/admin/analytics', async (req, res) => {
       activeToday: parseInt(activeToday.rows[0].count),
       activeWeek: parseInt(activeWeek.rows[0].count),
       tierDistribution: tiers.rows,
-      dailyActive: dailyActive.rows
+      dailyActive: dailyActive.rows,
+      totalReferrals: parseInt(totalRefs.rows[0].total) || 0,     // ✅ ADD THIS
+      totalCoins: parseFloat(totalCoins.rows[0].total) || 0        // ✅ ADD THIS
     });
   } catch (err) {
     console.error('Analytics error:', err);
@@ -3433,17 +3438,23 @@ app.get('/api/admin/today-user-activity', verifyAdmin, async (req, res) => {
         u.id, u.telegram_id, u.first_name, u.last_name, u.username, u.photo_url,
         u.coins, u.tier,
         COALESCE(ads.total_ads, 0) as total_ads,
-        COUNT(ar_today.id) as ads_today,
-        COALESCE(SUM(ar_today.reward_amount), 0) as coins_earned_today,
-        (SELECT COUNT(*) FROM referrals r WHERE r.referrer_id = u.id AND r.created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos') AND r.created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')) as referrals_today
+        COALESCE(ads.ads_today, 0) as ads_today, -- ✅ Use the correct stat table
+        COALESCE((
+            SELECT SUM(reward_amount) 
+            FROM ad_rewards 
+            WHERE user_id = u.id 
+            AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
+            AND ad_type != 'error'
+        ), 0) as coins_earned_today,
+        COALESCE((
+            SELECT COUNT(*) 
+            FROM referrals 
+            WHERE referrer_id = u.id 
+            AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
+        ), 0) as referrals_today
       FROM users u
       LEFT JOIN ad_statistics ads ON u.id = ads.user_id
-      LEFT JOIN ad_rewards ar_today ON u.id = ar_today.user_id 
-        AND ar_today.ad_type = 'ad'
-        AND ar_today.created_at >= (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')
-        AND ar_today.created_at < (CURRENT_DATE AT TIME ZONE 'Africa/Lagos' + INTERVAL '1 day')
-      WHERE ar_today.id IS NOT NULL
-      GROUP BY u.id, ads.total_ads
+      WHERE DATE(u.last_seen AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
       ORDER BY coins_earned_today DESC, ads_today DESC
     `);
     res.json(result.rows);
