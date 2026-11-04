@@ -3073,27 +3073,32 @@ app.get('/api/admin/analytics', async (req, res) => {
     const totalTeams = await pool.query('SELECT COUNT(*) FROM teams');
     const pendingWithdrawals = await pool.query("SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'");
     const totalRefs = await pool.query('SELECT SUM(referrals) as total FROM users');
-const totalCoins = await pool.query('SELECT SUM(coins) as total FROM users');
+    const totalCoins = await pool.query('SELECT SUM(coins) as total FROM users');
 
-      
-    // ✅ Total Ads (Successful only)
-    const totalAds = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type != 'error'`);
+    // ✅ Total Ads (Only real video ads, ignoring commissions/wheel/errors)
+    const totalAds = await pool.query(`
+      SELECT COUNT(*) FROM ad_rewards 
+      WHERE ad_type = 'ad'
+    `);
     
-    // ✅ Ads Today (Successful only, Lagos Time)
+    // ✅ Ads Today (Only real video ads today, Lagos Time)
     const adsToday = await pool.query(`
       SELECT COUNT(*) FROM ad_rewards 
-      WHERE ad_type != 'error' 
+      WHERE ad_type = 'ad' 
       AND DATE(created_at AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
     `);
 
     // ✅ Active Today & Week
-    const activeToday = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '1 day'`);
+    const activeToday = await pool.query(`
+      SELECT COUNT(*) FROM users 
+      WHERE DATE(last_seen AT TIME ZONE 'Africa/Lagos') = (CURRENT_DATE AT TIME ZONE 'Africa/Lagos')::date
+    `);
     const activeWeek = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '7 days'`);
 
-    // ✅ Tier Distribution (RESTORED)
+    // ✅ Tier Distribution
     const tiers = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier ORDER BY count DESC`);
 
-    // ✅ Daily Active Users (Last 7 Days) (RESTORED)
+    // ✅ Daily Active Users (Last 7 Days)
     const dailyActive = await pool.query(`
       SELECT DATE(last_seen AT TIME ZONE 'Africa/Lagos') as activity_date, COUNT(*) as count
       FROM users 
@@ -3112,8 +3117,8 @@ const totalCoins = await pool.query('SELECT SUM(coins) as total FROM users');
       activeWeek: parseInt(activeWeek.rows[0].count),
       tierDistribution: tiers.rows,
       dailyActive: dailyActive.rows,
-      totalReferrals: parseInt(totalRefs.rows[0].total) || 0,     // ✅ ADD THIS
-      totalCoins: parseFloat(totalCoins.rows[0].total) || 0        // ✅ ADD THIS
+      totalReferrals: parseInt(totalRefs.rows[0].total) || 0,
+      totalCoins: parseFloat(totalCoins.rows[0].total) || 0
     });
   } catch (err) {
     console.error('Analytics error:', err);
