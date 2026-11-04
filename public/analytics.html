@@ -372,7 +372,8 @@ async function loadAll() {
 async function loadGrowth() {
   try {
     const data = await api('/api/admin/analysis/growth');
-    const labels = data.daily.map(d => new Date(d.date).toLocaleDateString('en', {month:'short', day:'numeric'}));
+    // ✅ Just use the raw date string
+    const labels = data.daily.map(d => d.date); 
     const values = data.daily.map(d => parseInt(d.new_users));
 
     if (growthChart) growthChart.destroy();
@@ -387,15 +388,15 @@ async function loadGrowth() {
           backgroundColor: 'rgba(76,175,80,0.2)',
           tension: 0.3,
           fill: true,
-          pointRadius: 2
+          pointRadius: 3
         }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: { ticks: { color: '#888', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          x: { ticks: { color: '#888', font: { size: 9 }, maxTicksLimit: 7 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#888', font: { size: 9 }, precision: 0 }, grid: { color: 'rgba(255,255,255,0.05)' } }
         }
       }
     });
