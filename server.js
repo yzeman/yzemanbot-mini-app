@@ -5352,19 +5352,30 @@ app.get('/api/admin/analysis/security', async (req, res) => {
 // 19. Ad Health (NEW)
 app.get('/api/admin/analysis/ad-health', async (req, res) => {
   try {
-    const successful = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'monetag'`);
+    // ✅ Count successful ads (only 'ad')
+    const successful = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'ad'`);
+    // ✅ Count failed ads (only 'error')
     const errors = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'error'`); 
     const users = await pool.query(`SELECT COUNT(*) FROM users`);
     
-    const totalAttempts = parseInt(successful.rows[0].count) + parseInt(errors.rows[0].count) || 1;
-    const fillRate = Math.round((parseInt(successful.rows[0].count) / totalAttempts) * 100);
+    const successCount = parseInt(successful.rows[0].count) || 0;
+    const errorCount = parseInt(errors.rows[0].count) || 0;
+    const totalUsers = parseInt(users.rows[0].count) || 1; // Prevent division by zero
+    
+    const totalAttempts = successCount + errorCount;
+    
+    // ✅ If no ads have been attempted yet, don't divide by zero
+    const fillRate = totalAttempts > 0 ? Math.round((successCount / totalAttempts) * 100) : 100;
     
     res.json({
       fill_rate: fillRate,
-      errors: parseInt(errors.rows[0].count),
-      avg_per_user: Math.round(parseInt(successful.rows[0].count) / (parseInt(users.rows[0].count) || 1))
+      errors: errorCount,
+      avg_per_user: Math.round(successCount / totalUsers) // 0 is correct if less than 1 ad per user
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error('Ad Health error:', err);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 // 20. Tournament (NEW)
