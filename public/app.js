@@ -576,9 +576,9 @@ window.refreshUser = refreshUser;
 
 async function addCoins(amount, reason = 'reward') {
     try {
-        await apiCall('/api/ad-reward', { initData: tg.initData, rewardAmount: amount, adType: reason });
+        // Change the reason to 'ad' just to match the backend
+        await apiCall('/api/ad-reward', { initData: tg.initData, rewardAmount: amount, adType: 'ad' });
         
-        // ✅ Wait 500ms for the database to finish writing the ad
         await new Promise(resolve => setTimeout(resolve, 500));
         
         await refreshUser();
@@ -859,7 +859,7 @@ async function awardAdReward() {
     console.log(`💰 Total reward: ${totalCoins} COINS (base: ${finalReward}, streak: ${streakBonus}, milestone: ${milestoneBonus}, daily: ${dailyGoalBonus}, weekly: ${weeklyGoalBonus})`);
     
     showCelebration(celebrationMsg, totalCoins);
-    await addCoins(totalCoins, 'monetag');
+    await addCoins(totalCoins, 'ad');
     
     if (streakBonus > 0) showNotification(`🔥 Streak bonus! +${streakBonus} COINS!`);
     if (dailyGoalBonus > 0) showNotification(`🎯 Daily goal reached! +${dailyGoalBonus} COINS`);
