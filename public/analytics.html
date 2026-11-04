@@ -899,10 +899,23 @@ async function loadBlocked() {
   container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Scanning users... please wait 1-2 minutes</div>';
 
   try {
-    const d = await api('/api/admin/analysis/blocked-users');
-    document.getElementById('blockedCount').textContent = d.summary.blocked_count;
-    document.getElementById('deactivatedCount').textContent = d.summary.deactivated_count;
-    document.getElementById('totalChecked').textContent = d.summary.total_checked;
+    // ✅ Add a longer timeout (2 minutes) for the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); 
+
+    const res = await fetch('/api/admin/analysis/blocked-users', { 
+        headers: { 'Authorization': ADMIN_TOKEN },
+        signal: controller.signal 
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error('Server returned an error');
+    
+    const d = await res.json();
+    
+    document.getElementById('blockedCount').textContent = d.summary.blocked_count || 0;
+    document.getElementById('deactivatedCount').textContent = d.summary.deactivated_count || 0;
+    document.getElementById('totalChecked').textContent = d.summary.total_checked || 0;
 
     if (!d.blocked || d.blocked.length === 0) {
       container.innerHTML = '<p style="text-align:center; color:var(--success); font-size:11px;">✅ No blocked users found</p>';
@@ -932,7 +945,8 @@ async function loadBlocked() {
 
     window.blockedUsersData = d.blocked.map(u => u.telegram_id);
   } catch (e) {
-    container.innerHTML = '<div class="loading" style="color:var(--danger);">Failed to scan. Please try again.</div>';
+    console.error('Scan error:', e);
+    container.innerHTML = '<div class="loading" style="color:var(--danger);">Scan took too long or failed. Try again later.</div>';
   }
 }
 
