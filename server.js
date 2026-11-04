@@ -5349,28 +5349,36 @@ app.get('/api/admin/analysis/security', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 19. Ad Health (NEW)
+// 19. Ad Health (NEW)// 19. Ad Health
 app.get('/api/admin/analysis/ad-health', async (req, res) => {
   try {
-    // ✅ Count successful ads (only 'ad')
+    // ✅ Count successful ads (Strictly 'ad' only)
     const successful = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'ad'`);
-    // ✅ Count failed ads (only 'error')
+    
+    // ✅ Count errors
     const errors = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'error'`); 
+    
+    // ✅ Count total users
     const users = await pool.query(`SELECT COUNT(*) FROM users`);
     
     const successCount = parseInt(successful.rows[0].count) || 0;
     const errorCount = parseInt(errors.rows[0].count) || 0;
-    const totalUsers = parseInt(users.rows[0].count) || 1; // Prevent division by zero
+    const totalUsers = parseInt(users.rows[0].count) || 1;
     
     const totalAttempts = successCount + errorCount;
     
-    // ✅ If no ads have been attempted yet, don't divide by zero
-    const fillRate = totalAttempts > 0 ? Math.round((successCount / totalAttempts) * 100) : 100;
-    
+    // ✅ If no errors, fill rate is 100%. If no ads at all, it's 0%.
+    let fillRate = 0;
+    if (totalAttempts > 0) {
+        fillRate = Math.round((successCount / totalAttempts) * 100);
+    } else if (successCount === 0 && errorCount === 0) {
+        fillRate = 0;
+    }
+
     res.json({
       fill_rate: fillRate,
       errors: errorCount,
-      avg_per_user: Math.round(successCount / totalUsers) // 0 is correct if less than 1 ad per user
+      avg_per_user: (successCount / totalUsers).toFixed(1) 
     });
   } catch (err) { 
     console.error('Ad Health error:', err);
