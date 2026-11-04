@@ -313,7 +313,8 @@ async function initDB() {
     `);
 
       // Add these tables inside your initDB() function, after the other tables
-
+await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_address TEXT`);
+      
 // Private messages table
 await client.query(`
   CREATE TABLE IF NOT EXISTS private_messages (
@@ -1641,7 +1642,21 @@ app.post('/api/user', verifyTelegramData, async (req, res) => {
         }
       }
     }
-    
+
+// At the top of your /api/user route:
+const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || null;
+const cleanIp = clientIp ? clientIp.split(',')[0].trim() : null;
+
+// Then, in your SQL query to update/insert the user:
+// Add ip_address = $X to your UPDATE query, or add it to your INSERT query.
+await client.query(`
+  UPDATE users SET 
+    first_name = $1, 
+    ip_address = $2, -- Add this
+    updated_at = NOW()
+  WHERE telegram_id = $3
+`, [firstName, cleanIp, telegramId]);
+      
     const { rows: [stats] } = await client.query(`
       SELECT COUNT(r.*) AS referrals, t.name AS tier, t.multiplier, t.referral_reward
       FROM users u
