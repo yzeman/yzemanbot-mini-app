@@ -5009,427 +5009,39 @@ app.get('/api/admin/download-user-ids', async (req, res) => {
   }
 });
 
-// ============================================
-// ADMIN: Data Analysis Endpoints
-// ============================================
+// ============================================================
+// COMPLETE ADMIN ANALYSIS ENDPOINTS
+// ============================================================
 
-// 1. Growth — new users over time
-app.get('/api/admin/analysis/growth', verifyAdmin, async (req, res) => {
-  try {
-    const daily = await pool.query(`
-      SELECT DATE(created_at AT TIME ZONE 'Africa/Lagos') as date,
-             COUNT(*) as new_users
-      FROM users
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY DATE(created_at AT TIME ZONE 'Africa/Lagos')
-      ORDER BY date ASC
-    `);
-    
-    const weekly = await pool.query(`
-      SELECT DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')::date as week,
-             COUNT(*) as new_users
-      FROM users
-      WHERE created_at >= NOW() - INTERVAL '12 weeks'
-      GROUP BY DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')
-      ORDER BY week ASC
-    `);
-    
-    res.json({ daily: daily.rows, weekly: weekly.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 2. Retention — do users come back?
-app.get('/api/admin/analysis/retention', verifyAdmin, async (req, res) => {
+// 1. Growth
+app.get('/api/admin/analysis/growth', async (req, res) => {
   try {
     const result = await pool.query(`
-      WITH user_activity AS (
-        SELECT user_id, MIN(created_at) as first_seen, MAX(created_at) as last_seen
-        FROM ad_rewards WHERE ad_type = 'ad'
-        GROUP BY user_id
-      )
-      SELECT 
-        COUNT(*) FILTER (WHERE last_seen >= first_seen + INTERVAL '1 day') as day1,
-        COUNT(*) FILTER (WHERE last_seen >= first_seen + INTERVAL '7 days') as day7,
-        COUNT(*) FILTER (WHERE last_seen >= first_seen + INTERVAL '30 days') as day30,
-        COUNT(*) as total
-      FROM user_activity
+      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as new_users
+      FROM users WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY date ORDER BY date ASC
     `);
-    res.json(result.rows[0]);
+    res.json({ daily: result.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. Funnel — user journey
-app.get('/api/admin/analysis/funnel', verifyAdmin, async (req, res) => {
+// 2. Retention
+app.get('/api/admin/analysis/retention', async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT
-        (SELECT COUNT(*) FROM users) as joined,
-        (SELECT COUNT(DISTINCT user_id) FROM ad_rewards WHERE ad_type = 'ad') as watched_first_ad,
-        (SELECT COUNT(*) FROM (SELECT user_id FROM ad_rewards WHERE ad_type='ad' GROUP BY user_id HAVING COUNT(*) >= 50) s) as watched_50_ads,
-        (SELECT COUNT(*) FROM (SELECT user_id FROM ad_rewards WHERE ad_type='ad' GROUP BY user_id HAVING COUNT(*) >= 500) s) as watched_500_ads,
-        (SELECT COUNT(*) FROM users WHERE coins >= 100000) as reached_100k,
-        (SELECT COUNT(*) FROM users WHERE coins >= 1000000) as reached_1m
-    `);
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 4. Segments — user types
-app.get('/api/admin/analysis/segments', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        CASE
-          WHEN last_seen IS NULL THEN 'Never Active'
-          WHEN last_seen >= NOW() - INTERVAL '1 day' THEN 'Daily Active'
-          WHEN last_seen >= NOW() - INTERVAL '7 days' THEN 'Weekly Active'
-          WHEN last_seen >= NOW() - INTERVAL '30 days' THEN 'Monthly Active'
-          ELSE 'Inactive'
-        END as segment,
-        COUNT(*) as users,
-        ROUND(AVG(coins), 2) as avg_coins
-      FROM users
-      GROUP BY segment
-      ORDER BY users DESC
-    `);
-    res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 5. Activity Heatmap — when users are active
-app.get('/api/admin/analysis/heatmap', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        EXTRACT(DOW FROM created_at AT TIME ZONE 'Africa/Lagos') as day_of_week,
-        EXTRACT(HOUR FROM created_at AT TIME ZONE 'Africa/Lagos') as hour,
-        COUNT(*) as activity
-      FROM ad_rewards
-      WHERE created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY day_of_week, hour
-      ORDER BY day_of_week, hour
-    `);
-    res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 6. Earnings Distribution — who's close to withdrawal
-app.get('/api/admin/analysis/earnings-distribution', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT
-        COUNT(*) FILTER (WHERE coins < 10000) as under_10k,
-        COUNT(*) FILTER (WHERE coins >= 10000 AND coins < 50000) as from_10k_50k,
-        COUNT(*) FILTER (WHERE coins >= 50000 AND coins < 100000) as from_50k_100k,
-        COUNT(*) FILTER (WHERE coins >= 100000 AND coins < 500000) as from_100k_500k,
-        COUNT(*) FILTER (WHERE coins >= 500000 AND coins < 1000000) as from_500k_1m,
-        COUNT(*) FILTER (WHERE coins >= 1000000) as reached_1m,
-        ROUND(SUM(coins), 2) as total_coins_in_circulation,
-        ROUND(AVG(coins), 2) as avg_coins_per_user
-      FROM users
-    `);
-    res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 7. Referral Network — top referrers + quality
-app.get('/api/admin/analysis/referrals', verifyAdmin, async (req, res) => {
-  try {
-    const topReferrers = await pool.query(`
-      SELECT u.first_name, u.username, COUNT(r.id) as total_refs
-      FROM users u
-      LEFT JOIN referrals r ON u.id = r.referrer_id
-      GROUP BY u.id, u.first_name, u.username
-      HAVING COUNT(r.id) > 0
-      ORDER BY total_refs DESC
-      LIMIT 10
-    `);
-    
-    const quality = await pool.query(`
-      SELECT
-        COUNT(DISTINCT r.referred_id) as total_referred,
-        COUNT(DISTINCT CASE WHEN u.last_seen >= NOW() - INTERVAL '7 days' THEN u.id END) as active_referred,
-        ROUND(
-          COUNT(DISTINCT CASE WHEN u.last_seen >= NOW() - INTERVAL '7 days' THEN u.id END) * 100.0 /
-          NULLIF(COUNT(DISTINCT r.referred_id), 0), 1
-        ) as retention_percent
-      FROM referrals r
-      JOIN users u ON r.referred_id = u.id
-    `);
-    
-    res.json({ top_referrers: topReferrers.rows, quality: quality.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-// ============================================
-// 8. COHORT ANALYSIS — Retention by join week
-// ============================================
-app.get('/api/admin/analysis/cohort', verifyAdmin, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      WITH cohorts AS (
-        SELECT id,
-          DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')::date as cohort_week
-        FROM users
-        WHERE created_at >= NOW() - INTERVAL '8 weeks'
-      ),
-      activity AS (
-        SELECT DISTINCT user_id,
-          DATE_TRUNC('week', created_at AT TIME ZONE 'Africa/Lagos')::date as activity_week
-        FROM ad_rewards WHERE ad_type = 'ad'
-      )
-      SELECT 
-        c.cohort_week,
-        COUNT(DISTINCT c.id) as cohort_size,
-        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week THEN c.id END) as week_0,
-        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '1 week' THEN c.id END) as week_1,
-        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '2 weeks' THEN c.id END) as week_2,
-        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '3 weeks' THEN c.id END) as week_3
-      FROM cohorts c
-      LEFT JOIN activity a ON c.id = a.user_id
-      GROUP BY c.cohort_week
-      ORDER BY c.cohort_week DESC
-      LIMIT 8
-    `);
-    res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ============================================
-// 9. CHURN PREDICTION — At-risk users
-// ============================================
-app.get('/api/admin/analysis/churn', async (req, res) => {
-  try {
-    // 1. Get Summary Counts
-    const active = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '1 day'`);
-    const atRisk = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen < NOW() - INTERVAL '7 days' AND last_seen >= NOW() - INTERVAL '30 days'`);
-    const churned = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen < NOW() - INTERVAL '30 days' OR last_seen IS NULL`);
-
-    // 2. Get Active Users List (Limit 100 to save bandwidth)
-    const activeList = await pool.query(`
-      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
-      FROM users 
-      WHERE last_seen >= NOW() - INTERVAL '1 day' 
-      ORDER BY last_seen DESC LIMIT 100
-    `);
-
-    // 3. Get At Risk Users List (Limit 100)
-    const atRiskList = await pool.query(`
-      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
-      FROM users 
-      WHERE last_seen < NOW() - INTERVAL '7 days' 
-      AND last_seen >= NOW() - INTERVAL '30 days'
-      ORDER BY coins DESC LIMIT 100
-    `);
-
-    // 4. Get Churned Users List (Limit 100)
-    const churnedList = await pool.query(`
-      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
-      FROM users 
-      WHERE last_seen < NOW() - INTERVAL '30 days' OR last_seen IS NULL
-      ORDER BY coins DESC LIMIT 100
-    `);
-
+    const total = await pool.query(`SELECT COUNT(*) FROM users`);
+    const day1 = await pool.query(`SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '1 day'`);
+    const day7 = await pool.query(`SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '7 days'`);
+    const day30 = await pool.query(`SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days'`);
     res.json({
-      summary: {
-        active_24h: parseInt(active.rows[0].count),
-        at_risk: parseInt(atRisk.rows[0].count),
-        churned: parseInt(churned.rows[0].count)
-      },
-      active_users: activeList.rows,
-      at_risk_users: atRiskList.rows,
-      churned_users: churnedList.rows
-    });
-
-  } catch (err) {
-    console.error('Churn API Error:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-// ============================================
-// 10. REVENUE / ARPU ANALYTICS
-// ============================================
-app.get('/api/admin/analysis/revenue', verifyAdmin, async (req, res) => {
-  try {
-    // Estimated Monetag revenue (rough eCPM ~$1.5 per 1000 impressions)
-    const ecpm = 1.5;
-
-    const daily = await pool.query(`
-      SELECT 
-        DATE(created_at AT TIME ZONE 'Africa/Lagos') as date,
-        COUNT(*) as ad_views,
-        COUNT(DISTINCT user_id) as unique_users
-      FROM ad_rewards
-      WHERE ad_type = 'ad' AND created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY DATE(created_at AT TIME ZONE 'Africa/Lagos')
-      ORDER BY date ASC
-    `);
-
-    const summary = await pool.query(`
-      SELECT
-        COUNT(*) as total_ad_views,
-        COUNT(DISTINCT user_id) as total_advertisers,
-        COUNT(DISTINCT user_id) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as dau_30d
-      FROM ad_rewards WHERE ad_type = 'ad'
-    `);
-
-    const total = summary.rows[0];
-    const totalViews = parseInt(total.total_ad_views) || 0;
-    const estimatedRevenue = (totalViews / 1000) * ecpm;
-    const arpu = totalViews > 0 ? estimatedRevenue / parseInt(total.dau_30d || 1) : 0;
-
-    res.json({
-      daily: daily.rows,
-      totals: {
-        total_ad_views: totalViews,
-        estimated_revenue: parseFloat(estimatedRevenue.toFixed(2)),
-        arpu: parseFloat(arpu.toFixed(4)),
-        ecpm_used: ecpm
-      }
+      total: parseInt(total.rows[0].count),
+      day1: parseInt(day1.rows[0].count),
+      day7: parseInt(day7.rows[0].count),
+      day30: parseInt(day30.rows[0].count)
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ============================================
-// 11. FAKE REFERRAL DETECTION
-// ============================================
-app.get('/api/admin/analysis/fake-referrals', verifyAdmin, async (req, res) => {
-  try {
-    // Users who referred others but those referred users never watched an ad
-    const suspicious = await pool.query(`
-      SELECT 
-        referrer.first_name as referrer_name,
-        referrer.username as referrer_username,
-        referrer.telegram_id as referrer_id,
-        COUNT(DISTINCT r.referred_id) as total_referred,
-        COUNT(DISTINCT CASE WHEN NOT EXISTS (
-          SELECT 1 FROM ad_rewards ar 
-          WHERE ar.user_id = r.referred_id AND ar.ad_type = 'ad'
-        ) THEN r.referred_id END) as dormant_refs
-      FROM users referrer
-      JOIN referrals r ON referrer.id = r.referrer_id
-      GROUP BY referrer.id, referrer.first_name, referrer.username, referrer.telegram_id
-      HAVING COUNT(DISTINCT r.referred_id) >= 3
-        AND COUNT(DISTINCT CASE WHEN NOT EXISTS (
-          SELECT 1 FROM ad_rewards ar 
-          WHERE ar.user_id = r.referred_id AND ar.ad_type = 'ad'
-        ) THEN r.referred_id END) >= 3
-      ORDER BY dormant_refs DESC
-      LIMIT 20
-    `);
-
-    res.json(suspicious.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ============================================
-// 12. BLOCKED BOT USERS — Users who blocked the bot
-// ============================================
-app.get('/api/admin/analysis/blocked-users', verifyAdmin, async (req, res) => {
-  try {
-    const BOT_TOKEN = process.env.BOT_TOKEN;
-    if (!BOT_TOKEN) return res.status(500).json({ error: 'Bot token missing' });
-
-    // Get all users to test
-    const users = await pool.query(`
-      SELECT id, first_name, username, telegram_id, coins, last_seen
-      FROM users 
-      WHERE telegram_id IS NOT NULL
-      ORDER BY last_seen DESC NULLS LAST
-    `);
-
-    const blocked = [];
-    const deactivated = [];
-    const unknown = [];
-
-    // Test each user (with rate limit)
-    for (const user of users.rows) {
-      try {
-        const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendChatAction`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: user.telegram_id, action: 'typing' })
-        });
-        const result = await response.json();
-
-        if (!result.ok) {
-          if (result.description?.includes('blocked')) {
-            blocked.push(user);
-          } else if (result.description?.includes('deactivated')) {
-            deactivated.push(user);
-          } else if (result.description?.includes('chat not found')) {
-            unknown.push(user);
-          }
-        }
-        // Wait 50ms between checks to avoid rate limits
-        await new Promise(r => setTimeout(r, 50));
-      } catch (err) {
-        unknown.push(user);
-      }
-    }
-
-    res.json({
-      blocked: blocked.map(u => ({ id: u.id, name: u.first_name, username: u.username, telegram_id: u.telegram_id, coins: u.coins })),
-      deactivated: deactivated.map(u => ({ id: u.id, name: u.first_name, telegram_id: u.telegram_id })),
-      unreachable: unknown.map(u => ({ id: u.id, name: u.first_name, telegram_id: u.telegram_id })),
-      summary: {
-        total_checked: users.rows.length,
-        blocked_count: blocked.length,
-        deactivated_count: deactivated.length,
-        unreachable_count: unknown.length
-      }
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ============================================
-// 13. DELETE MULTIPLE USERS (for blocked cleanup)
-// ============================================
-app.post('/api/admin/analysis/delete-users', verifyAdmin, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    const { telegramIds } = req.body;
-    if (!Array.isArray(telegramIds) || telegramIds.length === 0) {
-      return res.status(400).json({ error: 'No telegram IDs provided' });
-    }
-
-    await client.query('BEGIN');
-    let deleted = 0;
-
-    for (const tid of telegramIds) {
-      const u = await client.query('SELECT id FROM users WHERE telegram_id = $1', [tid]);
-      if (u.rows.length === 0) continue;
-      const uid = u.rows[0].id;
-
-      await client.query('DELETE FROM referral_commissions WHERE referrer_id = $1 OR referred_id = $1', [uid]);
-      await client.query('DELETE FROM referrals WHERE referrer_id = $1 OR referred_id = $1', [uid]);
-      await client.query('DELETE FROM ad_rewards WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM daily_rewards WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM wheel_spins WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM user_achievements WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM social_tasks WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM user_monthly_earnings WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM tournament_participants WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM ad_statistics WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM team_members WHERE user_id = $1', [uid]);
-      await client.query('DELETE FROM private_messages WHERE sender_id = $1 OR receiver_id = $1', [uid]);
-      await client.query('DELETE FROM users WHERE id = $1', [uid]);
-      deleted++;
-    }
-
-    await client.query('COMMIT');
-    res.json({ success: true, deleted });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    res.status(500).json({ error: err.message });
-  } finally {
-    client.release();
-  }
-});
-
-// ============================================
-// NEW ANALYSIS ENDPOINTS (Copy & Paste)
-// ============================================
-
+// 3. Withdrawal Pipeline
 app.get('/api/admin/analysis/withdrawal-pipeline', async (req, res) => {
   try {
     const ready = await pool.query(`SELECT COUNT(*) FROM users WHERE coins >= 100000`);
@@ -5443,6 +5055,7 @@ app.get('/api/admin/analysis/withdrawal-pipeline', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 4. Economy Health
 app.get('/api/admin/analysis/economy-health', async (req, res) => {
   try {
     const generated = await pool.query(`SELECT SUM(total_coins_earned) as total FROM users`);
@@ -5456,6 +5069,7 @@ app.get('/api/admin/analysis/economy-health', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 5. Tier Distribution
 app.get('/api/admin/analysis/tier-distribution', async (req, res) => {
   try {
     const result = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier`);
@@ -5468,6 +5082,96 @@ app.get('/api/admin/analysis/tier-distribution', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 6. Funnel
+app.get('/api/admin/analysis/funnel', async (req, res) => {
+  try {
+    const joined = await pool.query(`SELECT COUNT(*) FROM users`);
+    const watchedFirstAd = await pool.query(`SELECT COUNT(DISTINCT user_id) FROM ad_rewards`);
+    const watched50 = await pool.query(`SELECT COUNT(*) FROM (SELECT user_id FROM ad_rewards GROUP BY user_id HAVING COUNT(*) >= 50) as x`);
+    const watched500 = await pool.query(`SELECT COUNT(*) FROM (SELECT user_id FROM ad_rewards GROUP BY user_id HAVING COUNT(*) >= 500) as x`);
+    const reached100k = await pool.query(`SELECT COUNT(*) FROM users WHERE total_coins_earned >= 100000`);
+    const reached1m = await pool.query(`SELECT COUNT(*) FROM users WHERE total_coins_earned >= 1000000`);
+
+    res.json({
+      joined: parseInt(joined.rows[0].count),
+      watched_first_ad: parseInt(watchedFirstAd.rows[0].count),
+      watched_50_ads: parseInt(watched50.rows[0].count),
+      watched_500_ads: parseInt(watched500.rows[0].count),
+      reached_100k: parseInt(reached100k.rows[0].count),
+      reached_1m: parseInt(reached1m.rows[0].count)
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 7. Segments
+app.get('/api/admin/analysis/segments', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        CASE 
+          WHEN total_coins_earned >= 1000000 THEN 'Whale (1M+)'
+          WHEN total_coins_earned >= 100000 THEN 'Dolphin (100K-1M)'
+          WHEN total_coins_earned >= 10000 THEN 'Minnow (10K-100K)'
+          WHEN total_coins_earned >= 1000 THEN 'Plankton (1K-10K)'
+          ELSE 'New / Inactive'
+        END as segment,
+        COUNT(*) as users
+      FROM users GROUP BY segment ORDER BY users DESC
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 8. Heatmap
+app.get('/api/admin/analysis/heatmap', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT EXTRACT(HOUR FROM created_at) as hour, COUNT(*) as activity 
+      FROM ad_rewards GROUP BY hour ORDER BY hour ASC
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 9. Earnings Distribution
+app.get('/api/admin/analysis/earnings-distribution', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE total_coins_earned < 10000) as under_10k,
+        COUNT(*) FILTER (WHERE total_coins_earned >= 10000 AND total_coins_earned < 50000) as from_10k_50k,
+        COUNT(*) FILTER (WHERE total_coins_earned >= 50000 AND total_coins_earned < 100000) as from_50k_100k,
+        COUNT(*) FILTER (WHERE total_coins_earned >= 100000 AND total_coins_earned < 500000) as from_100k_500k,
+        COUNT(*) FILTER (WHERE total_coins_earned >= 500000 AND total_coins_earned < 1000000) as from_500k_1m,
+        COUNT(*) FILTER (WHERE total_coins_earned >= 1000000) as reached_1m
+      FROM users
+    `);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 10. Referral Quality
+app.get('/api/admin/analysis/referrals', async (req, res) => {
+  try {
+    const totalReferred = await pool.query(`SELECT COUNT(*) FROM referrals`);
+    const activeReferred = await pool.query(`
+      SELECT COUNT(DISTINCT r.referred_id) FROM referrals r
+      JOIN users u ON u.id = r.referred_id WHERE u.total_coins_earned > 0
+    `);
+    const t = parseInt(totalReferred.rows[0].count) || 1;
+    const a = parseInt(activeReferred.rows[0].count);
+    
+    res.json({
+      quality: {
+        total_referred: t,
+        active_referred: a,
+        retention_percent: Math.round((a / t) * 100)
+      }
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 11. Top Referrers
 app.get('/api/admin/analysis/top-referrers', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -5482,6 +5186,201 @@ app.get('/api/admin/analysis/top-referrers', async (req, res) => {
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// 12. Cohort
+app.get('/api/admin/analysis/cohort', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      WITH cohorts AS (
+        SELECT id, DATE_TRUNC('week', created_at) as cohort_week FROM users
+      ),
+      activity AS (
+        SELECT user_id, DATE_TRUNC('week', created_at) as activity_week FROM ad_rewards
+      )
+      SELECT 
+        c.cohort_week,
+        COUNT(DISTINCT c.id) as cohort_size,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week THEN c.id END) as week_0,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '1 week' THEN c.id END) as week_1,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '2 weeks' THEN c.id END) as week_2,
+        COUNT(DISTINCT CASE WHEN a.activity_week = c.cohort_week + INTERVAL '3 weeks' THEN c.id END) as week_3
+      FROM cohorts c
+      LEFT JOIN activity a ON a.user_id = c.id
+      WHERE c.cohort_week >= NOW() - INTERVAL '8 weeks'
+      GROUP BY c.cohort_week ORDER BY c.cohort_week DESC
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 13. Churn (UPDATED for clickable lists)
+app.get('/api/admin/analysis/churn', async (req, res) => {
+  try {
+    const active = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen >= NOW() - INTERVAL '1 day'`);
+    const atRisk = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen < NOW() - INTERVAL '7 days' AND last_seen >= NOW() - INTERVAL '30 days'`);
+    const churned = await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen < NOW() - INTERVAL '30 days' OR last_seen IS NULL`);
+
+    const activeList = await pool.query(`
+      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
+      FROM users WHERE last_seen >= NOW() - INTERVAL '1 day' 
+      ORDER BY last_seen DESC LIMIT 100
+    `);
+    const atRiskList = await pool.query(`
+      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
+      FROM users WHERE last_seen < NOW() - INTERVAL '7 days' AND last_seen >= NOW() - INTERVAL '30 days'
+      ORDER BY coins DESC LIMIT 100
+    `);
+    const churnedList = await pool.query(`
+      SELECT first_name, coins, EXTRACT(DAY FROM (NOW() - last_seen)) as days_inactive 
+      FROM users WHERE last_seen < NOW() - INTERVAL '30 days' OR last_seen IS NULL
+      ORDER BY coins DESC LIMIT 100
+    `);
+
+    res.json({
+      summary: {
+        active_24h: parseInt(active.rows[0].count),
+        at_risk: parseInt(atRisk.rows[0].count),
+        churned: parseInt(churned.rows[0].count)
+      },
+      active_users: activeList.rows,
+      at_risk_users: atRiskList.rows,
+      churned_users: churnedList.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 14. Revenue
+app.get('/api/admin/analysis/revenue', async (req, res) => {
+  try {
+    const totalAds = await pool.query(`SELECT COUNT(*) FROM ad_rewards`);
+    const users = await pool.query(`SELECT COUNT(*) FROM users`);
+    const tAds = parseInt(totalAds.rows[0].count) || 0;
+    const tUsers = parseInt(users.rows[0].count) || 1;
+    const revenue = tAds * 0.002; // Estimated $0.002 per ad
+
+    const daily = await pool.query(`
+      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as ad_views 
+      FROM ad_rewards WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY date ORDER BY date ASC
+    `);
+
+    res.json({
+      totals: {
+        estimated_revenue: revenue.toFixed(2),
+        arpu: (revenue / tUsers).toFixed(4),
+        total_ad_views: tAds
+      },
+      daily: daily.rows
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 15. Fake Referrals
+app.get('/api/admin/analysis/fake-referrals', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.first_name as referrer_name, u.username as referrer_username,
+        u.referrals as total_referred,
+        COUNT(CASE WHEN r2.total_coins_earned = 0 THEN 1 END) as dormant_refs
+      FROM users u
+      JOIN referrals r ON r.referrer_id = u.id
+      JOIN users r2 ON r2.id = r.referred_id
+      GROUP BY u.id, u.first_name, u.username, u.referrals
+      HAVING COUNT(CASE WHEN r2.total_coins_earned = 0 THEN 1 END) >= 3
+      ORDER BY dormant_refs DESC LIMIT 20
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 16. Whale Tracker (NEW)
+app.get('/api/admin/analysis/whales', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT first_name, telegram_id, total_coins_earned 
+      FROM users ORDER BY total_coins_earned DESC LIMIT 10
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 17. Feature Adoption (NEW)
+app.get('/api/admin/analysis/feature-adoption', async (req, res) => {
+  try {
+    const total = await pool.query(`SELECT COUNT(*) as count FROM users`);
+    const totalUsers = parseInt(total.rows[0].count) || 1;
+    
+    const wheel = await pool.query(`SELECT COUNT(DISTINCT user_id) as count FROM wheel_spins`);
+    const daily = await pool.query(`SELECT COUNT(DISTINCT user_id) as count FROM daily_rewards`);
+    const bonus = await pool.query(`SELECT COUNT(DISTINCT user_id) as count FROM user_bonus_redemptions`);
+    const team = await pool.query(`SELECT COUNT(DISTINCT user_id) as count FROM team_members`);
+    
+    res.json({
+      wheel_pct: Math.round((parseInt(wheel.rows[0].count) / totalUsers) * 100),
+      daily_pct: Math.round((parseInt(daily.rows[0].count) / totalUsers) * 100),
+      bonus_pct: Math.round((parseInt(bonus.rows[0].count) / totalUsers) * 100),
+      team_pct: Math.round((parseInt(team.rows[0].count) / totalUsers) * 100)
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 18. Security (NEW)
+app.get('/api/admin/analysis/security', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT ip_address, COUNT(*) as account_count 
+      FROM users 
+      WHERE ip_address IS NOT NULL AND ip_address != ''
+      GROUP BY ip_address HAVING COUNT(*) > 2
+      ORDER BY account_count DESC LIMIT 10
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 19. Ad Health (NEW)
+app.get('/api/admin/analysis/ad-health', async (req, res) => {
+  try {
+    const successful = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'monetag'`);
+    const errors = await pool.query(`SELECT COUNT(*) FROM ad_rewards WHERE ad_type = 'error'`); 
+    const users = await pool.query(`SELECT COUNT(*) FROM users`);
+    
+    const totalAttempts = parseInt(successful.rows[0].count) + parseInt(errors.rows[0].count) || 1;
+    const fillRate = Math.round((parseInt(successful.rows[0].count) / totalAttempts) * 100);
+    
+    res.json({
+      fill_rate: fillRate,
+      errors: parseInt(errors.rows[0].count),
+      avg_per_user: Math.round(parseInt(successful.rows[0].count) / (parseInt(users.rows[0].count) || 1))
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 20. Tournament (NEW)
+app.get('/api/admin/analysis/tournament', async (req, res) => {
+  try {
+    const activeTournament = await pool.query(`
+      SELECT id FROM weekly_tournaments WHERE is_active = true ORDER BY id DESC LIMIT 1
+    `);
+    
+    if (activeTournament.rows.length === 0) {
+      return res.json({ participants: 0, total_coins_earned: 0 });
+    }
+    
+    const tId = activeTournament.rows[0].id;
+    const stats = await pool.query(`
+      SELECT COUNT(*) as participants, SUM(coins_earned) as total_coins 
+      FROM tournament_participants WHERE tournament_id = $1
+    `, [tId]);
+    
+    res.json({
+      participants: parseInt(stats.rows[0].participants) || 0,
+      total_coins_earned: parseFloat(stats.rows[0].total_coins) || 0
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
