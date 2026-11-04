@@ -5464,40 +5464,43 @@ app.get('/api/admin/analysis/blocked-users', verifyAdmin, async (req, res) => {
     let deactivatedCount = 0;
     const blockedUsers = [];
     
-    // ✅ Process in chunks of 20 to avoid hitting Telegram rate limits
-    const chunkSize = 20;
-    for (let i = 0; i < users.rows.length; i += chunkSize) {
-        const chunk = users.rows.slice(i, i + chunkSize);
-        
-        await Promise.all(chunk.map(async (user) => {
-            try {
-                const response = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${user.telegram_id}`);
-                const data = await response.json();
+    // ✅ Check one by one to be 100% accurate
+    for (const user of users.rows) {
+        try {
+            // We use sendChatAction because it checks permission WITHOUT sending a real message
+            const response = await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: user.telegram_id,
+                    action: 'typing'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (!data.ok) {
+                const desc = (data.description || '').toLowerCase();
                 
-                if (!data.ok) {
-                    const desc = (data.description || '').toLowerCase();
-                    
-                    // ✅ Catch ALL variations of being blocked
-                    if (desc.includes('blocked') || desc.includes('kicked') || desc.includes('chat not found') || desc.includes('bot was blocked')) {
-                        blockedCount++;
-                        blockedUsers.push({
-                            telegram_id: user.telegram_id,
-                            name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown',
-                            coins: user.coins
-                        });
-                    } 
-                    // ✅ Catch deactivated accounts
-                    else if (desc.includes('deactivated') || desc.includes('user is deactivated')) {
-                        deactivatedCount++;
-                    }
+                // ✅ If Telegram says forbidden or blocked
+                if (desc.includes('forbidden') || desc.includes('blocked') || desc.includes('kicked') || desc.includes('chat not found')) {
+                    blockedCount++;
+                    blockedUsers.push({
+                        telegram_id: user.telegram_id,
+                        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown',
+                        coins: user.coins
+                    });
+                } 
+                else if (desc.includes('deactivated')) {
+                    deactivatedCount++;
                 }
-            } catch (e) {
-                // Ignore network errors for individual users
             }
-        }));
+        } catch (e) {
+            // Ignore network timeout errors
+        }
         
-        // Small delay between chunks to be polite to Telegram API
-        await new Promise(r => setTimeout(r, 200));
+        // 50ms delay to prevent Telegram rate limit ban
+        await new Promise(r => setTimeout(r, 50));
     }
 
     res.json({
