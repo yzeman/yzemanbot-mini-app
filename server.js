@@ -5409,6 +5409,63 @@ app.post('/api/admin/analysis/delete-users', verifyAdmin, async (req, res) => {
     client.release();
   }
 });
+
+// ============================================
+// NEW ANALYSIS ENDPOINTS (Copy & Paste)
+// ============================================
+
+app.get('/api/admin/analysis/withdrawal-pipeline', async (req, res) => {
+  try {
+    const ready = await pool.query(`SELECT COUNT(*) FROM users WHERE coins >= 100000`);
+    const close = await pool.query(`SELECT COUNT(*) FROM users WHERE coins >= 50000 AND coins < 100000`);
+    const pending = await pool.query(`SELECT COUNT(*) FROM withdrawals WHERE status = 'pending'`);
+    res.json({
+      ready: parseInt(ready.rows[0].count),
+      close: parseInt(close.rows[0].count),
+      pending: parseInt(pending.rows[0].count)
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/analysis/economy-health', async (req, res) => {
+  try {
+    const generated = await pool.query(`SELECT SUM(total_coins_earned) as total FROM users`);
+    const withdrawn = await pool.query(`SELECT SUM(amount) as total FROM withdrawals WHERE status = 'completed' OR status = 'approved'`);
+    const supply = await pool.query(`SELECT SUM(coins) as total FROM users`);
+    res.json({
+      generated: parseFloat(generated.rows[0].total) || 0,
+      withdrawn: parseFloat(withdrawn.rows[0].total) || 0,
+      supply: parseFloat(supply.rows[0].total) || 0
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/analysis/tier-distribution', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT tier, COUNT(*) as count FROM users GROUP BY tier`);
+    const d = { fresher: 0, brute: 0, silver: 0, gold: 0, platinum: 0 };
+    result.rows.forEach(r => {
+      const tier = (r.tier || 'Fresher').toLowerCase();
+      if (d[tier] !== undefined) d[tier] = parseInt(r.count);
+    });
+    res.json(d);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/analysis/top-referrers', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.first_name, u.referrals, 
+        COALESCE(SUM(rc.commission_coins), 0) as commission
+      FROM users u
+      LEFT JOIN referral_commissions rc ON rc.referrer_id = u.id
+      GROUP BY u.id, u.first_name, u.referrals
+      HAVING u.referrals > 0
+      ORDER BY u.referrals DESC LIMIT 10
+    `);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 // ============================================
 // HEALTH CHECK & WEBHOOK
 // ============================================
