@@ -225,7 +225,6 @@ body {
         <div class="kpi-label">Churned</div>
       </div>
     </div>
-    <!-- New container for the list -->
     <div id="churnDetailList" style="margin-top: 10px;"></div>
   </div>
 
@@ -247,6 +246,46 @@ body {
       Users with 3+ referrals where referred accounts never watched an ad.
     </p>
     <div id="fakeRefContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- NEW: Whale Tracker -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-whale"></i> Whale Tracker (Top 10 Earners)</div>
+    <div id="whaleContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- NEW: Feature Adoption -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-puzzle-piece"></i> Feature Adoption</div>
+    <div id="featureAdoptionContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- NEW: Security (Multi-Account) -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-shield-alt"></i> Suspicious IP Addresses</div>
+    <p style="font-size: 11px; color: var(--gray); margin-bottom: 10px;">
+      Users who created multiple accounts from the same IP address.
+    </p>
+    <div id="securityContainer"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- NEW: Ad Network Health -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-heartbeat"></i> Ad Network Health</div>
+    <div class="grid-3">
+      <div class="kpi"><div class="kpi-value" id="adFillRate">--</div><div class="kpi-label">Ad Fill Rate</div></div>
+      <div class="kpi"><div class="kpi-value" id="adErrors">--</div><div class="kpi-label">Failed Ads</div></div>
+      <div class="kpi"><div class="kpi-value" id="avgAdsPerUser">--</div><div class="kpi-label">Avg Ads/User</div></div>
+    </div>
+  </div>
+
+  <!-- NEW: Tournament Engagement -->
+  <div class="section">
+    <div class="section-title"><i class="fas fa-trophy"></i> Tournament Engagement</div>
+    <div class="grid-2">
+      <div class="kpi"><div class="kpi-value" id="tournamentParticipants">--</div><div class="kpi-label">Active Participants</div></div>
+      <div class="kpi"><div class="kpi-value" id="tournamentPool">--</div><div class="kpi-label">Coins Earned (Week)</div></div>
+    </div>
   </div>
 
   <!-- Blocked Users -->
@@ -274,6 +313,9 @@ const ADMIN_TOKEN = 'Bearer admin123';
 
 // Chart instances
 let growthChart, heatmapChart, earningsChart, revenueChart, economyChart, tierChart;
+
+// Global variable to store churn data
+window.churnData = { active: [], at_risk: [], churned: [] };
 
 // ============================================
 // Helper: Format Large Numbers
@@ -314,7 +356,12 @@ async function loadAll() {
     loadCohort(),
     loadChurn(),
     loadRevenue(),
-    loadFakeReferrals()
+    loadFakeReferrals(),
+    loadWhales(),
+    loadFeatureAdoption(),
+    loadSecurity(),
+    loadAdHealth(),
+    loadTournament()
     // loadBlocked() is manual
   ]);
 }
@@ -622,10 +669,6 @@ async function loadCohort() {
 // ============================================
 // 13. Churn
 // ============================================
-// Global variable to store churn data
-window.churnData = { active: [], at_risk: [], churned: [] };
-
-// 1. Update your existing loadChurn function to save the lists
 async function loadChurn() {
   try {
     const d = await api('/api/admin/analysis/churn');
@@ -646,7 +689,6 @@ async function loadChurn() {
   } catch (e) { console.error('Churn error:', e); }
 }
 
-// 2. Function to handle clicking the KPIs
 function showChurnList(type) {
   const container = document.getElementById('churnDetailList');
   let users = window.churnData[type] || [];
@@ -670,7 +712,6 @@ function showChurnList(type) {
     return;
   }
 
-  // Build the list
   container.innerHTML = `
     <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: ${badgeColor}; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
       ${title} (${users.length})
@@ -751,7 +792,93 @@ async function loadFakeReferrals() {
 }
 
 // ============================================
-// 16. Blocked Users (MANUAL)
+// 16. Whale Tracker (NEW)
+// ============================================
+async function loadWhales() {
+  try {
+    const data = await api('/api/admin/analysis/whales');
+    const container = document.getElementById('whaleContainer');
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="text-align:center;color:var(--gray);font-size:11px;">No users yet</p>';
+      return;
+    }
+    container.innerHTML = data.map((u, i) => `
+      <div class="segment-row">
+        <span>#${i + 1} ${u.first_name} <span style="color:#888;font-size:10px;">(ID: ${u.telegram_id})</span></span>
+        <span style="color:var(--gold);font-weight:bold;font-size:12px;">${formatNum(u.total_coins_earned)} COINS</span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Whales error:', e); }
+}
+
+// ============================================
+// 17. Feature Adoption (NEW)
+// ============================================
+async function loadFeatureAdoption() {
+  try {
+    const d = await api('/api/admin/analysis/feature-adoption');
+    const features = [
+      { name: '🎡 Spun the Wheel', pct: d.wheel_pct },
+      { name: '📅 Claimed Daily Reward', pct: d.daily_pct },
+      { name: '🎁 Redeemed Bonus Code', pct: d.bonus_pct },
+      { name: '👥 Joined a Team', pct: d.team_pct }
+    ];
+    document.getElementById('featureAdoptionContainer').innerHTML = features.map(f => `
+      <div class="segment-row">
+        <span>${f.name}</span>
+        <span class="segment-badge" style="background:${f.pct > 50 ? 'var(--success)' : f.pct > 20 ? 'var(--warning)' : 'var(--danger)'};">
+          ${f.pct}% of users
+        </span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Adoption error:', e); }
+}
+
+// ============================================
+// 18. Security (NEW)
+// ============================================
+async function loadSecurity() {
+  try {
+    const data = await api('/api/admin/analysis/security');
+    const container = document.getElementById('securityContainer');
+    if (!data || data.length === 0) {
+      container.innerHTML = '<p style="text-align:center;color:var(--success);font-size:11px;">✅ No suspicious IPs found</p>';
+      return;
+    }
+    container.innerHTML = data.map(ip => `
+      <div class="segment-row">
+        <span style="font-family:monospace;">${ip.ip_address}</span>
+        <span class="segment-badge" style="background:var(--danger);">${ip.account_count} Accounts</span>
+      </div>
+    `).join('');
+  } catch (e) { console.error('Security error:', e); }
+}
+
+// ============================================
+// 19. Ad Health (NEW)
+// ============================================
+async function loadAdHealth() {
+  try {
+    const d = await api('/api/admin/analysis/ad-health');
+    document.getElementById('adFillRate').textContent = d.fill_rate + '%';
+    document.getElementById('adErrors').textContent = formatNum(d.errors);
+    document.getElementById('avgAdsPerUser').textContent = d.avg_per_user;
+  } catch (e) { console.error('Ad health error:', e); }
+}
+
+// ============================================
+// 20. Tournament (NEW)
+// ============================================
+async function loadTournament() {
+  try {
+    const d = await api('/api/admin/analysis/tournament');
+    document.getElementById('tournamentParticipants').textContent = d.participants;
+    document.getElementById('tournamentPool').textContent = formatNum(d.total_coins_earned);
+  } catch (e) { console.error('Tournament error:', e); }
+}
+
+// ============================================
+// 21. Blocked Users (MANUAL)
 // ============================================
 async function loadBlocked() {
   const container = document.getElementById('blockedContainer');
