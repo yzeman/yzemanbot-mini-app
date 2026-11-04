@@ -5028,45 +5028,53 @@ app.get('/api/admin/download-user-ids', async (req, res) => {
 app.get('/api/admin/analysis/growth', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT TO_CHAR(created_at, 'YYYY-MM-DD') as date, COUNT(*) as new_users
-      FROM users WHERE created_at >= NOW() - INTERVAL '30 days'
-      GROUP BY date ORDER BY date ASC
+      SELECT 
+        TO_CHAR(created_at AT TIME ZONE 'Africa/Lagos', 'YYYY-MM-DD') as date, 
+        COUNT(*) as new_users
+      FROM users 
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY date 
+      ORDER BY date ASC
     `);
     res.json({ daily: result.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error('Growth error:', err);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 // 2. Retention
 app.get('/api/admin/analysis/retention', async (req, res) => {
-   try {
-    const total = await pool.query('SELECT COUNT(*) FROM users10');
+  try {
+    const total = await pool.query('SELECT COUNT(*) FROM users');
+    const totalUsers = parseInt(total.rows[0].count) || 1;
     
-    // ✅ Day 1 Return: Joined 1+ days ago AND opened the app again
+    // ✅ Day 1 Return: Users who were seen more than 1 day after they joined
     const day1 = await pool.query(`
       SELECT COUNT(*) FROM users 
       WHERE created_at <= NOW() - INTERVAL '1 day' 
-      AND last_seen > created_at + INTERVAL '1 day'
+      AND last_seen >= created_at + INTERVAL '1 day'
     `);
     
-    // ✅ Day 7 Return: Joined 7+ days ago AND opened the app after day 1
+    // ✅ Day 7 Return: Users who were seen 7 days after they joined
     const day7 = await pool.query(`
       SELECT COUNT(*) FROM users 
       WHERE created_at <= NOW() - INTERVAL '7 days' 
-      AND last_seen > created_at + INTERVAL '1 day'
+      AND last_seen >= created_at + INTERVAL '7 days'
     `);
     
-    // ✅ Day 30 Return: Joined 30+ days ago AND opened the app after day 1
+    // ✅ Day 30 Return: Users who were seen 30 days after they joined
     const day30 = await pool.query(`
       SELECT COUNT(*) FROM users 
       WHERE created_at <= NOW() - INTERVAL '30 days' 
-      AND last_seen > created_at + INTERVAL '1 day'
+      AND last_seen >= created_at + INTERVAL '30 days'
     `);
 
     res.json({
-      total: parseInt(total.rows[0].count) || 1,
-      day1: parseInt(day1.rows[0].count),
-      day7: parseInt(day7.rows[0].count),
-      day30: parseInt(day30.rows[0].count)
+      total: totalUsers,
+      day1: parseInt(day1.rows[0].count) || 0,
+      day7: parseInt(day7.rows[0].count) || 0,
+      day30: parseInt(day30.rows[0].count) || 0
     });
   } catch (err) { 
     console.error('Retention error:', err);
