@@ -2733,7 +2733,7 @@ app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
     await client.query('DELETE FROM team_typing_status WHERE team_id = $1 AND user_id = $2', [teamId, targetUserId]);
     await client.query('COMMIT');
     for (const activeSocket of io.sockets.sockets.values()) {
-      if (activeSocket.dbUserId === targetUserId && String(activeSocket.teamRoomId) === String(teamId)) {
+      if (activeSocket.dbUserId === targetUserId && (String(activeSocket.teamRoomId) === String(teamId) || activeSocket.rooms.has(`team_status_${teamId}`))) {
         activeSocket.emit('team-member-removed', { teamId, message: 'The team leader removed you from this team.' });
         activeSocket.leave(`team_${teamId}`);
         activeSocket.leave(`team_status_${teamId}`);
@@ -2770,6 +2770,15 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
       await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [remainingMembers.rows[0].user_id, teamId]);
     }
     await client.query('COMMIT');
+    for (const activeSocket of io.sockets.sockets.values()) {
+      if (activeSocket.dbUserId === userId && (String(activeSocket.teamRoomId) === String(teamId) || activeSocket.rooms.has(`team_status_${teamId}`))) {
+        activeSocket.emit('team-member-removed', { teamId, message: 'You left this team.' });
+        activeSocket.leave(`team_${teamId}`);
+        activeSocket.leave(`team_status_${teamId}`);
+        activeSocket.teamRoomId = null;
+        connectedUsers.delete(activeSocket.id);
+      }
+    }
     res.json({ success: true, message: 'Left team. Your coins are no longer contributing to the team.' });
   } catch (err) {
     await client.query('ROLLBACK');
