@@ -787,7 +787,7 @@
     <div class="notification" id="notification"></div>
     
     <script>
-    const ADMIN_TOKEN = 'Bearer admin123';
+    async function adminLogout(){await fetch('/api/admin/auth/logout',{method:'POST',credentials:'same-origin'});location.href='/admin-login.html';}
     let currentUserId = null;
     let users = [], withdrawals = [], teams = [], bonusCodes = [];
     
@@ -807,7 +807,7 @@
     }
     
     async function apiCall(endpoint, method = 'GET', body = null) {
-        const options = { method, headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN } };
+        const options = { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } };
         if (body) options.body = JSON.stringify(body);
         const response = await fetch(endpoint, options);
         if (!response.ok) { const error = await response.text(); throw new Error(error); }
@@ -978,7 +978,6 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': ADMIN_TOKEN
             },
             body: JSON.stringify({
                 message: message,
@@ -1039,7 +1038,6 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': ADMIN_TOKEN
             },
             body: JSON.stringify({
                 message: message,
@@ -1466,7 +1464,7 @@ try {
     }
 
      async function downloadUserIds() {
-    window.open('/api/admin/download-user-ids?token=admin123', '_blank');
+    window.open('/api/admin/download-user-ids', '_blank');
 }   
     
     async function loadTodayUserActivity() {
