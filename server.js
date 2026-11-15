@@ -903,6 +903,19 @@ io.use(async (socket, next) => {
     }
 });
 
+async function getSocketTeamMembership(socket, requestedTeamId) {
+    if (!socket.user?.id || !requestedTeamId) return null;
+    const result = await pool.query(`
+        SELECT u.id, u.first_name FROM users u
+        JOIN team_members tm ON tm.user_id = u.id
+        WHERE u.telegram_id = $1 AND tm.team_id = $2 AND u.team_id = $2
+        LIMIT 1
+    `, [socket.user.id, requestedTeamId]);
+    if (!result.rows.length) return null;
+    socket.dbUserId = result.rows[0].id;
+    return result.rows[0];
+}
+
 io.on('connection', (socket) => {
     console.log('🟢 User connected:', socket.id);
     
@@ -948,200 +961,147 @@ socket.on('join-status', async (data) => {
     // TEAM STATUS (for unread message badges)
     // ============================================
     socket.on('join-team-status', async (data) => {
-        const { teamId, userId } = data;
-        if (teamId && userId) {
+        const { teamId } = data || {};
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member) return;
             socket.join(`team_status_${teamId}`);
-            
-            // Get unread message count for this team
-            try {
-                const result = await pool.query(`
-                    SELECT COUNT(*) as count 
-                    FROM team_messages 
-                    WHERE team_id = $1 AND created_at > COALESCE(
-                        (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
-                        '2024-01-01'
-                    )
-                `, [teamId, userId]);
-                
-                socket.emit('team-unread-update', { count: parseInt(result.rows[0].count) });
-            } catch (err) {
-                console.error('Team unread count error:', err);
-                socket.emit('team-unread-update', { count: 0 });
-            }
+            const result = await pool.query(`
+                SELECT COUNT(*) as count FROM team_messages
+                WHERE team_id = $1 AND created_at > COALESCE(
+                    (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
+                    '2024-01-01'
+                )
+            `, [teamId, member.id]);
+            socket.emit('team-unread-update', { count: parseInt(result.rows[0].count, 10) });
+        } catch (err) {
+            console.error('Team unread count error:', err);
+            socket.emit('team-unread-update', { count: 0 });
         }
     });
+    
+    // ============================================
+    // TEAM CHAT    });
     
     // ============================================
     // TEAM CHAT
     // ============================================
     socket.on('join-team', async (data) => {
-        const { teamId, userId, firstName } = data;
-        
-        connectedUsers.set(socket.id, {
-            userId,
-            teamId,
-            firstName,
-            socketId: socket.id,
-            connectedAt: Date.now()
-        });
-        
-        userSockets.set(userId, socket.id);
-        socket.join(`team_${teamId}`);
-        
-       // Broadcast to friends that user is online
-socket.broadcast.emit('friend-online', { userId, firstName });
-        
-        // Update last seen
-        await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
-        
+        const { teamId } = data || {};
         try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member) {
+                socket.emit('team-access-revoked', { message: 'You are no longer a member of this team.' });
+                return;
+            }
+            if (socket.teamRoomId && String(socket.teamRoomId) !== String(teamId)) socket.leave(`team_${socket.teamRoomId}`);
+            const userId = member.id, firstName = member.first_name || 'User';
+            socket.teamRoomId = String(teamId);
+            connectedUsers.set(socket.id, { userId, teamId, firstName, socketId: socket.id, connectedAt: Date.now() });
+            userSockets.set(userId, socket.id);
+            socket.join(`team_${teamId}`);
+            socket.broadcast.emit('friend-online', { userId, firstName });
+            await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
             const messages = await pool.query(`
-                SELECT tm.*, u.first_name, u.photo_url
-                FROM team_messages tm
+                SELECT tm.*, u.first_name, u.photo_url FROM team_messages tm
                 JOIN users u ON tm.user_id = u.id
-                WHERE tm.team_id = $1
-                ORDER BY tm.created_at DESC
-                LIMIT 50
+                WHERE tm.team_id = $1 ORDER BY tm.created_at DESC LIMIT 50
             `, [teamId]);
-            
             socket.emit('chat-history', messages.rows.reverse());
-            
-            socket.to(`team_${teamId}`).emit('user-joined', {
-                userId,
-                firstName,
-                message: `${firstName} joined the chat`
-            });
-            
+            socket.to(`team_${teamId}`).emit('user-joined', { userId, firstName, message: `${firstName} joined the chat` });
         } catch (err) {
-            console.error('Load messages error:', err);
+            console.error('Join team chat error:', err);
+            socket.emit('message-error', { error: 'Unable to join team chat' });
         }
     });
     
+    socket.on('send-message'    });
+    
     socket.on('send-message', async (data) => {
-        const { teamId, message, userId } = data;
-        
-        if (!message || message.trim().length === 0) return;
-        if (message.length > 500) return;
-        
+        const { teamId, message } = data || {};
+        if (!message || typeof message !== 'string' || !message.trim() || message.length > 500) return;
         try {
-            const userResult = await pool.query(
-                'SELECT first_name FROM users WHERE id = $1',
-                [userId]
-            );
-            const firstName = userResult.rows[0]?.first_name || 'User';
-            
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) {
+                socket.emit('team-access-revoked', { message: 'You no longer have access to this team chat.' });
+                return;
+            }
+            const userId = member.id, firstName = member.first_name || 'User';
             const result = await pool.query(`
-                INSERT INTO team_messages (team_id, user_id, message)
-                VALUES ($1, $2, $3)
+                INSERT INTO team_messages (team_id, user_id, message) VALUES ($1, $2, $3)
                 RETURNING id, created_at
             `, [teamId, userId, message.trim()]);
-            
-            const messageData = {
-                id: result.rows[0].id,
-                team_id: teamId,
-                user_id: userId,
-                first_name: firstName,
-                message: message.trim(),
-                created_at: result.rows[0].created_at,
-                is_edited: false
-            };
-            
+            const messageData = { id: result.rows[0].id, team_id: teamId, user_id: userId, first_name: firstName,
+                message: message.trim(), created_at: result.rows[0].created_at, is_edited: false };
             io.to(`team_${teamId}`).emit('new-message', messageData);
-            
-            // Update unread count for all team members except sender
             const unreadResult = await pool.query(`
-                SELECT COUNT(*) as count 
-                FROM team_messages 
+                SELECT COUNT(*) as count FROM team_messages
                 WHERE team_id = $1 AND created_at > COALESCE(
                     (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
                     '2024-01-01'
                 )
             `, [teamId, userId]);
-            
-            socket.to(`team_${teamId}`).emit('team-unread-update', { count: parseInt(unreadResult.rows[0].count) });
-            
-            await pool.query(`
-                UPDATE team_typing_status
-                SET is_typing = false, updated_at = NOW()
-                WHERE team_id = $1 AND user_id = $2
-            `, [teamId, userId]);
-            
-            socket.to(`team_${teamId}`).emit('user-typing', {
-                userId,
-                firstName,
-                isTyping: false
-            });
-            
+            socket.to(`team_${teamId}`).emit('team-unread-update', { count: parseInt(unreadResult.rows[0].count, 10) });
+            await pool.query(`UPDATE team_typing_status SET is_typing = false, updated_at = NOW() WHERE team_id = $1 AND user_id = $2`, [teamId, userId]);
+            socket.to(`team_${teamId}`).emit('user-typing', { userId, firstName, isTyping: false });
         } catch (err) {
             console.error('Send message error:', err);
             socket.emit('message-error', { error: 'Failed to send message' });
         }
     });
     
+    socket.on('typing'    });
+    
     socket.on('typing', async (data) => {
-        const { teamId, userId, firstName, isTyping } = data;
-        
+        const { teamId, isTyping } = data || {};
         try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) return;
             await pool.query(`
                 INSERT INTO team_typing_status (team_id, user_id, is_typing, updated_at)
                 VALUES ($1, $2, $3, NOW())
-                ON CONFLICT (team_id, user_id) 
-                DO UPDATE SET is_typing = $3, updated_at = NOW()
-            `, [teamId, userId, isTyping]);
-            
+                ON CONFLICT (team_id, user_id) DO UPDATE SET is_typing = $3, updated_at = NOW()
+            `, [teamId, member.id, Boolean(isTyping)]);
             socket.to(`team_${teamId}`).emit('user-typing', {
-                userId,
-                firstName,
-                isTyping
+                userId: member.id, firstName: member.first_name || 'User', isTyping: Boolean(isTyping)
             });
-        } catch (err) {
-            console.error('Typing status error:', err);
-        }
+        } catch (err) { console.error('Typing status error:', err); }
     });
+    
+    socket.on('edit-message'    });
     
     socket.on('edit-message', async (data) => {
-        const { messageId, newMessage, userId, teamId } = data;
-        
-        if (!newMessage || newMessage.trim().length === 0) return;
-        if (newMessage.length > 500) return;
-        
+        const { messageId, newMessage, teamId } = data || {};
+        if (!newMessage || typeof newMessage !== 'string' || !newMessage.trim() || newMessage.length > 500) return;
         try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) return;
             const result = await pool.query(`
-                UPDATE team_messages
-                SET message = $1, is_edited = true, updated_at = NOW()
-                WHERE id = $2 AND user_id = $3
-                RETURNING id
-            `, [newMessage.trim(), messageId, userId]);
-            
-            if (result.rows.length > 0) {
-                io.to(`team_${teamId}`).emit('message-edited', {
-                    messageId,
-                    newMessage: newMessage.trim(),
-                    userId
-                });
-            }
-        } catch (err) {
-            socket.emit('message-error', { error: 'Failed to edit message' });
-        }
+                UPDATE team_messages SET message = $1, is_edited = true, updated_at = NOW()
+                WHERE id = $2 AND user_id = $3 AND team_id = $4 RETURNING id
+            `, [newMessage.trim(), messageId, member.id, teamId]);
+            if (result.rows.length) io.to(`team_${teamId}`).emit('message-edited', {
+                messageId, newMessage: newMessage.trim(), userId: member.id
+            });
+        } catch (err) { socket.emit('message-error', { error: 'Failed to edit message' }); }
     });
     
+    socket.on('delete-message'    });
+    
     socket.on('delete-message', async (data) => {
-        const { messageId, userId, teamId } = data;
-        
+        const { messageId, teamId } = data || {};
         try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) return;
             const result = await pool.query(`
-                DELETE FROM team_messages
-                WHERE id = $1 AND user_id = $2
-                RETURNING id
-            `, [messageId, userId]);
-            
-            if (result.rows.length > 0) {
-                io.to(`team_${teamId}`).emit('message-deleted', { messageId });
-            }
-        } catch (err) {
-            socket.emit('message-error', { error: 'Failed to delete message' });
-        }
+                DELETE FROM team_messages WHERE id = $1 AND user_id = $2 AND team_id = $3 RETURNING id
+            `, [messageId, member.id, teamId]);
+            if (result.rows.length) io.to(`team_${teamId}`).emit('message-deleted', { messageId });
+        } catch (err) { socket.emit('message-error', { error: 'Failed to delete message' }); }
     });
+    
+    // ============================================
+    // PRIVATE CHAT    });
     
     // ============================================
     // PRIVATE CHAT
@@ -2666,18 +2626,16 @@ app.post('/api/team/join', verifyTelegramData, async (req, res) => {
 
 app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   try {
-    let teamId = req.body.teamId;
     const telegramId = req.telegramUser?.id;
-    
-    if (!teamId && telegramId) {
-      const userResult = await pool.query(
-        'SELECT team_id FROM users WHERE telegram_id = $1',
-        [telegramId]
-      );
-      if (userResult.rows.length > 0 && userResult.rows[0].team_id) {
-        teamId = userResult.rows[0].team_id;
-      }
+    const userResult = await pool.query(
+      'SELECT id, team_id FROM users WHERE telegram_id = $1',
+      [telegramId]
+    );
+    if (userResult.rows.length === 0 || !userResult.rows[0].team_id) {
+      return res.json({ has_team: false });
     }
+    const viewerUserId = userResult.rows[0].id;
+    const teamId = userResult.rows[0].team_id;
     
     if (!teamId) {
       return res.json({ has_team: false });
@@ -2723,6 +2681,7 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
     
     res.json({
       has_team: true,
+      viewer_is_leader: team.created_by === viewerUserId,
       team: {
         ...team,
         total_coins: parseFloat(team.total_coins) || 0,
@@ -2741,6 +2700,56 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
   }
 });
 
+app.post('/api/team/remove-member', verifyTelegramData, async (req, res) => {
+  const targetUserId = Number(req.body?.memberId);
+  if (!Number.isSafeInteger(targetUserId) || targetUserId <= 0) return res.status(400).json({ error: 'Invalid team member' });
+  const client = await pool.connect();
+  let teamId = null;
+  try {
+    await client.query('BEGIN');
+    const actorResult = await client.query('SELECT id, team_id FROM users WHERE telegram_id = $1 FOR UPDATE', [req.telegramUser.id]);
+    if (!actorResult.rows.length || !actorResult.rows[0].team_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'You are not in a team' });
+    }
+    const actorId = actorResult.rows[0].id;
+    teamId = actorResult.rows[0].team_id;
+    const teamResult = await client.query('SELECT created_by FROM teams WHERE id = $1 FOR UPDATE', [teamId]);
+    if (!teamResult.rows.length || teamResult.rows[0].created_by !== actorId) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Only the team leader can remove members' });
+    }
+    if (targetUserId === actorId) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'You cannot remove yourself. Use Leave Team instead.' });
+    }
+    const targetResult = await client.query('SELECT user_id FROM team_members WHERE team_id = $1 AND user_id = $2 FOR UPDATE', [teamId, targetUserId]);
+    if (!targetResult.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'That user is not a member of your team' });
+    }
+    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, targetUserId]);
+    await client.query('UPDATE users SET team_id = NULL WHERE id = $1 AND team_id = $2', [targetUserId, teamId]);
+    await client.query('DELETE FROM team_typing_status WHERE team_id = $1 AND user_id = $2', [teamId, targetUserId]);
+    await client.query('COMMIT');
+    for (const activeSocket of io.sockets.sockets.values()) {
+      if (activeSocket.dbUserId === targetUserId && String(activeSocket.teamRoomId) === String(teamId)) {
+        activeSocket.emit('team-member-removed', { teamId, message: 'The team leader removed you from this team.' });
+        activeSocket.leave(`team_${teamId}`);
+        activeSocket.leave(`team_status_${teamId}`);
+        activeSocket.teamRoomId = null;
+        connectedUsers.delete(activeSocket.id);
+      }
+    }
+    io.to(`team_status_${teamId}`).emit('team-members-updated', { teamId });
+    res.json({ success: true, message: 'Member removed. They can rejoin with the team code.' });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('Remove team member error:', err);
+    res.status(500).json({ error: 'Failed to remove team member' });
+  } finally { client.release(); }
+});
+
 app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -2754,7 +2763,7 @@ app.post('/api/team/leave', verifyTelegramData, async (req, res) => {
     await client.query('BEGIN');
     await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
     await client.query('UPDATE users SET team_id = NULL WHERE id = $1', [userId]);
-    const remainingMembers = await client.query('SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC', [teamId]);
+    const remainingMembers = await client.query('SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC, id ASC', [teamId]);
     if (remainingMembers.rows.length === 0) {
       await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
     } else if (isLeader && remainingMembers.rows.length > 0) {
@@ -3033,10 +3042,10 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     const u = await client.query('SELECT id, team_id, telegram_id FROM users WHERE id = $1', [userId]);
     if (u.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     if (u.rows[0].team_id) {
-      const t = await client.query('SELECT created_by FROM teams WHERE id = $1', [u.rows[0].team_id]);
-      const wasLeader = t.rows[0]?.created_by === userId;
+      const t = await client.query('SELECT created_by FROM teams WHERE id = $1 FOR UPDATE', [u.rows[0].team_id]);
+      const wasLeader = t.rows[0]?.created_by === Number(userId);
       await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [u.rows[0].team_id, userId]);
-      const rem = await client.query('SELECT user_id FROM team_members WHERE team_id = $1', [u.rows[0].team_id]);
+      const rem = await client.query('SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC, id ASC LIMIT 1', [u.rows[0].team_id]);
       if (rem.rows.length === 0) {
         await client.query('DELETE FROM teams WHERE id = $1', [u.rows[0].team_id]);
       } else if (wasLeader) {
