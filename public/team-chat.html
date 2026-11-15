@@ -686,6 +686,18 @@
     }).catch(err => console.error('Mark read error:', err));
 });
             
+            socket.on('team-member-removed', (data) => {
+                showNotification(data?.message || 'You are no longer a member of this team.', true);
+                socket.disconnect();
+                setTimeout(() => { window.location.href = '/team.html'; }, 900);
+            });
+
+            socket.on('team-access-revoked', (data) => {
+                showNotification(data?.message || 'You are not a member of this team.', true);
+                socket.disconnect();
+                setTimeout(() => { window.location.href = '/team.html'; }, 900);
+            });
+
             socket.on('chat-history', (messages) => {
                 console.log('Chat history received:', messages?.length);
                 renderMessages(messages);
