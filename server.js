@@ -981,9 +981,6 @@ socket.on('join-status', async (data) => {
     });
     
     // ============================================
-    // TEAM CHAT    });
-    
-    // ============================================
     // TEAM CHAT
     // ============================================
     socket.on('join-team', async (data) => {
@@ -1014,8 +1011,6 @@ socket.on('join-status', async (data) => {
             socket.emit('message-error', { error: 'Unable to join team chat' });
         }
     });
-    
-    socket.on('send-message'    });
     
     socket.on('send-message', async (data) => {
         const { teamId, message } = data || {};
@@ -1050,8 +1045,6 @@ socket.on('join-status', async (data) => {
         }
     });
     
-    socket.on('typing'    });
-    
     socket.on('typing', async (data) => {
         const { teamId, isTyping } = data || {};
         try {
@@ -1067,8 +1060,6 @@ socket.on('join-status', async (data) => {
             });
         } catch (err) { console.error('Typing status error:', err); }
     });
-    
-    socket.on('edit-message'    });
     
     socket.on('edit-message', async (data) => {
         const { messageId, newMessage, teamId } = data || {};
@@ -1086,8 +1077,6 @@ socket.on('join-status', async (data) => {
         } catch (err) { socket.emit('message-error', { error: 'Failed to edit message' }); }
     });
     
-    socket.on('delete-message'    });
-    
     socket.on('delete-message', async (data) => {
         const { messageId, teamId } = data || {};
         try {
@@ -1099,9 +1088,6 @@ socket.on('join-status', async (data) => {
             if (result.rows.length) io.to(`team_${teamId}`).emit('message-deleted', { messageId });
         } catch (err) { socket.emit('message-error', { error: 'Failed to delete message' }); }
     });
-    
-    // ============================================
-    // PRIVATE CHAT    });
     
     // ============================================
     // PRIVATE CHAT
