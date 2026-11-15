@@ -309,7 +309,7 @@ body {
 </div>
 
 <script>
-const ADMIN_TOKEN = 'Bearer admin123';
+async function adminLogout(){await fetch('/api/admin/auth/logout',{method:'POST',credentials:'same-origin'});location.href='/admin-login.html';}
 
 // Chart instances
 let growthChart, heatmapChart, earningsChart, revenueChart, economyChart, tierChart;
@@ -332,7 +332,7 @@ function formatNum(num) {
 // API Helper
 // ============================================
 async function api(endpoint) {
-  const res = await fetch(endpoint, { headers: { 'Authorization': ADMIN_TOKEN } });
+  const res = await fetch(endpoint, { credentials: 'same-origin' });
   if (!res.ok) throw new Error('Failed');
   return res.json();
 }
@@ -904,7 +904,7 @@ async function loadBlocked() {
     const timeoutId = setTimeout(() => controller.abort(), 120000); 
 
     const res = await fetch('/api/admin/analysis/blocked-users', { 
-        headers: { 'Authorization': ADMIN_TOKEN },
+        credentials: 'same-origin',
         signal: controller.signal 
     });
     clearTimeout(timeoutId);
@@ -926,9 +926,6 @@ async function loadBlocked() {
       <p style="font-size:11px; color:var(--gray); margin-bottom:8px;">
         Found <strong style="color:var(--danger);">${d.blocked.length}</strong> blocked users
       </p>
-      <button class="action-btn" onclick="deleteAllBlocked()">
-        <i class="fas fa-trash"></i> Delete All Blocked Users
-      </button>
       <div>
         ${d.blocked.map(u => `
           <div class="segment-row">
@@ -947,28 +944,6 @@ async function loadBlocked() {
   } catch (e) {
     console.error('Scan error:', e);
     container.innerHTML = '<div class="loading" style="color:var(--danger);">Scan took too long or failed. Try again later.</div>';
-  }
-}
-
-async function deleteAllBlocked() {
-  if (!window.blockedUsersData || window.blockedUsersData.length === 0) return;
-  if (!confirm(`Delete ${window.blockedUsersData.length} blocked users permanently? This cannot be undone.`)) return;
-
-  try {
-    const res = await fetch('/api/admin/analysis/delete-users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': ADMIN_TOKEN },
-      body: JSON.stringify({ telegramIds: window.blockedUsersData })
-    });
-    const d = await res.json();
-    if (d.success) {
-      alert(`✅ Deleted ${d.deleted} users`);
-      loadBlocked();
-    } else {
-      alert('Failed: ' + (d.error || 'Unknown error'));
-    }
-  } catch (e) {
-    alert('Network error');
   }
 }
 
