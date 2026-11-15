@@ -778,6 +778,7 @@ fetch('/api/user', {
             });
             
             teamSocket.on('team-members-updated', () => loadMyTeamOnly(false));
+            teamSocket.on('team-member-removed', () => loadMyTeamOnly(false));
             teamSocket.on('disconnect', () => {
                 console.log('🔴 Team status socket disconnected');
             });
