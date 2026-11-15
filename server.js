@@ -49,6 +49,20 @@ const pool = new Pool({
 pool.on('error', (err) => console.error('Unexpected error on idle client', err));
 
 app.use(bodyParser.json({ limit: '10kb' }));
+// Shared admin authentication for both admin pages and every /api/admin endpoint.
+const ADMIN_COOKIE='yz_admin_session', ADMIN_SESSION_TTL=8*60*60*1000;
+const adminSessions=new Map(), adminLoginAttempts=new Map();
+function readCookie(req,name){const item=(req.headers.cookie||'').split(';').map(v=>v.trim()).find(v=>v.startsWith(name+'='));return item?decodeURIComponent(item.slice(name.length+1)):null;}
+function adminSessionKey(token){return crypto.createHmac('sha256',process.env.ADMIN_SESSION_SECRET).update(token).digest('hex');}
+function hasAdminSession(req){const token=readCookie(req,ADMIN_COOKIE);if(!token||!process.env.ADMIN_SESSION_SECRET)return false;const key=adminSessionKey(token),expires=adminSessions.get(key);if(!expires||expires<=Date.now()){adminSessions.delete(key);return false;}return true;}
+function setAdminCookie(res,token){const secure=process.env.NODE_ENV==='production'?'; Secure':'';res.setHeader('Set-Cookie',`${ADMIN_COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Strict; Max-Age=28800${secure}`);}
+function clearAdminCookie(res){const secure=process.env.NODE_ENV==='production'?'; Secure':'';res.setHeader('Set-Cookie',`${ADMIN_COOKIE}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${secure}`);}
+function verifyAdmin(req,res,next){if(!hasAdminSession(req))return res.status(401).json({error:'Admin login required'});next();}
+app.post('/api/admin/auth/login',(req,res)=>{const ip=req.ip||req.socket.remoteAddress||'unknown',now=Date.now();const a=adminLoginAttempts.get(ip)||{count:0,resetAt:now+900000};if(a.resetAt<=now){a.count=0;a.resetAt=now+900000;}if(a.count>=5)return res.status(429).json({error:'Too many attempts. Try again in 15 minutes.'});const expected=Buffer.from(process.env.ADMIN_PASSWORD||''),given=Buffer.from(typeof req.body?.password==='string'?req.body.password:'');const ok=Boolean(expected.length&&process.env.ADMIN_SESSION_SECRET&&expected.length===given.length&&crypto.timingSafeEqual(expected,given));if(!ok){a.count++;adminLoginAttempts.set(ip,a);return res.status(401).json({error:'Incorrect password or admin login is not configured.'});}adminLoginAttempts.delete(ip);const token=crypto.randomBytes(32).toString('hex');adminSessions.set(adminSessionKey(token),now+ADMIN_SESSION_TTL);setAdminCookie(res,token);res.json({success:true,next:req.body?.next==='/analytics.html'?'/analytics.html':'/yzeadmin.html'});});
+app.get('/api/admin/auth/status',(req,res)=>res.json({authenticated:hasAdminSession(req)}));
+app.post('/api/admin/auth/logout',(req,res)=>{const token=readCookie(req,ADMIN_COOKIE);if(token&&process.env.ADMIN_SESSION_SECRET)adminSessions.delete(adminSessionKey(token));clearAdminCookie(res);res.json({success:true});});
+app.use((req,res,next)=>{if(req.path!=='/yzeadmin.html'&&req.path!=='/analytics.html')return next();if(hasAdminSession(req))return next();const target=req.path==='/analytics.html'?'/analytics.html':'/yzeadmin.html';return res.redirect(302,'/admin-login.html?next='+encodeURIComponent(target));});
+
 app.use(express.static('public'));
 
 // ============================================
@@ -844,13 +858,7 @@ async function verifyTelegramData(req, res, next) {
   }
 }
 
-function verifyAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || authHeader !== 'Bearer admin123') {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  next();
-}
+// verifyAdmin uses the shared cookie session defined above.
 
 
 // ============================================
@@ -2948,6 +2956,8 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
 // ADMIN ENDPOINTS
 // ============================================
 
+app.use('/api/admin', verifyAdmin);
+
 app.get('/api/admin/teams', verifyAdmin, async (req, res) => {
   try {
     const teamsResult = await pool.query(`
@@ -3267,8 +3277,6 @@ app.get('/api/admin/tournament-winners', async (req, res) => {
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
-    
     try {
         const lastTournament = await pool.query(`
             SELECT id, week_start, week_end 
@@ -3318,8 +3326,6 @@ app.get('/api/admin/leaderboard-winners', async (req, res) => {
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
-    
     try {
         // Get last month (previous completed month)
         const lastMonth = await pool.query(`
@@ -3360,8 +3366,6 @@ app.get('/api/admin/referral-winners', async (req, res) => {
     const authHeader = req.headers.authorization;
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-    
-    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
     
     try {
         // Find the most recent referral date
@@ -3426,8 +3430,6 @@ app.get('/api/admin/team-winners', async (req, res) => {
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
-    
     try {
         const lastMonth = await pool.query(`
             SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start
@@ -3471,8 +3473,6 @@ app.get('/api/admin/top-earners-full', async (req, res) => {
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token;
   const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
   
   try {
     const result = await pool.query(`
@@ -3987,10 +3987,6 @@ app.get('/api/admin/test-weekly-prizes', async (req, res) => {
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token;
   const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  if (token !== 'admin123') {
-    return res.status(401).json({ error: 'Unauthorized. Add ?token=admin123 to URL' });
-  }
   
   try {
     const now = new Date();
@@ -4994,10 +4990,6 @@ app.get('/api/admin/test-failed-users', async (req, res) => {
     const queryToken = req.query.token;
     const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
     
-    if (token !== 'admin123') {
-        return res.status(401).json({ error: 'Unauthorized. Add ?token=admin123 to URL' });
-    }
-    
     const BOT_TOKEN = process.env.BOT_TOKEN;
     
     // ✅ Use IDs from URL, or fallback to default list
@@ -5044,7 +5036,6 @@ app.get('/api/admin/test-tournament-prizes', async (req, res) => {
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token;
   const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
   
   try {
     const today = new Date();
@@ -5082,7 +5073,6 @@ app.get('/api/admin/test-leaderboard-prizes', async (req, res) => {
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token;
   const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
   
   try {
     const lastMonth = await pool.query(`SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start`);
@@ -5106,7 +5096,6 @@ app.get('/api/admin/test-team-prizes', async (req, res) => {
   const authHeader = req.headers.authorization;
   const queryToken = req.query.token;
   const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  if (token !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
   
   try {
     const lastMonth = await pool.query(`SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start`);
@@ -5132,7 +5121,6 @@ app.get('/api/admin/test-team-prizes', async (req, res) => {
 // Download user IDs as text file
 app.get('/api/admin/download-user-ids', async (req, res) => {
   const queryToken = req.query.token;
-  if (queryToken !== 'admin123') return res.status(401).json({ error: 'Unauthorized' });
   
   try {
     const result = await pool.query(
