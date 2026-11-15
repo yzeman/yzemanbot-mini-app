@@ -3272,12 +3272,7 @@ app.get('/api/admin/analytics', async (req, res) => {
 // ============================================
 // ADMIN: Previous Tournament Winners (Last Week Only) - FIXED
 // ============================================
-app.get('/api/admin/tournament-winners', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const queryToken = req.query.token;
-    const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-    
-    try {
+app.get('/api/admin/tournament-winners', async (req, res) => {    try {
         const lastTournament = await pool.query(`
             SELECT id, week_start, week_end 
             FROM weekly_tournaments 
@@ -3321,12 +3316,7 @@ app.get('/api/admin/tournament-winners', async (req, res) => {
 // ============================================
 // ADMIN: Previous Leaderboard Winners (Last Month Only)
 // ============================================
-app.get('/api/admin/leaderboard-winners', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const queryToken = req.query.token;
-    const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-    
-    try {
+app.get('/api/admin/leaderboard-winners', async (req, res) => {    try {
         // Get last month (previous completed month)
         const lastMonth = await pool.query(`
             SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start
@@ -3362,12 +3352,7 @@ app.get('/api/admin/leaderboard-winners', async (req, res) => {
 // ============================================
 // ADMIN: Previous Referral Winners (Most Recent Week With Referrals)
 // ============================================
-app.get('/api/admin/referral-winners', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const queryToken = req.query.token;
-    const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-    
-    try {
+app.get('/api/admin/referral-winners', async (req, res) => {    try {
         // Find the most recent referral date
         const lastReferralDate = await pool.query(`
             SELECT MAX(created_at) as last_date FROM referrals
@@ -3425,12 +3410,7 @@ app.get('/api/admin/referral-winners', async (req, res) => {
 // ============================================
 // ADMIN: Previous Team Winners (Last Month Only)
 // ============================================
-app.get('/api/admin/team-winners', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const queryToken = req.query.token;
-    const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-    
-    try {
+app.get('/api/admin/team-winners', async (req, res) => {    try {
         const lastMonth = await pool.query(`
             SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start
         `);
@@ -3469,12 +3449,7 @@ app.get('/api/admin/team-winners', async (req, res) => {
 // ============================================
 // ADMIN: Top 10 Earners (All Time - Full List)
 // ============================================
-app.get('/api/admin/top-earners-full', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const queryToken = req.query.token;
-  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  try {
+app.get('/api/admin/top-earners-full', async (req, res) => {  try {
     const result = await pool.query(`
       SELECT 
         u.id,
@@ -3983,12 +3958,7 @@ app.post('/api/admin/award-weekly-prizes', verifyAdmin, async (req, res) => {
 });
 
 // TEMPORARY: Test weekly prize endpoint via GET (FIXED DATE)
-app.get('/api/admin/test-weekly-prizes', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const queryToken = req.query.token;
-  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  try {
+app.get('/api/admin/test-weekly-prizes', async (req, res) => {  try {
     const now = new Date();
     // Today is Sunday May 18. Last week: Monday May 11 - Sunday May 17
     const today = new Date();
@@ -4985,12 +4955,7 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
     }
 });
 
-app.get('/api/admin/test-failed-users', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    const queryToken = req.query.token;
-    const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-    
-    const BOT_TOKEN = process.env.BOT_TOKEN;
+app.get('/api/admin/test-failed-users', async (req, res) => {    const BOT_TOKEN = process.env.BOT_TOKEN;
     
     // ✅ Use IDs from URL, or fallback to default list
     const idsParam = req.query.ids;
@@ -5032,12 +4997,7 @@ app.get('/api/admin/test-failed-users', async (req, res) => {
     res.json(results);
 });
 // TEMPORARY: Test tournament prize query
-app.get('/api/admin/test-tournament-prizes', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const queryToken = req.query.token;
-  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  try {
+app.get('/api/admin/test-tournament-prizes', async (req, res) => {  try {
     const today = new Date();
     const currentDay = today.getDay();
     const lastSunday = new Date(today);
@@ -5069,12 +5029,7 @@ app.get('/api/admin/test-tournament-prizes', async (req, res) => {
 });
 
 // TEMPORARY: Test leaderboard prize query
-app.get('/api/admin/test-leaderboard-prizes', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const queryToken = req.query.token;
-  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  try {
+app.get('/api/admin/test-leaderboard-prizes', async (req, res) => {  try {
     const lastMonth = await pool.query(`SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start`);
     const monthStart = lastMonth.rows[0].month_start;
     
@@ -5092,12 +5047,7 @@ app.get('/api/admin/test-leaderboard-prizes', async (req, res) => {
 });
 
 // TEMPORARY: Test team prize query
-app.get('/api/admin/test-team-prizes', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const queryToken = req.query.token;
-  const token = authHeader ? authHeader.replace('Bearer ', '') : queryToken;
-  
-  try {
+app.get('/api/admin/test-team-prizes', async (req, res) => {  try {
     const lastMonth = await pool.query(`SELECT date_trunc('month', NOW())::date - INTERVAL '1 month' as month_start`);
     const monthStart = lastMonth.rows[0].month_start;
     
@@ -5119,10 +5069,7 @@ app.get('/api/admin/test-team-prizes', async (req, res) => {
 });
 
 // Download user IDs as text file
-app.get('/api/admin/download-user-ids', async (req, res) => {
-  const queryToken = req.query.token;
-  
-  try {
+app.get('/api/admin/download-user-ids', async (req, res) => {  try {
     const result = await pool.query(
       'SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL ORDER BY telegram_id'
     );
