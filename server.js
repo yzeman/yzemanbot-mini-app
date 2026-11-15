@@ -3036,7 +3036,8 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('BEGIN');
     const u = await client.query('SELECT id, team_id, telegram_id FROM users WHERE id = $1', [userId]);
     if (u.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    if (u.rows[0].team_id) {
+    const removedTeamId = u.rows[0].team_id;
+    if (removedTeamId) {
       const t = await client.query('SELECT created_by FROM teams WHERE id = $1 FOR UPDATE', [u.rows[0].team_id]);
       const wasLeader = t.rows[0]?.created_by === Number(userId);
       await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [u.rows[0].team_id, userId]);
@@ -3061,6 +3062,19 @@ app.post('/api/admin/delete-user', verifyAdmin, async (req, res) => {
     await client.query('DELETE FROM user_monthly_earnings WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     await client.query('COMMIT');
+    if (removedTeamId) {
+      for (const activeSocket of io.sockets.sockets.values()) {
+        if (activeSocket.dbUserId === Number(userId) &&
+            (String(activeSocket.teamRoomId) === String(removedTeamId) || activeSocket.rooms.has(`team_status_${removedTeamId}`))) {
+          activeSocket.emit('team-member-removed', { teamId: removedTeamId, message: 'Your account was removed by an administrator.' });
+          activeSocket.leave(`team_${removedTeamId}`);
+          activeSocket.leave(`team_status_${removedTeamId}`);
+          activeSocket.teamRoomId = null;
+          connectedUsers.delete(activeSocket.id);
+        }
+      }
+      io.to(`team_status_${removedTeamId}`).emit('team-members-updated', { teamId: removedTeamId });
+    }
     res.json({ success: true });
   } catch (err) {
     await client.query('ROLLBACK');
