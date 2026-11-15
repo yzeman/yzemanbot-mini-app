@@ -930,7 +930,7 @@ fetch('/api/user', {
                             <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} referrals</div>
                         </div>
                         <div class="member-coins">${formatNumberWithCommas(monthlyCoinsMember)} COINS</div>
-                        ${data.viewer_is_leader && !m.is_leader ? `<button class="team-btn remove-member" title="Remove member" aria-label="Remove ${escapeHtml(firstName)}" onclick="removeTeamMember(${Number(m.id)}, '${escapeHtml(firstName).replace(/'/g, '&#39;')}')"><i class="fas fa-user-minus"></i></button>` : ''}
+                        ${data.viewer_is_leader && !m.is_leader ? `<button class="team-btn remove-member" title="Remove member" aria-label="Remove team member" onclick="removeTeamMember(${Number(m.id)})"><i class="fas fa-user-minus"></i></button>` : ''}
                     </div>
                 `;
             }).join('')}
@@ -1103,11 +1103,13 @@ fetch('/api/user', {
         }
     }
     
-    async function removeTeamMember(memberId, memberName) {
+    async function removeTeamMember(memberId) {
         if (!currentTeamData?.viewer_is_leader) {
             showNotification('Only the team leader can remove members', true);
             return;
         }
+        const target = (currentTeamData.members || []).find(member => Number(member.id) === Number(memberId));
+        const memberName = target?.first_name ? getFirstNameOnly(target.first_name) : 'this member';
         if (!confirm(`Remove ${memberName} from this team? They can rejoin later with the team code.`)) return;
         try {
             await apiCall('/api/team/remove-member', { memberId });
