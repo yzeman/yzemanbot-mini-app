@@ -2947,6 +2947,117 @@ app.post('/api/withdraw', verifyTelegramData, async (req, res) => {
 // ============================================
 // ADMIN ENDPOINTS
 // ============================================
+
+app.get('/api/admin/teams', verifyAdmin, async (req, res) => {
+  try {
+    const teamsResult = await pool.query(`
+      SELECT t.id, t.name, t.code, t.created_by,
+        COALESCE(leader.first_name, 'Unknown') AS leader_name,
+        COUNT(tm.user_id)::int AS member_count,
+        COALESCE(SUM(u.coins), 0) AS total_coins
+      FROM teams t
+      LEFT JOIN users leader ON leader.id = t.created_by
+      LEFT JOIN team_members tm ON tm.team_id = t.id
+      LEFT JOIN users u ON u.id = tm.user_id
+      GROUP BY t.id, leader.first_name
+      ORDER BY total_coins DESC, t.id ASC
+    `);
+    const membersResult = await pool.query(`
+      SELECT tm.team_id, u.id, u.telegram_id, u.first_name, u.username, u.coins,
+        (u.id = t.created_by) AS is_leader
+      FROM team_members tm JOIN users u ON u.id = tm.user_id
+      JOIN teams t ON t.id = tm.team_id
+      ORDER BY tm.team_id, tm.joined_at ASC, tm.id ASC
+    `);
+    const grouped = new Map();
+    for (const member of membersResult.rows) {
+      if (!grouped.has(member.team_id)) grouped.set(member.team_id, []);
+      grouped.get(member.team_id).push(member);
+    }
+    res.json(teamsResult.rows.map(team => ({
+      ...team, total_coins: Number(team.total_coins) || 0,
+      members: grouped.get(team.id) || []
+    })));
+  } catch (err) {
+    console.error('Admin teams error:', err);
+    res.status(500).json({ error: 'Failed to fetch teams and members' });
+  }
+});
+
+app.post('/api/admin/team/remove-member', verifyAdmin, async (req, res) => {
+  const teamId = Number(req.body?.teamId), userId = Number(req.body?.userId);
+  if (!Number.isSafeInteger(teamId) || teamId <= 0 || !Number.isSafeInteger(userId) || userId <= 0)
+    return res.status(400).json({ error: 'Invalid team or member' });
+  const client = await pool.connect();
+  let teamDeleted = false, newLeaderId = null;
+  try {
+    await client.query('BEGIN');
+    const team = await client.query('SELECT id, created_by FROM teams WHERE id = $1 FOR UPDATE', [teamId]);
+    if (!team.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Team not found' }); }
+    const member = await client.query('SELECT user_id FROM team_members WHERE team_id = $1 AND user_id = $2 FOR UPDATE', [teamId, userId]);
+    if (!member.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Member not found in this team' }); }
+    await client.query('DELETE FROM team_members WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
+    await client.query('UPDATE users SET team_id = NULL WHERE id = $1 AND team_id = $2', [userId, teamId]);
+    await client.query('DELETE FROM team_typing_status WHERE team_id = $1 AND user_id = $2', [teamId, userId]);
+    if (Number(team.rows[0].created_by) === userId) {
+      const successor = await client.query('SELECT user_id FROM team_members WHERE team_id = $1 ORDER BY joined_at ASC, id ASC LIMIT 1', [teamId]);
+      if (successor.rows.length) {
+        newLeaderId = successor.rows[0].user_id;
+        await client.query('UPDATE teams SET created_by = $1 WHERE id = $2', [newLeaderId, teamId]);
+      } else {
+        await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+        teamDeleted = true;
+      }
+    }
+    await client.query('COMMIT');
+    for (const socket of io.sockets.sockets.values()) {
+      if (socket.dbUserId === userId && (String(socket.teamRoomId) === String(teamId) || socket.rooms.has(`team_status_${teamId}`))) {
+        socket.emit('team-member-removed', { teamId, message: 'An administrator removed you from this team.' });
+        socket.leave(`team_${teamId}`); socket.leave(`team_status_${teamId}`);
+        socket.teamRoomId = null; connectedUsers.delete(socket.id);
+      }
+    }
+    io.to(`team_status_${teamId}`).emit('team-members-updated', { teamId });
+    res.json({ success: true, team_deleted: teamDeleted, new_leader_id: newLeaderId });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('Admin remove team member error:', err);
+    res.status(500).json({ error: 'Failed to remove team member' });
+  } finally { client.release(); }
+});
+
+app.post('/api/admin/team/delete', verifyAdmin, async (req, res) => {
+  const teamId = Number(req.body?.teamId);
+  if (!Number.isSafeInteger(teamId) || teamId <= 0) return res.status(400).json({ error: 'Invalid team ID' });
+  const client = await pool.connect();
+  let memberIds = [];
+  try {
+    await client.query('BEGIN');
+    const team = await client.query('SELECT id FROM teams WHERE id = $1 FOR UPDATE', [teamId]);
+    if (!team.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Team not found' }); }
+    const members = await client.query('SELECT user_id FROM team_members WHERE team_id = $1', [teamId]);
+    memberIds = members.rows.map(row => row.user_id);
+    await client.query('UPDATE users SET team_id = NULL WHERE team_id = $1', [teamId]);
+    await client.query('DELETE FROM team_typing_status WHERE team_id = $1', [teamId]);
+    await client.query('DELETE FROM team_members WHERE team_id = $1', [teamId]);
+    // Team messages and dependent read receipts are removed by the teams foreign-key cascade.
+    await client.query('DELETE FROM teams WHERE id = $1', [teamId]);
+    await client.query('COMMIT');
+    for (const socket of io.sockets.sockets.values()) {
+      if (memberIds.includes(socket.dbUserId) && (String(socket.teamRoomId) === String(teamId) || socket.rooms.has(`team_status_${teamId}`))) {
+        socket.emit('team-member-removed', { teamId, message: 'This team was deleted by an administrator.' });
+        socket.leave(`team_${teamId}`); socket.leave(`team_status_${teamId}`);
+        socket.teamRoomId = null; connectedUsers.delete(socket.id);
+      }
+    }
+    res.json({ success: true, removed_members: memberIds.length });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('Admin delete team error:', err);
+    res.status(500).json({ error: 'Failed to delete team' });
+  } finally { client.release(); }
+});
+
 app.get('/api/admin/users', verifyAdmin, async (req, res) => {
   try {
     const result = await pool.query(`
