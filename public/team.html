@@ -222,6 +222,7 @@
         .team-btn.leave { border-color: var(--danger); color: var(--danger); }
         .team-btn.copy { border-color: var(--gold); color: var(--gold); }
         .team-btn.chat { border-color: var(--secondary); color: var(--secondary); }
+        .team-btn.remove-member { flex: 0 0 auto; min-width: 34px; width: 34px; padding: 7px; border-color: var(--danger); color: var(--danger); }
         
         .chat-badge {
             position: absolute;
@@ -776,6 +777,7 @@ fetch('/api/user', {
                 updateChatBadge();
             });
             
+            teamSocket.on('team-members-updated', () => loadMyTeamOnly(false));
             teamSocket.on('disconnect', () => {
                 console.log('🔴 Team status socket disconnected');
             });
@@ -927,6 +929,7 @@ fetch('/api/user', {
                             <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} referrals</div>
                         </div>
                         <div class="member-coins">${formatNumberWithCommas(monthlyCoinsMember)} COINS</div>
+                        ${data.viewer_is_leader && !m.is_leader ? `<button class="team-btn remove-member" title="Remove member" aria-label="Remove ${escapeHtml(firstName)}" onclick="removeTeamMember(${Number(m.id)}, '${escapeHtml(firstName).replace(/'/g, '&#39;')}')"><i class="fas fa-user-minus"></i></button>` : ''}
                     </div>
                 `;
             }).join('')}
@@ -1099,6 +1102,21 @@ fetch('/api/user', {
         }
     }
     
+    async function removeTeamMember(memberId, memberName) {
+        if (!currentTeamData?.viewer_is_leader) {
+            showNotification('Only the team leader can remove members', true);
+            return;
+        }
+        if (!confirm(`Remove ${memberName} from this team? They can rejoin later with the team code.`)) return;
+        try {
+            await apiCall('/api/team/remove-member', { memberId });
+            showNotification(`${memberName} was removed from the team`);
+            await loadMyTeamOnly(false);
+        } catch (err) {
+            showNotification(err.message || 'Failed to remove member', true);
+        }
+    }
+
     function copyTeamCode(code) {
         navigator.clipboard.writeText(code);
         showNotification('Team code copied!');
