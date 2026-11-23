@@ -953,7 +953,7 @@ io.on('connection', (socket) => {
                 'SELECT id, first_name FROM users WHERE telegram_id = $1',
                 [socket.user.id]
             );
-            if (!socket.connected || !result.rows.length) return;
+            if (!io.sockets.sockets.has(socket.id) || !result.rows.length) return;
 
             const member = result.rows[0];
             const alreadyOnline = Array.from(presenceSockets.values())
@@ -971,6 +971,7 @@ io.on('connection', (socket) => {
                      WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
                     [member.id]
                 );
+                if (!presenceSockets.has(socket.id)) return;
                 friends.rows.forEach(friend => {
                     io.to(`user_${friend.friend_id}`).emit('friend-online', {
                         userId: member.id,
