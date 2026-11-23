@@ -1122,7 +1122,10 @@ socket.on('join-status', async (data) => {
             const result = await pool.query(`
                 UPDATE team_messages SET message = '', is_deleted = TRUE, updated_at = NOW() WHERE id = $1 AND user_id = $2 AND team_id = $3 AND is_deleted = FALSE RETURNING id
             `, [messageId, member.id, teamId]);
-            if (result.rows.length) io.to(`team_${teamId}`).emit('message-deleted', { messageId, isDeleted: true });
+            if (result.rows.length) {
+                io.to(`team_${teamId}`).emit('message-deleted', { messageId, isDeleted: true });
+                io.to(`team_status_${teamId}`).emit('message-deleted', { messageId, isDeleted: true });
+            }
         } catch (err) { socket.emit('message-error', { error: 'Failed to delete message' }); }
     });
     
@@ -1432,6 +1435,7 @@ socket.on('delete-tournament-message', async (data) => {
         );
         if (result.rows.length > 0) {
             io.to('tournament_chat').emit('message-deleted', { messageId, isDeleted: true });
+            io.emit('tournament-message-deleted', { messageId });
         }
     } catch (err) { socket.emit('message-error', { error: 'Failed to delete' }); }
 });
