@@ -1427,7 +1427,7 @@ socket.on('delete-tournament-message', async (data) => {
         if (!member || !socket.rooms.has('tournament_chat')) return;
         const userId = member.id;
         const result = await pool.query(
-            'UPDATE tournament_messages SET message = '', is_deleted = TRUE WHERE id = $1 AND user_id = $2 AND is_deleted = FALSE RETURNING id',
+            `UPDATE tournament_messages SET message = '', is_deleted = TRUE WHERE id = $1 AND user_id = $2 AND is_deleted = FALSE RETURNING id`,
             [messageId, userId]
         );
         if (result.rows.length > 0) {
@@ -4946,7 +4946,7 @@ app.post('/api/team/mark-read', verifyTelegramData, async (req, res) => {
             INSERT INTO team_message_reads (message_id, user_id, read_at)
             SELECT tm.id, $2, NOW()
             FROM team_messages tm
-            WHERE tm.team_id = $1 AND tm.user_id <> $2 AND tm.is_deleted = FALSE AND tm.is_deleted = FALSE
+            WHERE tm.team_id = $1 AND tm.user_id <> $2 AND tm.is_deleted = FALSE
             ON CONFLICT (message_id, user_id)
             DO UPDATE SET read_at = EXCLUDED.read_at
         `, [teamId, userId]);
