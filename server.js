@@ -63,6 +63,14 @@ app.get('/api/admin/auth/status',(req,res)=>res.json({authenticated:hasAdminSess
 app.post('/api/admin/auth/logout',(req,res)=>{const token=readCookie(req,ADMIN_COOKIE);if(token&&process.env.ADMIN_SESSION_SECRET)adminSessions.delete(adminSessionKey(token));clearAdminCookie(res);res.json({success:true});});
 app.use((req,res,next)=>{if(req.path!=='/yzeadmin.html'&&req.path!=='/analytics.html')return next();if(hasAdminSession(req))return next();const target=req.path==='/analytics.html'?'/analytics.html':'/yzeadmin.html';return res.redirect(302,'/admin-login.html?next='+encodeURIComponent(target));});
 
+// Prevent Telegram's embedded browser from reusing stale tournament chat HTML.
+app.use('/tournament-chat.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 app.use(express.static('public'));
 
 // ============================================
