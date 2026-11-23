@@ -344,18 +344,56 @@
             } catch (err) { showNotification('Failed to load', true); }
         }
         
+        let chatHistoryLoaded = false;
+
+        function showChatLoadError(message) {
+            const container = document.getElementById('messagesContainer');
+            container.innerHTML = '';
+            const notice = document.createElement('div');
+            notice.className = 'loading-messages';
+            notice.textContent = message || 'Unable to load messages. Please try again.';
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.textContent = 'Retry';
+            retry.style.marginTop = '12px';
+            retry.addEventListener('click', requestTournamentHistory);
+            container.append(notice, retry);
+        }
+
+        function requestTournamentHistory() {
+            if (!socket?.connected) {
+                showChatLoadError('Chat connection is unavailable. Please wait and retry.');
+                return;
+            }
+            chatHistoryLoaded = false;
+            document.getElementById('messagesContainer').innerHTML = '<div class="loading-messages">Loading messages...</div>';
+            socket.timeout(12000).emit('join-tournament', {}, (err, response) => {
+                if (chatHistoryLoaded) return;
+                if (err || !response?.ok) {
+                    showChatLoadError(response?.error || 'Messages are taking too long to load. Tap Retry.');
+                    return;
+                }
+                chatHistoryLoaded = true;
+                renderMessages(response.messages || []);
+            });
+        }
+
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             sessionStorage.setItem('returned_from_tournament_chat', 'true');
             localStorage.setItem('tournament_unread_count', '0');
-            
+
             socket = io(`${protocol}//${window.location.host}`, { auth: { initData: tg.initData }, transports: ['websocket'], reconnection: true, reconnectionAttempts: 10, reconnectionDelay: 1000 });
-            
+
             socket.on('connect', () => {
                 document.getElementById('chatStatus').textContent = 'Connected';
-                socket.emit('join-tournament', { userId: currentUser.id, firstName: currentUser.first_name || 'User' });
+                requestTournamentHistory();
             });
-            socket.on('chat-history', renderMessages);
+            socket.on('chat-history', messages => {
+                chatHistoryLoaded = true;
+                renderMessages(messages);
+            });
+            socket.on('chat-error', data => showChatLoadError(data?.error));
             socket.on('tournament-new-message', (message) => {
                 // The server uses this event for tournament chat broadcasts.
                 // Ignore duplicates and mark incoming messages read while chat is open.
