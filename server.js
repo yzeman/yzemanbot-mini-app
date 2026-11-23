@@ -975,11 +975,14 @@ socket.on('join-status', async (data) => {
             if (!member) return;
             socket.join(`team_status_${teamId}`);
             const result = await pool.query(`
-                SELECT COUNT(*) as count FROM team_messages
-                WHERE team_id = $1 AND created_at > COALESCE(
-                    (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
-                    '2024-01-01'
-                )
+                SELECT COUNT(*) as count
+                FROM team_messages tm
+                WHERE tm.team_id = $1
+                  AND tm.user_id <> $2
+                  AND NOT EXISTS (
+                    SELECT 1 FROM team_message_reads tmr
+                    WHERE tmr.message_id = tm.id AND tmr.user_id = $2
+                  )
             `, [teamId, member.id]);
             socket.emit('team-unread-update', { count: parseInt(result.rows[0].count, 10) });
         } catch (err) {
@@ -1051,14 +1054,6 @@ socket.on('join-status', async (data) => {
             // broadcast was already rendered before this acknowledgement arrives.
             reply({ ok: true, message: messageData });
 
-            const unreadResult = await pool.query(`
-                SELECT COUNT(*) as count FROM team_messages
-                WHERE team_id = $1 AND created_at > COALESCE(
-                    (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
-                    '2024-01-01'
-                )
-            `, [teamId, userId]);
-            socket.to(`team_${teamId}`).emit('team-unread-update', { count: parseInt(unreadResult.rows[0].count, 10) });
             await pool.query(`UPDATE team_typing_status SET is_typing = false, updated_at = NOW() WHERE team_id = $1 AND user_id = $2`, [teamId, userId]);
             socket.to(`team_${teamId}`).emit('user-typing', { userId, firstName, isTyping: false });
         } catch (err) {
@@ -4821,31 +4816,6 @@ app.post('/api/user/update-last-seen', verifyTelegramData, async (req, res) => {
     }
 });
 
-// Get unread team messages count for a user
-app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
-    const { teamId } = req.body;
-    try {
-        const telegramId = req.telegramUser.id;
-        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-        if (userResult.rows.length === 0) return res.json({ unread_count: 0 });
-        const userId = userResult.rows[0].id;
-        
-        const result = await pool.query(`
-            SELECT COUNT(*) as count 
-            FROM team_messages 
-            WHERE team_id = $1 AND created_at > COALESCE(
-                (SELECT MAX(read_at) FROM team_message_reads WHERE team_id = $1 AND user_id = $2),
-                '2024-01-01'
-            )
-        `, [teamId, userId]);
-        
-        res.json({ unread_count: parseInt(result.rows[0].count) });
-    } catch (err) {
-        console.error('Team unread count error:', err);
-        res.json({ unread_count: 0 });
-    }
-});
-
 // Get last messages for friends (for sorting)
 app.post('/api/private/messages/last-messages', verifyTelegramData, async (req, res) => {
     try {
@@ -4913,24 +4883,24 @@ app.post('/api/team/mark-read', verifyTelegramData, async (req, res) => {
         }
         
         const userId = userResult.rows[0].id;
-        
-        // Get the latest message for this team
-        const latestMessage = await pool.query(
-            'SELECT id FROM team_messages WHERE team_id = $1 ORDER BY created_at DESC LIMIT 1',
-            [teamId]
+        const membership = await pool.query(
+            'SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2 LIMIT 1',
+            [teamId, userId]
         );
-        
-        if (latestMessage.rows.length > 0) {
-            // Insert a read record for the latest message
-            await pool.query(
-                `INSERT INTO team_message_reads (message_id, user_id, read_at) 
-                 VALUES ($1, $2, NOW()) 
-                 ON CONFLICT (message_id, user_id) 
-                 DO UPDATE SET read_at = NOW()`,
-                [latestMessage.rows[0].id, userId]
-            );
+        if (membership.rows.length === 0) {
+            return res.status(403).json({ error: 'You are not a member of this team' });
         }
-        
+
+        // Mark every existing message from another member as read for this user.
+        await pool.query(`
+            INSERT INTO team_message_reads (message_id, user_id, read_at)
+            SELECT tm.id, $2, NOW()
+            FROM team_messages tm
+            WHERE tm.team_id = $1 AND tm.user_id <> $2
+            ON CONFLICT (message_id, user_id)
+            DO UPDATE SET read_at = EXCLUDED.read_at
+        `, [teamId, userId]);
+
         res.json({ success: true });
     } catch (err) {
         console.error('Mark read error:', err);
@@ -4946,24 +4916,27 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
         const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
         if (userResult.rows.length === 0) return res.json({ unread_count: 0 });
         const userId = userResult.rows[0].id;
-        
-        // Get last read timestamp for this user in this team
-        const lastReadResult = await pool.query(`
-            SELECT MAX(read_at) as last_read 
-            FROM team_message_reads 
-            WHERE team_id = $1 AND user_id = $2
-        `, [teamId, userId]);
-        
-        const lastRead = lastReadResult.rows[0]?.last_read || new Date('2024-01-01');
-        
-        // Count unread messages
+        const membership = await pool.query(
+            'SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2 LIMIT 1',
+            [teamId, userId]
+        );
+        if (membership.rows.length === 0) {
+            return res.json({ unread_count: 0 });
+        }
+
+        // Only messages from other members without a read receipt are unread.
         const countResult = await pool.query(`
-            SELECT COUNT(*) as count 
-            FROM team_messages 
-            WHERE team_id = $1 AND created_at > $2
-        `, [teamId, lastRead]);
-        
-        res.json({ unread_count: parseInt(countResult.rows[0].count) });
+            SELECT COUNT(*) as count
+            FROM team_messages tm
+            WHERE tm.team_id = $1
+              AND tm.user_id <> $2
+              AND NOT EXISTS (
+                SELECT 1 FROM team_message_reads tmr
+                WHERE tmr.message_id = tm.id AND tmr.user_id = $2
+              )
+        `, [teamId, userId]);
+
+        res.json({ unread_count: parseInt(countResult.rows[0].count, 10) || 0 });
     } catch (err) {
         console.error('Team unread count error:', err);
         res.json({ unread_count: 0 });
