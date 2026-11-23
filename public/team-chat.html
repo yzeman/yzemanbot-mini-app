@@ -771,11 +771,16 @@
 
             // Wait until the server confirms the message was saved. The broadcast
             // may arrive first; addMessageToChat de-duplicates by database ID.
-            socket.emit('send-message', {
+            socket.timeout(10000).emit('send-message', {
                 teamId: parseInt(teamId),
                 message: message
-            }, (response) => {
+            }, (timeoutError, response) => {
                 sendBtn.disabled = false;
+
+                if (timeoutError) {
+                    showNotification('No confirmation from the chat server. Check your connection before retrying.', true);
+                    return;
+                }
 
                 if (!response?.ok || !response.message) {
                     showNotification(response?.error || 'Message was not sent. Please try again.', true);
