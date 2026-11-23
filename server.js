@@ -997,8 +997,8 @@ socket.on('join-status', () => {
     
     // ============================================
     // TEAM STATUS (for unread message badges)
-    // ============================================)
     // ============================================
+    
     socket.on('join-team-status', async (data) => {
         const { teamId } = data || {};
         try {
@@ -1355,7 +1355,7 @@ socket.on('join-tournament', async (_data, acknowledge) => {
         socket.emit('chat-error', { error });
         reply({ ok: false, error });
     }
-});;
+});
 
 // When tournament page badge socket connects (for unread counts)
 socket.on('join-tournament-status', async () => {
@@ -1496,7 +1496,7 @@ socket.on('delete-tournament-message', async (data) => {
                 }
             }
         }
-    });;
+    });
 });
 
 
