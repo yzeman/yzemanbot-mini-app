@@ -218,6 +218,81 @@
             align-items: center;
             gap: 6px;
         }
+
+        /* Keep participation status and chat action aligned as one row */
+        .participation-actions {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            padding: 0 15px 12px;
+        }
+
+        .participation-actions .join-section,
+        .participation-actions .chat-section {
+            flex: 1;
+            min-width: 0;
+            padding: 0;
+            display: flex;
+            align-items: stretch;
+        }
+
+        .participation-actions .join-btn,
+        .participation-actions .joined-badge,
+        .chat-room-btn {
+            width: 100%;
+            max-width: none;
+            min-height: 44px;
+            margin: 0;
+            padding: 10px 12px;
+            justify-content: center;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        .participation-actions .joined-badge {
+            display: inline-flex;
+        }
+
+        .chat-room-btn {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            border: 0;
+            border-radius: 30px;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(135deg, #FF9800, #F44336);
+        }
+
+        .chat-badge {
+            position: absolute;
+            top: -6px;
+            right: 5px;
+            min-width: 19px;
+            height: 19px;
+            padding: 0 5px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f44336;
+            color: #fff;
+            border: 2px solid var(--dark);
+            font-size: 10px;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0,0,0,.3);
+        }
+
+        .chat-badge.hidden { display: none; }
+
+        @media (max-width: 360px) {
+            .participation-actions { gap: 7px; }
+            .participation-actions .join-btn,
+            .participation-actions .joined-badge,
+            .chat-room-btn { padding: 9px 7px; font-size: 11px; }
+        }
         
         /* My Rank Card - STICKY */
         .sticky-rank-container {
@@ -555,38 +630,23 @@
         </div>
     </div>
     
-    <!-- Join Section -->
-    <div class="join-section">
-        <button class="join-btn" id="joinBtn">
-            <i class="fas fa-trophy"></i> JOIN TOURNAMENT
-        </button>
-        <div class="joined-badge" id="joinedBadge" style="display: none;">
-            <i class="fas fa-check-circle"></i> You're in!
+    <!-- Participation status and chat actions -->
+    <div class="participation-actions">
+        <div class="join-section">
+            <button class="join-btn" id="joinBtn">
+                <i class="fas fa-trophy"></i> JOIN TOURNAMENT
+            </button>
+            <div class="joined-badge" id="joinedBadge" style="display: none;">
+                <i class="fas fa-check-circle"></i> You're in!
+            </div>
+        </div>
+        <div class="chat-section" id="chatSection" style="display: none;">
+            <button class="chat-room-btn" onclick="openTournamentChat()">
+                <i class="fas fa-comments"></i> CHAT ROOM
+                <span class="chat-badge hidden" id="tournamentChatBadge">0</span>
+            </button>
         </div>
     </div>
-    <!-- Tournament Chat Button -->
-<div class="join-section" id="chatSection" style="display: none; position: relative;">
-    <button class="join-btn" onclick="openTournamentChat()" style="background: linear-gradient(135deg, #FF9800, #F44336); position: relative;">
-        <i class="fas fa-comments"></i> TOURNAMENT CHAT
-        <span class="chat-badge hidden" id="tournamentChatBadge" style="
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #f44336;
-            color: white;
-            border-radius: 50%;
-            min-width: 22px;
-            height: 22px;
-            font-size: 11px;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 5px;
-            box-shadow: 0 0 5px rgba(0,0,0,0.3);
-        ">0</span>
-    </button>
-</div>
     
     <!-- My Rank Container - STICKY, stays visible while scrolling -->
     <div class="sticky-rank-container" id="stickyRankContainer">
@@ -885,7 +945,7 @@
 
         const chatSection = document.getElementById('chatSection');
         if (chatSection) {
-            chatSection.style.display = hasJoinedTournament ? 'block' : 'none';
+            chatSection.style.display = hasJoinedTournament ? 'flex' : 'none';
         }
 
         const myRankContainer = document.getElementById('myRankContainer');
