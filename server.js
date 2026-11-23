@@ -956,6 +956,8 @@ io.on('connection', (socket) => {
             if (!socket.connected || !presenceResult.rows.length) return;
 
             const member = presenceResult.rows[0];
+            const alreadyOnline = Array.from(presenceSockets.values())
+                .some(item => String(item.userId) === String(member.id));
             const presence = { userId: member.id, firstName: member.first_name || 'User' };
             socket.dbUserId = member.id;
             socket.presenceUser = presence;
@@ -963,18 +965,20 @@ io.on('connection', (socket) => {
             socket.join(`user_${member.id}`);
             userSockets.set(member.id, socket.id);
 
-            const friends = await pool.query(
+            if (!alreadyOnline) {
+                const friends = await pool.query(
                 `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
                  FROM friends f
                  WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
                 [member.id]
             );
-            friends.rows.forEach(friend => {
-                io.to(`user_${friend.friend_id}`).emit('friend-online', {
-                    userId: member.id,
-                    firstName: presence.firstName
+                friends.rows.forEach(friend => {
+                    io.to(`user_${friend.friend_id}`).emit('friend-online', {
+                        userId: member.id,
+                        firstName: presence.firstName
+                    });
                 });
-            });
+            }
         } catch (err) {
             console.error('Online presence registration error:', err);
         }
