@@ -964,14 +964,33 @@ io.on('connection', (socket) => {
             socket.join(`user_${member.id}`);
             userSockets.set(member.id, socket.id);
 
+            const friends = await pool.query(
+                `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
+                 FROM friends f
+                 WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+                [member.id]
+            );
+            if (!presenceSockets.has(socket.id)) return;
+
+            // Tell this newly connected user which accepted friends are already online.
+            // This makes presence symmetric even when a friend connected earlier.
+            const onlineFriends = new Map();
+            for (const friend of friends.rows) {
+                const onlinePresence = Array.from(presenceSockets.values())
+                    .find(item => String(item.userId) === String(friend.friend_id));
+                if (onlinePresence) {
+                    onlineFriends.set(String(friend.friend_id), onlinePresence);
+                }
+            }
+            onlineFriends.forEach((onlinePresence, friendId) => {
+                socket.emit('friend-online', {
+                    userId: friendId,
+                    firstName: onlinePresence.firstName
+                });
+            });
+
+            // Notify existing friends only when this user transitions from offline to online.
             if (!alreadyOnline) {
-                const friends = await pool.query(
-                    `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
-                     FROM friends f
-                     WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
-                    [member.id]
-                );
-                if (!presenceSockets.has(socket.id)) return;
                 friends.rows.forEach(friend => {
                     io.to(`user_${friend.friend_id}`).emit('friend-online', {
                         userId: member.id,
