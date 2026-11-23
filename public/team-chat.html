@@ -713,6 +713,15 @@
             socket.on('new-message', (message) => {
                 console.log('New message:', message);
                 addMessageToChat(message);
+
+                // Messages received while this chat is open are already being read.
+                if (String(message.user_id) !== String(currentUser.id)) {
+                    fetch('/api/team/mark-read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ initData: tg.initData, teamId: parseInt(teamId) })
+                    }).catch(err => console.error('Mark incoming team message as read error:', err));
+                }
             });
             
             socket.on('user-joined', (data) => {
