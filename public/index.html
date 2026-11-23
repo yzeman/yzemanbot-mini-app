@@ -867,54 +867,6 @@
         .channel-banner-content p { font-size: 12px; color: rgba(255,255,255,0.8); }
         .channel-banner .arrow { color: white; font-size: 20px; }
         
-        .online-friends-panel {
-            margin: 0 15px 16px;
-            padding: 14px 16px;
-            background: var(--darker);
-            border: 1px solid rgba(76,175,80,0.22);
-            border-radius: 16px;
-        }
-        .online-friends-heading {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 10px;
-            font-size: 13px;
-            font-weight: 600;
-        }
-        .online-friends-count {
-            color: var(--success);
-            font-size: 11px;
-            font-weight: 600;
-        }
-        .online-friends-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .online-friend-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 7px 10px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.07);
-            color: white;
-            font-size: 12px;
-        }
-        .online-friend-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--success);
-            box-shadow: 0 0 7px rgba(0,200,83,0.65);
-            flex: 0 0 auto;
-        }
-        .online-friends-empty {
-            color: var(--gray);
-            font-size: 12px;
-        }
         .loading-text { color: var(--gray); font-size: 14px; }
     </style>
 </head>
@@ -989,16 +941,6 @@
         </div>
     </div>
     
-    <section class="online-friends-panel" id="dashboardOnlineFriends" aria-live="polite">
-        <div class="online-friends-heading">
-            <span><i class="fas fa-user-friends" style="color:var(--success);margin-right:6px;"></i>Friends Online</span>
-            <span class="online-friends-count" id="dashboardOnlineFriendsCount">Checking...</span>
-        </div>
-        <div class="online-friends-list" id="dashboardOnlineFriendsList">
-            <span class="online-friends-empty">Checking friends' status...</span>
-        </div>
-    </section>
-
     <!-- ATTRACTIVE FEATURE GRID -->
     <div class="feature-grid">
         <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
@@ -1332,89 +1274,14 @@
     let statusSocket = null;
     let toastTimeout = null;
     
-    function showOnlineToast(firstName) {
+    function showFriendPresenceToast(firstName, isOnline) {
         const toast = document.getElementById('onlineToast');
-        document.getElementById('onlineToastTitle').textContent = 'Friend Online 🟢';
-        document.getElementById('onlineToastText').textContent = `${firstName} is now online!`;
-        
+        document.getElementById('onlineToastTitle').textContent = isOnline ? 'Friend Online 🟢' : 'Friend Offline';
+        document.getElementById('onlineToastText').textContent = `${firstName || 'Your friend'} is now ${isOnline ? 'online' : 'offline'}.`;
         toast.classList.add('show');
-        
+
         if (toastTimeout) clearTimeout(toastTimeout);
-        toastTimeout = setTimeout(() => {
-            toast.classList.remove('show');
-        }, 4000);
-    }
-    
-    let dashboardFriends = [];
-    let dashboardOnlineStatus = {};
-
-    function renderDashboardOnlineFriends() {
-        const countEl = document.getElementById('dashboardOnlineFriendsCount');
-        const listEl = document.getElementById('dashboardOnlineFriendsList');
-        if (!countEl || !listEl) return;
-
-        const onlineFriends = dashboardFriends.filter(friend =>
-            dashboardOnlineStatus[String(friend.id)]
-        );
-        countEl.textContent = onlineFriends.length === 1
-            ? '1 online'
-            : `${onlineFriends.length} online`;
-        listEl.replaceChildren();
-
-        if (!onlineFriends.length) {
-            const empty = document.createElement('span');
-            empty.className = 'online-friends-empty';
-            empty.textContent = 'No friends online right now';
-            listEl.appendChild(empty);
-            return;
-        }
-
-        onlineFriends.forEach(friend => {
-            const chip = document.createElement('span');
-            chip.className = 'online-friend-chip';
-            const dot = document.createElement('span');
-            dot.className = 'online-friend-dot';
-            const name = document.createElement('span');
-            name.textContent = friend.first_name || friend.username || 'Friend';
-            chip.append(dot, name);
-            listEl.appendChild(chip);
-        });
-    }
-
-    async function loadDashboardOnlineFriends() {
-        const initData = window.Telegram?.WebApp?.initData;
-        if (!initData) return;
-        try {
-            const [friendsRes, statusRes] = await Promise.all([
-                fetch('/api/friends/list', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData })
-                }),
-                fetch('/api/friends/online-status', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData })
-                })
-            ]);
-            if (!friendsRes.ok || !statusRes.ok) throw new Error('Unable to load online friends');
-            const [friendsData, statusData] = await Promise.all([
-                friendsRes.json(),
-                statusRes.json()
-            ]);
-            dashboardFriends = friendsData.friends || [];
-            dashboardOnlineStatus = statusData.online_status || {};
-            renderDashboardOnlineFriends();
-        } catch (err) {
-            console.error('Failed to load dashboard online friends:', err);
-        }
-    }
-
-    function updateDashboardFriendPresence(friendId, isOnline) {
-        const id = String(friendId);
-        if (!dashboardFriends.some(friend => String(friend.id) === id)) return;
-        dashboardOnlineStatus[id] = isOnline;
-        renderDashboardOnlineFriends();
+        toastTimeout = setTimeout(() => toast.classList.remove('show'), 4000);
     }
 
     function connectStatusWebSocket() {
@@ -1441,36 +1308,14 @@
             }
         });
         
-        statusSocket.on('friend-online', async (data) => {
-    console.log('Friend online:', data);
-    
-    // ✅ Only show toast if this user is actually a friend
-    try {
-        const initData = window.Telegram?.WebApp?.initData;
-        if (!initData) {
-            showOnlineToast(data.firstName);
-            return;
-        }
-        
-        const friendsRes = await fetch('/api/friends/list', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ initData: initData })
+        // The server sends presence events only to accepted friends.
+        // Show the toast immediately; do not wait for another friends API request.
+        statusSocket.on('friend-online', (data) => {
+            showFriendPresenceToast(data.firstName, true);
         });
-        const friendsData = await friendsRes.json();
-        const isFriend = (friendsData.friends || []).some(f => f.id === data.userId);
-        
-        if (isFriend) {
-            showOnlineToast(data.firstName);
-        }
-    } catch (err) {
-        // If we can't verify, still show it
-        showOnlineToast(data.firstName);
-    }
-});
-        
+
         statusSocket.on('friend-offline', (data) => {
-            updateDashboardFriendPresence(data.userId, false);
+            showFriendPresenceToast(data.firstName, false);
         });
 
         statusSocket.on('team-unread-update', (data) => {
