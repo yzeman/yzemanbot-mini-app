@@ -162,6 +162,10 @@
         .feature-badge.hidden {
             display: none;
         }
+        .feature-card.tournament .feature-badge {
+            top: -5px;
+            right: -5px;
+        }
         
         /* Online status toast */
         .online-toast {
@@ -938,7 +942,7 @@
         <a href="/daily.html" class="feature-card"><i class="fas fa-calendar-check"></i><span>Daily</span></a>
         <a href="/wheel.html" class="feature-card"><i class="fas fa-dharmachakra"></i><span>Wheel</span></a>
         <a href="/leaderboard.html" class="feature-card"><i class="fas fa-trophy"></i><span>Ranks</span></a>
-        <a href="/tournament.html" class="feature-card tournament"><i class="fas fa-crown"></i><span>Tournament</span><span class="hot-badge">🔥 HOT</span></a>
+        <a href="/tournament.html" class="feature-card tournament"><i class="fas fa-crown"></i><span>Tournament</span><span class="hot-badge">🔥 HOT</span><span class="feature-badge hidden" id="tournamentNotificationBadge">0</span></a>
         <a href="/team.html" class="feature-card" id="teamFeatureCard"><i class="fas fa-users"></i><span>Team</span><span class="feature-badge hidden" id="teamNotificationBadge">0</span></a>
         <a href="/achievements.html" class="feature-card"><i class="fas fa-medal"></i><span>Achievements</span></a>
         <a href="/history.html" class="feature-card"><i class="fas fa-history"></i><span>History</span></a>
@@ -1187,6 +1191,25 @@
         }
     }
     
+    function updateFeatureBadge(id, count) {
+        const badge = document.getElementById(id);
+        if (!badge) return;
+        const value = Math.max(0, Number(count) || 0);
+        if (value > 0) {
+            badge.textContent = value > 99 ? '99+' : String(value);
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    function incrementFeatureBadge(id) {
+        const badge = document.getElementById(id);
+        if (!badge) return;
+        const current = badge.classList.contains('hidden') ? 0 : (parseInt(badge.textContent, 10) || 0);
+        updateFeatureBadge(id, current + 1);
+    }
+
     // Load team unread message count for team button badge
     async function loadTeamUnreadCount() {
         if (!window.Telegram?.WebApp?.initData) return;
@@ -1226,6 +1249,23 @@
         }
     }
     
+    // Load tournament unread message count for the dashboard badge
+    async function loadTournamentUnreadCount() {
+        if (!window.Telegram?.WebApp?.initData) return;
+        try {
+            const response = await fetch('/api/tournament/unread-count', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: window.Telegram.WebApp.initData })
+            });
+            if (!response.ok) throw new Error('Unable to load tournament unread count');
+            const data = await response.json();
+            updateFeatureBadge('tournamentNotificationBadge', data.unread_count || 0);
+        } catch (err) {
+            console.error('Failed to load tournament unread count:', err);
+        }
+    }
+
     // Online status WebSocket
     let statusSocket = null;
     let toastTimeout = null;
@@ -1247,6 +1287,8 @@
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const socketUrl = `${protocol}//${window.location.host}`;
         
+        if (statusSocket && (statusSocket.connected || statusSocket.active)) return;
+        if (statusSocket) statusSocket.disconnect();
         statusSocket = io(socketUrl, {
             auth: { initData: window.Telegram?.WebApp?.initData },
             transports: ['websocket']
@@ -1256,6 +1298,12 @@
             console.log('Status WebSocket connected');
             if (window.currentUser) {
                 statusSocket.emit('join-status', { userId: window.currentUser.id });
+                if (window.currentUser.team_id) {
+                    statusSocket.emit('join-team-status', { teamId: window.currentUser.team_id });
+                } else {
+                    updateFeatureBadge('teamNotificationBadge', 0);
+                }
+                statusSocket.emit('join-tournament-status');
             }
         });
         
@@ -1288,17 +1336,30 @@
 });
         
         statusSocket.on('team-unread-update', (data) => {
-            console.log('Team unread update:', data);
-            const teamBadge = document.getElementById('teamNotificationBadge');
-            if (teamBadge) {
-                if (data.count > 0) {
-                    teamBadge.textContent = data.count > 99 ? '99+' : data.count;
-                    teamBadge.classList.remove('hidden');
-                } else {
-                    teamBadge.classList.add('hidden');
-                }
+            updateFeatureBadge('teamNotificationBadge', data.count);
+        });
+
+        // Team messages are also broadcast to the dashboard's team-status room.
+        statusSocket.on('new-message', (message) => {
+            if (window.currentUser && String(message.user_id) !== String(window.currentUser.id)) {
+                incrementFeatureBadge('teamNotificationBadge');
             }
         });
+
+        statusSocket.on('message-deleted', () => loadTeamUnreadCount());
+
+        statusSocket.on('tournament-unread-count', (data) => {
+            updateFeatureBadge('tournamentNotificationBadge', data.count);
+        });
+
+        // Tournament messages are broadcast globally; ignore the current user's own messages.
+        statusSocket.on('tournament-new-message', (message) => {
+            if (window.currentUser && String(message.user_id) !== String(window.currentUser.id)) {
+                incrementFeatureBadge('tournamentNotificationBadge');
+            }
+        });
+
+        statusSocket.on('tournament-message-deleted', () => loadTournamentUnreadCount());
         
         statusSocket.on('disconnect', () => {
             console.log('Status WebSocket disconnected');
@@ -1382,12 +1443,15 @@
     loadNotificationCount();
     setInterval(loadNotificationCount, 30000);
     setInterval(loadTeamUnreadCount, 30000);
+    loadTournamentUnreadCount();
+    setInterval(loadTournamentUnreadCount, 30000);
     
     // Listen for when app.js sets up the user
     window.addEventListener('userDataUpdated', function(e) {
         if (e.detail && e.detail.team_id) {
             loadTeamUnreadCount();
         }
+        loadTournamentUnreadCount();
         updateTierDisplay();
         connectStatusWebSocket();
     });
@@ -1396,6 +1460,7 @@
     if (window.currentUser) {
         updateTierDisplay();
         connectStatusWebSocket();
+        loadTournamentUnreadCount();
         if (window.currentUser.team_id) {
             loadTeamUnreadCount();
         }
