@@ -1278,8 +1278,13 @@
 
     function showFriendPresenceToast(firstName, isOnline) {
         const toast = document.getElementById('onlineToast');
-        document.getElementById('onlineToastTitle').textContent = isOnline ? 'Friend Online 🟢' : 'Friend Offline';
-        document.getElementById('onlineToastText').textContent = `${firstName || 'Your friend'} is now ${isOnline ? 'online' : 'offline'}.`;
+        const name = firstName || 'Your friend';
+        document.getElementById('onlineToastTitle').textContent = isOnline
+            ? `${name} is online 🟢`
+            : `${name} is offline`;
+        document.getElementById('onlineToastText').textContent = isOnline
+            ? 'Your friend is available now.'
+            : 'Your friend is no longer online.';
         toast.classList.add('show');
 
         if (toastTimeout) clearTimeout(toastTimeout);
