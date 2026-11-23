@@ -991,7 +991,7 @@ socket.on('join-status', () => {
         userSockets.set(socket.dbUserId, socket.id);
         console.log(`👤 User ${socket.dbUserId} joined status room`);
     }
-});;
+});
 
 // When tournament page badge socket connects (for unread counts)
 socket.on('join-tournament-status', async () => {
@@ -1132,7 +1132,7 @@ socket.on('delete-tournament-message', async (data) => {
                 }
             }
         }
-    });;
+    });
 });
 
 
