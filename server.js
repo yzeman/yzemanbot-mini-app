@@ -944,34 +944,33 @@ async function getSocketTeamMembership(socket, requestedTeamId) {
 
 io.on('connection', (socket) => {
     console.log('🟢 User connected:', socket.id);
-
-    // Track every authenticated Telegram socket as online, not only chat sockets.
-    // Run asynchronously without delaying registration of the chat event handlers.
+    
+    // Track each authenticated Telegram socket as online across the whole app.
+    // Run asynchronously so chat event handlers are registered immediately.
     (async () => {
         try {
-            const presenceResult = await pool.query(
+            const result = await pool.query(
                 'SELECT id, first_name FROM users WHERE telegram_id = $1',
                 [socket.user.id]
             );
-            if (!socket.connected || !presenceResult.rows.length) return;
+            if (!socket.connected || !result.rows.length) return;
 
-            const member = presenceResult.rows[0];
+            const member = result.rows[0];
             const alreadyOnline = Array.from(presenceSockets.values())
                 .some(item => String(item.userId) === String(member.id));
             const presence = { userId: member.id, firstName: member.first_name || 'User' };
             socket.dbUserId = member.id;
-            socket.presenceUser = presence;
             presenceSockets.set(socket.id, presence);
             socket.join(`user_${member.id}`);
             userSockets.set(member.id, socket.id);
 
             if (!alreadyOnline) {
                 const friends = await pool.query(
-                `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
-                 FROM friends f
-                 WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
-                [member.id]
-            );
+                    `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
+                     FROM friends f
+                     WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+                    [member.id]
+                );
                 friends.rows.forEach(friend => {
                     io.to(`user_${friend.friend_id}`).emit('friend-online', {
                         userId: member.id,
@@ -988,14 +987,375 @@ io.on('connection', (socket) => {
 // JOIN STATUS ROOM (for online status)
 // ============================================
 socket.on('join-status', () => {
-    // Identity comes from the authenticated Telegram session, not client input.
+    // User identity is resolved from the authenticated Telegram session.
     if (socket.dbUserId) {
         socket.join(`user_${socket.dbUserId}`);
         socket.userId = socket.dbUserId;
         userSockets.set(socket.dbUserId, socket.id);
-        console.log(`👤 User ${socket.dbUserId} joined status room`);
     }
 });
+    
+    // ============================================
+    // TEAM STATUS (for unread message badges)
+    // ============================================)
+    // ============================================
+    socket.on('join-team-status', async (data) => {
+        const { teamId } = data || {};
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member) return;
+            socket.join(`team_status_${teamId}`);
+            const result = await pool.query(`
+                SELECT COUNT(*) as count
+                FROM team_messages tm
+                WHERE tm.team_id = $1
+                  AND tm.user_id <> $2 AND tm.is_deleted = FALSE
+                  AND NOT EXISTS (
+                    SELECT 1 FROM team_message_reads tmr
+                    WHERE tmr.message_id = tm.id AND tmr.user_id = $2
+                  )
+            `, [teamId, member.id]);
+            socket.emit('team-unread-update', { count: parseInt(result.rows[0].count, 10) });
+        } catch (err) {
+            console.error('Team unread count error:', err);
+            socket.emit('team-unread-update', { count: 0 });
+        }
+    });
+    
+    // ============================================
+    // TEAM CHAT
+    // ============================================
+    socket.on('join-team', async (data) => {
+        const { teamId } = data || {};
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member) {
+                socket.emit('team-access-revoked', { message: 'You are no longer a member of this team.' });
+                return;
+            }
+            if (socket.teamRoomId && String(socket.teamRoomId) !== String(teamId)) socket.leave(`team_${socket.teamRoomId}`);
+            const userId = member.id, firstName = member.first_name || 'User';
+            socket.teamRoomId = String(teamId);
+            connectedUsers.set(socket.id, { userId, teamId, firstName, socketId: socket.id, connectedAt: Date.now() });
+            userSockets.set(userId, socket.id);
+            socket.join(`team_${teamId}`);
+            // Accepted friends were notified when this authenticated socket connected.
+            await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
+            const messages = await pool.query(`
+                SELECT tm.*, u.first_name, u.photo_url FROM team_messages tm
+                JOIN users u ON tm.user_id = u.id
+                WHERE tm.team_id = $1 ORDER BY tm.created_at DESC LIMIT 50
+            `, [teamId]);
+            socket.emit('chat-history', messages.rows.reverse());
+            socket.to(`team_${teamId}`).emit('user-joined', { userId, firstName, message: `${firstName} joined the chat` });
+        } catch (err) {
+            console.error('Join team chat error:', err);
+            socket.emit('message-error', { error: 'Unable to join team chat' });
+        }
+    });
+    
+    socket.on('send-message', async (data, acknowledge) => {
+        const { teamId, message } = data || {};
+        const reply = (payload) => {
+            if (typeof acknowledge === 'function') acknowledge(payload);
+        };
+
+        if (!message || typeof message !== 'string' || !message.trim() || message.length > 500) {
+            reply({ ok: false, error: 'Message must contain 1–500 characters.' });
+            return;
+        }
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) {
+                socket.emit('team-access-revoked', { message: 'You no longer have access to this team chat.' });
+                reply({ ok: false, error: 'You no longer have access to this team chat.' });
+                return;
+            }
+            const userId = member.id, firstName = member.first_name || 'User';
+            const result = await pool.query(`
+                INSERT INTO team_messages (team_id, user_id, message) VALUES ($1, $2, $3)
+                RETURNING id, created_at
+            `, [teamId, userId, message.trim()]);
+            const messageData = { id: result.rows[0].id, team_id: teamId, user_id: userId, first_name: firstName,
+                message: message.trim(), created_at: result.rows[0].created_at, is_edited: false };
+
+            // Deliver the saved message to every socket in this team's room.
+            io.to(`team_${teamId}`).emit('new-message', messageData);
+            // Also notify members viewing the team page so their unread badges update live.
+            io.to(`team_status_${teamId}`).emit('new-message', messageData);
+            // Confirm persistence to the sender; the client de-duplicates if the
+            // broadcast was already rendered before this acknowledgement arrives.
+            reply({ ok: true, message: messageData });
+
+            await pool.query(`UPDATE team_typing_status SET is_typing = false, updated_at = NOW() WHERE team_id = $1 AND user_id = $2`, [teamId, userId]);
+            socket.to(`team_${teamId}`).emit('user-typing', { userId, firstName, isTyping: false });
+        } catch (err) {
+            console.error('Send message error:', err);
+            reply({ ok: false, error: 'Failed to send message. Please try again.' });
+            socket.emit('message-error', { error: 'Failed to send message' });
+        }
+    });
+    
+    socket.on('typing', async (data) => {
+        const { teamId, isTyping } = data || {};
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) return;
+            await pool.query(`
+                INSERT INTO team_typing_status (team_id, user_id, is_typing, updated_at)
+                VALUES ($1, $2, $3, NOW())
+                ON CONFLICT (team_id, user_id) DO UPDATE SET is_typing = $3, updated_at = NOW()
+            `, [teamId, member.id, Boolean(isTyping)]);
+            socket.to(`team_${teamId}`).emit('user-typing', {
+                userId: member.id, firstName: member.first_name || 'User', isTyping: Boolean(isTyping)
+            });
+        } catch (err) { console.error('Typing status error:', err); }
+    });
+    
+    socket.on('edit-message', async (data) => {
+        const { messageId, newMessage, teamId } = data || {};
+        if (!newMessage || typeof newMessage !== 'string' || !newMessage.trim() || newMessage.length > 500) return;
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) return;
+            const result = await pool.query(`
+                UPDATE team_messages SET message = $1, is_edited = true, updated_at = NOW()
+                WHERE id = $2 AND user_id = $3 AND team_id = $4 AND is_deleted = FALSE RETURNING id
+            `, [newMessage.trim(), messageId, member.id, teamId]);
+            if (result.rows.length) io.to(`team_${teamId}`).emit('message-edited', {
+                messageId, newMessage: newMessage.trim(), userId: member.id
+            });
+        } catch (err) { socket.emit('message-error', { error: 'Failed to edit message' }); }
+    });
+    
+    socket.on('delete-message', async (data) => {
+        const { messageId, teamId } = data || {};
+        try {
+            const member = await getSocketTeamMembership(socket, teamId);
+            if (!member || String(socket.teamRoomId) !== String(teamId)) return;
+            const result = await pool.query(`
+                UPDATE team_messages SET message = '', is_deleted = TRUE, updated_at = NOW() WHERE id = $1 AND user_id = $2 AND team_id = $3 AND is_deleted = FALSE RETURNING id
+            `, [messageId, member.id, teamId]);
+            if (result.rows.length) {
+                io.to(`team_${teamId}`).emit('message-deleted', { messageId, isDeleted: true });
+                io.to(`team_status_${teamId}`).emit('message-deleted', { messageId, isDeleted: true });
+            }
+        } catch (err) { socket.emit('message-error', { error: 'Failed to delete message' }); }
+    });
+    
+    // ============================================
+    // PRIVATE CHAT
+    // ============================================
+    socket.on('join-private', (data) => {
+        const { chatId, userId, friendId, firstName } = data;
+        
+        connectedUsers.set(socket.id, {
+            userId,
+            friendId,
+            firstName,
+            chatId,
+            socketId: socket.id
+        });
+        
+        userSockets.set(userId, socket.id);
+        socket.join(`private_${chatId}`);
+        console.log(`🔵 User ${firstName} (${userId}) joined private chat ${chatId}`);
+    });
+    
+    socket.on('send-private-message', async (data) => {
+        const { chatId, receiverId, message, senderId, senderName } = data;
+        
+        if (!message || message.trim().length === 0) return;
+        if (message.length > 500) return;
+        
+        try {
+            const result = await pool.query(`
+                INSERT INTO private_messages (sender_id, receiver_id, message)
+                VALUES ($1, $2, $3)
+                RETURNING id, created_at
+            `, [senderId, receiverId, message.trim()]);
+            
+            const senderInfo = await pool.query(
+                'SELECT first_name, photo_url FROM users WHERE id = $1',
+                [senderId]
+            );
+            
+            const messageData = {
+                id: result.rows[0].id,
+                sender_id: senderId,
+                receiver_id: receiverId,
+                sender_name: senderName,
+                message: message.trim(),
+                created_at: result.rows[0].created_at,
+                is_read: false,
+                is_edited: false
+            };
+            
+            io.to(`private_${chatId}`).emit('private-message', messageData);
+            
+            const receiverSocketId = userSockets.get(receiverId);
+            const isReceiverOnline = receiverSocketId && connectedUsers.has(receiverSocketId);
+            
+            if (!isReceiverOnline) {
+                try {
+                    const receiverInfo = await pool.query(
+                        'SELECT telegram_id, first_name FROM users WHERE id = $1',
+                        [receiverId]
+                    );
+                    
+                    if (receiverInfo.rows.length > 0 && process.env.BOT_TOKEN) {
+                        const receiverTelegramId = receiverInfo.rows[0].telegram_id;
+                        const senderFirstName = senderInfo.rows[0]?.first_name || senderName;
+                        const messagePreview = message.length > 50 ? message.substring(0, 50) + '...' : message;
+                        const miniAppUrl = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
+                        
+                        await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: receiverTelegramId,
+                                text: `💬 *New Message from ${senderFirstName}*\n\n📝 "${messagePreview}"\n\n🔔 Tap to reply!`,
+                                parse_mode: 'Markdown',
+                                reply_markup: {
+                                    inline_keyboard: [[
+                                        { text: "💬 REPLY", web_app: { url: `${miniAppUrl}/profile.html?userId=${senderId}` } }
+                                    ]]
+                                }
+                            })
+                        });
+                    }
+                } catch (notifyErr) {
+                    console.error('Push notification error:', notifyErr);
+                }
+            }
+            
+        } catch (err) {
+            console.error('Send private message error:', err);
+            socket.emit('message-error', { error: 'Failed to send message' });
+        }
+    });
+    
+    socket.on('edit-private-message', async (data) => {
+        const { messageId, newMessage, userId, chatId } = data;
+        
+        if (!newMessage || newMessage.trim().length === 0) return;
+        if (newMessage.length > 500) return;
+        
+        try {
+            const result = await pool.query(`
+                UPDATE private_messages
+                SET message = $1, is_edited = true, updated_at = NOW()
+                WHERE id = $2 AND sender_id = $3
+                RETURNING id
+            `, [newMessage.trim(), messageId, userId]);
+            
+            if (result.rows.length > 0) {
+                io.to(`private_${chatId}`).emit('private-message-edited', {
+                    messageId,
+                    newMessage: newMessage.trim(),
+                    userId
+                });
+            }
+        } catch (err) {
+            socket.emit('message-error', { error: 'Failed to edit message' });
+        }
+    });
+    
+    socket.on('delete-private-message', async (data) => {
+        const { messageId, userId, chatId } = data;
+        
+        try {
+            const result = await pool.query(`
+                DELETE FROM private_messages
+                WHERE id = $1 AND sender_id = $2
+                RETURNING id
+            `, [messageId, userId]);
+            
+            if (result.rows.length > 0) {
+                io.to(`private_${chatId}`).emit('private-message-deleted', {
+                    messageId
+                });
+            }
+        } catch (err) {
+            socket.emit('message-error', { error: 'Failed to delete message' });
+        }
+    });
+    
+    socket.on('typing-private', (data) => {
+        const { chatId, userId, isTyping } = data;
+        socket.to(`private_${chatId}`).emit('user-typing-private', {
+            userId,
+            isTyping
+        });
+    });
+
+ // ============================================
+// TOURNAMENT CHAT
+// ============================================
+
+async function getSocketTournamentUser(socket) {
+    if (!socket.user?.id) return null;
+    const result = await pool.query('SELECT id, first_name FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user.id]);
+    return result.rows[0] || null;
+}
+
+// Tournament chat typing indicator. Identity is resolved from authenticated Telegram initData.
+socket.on('tournament-typing', async (data) => {
+    try {
+        if (!socket.user?.id || !socket.rooms.has('tournament_chat')) return;
+        const member = await pool.query('SELECT id, first_name FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user.id]);
+        if (!member.rows.length) return;
+        socket.to('tournament_chat').emit('tournament-user-typing', {
+            userId: member.rows[0].id,
+            firstName: member.rows[0].first_name || 'User',
+            isTyping: Boolean(data?.isTyping)
+        });
+    } catch (err) { console.error('Tournament typing error:', err); }
+});
+
+// When user joins tournament chat
+socket.on('join-tournament', async (_data, acknowledge) => {
+    const reply = (payload) => {
+        if (typeof acknowledge === 'function') acknowledge(payload);
+    };
+    try {
+        const member = await getSocketTournamentUser(socket);
+        if (!member) {
+            const error = 'Unable to verify your account for tournament chat.';
+            socket.emit('chat-error', { error });
+            reply({ ok: false, error });
+            return;
+        }
+        const userId = member.id;
+        const firstName = member.first_name || 'User';
+        console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
+        socket.join('tournament_chat');
+        await pool.query(`
+            INSERT INTO tournament_chat_reads (user_id, last_read_at)
+            VALUES ($1, NOW())
+            ON CONFLICT (user_id)
+            DO UPDATE SET last_read_at = NOW()
+        `, [userId]);
+        await pool.query("DELETE FROM tournament_messages WHERE created_at < NOW() - INTERVAL '24 hours'");
+        const result = await pool.query(`
+            SELECT tm.*, u.first_name
+            FROM tournament_messages tm
+            JOIN users u ON tm.user_id = u.id
+            ORDER BY tm.created_at DESC
+            LIMIT 50
+        `);
+        const history = result.rows.reverse();
+        console.log(`📚 Tournament chat history loaded for user ${userId}: ${history.length} messages`);
+        socket.emit('chat-history', history);
+        reply({ ok: true, messages: history });
+        socket.to('tournament_chat').emit('user-joined', { userId, firstName });
+    } catch (err) {
+        console.error('Join tournament error:', err);
+        const error = 'Unable to load tournament messages. Please try again.';
+        socket.emit('chat-error', { error });
+        reply({ ok: false, error });
+    }
+});;
 
 // When tournament page badge socket connects (for unread counts)
 socket.on('join-tournament-status', async () => {
@@ -1136,7 +1496,7 @@ socket.on('delete-tournament-message', async (data) => {
                 }
             }
         }
-    });
+    });;
 });
 
 
