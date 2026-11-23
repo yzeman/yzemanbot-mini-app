@@ -1314,8 +1314,8 @@ socket.on('join-tournament-status', async (data) => {
             const unreadResult = await pool.query(`
                 SELECT COUNT(*) as count 
                 FROM tournament_messages
-                WHERE created_at > $1
-            `, [lastReadAt]);
+                WHERE created_at > $1 AND user_id <> $2
+            `, [lastReadAt, userId]);
             
             const unreadCount = parseInt(unreadResult.rows[0].count);
             socket.emit('tournament-unread-count', { count: unreadCount });
@@ -1664,8 +1664,8 @@ app.post('/api/tournament/unread-count', verifyTelegramData, async (req, res) =>
         const unreadResult = await pool.query(`
             SELECT COUNT(*) as count 
             FROM tournament_messages
-            WHERE created_at > $1
-        `, [lastReadAt]);
+            WHERE created_at > $1 AND user_id <> $2
+        `, [lastReadAt, userId]);
         
         res.json({ unread_count: parseInt(unreadResult.rows[0].count) });
     } catch (err) {
