@@ -1050,6 +1050,8 @@ socket.on('join-status', async (data) => {
 
             // Deliver the saved message to every socket in this team's room.
             io.to(`team_${teamId}`).emit('new-message', messageData);
+            // Also notify members viewing the team page so their unread badges update live.
+            io.to(`team_status_${teamId}`).emit('new-message', messageData);
             // Confirm persistence to the sender; the client de-duplicates if the
             // broadcast was already rendered before this acknowledgement arrives.
             reply({ ok: true, message: messageData });
