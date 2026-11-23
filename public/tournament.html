@@ -740,9 +740,10 @@
         
         tournamentSocket.on('tournament-new-message', (msg) => {
             console.log('📨 New tournament message on badge');
-            tournamentUnreadCount++;
-            saveTournamentUnreadCount();
-            updateTournamentChatBadge();
+            // Own messages are not unread. Refresh from the server so rapid messages,
+            // reconnects, and duplicate socket deliveries cannot inflate the badge.
+            if (currentUserId != null && String(msg.user_id) === String(currentUserId)) return;
+            loadTournamentUnreadCount();
         });
         
         tournamentSocket.on('disconnect', (reason) => {

@@ -320,7 +320,19 @@
                 socket.emit('join-tournament', { userId: currentUser.id, firstName: currentUser.first_name || 'User' });
             });
             socket.on('chat-history', renderMessages);
-            socket.on('new-message', addMessageToChat);
+            socket.on('tournament-new-message', (message) => {
+                // The server uses this event for tournament chat broadcasts.
+                // Ignore duplicates and mark incoming messages read while chat is open.
+                if (document.querySelector(`.message[data-message-id="${message.id}"]`)) return;
+                addMessageToChat(message);
+                if (currentUser && String(message.user_id) !== String(currentUser.id)) {
+                    fetch('/api/tournament/update-read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ initData: tg.initData })
+                    }).catch(err => console.error('Mark tournament message as read error:', err));
+                }
+            });
             socket.on('user-joined', data => addSystemMessage(`${getFirstName(data.firstName)} joined the chat`));
             socket.on('message-edited', data => updateMessageInChat(data.messageId, data.newMessage));
             socket.on('message-deleted', data => removeMessageFromChat(data.messageId));
