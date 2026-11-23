@@ -614,6 +614,7 @@
     // ============================================
     let teamSocket = null;
     let unreadCount = 0;
+    let teamStatusUserId = null;
     
     function showNotification(msg, isError = false) {
         const notif = document.getElementById('notification');
@@ -735,10 +736,8 @@ fetch('/api/user', {
 })
 .then(res => res.json())
 .then(user => {
-    teamSocket.emit('join-team-status', { 
-        teamId: teamId,
-        userId: user.id 
-    });
+    teamStatusUserId = user.id;
+    teamSocket.emit('join-team-status', { teamId: teamId });
 })
 .catch(err => console.error('User fetch error:', err));
                 
@@ -750,29 +749,35 @@ fetch('/api/user', {
                 })
                 .then(res => res.json())
                 .then(data => {
-                    if (data.unread_count > 0) {
-                        unreadCount = data.unread_count;
-                        saveUnreadCount();
-                        updateChatBadge();
-                    }
+                    unreadCount = Math.max(0, Number(data.unread_count) || 0);
+                    saveUnreadCount();
+                    updateChatBadge();
                 })
                 .catch(err => console.error('Unread count fetch error:', err));
             });
             
             teamSocket.on('new-message', (msg) => {
                 console.log('📨 New team message received:', msg);
-                if (msg.team_id === teamId) {
-                    unreadCount++;
+                if (String(msg.team_id) !== String(teamId)) return;
+                // Messages sent by the current user are never unread for that user.
+                if (teamStatusUserId != null && String(msg.user_id) === String(teamStatusUserId)) return;
+
+                fetch('/api/team/unread-count', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: tg.initData, teamId: teamId })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    unreadCount = Math.max(0, Number(data.unread_count) || 0);
                     saveUnreadCount();
                     updateChatBadge();
-                }
+                })
+                .catch(err => console.error('Unread count refresh error:', err));
             });
-            
-            teamSocket.on('team-unread-count', (data) => {
-                console.log('📊 Server unread count:', data.count);
-                if (data.count > unreadCount) {
-                    unreadCount = data.count;
-                }
+
+            teamSocket.on('team-unread-update', (data) => {
+                unreadCount = Math.max(0, Number(data.count) || 0);
                 saveUnreadCount();
                 updateChatBadge();
             });
