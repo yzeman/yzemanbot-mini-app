@@ -1274,6 +1274,8 @@
     let statusSocket = null;
     let toastTimeout = null;
     
+    const dashboardFriendNames = new Map();
+
     function showFriendPresenceToast(firstName, isOnline) {
         const toast = document.getElementById('onlineToast');
         document.getElementById('onlineToastTitle').textContent = isOnline ? 'Friend Online 🟢' : 'Friend Offline';
@@ -1311,11 +1313,14 @@
         // The server sends presence events only to accepted friends.
         // Show the toast immediately; do not wait for another friends API request.
         statusSocket.on('friend-online', (data) => {
+            dashboardFriendNames.set(String(data.userId), data.firstName || 'Your friend');
             showFriendPresenceToast(data.firstName, true);
         });
 
         statusSocket.on('friend-offline', (data) => {
-            showFriendPresenceToast(data.firstName, false);
+            const friendName = data.firstName || dashboardFriendNames.get(String(data.userId)) || 'Your friend';
+            showFriendPresenceToast(friendName, false);
+            dashboardFriendNames.delete(String(data.userId));
         });
 
         statusSocket.on('team-unread-update', (data) => {
