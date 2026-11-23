@@ -165,6 +165,7 @@
         .feature-card.tournament .feature-badge {
             top: -5px;
             right: -5px;
+            z-index: 20;
         }
         
         /* Online status toast */
@@ -354,7 +355,7 @@
         .feature-card.tournament {
             background: linear-gradient(135deg, #FF9800, #F44336);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             animation: pulse 2s infinite;
         }
         .feature-card.tournament::before {
@@ -364,6 +365,9 @@
             left: -50%;
             width: 200%;
             height: 200%;
+            border-radius: 16px;
+            clip-path: inset(0 round 16px);
+            pointer-events: none;
             background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
             animation: shimmer 3s infinite;
         }
