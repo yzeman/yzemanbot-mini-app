@@ -1280,44 +1280,48 @@ socket.on('tournament-typing', async (data) => {
 });
 
 // When user joins tournament chat
-socket.on('join-tournament', async () => {
+socket.on('join-tournament', async (_data, acknowledge) => {
+    const reply = (payload) => {
+        if (typeof acknowledge === 'function') acknowledge(payload);
+    };
     try {
         const member = await getSocketTournamentUser(socket);
-        if (!member) return;
+        if (!member) {
+            const error = 'Unable to verify your account for tournament chat.';
+            socket.emit('chat-error', { error });
+            reply({ ok: false, error });
+            return;
+        }
         const userId = member.id;
         const firstName = member.first_name || 'User';
         console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
         socket.join('tournament_chat');
-        // ✅ Update last read time for this user when they join the chat
         await pool.query(`
             INSERT INTO tournament_chat_reads (user_id, last_read_at)
             VALUES ($1, NOW())
-            ON CONFLICT (user_id) 
+            ON CONFLICT (user_id)
             DO UPDATE SET last_read_at = NOW()
         `, [userId]);
-        
-        // Auto-delete messages older than 24 hours
-        await pool.query(
-            "DELETE FROM tournament_messages WHERE created_at < NOW() - INTERVAL '24 hours'"
-        );
-        
-        // Load recent messages (last 50)
-        const messages = await pool.query(`
+        await pool.query("DELETE FROM tournament_messages WHERE created_at < NOW() - INTERVAL '24 hours'");
+        const result = await pool.query(`
             SELECT tm.*, u.first_name
             FROM tournament_messages tm
             JOIN users u ON tm.user_id = u.id
             ORDER BY tm.created_at DESC
             LIMIT 50
         `);
-        
-        socket.emit('chat-history', messages.rows.reverse());
+        const history = result.rows.reverse();
+        console.log(`📚 Tournament chat history loaded for user ${userId}: ${history.length} messages`);
+        socket.emit('chat-history', history);
+        reply({ ok: true, messages: history });
         socket.to('tournament_chat').emit('user-joined', { userId, firstName });
-        
     } catch (err) {
         console.error('Join tournament error:', err);
-        socket.emit('chat-history', []);
+        const error = 'Unable to load tournament messages. Please try again.';
+        socket.emit('chat-error', { error });
+        reply({ ok: false, error });
     }
-});
+});;
 
 // When tournament page badge socket connects (for unread counts)
 socket.on('join-tournament-status', async () => {
