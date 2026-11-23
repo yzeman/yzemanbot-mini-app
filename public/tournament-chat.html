@@ -60,7 +60,7 @@
         }
         .message-own .message-bubble { background: linear-gradient(135deg, #FF9800, #F44336); }
         .message-sender { font-size: 11px; font-weight: 600; color: var(--gold); margin-bottom: 3px; }
-        .message-text { font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+        .message-text { font-size: 14px; line-height: 1.4; word-wrap: break-word; white-space: pre-wrap; }
         .message-time { font-size: 9px; color: var(--gray); margin-top: 4px; text-align: right; }
         .edited-badge { font-size: 8px; color: var(--gray); margin-left: 5px; }
         .system-message { text-align: center; font-size: 11px; color: var(--gray); padding: 5px; margin: 5px 0; }
@@ -94,7 +94,8 @@
         }
         .message-input {
             flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--gray);
-            border-radius: 25px; padding: 12px 16px; color: white; font-size: 14px; outline: none;
+            border-radius: 18px; padding: 12px 16px; color: white; font-size: 14px; outline: none;
+            resize: none; min-height: 46px; max-height: 120px; overflow-y: auto; line-height: 1.4;
         }
         .message-input:focus { border-color: var(--primary); }
         .send-btn {
@@ -132,7 +133,7 @@
     </div>
     
     <div class="input-area">
-        <input type="text" class="message-input" id="messageInput" placeholder="Chat with tournament players...">
+        <textarea class="message-input" id="messageInput" rows="1" placeholder="Chat with tournament players..." aria-label="Message"></textarea>
         <button class="send-btn" id="cancelEditBtn" style="display:none;background:#555;" title="Cancel edit"><i class="fas fa-times"></i></button>
         <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
@@ -436,7 +437,6 @@
         }
         
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
         document.getElementById('messageInput').addEventListener('input', handleTyping);
         document.getElementById('cancelEditBtn').addEventListener('click', cancelMessageEdit);
         document.getElementById('editMessageBtn').addEventListener('click', editMessage);

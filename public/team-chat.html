@@ -123,6 +123,7 @@
             font-size: 14px;
             line-height: 1.4;
             word-wrap: break-word;
+            white-space: pre-wrap;
         }
         .message-time {
             font-size: 9px;
@@ -223,6 +224,12 @@
             color: white;
             font-size: 14px;
             outline: none;
+            resize: none;
+            min-height: 46px;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.4;
+            border-radius: 18px;
         }
         .message-input:focus {
             border-color: var(--primary);
@@ -283,7 +290,7 @@
     </div>
     
     <div class="input-area">
-        <input type="text" class="message-input" id="messageInput" placeholder="Type a message...">
+        <textarea class="message-input" id="messageInput" rows="1" placeholder="Type a message..." aria-label="Message"></textarea>
         <button class="send-btn" id="cancelEditBtn" style="display:none;background:#555;" title="Cancel edit"><i class="fas fa-times"></i></button>
         <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
@@ -835,9 +842,6 @@
         }
         
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
         document.getElementById('messageInput').addEventListener('input', handleTyping);
         document.getElementById('cancelEditBtn').addEventListener('click', cancelMessageEdit);
         document.getElementById('editMessageBtn').addEventListener('click', editMessage);
