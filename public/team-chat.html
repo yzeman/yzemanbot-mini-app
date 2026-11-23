@@ -284,6 +284,7 @@
     
     <div class="input-area">
         <input type="text" class="message-input" id="messageInput" placeholder="Type a message...">
+        <button class="send-btn" id="cancelEditBtn" style="display:none;background:#555;" title="Cancel edit"><i class="fas fa-times"></i></button>
         <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
     
@@ -304,6 +305,7 @@
         let typingTimeout = null;
         let selectedMessageId = null;
         let selectedMessageElement = null;
+        let editingMessageId = null;
         
         // ============================================
         // PROFANITY FILTER - Add more words as needed
@@ -446,21 +448,25 @@
         }
         
         async function editMessage() {
-            if (!selectedMessageId) return;
-            const newMessage = prompt('Edit your message:');
-            if (newMessage && newMessage.trim()) {
-                if (containsProfanity(newMessage)) {
-                    showWarningMessage('Message contains inappropriate language and cannot be sent.');
-                    return;
-                }
-                socket.emit('edit-message', {
-                    messageId: selectedMessageId,
-                    newMessage: newMessage.trim(),
-                    userId: currentUser.id,
-                    teamId: parseInt(teamId)
-                });
-            }
+            if (!selectedMessageId || !selectedMessageElement) return;
+            const input = document.getElementById('messageInput');
+            editingMessageId = selectedMessageId;
+            input.value = selectedMessageElement.querySelector('.message-text')?.textContent || '';
+            input.placeholder = 'Edit your message...';
+            document.getElementById('sendBtn').innerHTML = '<i class="fas fa-save"></i>';
+            document.getElementById('cancelEditBtn').style.display = 'flex';
             hideMessageActions();
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+
+        function cancelMessageEdit() {
+            editingMessageId = null;
+            const input = document.getElementById('messageInput');
+            input.value = '';
+            input.placeholder = 'Type a message...';
+            document.getElementById('sendBtn').innerHTML = '<i class="fas fa-paper-plane"></i>';
+            document.getElementById('cancelEditBtn').style.display = 'none';
         }
         
         async function deleteMessage() {
@@ -736,6 +742,7 @@
             
             socket.on('message-edited', (data) => {
                 updateMessageInChat(data.messageId, data.newMessage);
+                if (editingMessageId && String(editingMessageId) === String(data.messageId)) cancelMessageEdit();
             });
             
             socket.on('message-deleted', (data) => {
@@ -761,8 +768,14 @@
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
-            
             if (!message) return;
+            if (editingMessageId) {
+                if (containsProfanity(message)) { showWarningMessage('Message contains inappropriate language and cannot be sent.'); return; }
+                if (!socket?.connected) { showNotification('Chat is reconnecting. Please try again.', true); return; }
+                socket.emit('edit-message', { messageId: editingMessageId, newMessage: message, teamId: parseInt(teamId) });
+                cancelMessageEdit();
+                return;
+            }
 
             if (!socket?.connected) {
                 showNotification('Chat is reconnecting. Please try again in a moment.', true);
@@ -826,6 +839,7 @@
             if (e.key === 'Enter') sendMessage();
         });
         document.getElementById('messageInput').addEventListener('input', handleTyping);
+        document.getElementById('cancelEditBtn').addEventListener('click', cancelMessageEdit);
         document.getElementById('editMessageBtn').addEventListener('click', editMessage);
         document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
         document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);

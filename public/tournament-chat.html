@@ -133,6 +133,7 @@
     
     <div class="input-area">
         <input type="text" class="message-input" id="messageInput" placeholder="Chat with tournament players...">
+        <button class="send-btn" id="cancelEditBtn" style="display:none;background:#555;" title="Cancel edit"><i class="fas fa-times"></i></button>
         <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
     
@@ -151,6 +152,9 @@
         let currentUser = null;
         let typingTimeout = null;
         let selectedMessageId = null;
+        let selectedMessageElement = null;
+        let editingMessageId = null;
+        let typingTimeout = null;
         
         const PROFANITY_WORDS = [
             'fuck', 'shit', 'asshole', 'bitch', 'cunt', 'dick', 'pussy',
@@ -194,6 +198,7 @@
         function hideMessageActions() {
             document.getElementById('messageActions').style.display = 'none';
             selectedMessageId = null;
+            selectedMessageElement = null;
         }
         
         function showMessageActions(event, messageId, isOwn) {
@@ -201,6 +206,7 @@
             event.preventDefault();
             const menu = document.getElementById('messageActions');
             selectedMessageId = messageId;
+            selectedMessageElement = document.querySelector(`.message[data-message-id="${messageId}"]`);
             menu.style.display = 'block';
             menu.style.left = `${Math.min(event.pageX, window.innerWidth - 120)}px`;
             menu.style.top = `${event.pageY - 60}px`;
@@ -208,12 +214,42 @@
         }
         
         async function editMessage() {
-            if (!selectedMessageId) return;
-            const newMsg = prompt('Edit your message:');
-            if (newMsg && newMsg.trim() && !containsProfanity(newMsg)) {
-                socket.emit('edit-tournament-message', { messageId: selectedMessageId, newMessage: newMsg.trim(), userId: currentUser.id });
-            }
+            if (!selectedMessageId || !selectedMessageElement) return;
+            const input = document.getElementById('messageInput');
+            editingMessageId = selectedMessageId;
+            input.value = selectedMessageElement.querySelector('.message-text')?.textContent || '';
+            input.placeholder = 'Edit your message...';
+            document.getElementById('sendBtn').innerHTML = '<i class="fas fa-save"></i>';
+            document.getElementById('cancelEditBtn').style.display = 'flex';
             hideMessageActions();
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+
+        function cancelMessageEdit() {
+            editingMessageId = null;
+            const input = document.getElementById('messageInput');
+            input.value = '';
+            input.placeholder = 'Chat with tournament players...';
+            document.getElementById('sendBtn').innerHTML = '<i class="fas fa-paper-plane"></i>';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+
+        function handleTyping() {
+            if (editingMessageId || !socket?.connected) return;
+            socket.emit('tournament-typing', { isTyping: true });
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => socket?.emit('tournament-typing', { isTyping: false }), 1200);
+        }
+
+        function showTypingIndicator(userName, isTyping) {
+            const indicator = document.getElementById('typingIndicator');
+            if (isTyping) {
+                indicator.style.display = 'flex';
+                indicator.querySelector('span').textContent = `${getFirstName(userName)} is typing`;
+            } else {
+                indicator.style.display = 'none';
+            }
         }
         
         async function deleteMessage() {
@@ -334,7 +370,13 @@
                 }
             });
             socket.on('user-joined', data => addSystemMessage(`${getFirstName(data.firstName)} joined the chat`));
-            socket.on('message-edited', data => updateMessageInChat(data.messageId, data.newMessage));
+            socket.on('tournament-user-typing', data => {
+                if (String(data.userId) !== String(currentUser.id)) showTypingIndicator(data.firstName, data.isTyping);
+            });
+            socket.on('message-edited', data => {
+                updateMessageInChat(data.messageId, data.newMessage);
+                if (editingMessageId && String(editingMessageId) === String(data.messageId)) cancelMessageEdit();
+            });
             socket.on('message-deleted', data => removeMessageFromChat(data.messageId));
             socket.on('message-error', data => showNotification(data.error, true));
             socket.on('disconnect', () => document.getElementById('chatStatus').textContent = 'Reconnecting...');
@@ -345,13 +387,21 @@
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             if (!message) return;
-            if (containsProfanity(message)) { showWarningMessage('⚠️ Inappropriate message blocked.'); input.value = ''; return; }
-            socket.emit('send-tournament-message', { message, userId: currentUser.id });
+            if (!socket?.connected) { showNotification('Chat is reconnecting. Please try again.', true); return; }
+            if (containsProfanity(message)) { showWarningMessage('⚠️ Inappropriate message blocked.'); return; }
+            if (editingMessageId) {
+                socket.emit('edit-tournament-message', { messageId: editingMessageId, newMessage: message });
+                cancelMessageEdit();
+                return;
+            }
+            socket.emit('send-tournament-message', { message });
             input.value = '';
         }
         
         document.getElementById('sendBtn').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+        document.getElementById('messageInput').addEventListener('input', handleTyping);
+        document.getElementById('cancelEditBtn').addEventListener('click', cancelMessageEdit);
         document.getElementById('editMessageBtn').addEventListener('click', editMessage);
         document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
         document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);
