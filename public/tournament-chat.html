@@ -61,6 +61,8 @@
         .message-own .message-bubble { background: linear-gradient(135deg, #FF9800, #F44336); }
         .message-sender { font-size: 11px; font-weight: 600; color: var(--gold); margin-bottom: 3px; }
         .message-text { font-size: 14px; line-height: 1.4; word-wrap: break-word; white-space: pre-wrap; }
+        .message-deleted .message-bubble { background: rgba(255,255,255,0.06); color: var(--gray); font-style: italic; }
+        .message-deleted .message-text { color: var(--gray); }
         .message-time { font-size: 9px; color: var(--gray); margin-top: 4px; text-align: right; }
         .edited-badge { font-size: 8px; color: var(--gray); margin-left: 5px; }
         .system-message { text-align: center; font-size: 11px; color: var(--gray); padding: 5px; margin: 5px 0; }
@@ -265,20 +267,21 @@
             if (container.querySelector('.loading-messages')) container.innerHTML = '';
             const time = formatTime(msg.created_at);
             const isOwn = currentUser && msg.user_id === currentUser.id;
+            const isDeleted = msg.is_deleted === true;
             let senderName = msg.first_name ? getFirstName(msg.first_name) : 'User';
             const initial = getInitials(senderName);
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isOwn ? 'message-own' : ''}`;
+            messageDiv.className = `message ${isOwn && !isDeleted ? 'message-own' : ''}${isDeleted ? ' message-deleted' : ''}`;
             messageDiv.dataset.messageId = msg.id;
             messageDiv.innerHTML = `
-                <div class="message-avatar">${escapeHtml(initial)}</div>
+                ${isDeleted ? '' : `<div class="message-avatar">${escapeHtml(initial)}</div>`}
                 <div class="message-bubble">
-                    ${!isOwn ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}
-                    <div class="message-text">${escapeHtml(msg.message)}</div>
-                    <div class="message-time">${time}${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>
+                    ${isDeleted ? '' : (!isOwn ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : '')}
+                    <div class="message-text">${isDeleted ? 'This message was deleted' : escapeHtml(msg.message)}</div>
+                    ${isDeleted ? '' : `<div class="message-time">${time}${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>`}
                 </div>
             `;
-            if (isOwn) {
+            if (isOwn && !isDeleted) {
                 messageDiv.addEventListener('contextmenu', e => showMessageActions(e, msg.id, true));
                 let timer;
                 messageDiv.addEventListener('touchstart', e => { timer = setTimeout(() => showMessageActions(e, msg.id, true), 500); });
@@ -300,7 +303,13 @@
         
         function removeMessageFromChat(messageId) {
             const div = document.querySelector(`.message[data-message-id="${messageId}"]`);
-            if (div) div.remove();
+            if (!div) return;
+            div.classList.remove('message-own');
+            div.classList.add('message-deleted');
+            const avatar = div.querySelector('.message-avatar');
+            if (avatar) avatar.remove();
+            const bubble = div.querySelector('.message-bubble');
+            if (bubble) bubble.innerHTML = '<div class="message-text">This message was deleted</div>';
         }
         
         function addSystemMessage(text) {
