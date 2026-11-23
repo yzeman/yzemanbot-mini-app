@@ -1259,6 +1259,12 @@ socket.on('join-status', async (data) => {
 // TOURNAMENT CHAT
 // ============================================
 
+async function getSocketTournamentUser(socket) {
+    if (!socket.user?.id) return null;
+    const result = await pool.query('SELECT id, first_name FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user.id]);
+    return result.rows[0] || null;
+}
+
 // Tournament chat typing indicator. Identity is resolved from authenticated Telegram initData.
 socket.on('tournament-typing', async (data) => {
     try {
@@ -1274,13 +1280,14 @@ socket.on('tournament-typing', async (data) => {
 });
 
 // When user joins tournament chat
-socket.on('join-tournament', async (data) => {
-    const { userId, firstName } = data;
-    console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
-    
-    socket.join('tournament_chat');
-    
+socket.on('join-tournament', async () => {
     try {
+        const member = await getSocketTournamentUser(socket);
+        if (!member) return;
+        const userId = member.id;
+        const firstName = member.first_name || 'User';
+        console.log(`🏆 User ${firstName} (${userId}) joined tournament chat`);
+        socket.join('tournament_chat');
         // ✅ Update last read time for this user when they join the chat
         await pool.query(`
             INSERT INTO tournament_chat_reads (user_id, last_read_at)
@@ -1313,8 +1320,9 @@ socket.on('join-tournament', async (data) => {
 });
 
 // When tournament page badge socket connects (for unread counts)
-socket.on('join-tournament-status', async (data) => {
-    const { userId } = data;
+socket.on('join-tournament-status', async () => {
+    const member = await getSocketTournamentUser(socket);
+    const userId = member?.id;
     if (userId) {
         socket.join(`tournament_status_${userId}`);
         
@@ -1343,14 +1351,13 @@ socket.on('join-tournament-status', async (data) => {
 
 // When sending a new tournament message
 socket.on('send-tournament-message', async (data) => {
-    const { message, userId } = data;
-    console.log('📤 Tournament message received:', { message, userId });
-    
-    if (!message || message.trim().length === 0 || message.length > 500) return;
-    
+    const { message } = data || {};
+    if (!message || typeof message !== 'string' || message.trim().length === 0 || message.length > 500) return;
     try {
-        const userResult = await pool.query('SELECT first_name FROM users WHERE id = $1', [userId]);
-        const firstName = userResult.rows[0]?.first_name || 'User';
+        const member = await getSocketTournamentUser(socket);
+        if (!member || !socket.rooms.has('tournament_chat')) return;
+        const userId = member.id;
+        const firstName = member.first_name || 'User';
         
         const result = await pool.query(
             'INSERT INTO tournament_messages (user_id, message) VALUES ($1, $2) RETURNING id, created_at',
@@ -1377,25 +1384,27 @@ socket.on('send-tournament-message', async (data) => {
     // Tournament Chat - Edit & Delete
 socket.on('edit-tournament-message', async (data) => {
     const { messageId, newMessage } = data || {};
-    const member = await pool.query('SELECT id FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user?.id]);
-    const userId = member.rows[0]?.id;
-    if (!newMessage || newMessage.trim().length === 0 || newMessage.length > 500) return;
+    if (!newMessage || typeof newMessage !== 'string' || !newMessage.trim() || newMessage.length > 500) return;
     try {
+        const member = await getSocketTournamentUser(socket);
+        if (!member || !socket.rooms.has('tournament_chat')) return;
+        const userId = member.id;
         const result = await pool.query(
             'UPDATE tournament_messages SET message = $1, is_edited = true, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING id',
             [newMessage.trim(), messageId, userId]
         );
         if (result.rows.length > 0) {
-            io.to('tournament_chat').emit('message-edited', { messageId, newMessage: newMessage.trim() });
+            io.to('tournament_chat').emit('message-edited', { messageId, newMessage: newMessage.trim(), userId });
         }
     } catch (err) { socket.emit('message-error', { error: 'Failed to edit' }); }
 });
 
 socket.on('delete-tournament-message', async (data) => {
     const { messageId } = data || {};
-    const member = await pool.query('SELECT id FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user?.id]);
-    const userId = member.rows[0]?.id;
     try {
+        const member = await getSocketTournamentUser(socket);
+        if (!member || !socket.rooms.has('tournament_chat')) return;
+        const userId = member.id;
         const result = await pool.query(
             'DELETE FROM tournament_messages WHERE id = $1 AND user_id = $2 RETURNING id',
             [messageId, userId]
