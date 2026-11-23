@@ -374,6 +374,15 @@ await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at O
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_team_id ON team_messages(team_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_created_at ON team_messages(created_at DESC)`);
+    await client.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`
+      DO $softdelete$
+      BEGIN
+        IF to_regclass('public.tournament_messages') IS NOT NULL THEN
+          ALTER TABLE public.tournament_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+        END IF;
+      END $softdelete$;
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS team_message_reads (
@@ -986,7 +995,7 @@ socket.on('join-status', async (data) => {
                 SELECT COUNT(*) as count
                 FROM team_messages tm
                 WHERE tm.team_id = $1
-                  AND tm.user_id <> $2
+                  AND tm.user_id <> $2 AND tm.is_deleted = FALSE
                   AND NOT EXISTS (
                     SELECT 1 FROM team_message_reads tmr
                     WHERE tmr.message_id = tm.id AND tmr.user_id = $2
@@ -1097,7 +1106,7 @@ socket.on('join-status', async (data) => {
             if (!member || String(socket.teamRoomId) !== String(teamId)) return;
             const result = await pool.query(`
                 UPDATE team_messages SET message = $1, is_edited = true, updated_at = NOW()
-                WHERE id = $2 AND user_id = $3 AND team_id = $4 RETURNING id
+                WHERE id = $2 AND user_id = $3 AND team_id = $4 AND is_deleted = FALSE RETURNING id
             `, [newMessage.trim(), messageId, member.id, teamId]);
             if (result.rows.length) io.to(`team_${teamId}`).emit('message-edited', {
                 messageId, newMessage: newMessage.trim(), userId: member.id
@@ -1111,9 +1120,9 @@ socket.on('join-status', async (data) => {
             const member = await getSocketTeamMembership(socket, teamId);
             if (!member || String(socket.teamRoomId) !== String(teamId)) return;
             const result = await pool.query(`
-                DELETE FROM team_messages WHERE id = $1 AND user_id = $2 AND team_id = $3 RETURNING id
+                UPDATE team_messages SET message = '', is_deleted = TRUE, updated_at = NOW() WHERE id = $1 AND user_id = $2 AND team_id = $3 AND is_deleted = FALSE RETURNING id
             `, [messageId, member.id, teamId]);
-            if (result.rows.length) io.to(`team_${teamId}`).emit('message-deleted', { messageId });
+            if (result.rows.length) io.to(`team_${teamId}`).emit('message-deleted', { messageId, isDeleted: true });
         } catch (err) { socket.emit('message-error', { error: 'Failed to delete message' }); }
     });
     
@@ -1348,7 +1357,7 @@ socket.on('join-tournament-status', async () => {
             const unreadResult = await pool.query(`
                 SELECT COUNT(*) as count 
                 FROM tournament_messages
-                WHERE created_at > $1 AND user_id <> $2
+                WHERE created_at > $1 AND user_id <> $2 AND is_deleted = FALSE
             `, [lastReadAt, userId]);
             
             const unreadCount = parseInt(unreadResult.rows[0].count);
@@ -1402,7 +1411,7 @@ socket.on('edit-tournament-message', async (data) => {
         if (!member || !socket.rooms.has('tournament_chat')) return;
         const userId = member.id;
         const result = await pool.query(
-            'UPDATE tournament_messages SET message = $1, is_edited = true, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING id',
+            'UPDATE tournament_messages SET message = $1, is_edited = true, updated_at = NOW() WHERE id = $2 AND user_id = $3 AND is_deleted = FALSE RETURNING id',
             [newMessage.trim(), messageId, userId]
         );
         if (result.rows.length > 0) {
@@ -1418,11 +1427,11 @@ socket.on('delete-tournament-message', async (data) => {
         if (!member || !socket.rooms.has('tournament_chat')) return;
         const userId = member.id;
         const result = await pool.query(
-            'DELETE FROM tournament_messages WHERE id = $1 AND user_id = $2 RETURNING id',
+            `UPDATE tournament_messages SET message = '', is_deleted = TRUE WHERE id = $1 AND user_id = $2 AND is_deleted = FALSE RETURNING id`,
             [messageId, userId]
         );
         if (result.rows.length > 0) {
-            io.to('tournament_chat').emit('message-deleted', { messageId });
+            io.to('tournament_chat').emit('message-deleted', { messageId, isDeleted: true });
         }
     } catch (err) { socket.emit('message-error', { error: 'Failed to delete' }); }
 });
@@ -1703,7 +1712,7 @@ app.post('/api/tournament/unread-count', verifyTelegramData, async (req, res) =>
         const unreadResult = await pool.query(`
             SELECT COUNT(*) as count 
             FROM tournament_messages
-            WHERE created_at > $1 AND user_id <> $2
+            WHERE created_at > $1 AND user_id <> $2 AND is_deleted = FALSE
         `, [lastReadAt, userId]);
         
         res.json({ unread_count: parseInt(unreadResult.rows[0].count) });
@@ -4937,7 +4946,7 @@ app.post('/api/team/mark-read', verifyTelegramData, async (req, res) => {
             INSERT INTO team_message_reads (message_id, user_id, read_at)
             SELECT tm.id, $2, NOW()
             FROM team_messages tm
-            WHERE tm.team_id = $1 AND tm.user_id <> $2
+            WHERE tm.team_id = $1 AND tm.user_id <> $2 AND tm.is_deleted = FALSE
             ON CONFLICT (message_id, user_id)
             DO UPDATE SET read_at = EXCLUDED.read_at
         `, [teamId, userId]);
@@ -4970,7 +4979,7 @@ app.post('/api/team/unread-count', verifyTelegramData, async (req, res) => {
             SELECT COUNT(*) as count
             FROM team_messages tm
             WHERE tm.team_id = $1
-              AND tm.user_id <> $2
+              AND tm.user_id <> $2 AND tm.is_deleted = FALSE
               AND NOT EXISTS (
                 SELECT 1 FROM team_message_reads tmr
                 WHERE tmr.message_id = tm.id AND tmr.user_id = $2
