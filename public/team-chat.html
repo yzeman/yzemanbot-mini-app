@@ -125,6 +125,8 @@
             word-wrap: break-word;
             white-space: pre-wrap;
         }
+        .message-deleted .message-bubble { background: rgba(255,255,255,0.06); color: var(--gray); font-style: italic; }
+        .message-deleted .message-text { color: var(--gray); }
         .message-time {
             font-size: 9px;
             color: var(--gray);
@@ -504,6 +506,7 @@
             
             const time = formatTime(msg.created_at);
             const isOwn = currentUser && msg.user_id === currentUser.id;
+            const isDeleted = msg.is_deleted === true;
             
             let senderName = 'User';
             if (msg.first_name) {
@@ -515,7 +518,7 @@
             const initial = getInitials(senderName);
             
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isOwn ? 'message-own' : ''}`;
+            messageDiv.className = `message ${isOwn && !isDeleted ? 'message-own' : ''}${isDeleted ? ' message-deleted' : ''}`;
             messageDiv.dataset.messageId = msg.id;
             messageDiv.dataset.userId = msg.user_id;
             
@@ -525,21 +528,18 @@
             }
             
             // Check if message contains profanity (for warning on received messages)
-            const displayMessage = escapeHtml(msg.message);
+            const displayMessage = isDeleted ? 'This message was deleted' : escapeHtml(msg.message);
             
             messageDiv.innerHTML = `
-                <div class="message-avatar">${escapeHtml(initial)}</div>
+                ${isDeleted ? '' : `<div class="message-avatar">${escapeHtml(initial)}</div>`}
                 <div class="message-bubble">
-                    ${senderHtml}
+                    ${isDeleted ? '' : senderHtml}
                     <div class="message-text">${displayMessage}</div>
-                    <div class="message-time">
-                        ${time}
-                        ${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}
-                    </div>
+                    ${isDeleted ? '' : `<div class="message-time">${time}${msg.is_edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>`}
                 </div>
             `;
             
-            if (isOwn) {
+            if (isOwn && !isDeleted) {
                 messageDiv.addEventListener('contextmenu', (e) => {
                     showMessageActions(e, msg.id, messageDiv, true);
                 });
@@ -571,7 +571,13 @@
         
         function removeMessageFromChat(messageId) {
             const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
-            if (messageDiv) messageDiv.remove();
+            if (!messageDiv) return;
+            messageDiv.classList.remove('message-own');
+            messageDiv.classList.add('message-deleted');
+            const avatar = messageDiv.querySelector('.message-avatar');
+            if (avatar) avatar.remove();
+            const bubble = messageDiv.querySelector('.message-bubble');
+            if (bubble) bubble.innerHTML = '<div class="message-text">This message was deleted</div>';
         }
         
         function addSystemMessage(text) {
