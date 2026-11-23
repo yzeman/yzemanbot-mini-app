@@ -429,7 +429,7 @@
         }
         
         function showMessageActions(event, messageId, element, isOwn) {
-            if (!isOwn) return;
+            if (!isOwn || element?.classList.contains('message-deleted')) return;
             event.preventDefault();
             event.stopPropagation();
             
