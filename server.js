@@ -1020,13 +1020,21 @@ socket.on('join-status', async (data) => {
         }
     });
     
-    socket.on('send-message', async (data) => {
+    socket.on('send-message', async (data, acknowledge) => {
         const { teamId, message } = data || {};
-        if (!message || typeof message !== 'string' || !message.trim() || message.length > 500) return;
+        const reply = (payload) => {
+            if (typeof acknowledge === 'function') acknowledge(payload);
+        };
+
+        if (!message || typeof message !== 'string' || !message.trim() || message.length > 500) {
+            reply({ ok: false, error: 'Message must contain 1–500 characters.' });
+            return;
+        }
         try {
             const member = await getSocketTeamMembership(socket, teamId);
             if (!member || String(socket.teamRoomId) !== String(teamId)) {
                 socket.emit('team-access-revoked', { message: 'You no longer have access to this team chat.' });
+                reply({ ok: false, error: 'You no longer have access to this team chat.' });
                 return;
             }
             const userId = member.id, firstName = member.first_name || 'User';
@@ -1036,7 +1044,13 @@ socket.on('join-status', async (data) => {
             `, [teamId, userId, message.trim()]);
             const messageData = { id: result.rows[0].id, team_id: teamId, user_id: userId, first_name: firstName,
                 message: message.trim(), created_at: result.rows[0].created_at, is_edited: false };
+
+            // Deliver the saved message to every socket in this team's room.
             io.to(`team_${teamId}`).emit('new-message', messageData);
+            // Confirm persistence to the sender; the client de-duplicates if the
+            // broadcast was already rendered before this acknowledgement arrives.
+            reply({ ok: true, message: messageData });
+
             const unreadResult = await pool.query(`
                 SELECT COUNT(*) as count FROM team_messages
                 WHERE team_id = $1 AND created_at > COALESCE(
@@ -1049,6 +1063,7 @@ socket.on('join-status', async (data) => {
             socket.to(`team_${teamId}`).emit('user-typing', { userId, firstName, isTyping: false });
         } catch (err) {
             console.error('Send message error:', err);
+            reply({ ok: false, error: 'Failed to send message. Please try again.' });
             socket.emit('message-error', { error: 'Failed to send message' });
         }
     });

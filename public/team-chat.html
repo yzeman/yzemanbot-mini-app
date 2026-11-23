@@ -477,6 +477,13 @@
         
         function addMessageToChat(msg) {
             const container = document.getElementById('messagesContainer');
+
+            // A sender receives both the room broadcast and the acknowledgement.
+            // Use the persisted database ID to avoid rendering the same message twice.
+            if (msg?.id != null && Array.from(container.querySelectorAll('.message[data-message-id]'))
+                .some(node => String(node.dataset.messageId) === String(msg.id))) {
+                return;
+            }
             
             if (container.querySelector('.loading-messages')) {
                 container.innerHTML = '';
@@ -747,8 +754,12 @@
             const message = input.value.trim();
             
             if (!message) return;
+
+            if (!socket?.connected) {
+                showNotification('Chat is reconnecting. Please try again in a moment.', true);
+                return;
+            }
             
-            // Check for profanity before sending
             if (containsProfanity(message)) {
                 showWarningMessage('⚠️ Message contains inappropriate language and cannot be sent.');
                 input.value = '';
@@ -757,20 +768,28 @@
             
             const sendBtn = document.getElementById('sendBtn');
             sendBtn.disabled = true;
-            
-            socket.emit('send-message', {
+
+            // Wait until the server confirms the message was saved. The broadcast
+            // may arrive first; addMessageToChat de-duplicates by database ID.
+            socket.timeout(10000).emit('send-message', {
                 teamId: parseInt(teamId),
-                message: message,
-                userId: currentUser.id
-                // Note: firstName is NOT sent - server will get it from database
-            });
-            
-            input.value = '';
-            
-            // Re-enable button after short delay
-            setTimeout(() => {
+                message: message
+            }, (timeoutError, response) => {
                 sendBtn.disabled = false;
-            }, 500);
+
+                if (timeoutError) {
+                    showNotification('No confirmation from the chat server. Check your connection before retrying.', true);
+                    return;
+                }
+
+                if (!response?.ok || !response.message) {
+                    showNotification(response?.error || 'Message was not sent. Please try again.', true);
+                    return;
+                }
+
+                addMessageToChat(response.message);
+                if (input.value.trim() === message) input.value = '';
+            });
         }
         
         function handleTyping() {
