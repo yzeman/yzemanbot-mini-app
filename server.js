@@ -1259,6 +1259,20 @@ socket.on('join-status', async (data) => {
 // TOURNAMENT CHAT
 // ============================================
 
+// Tournament chat typing indicator. Identity is resolved from authenticated Telegram initData.
+socket.on('tournament-typing', async (data) => {
+    try {
+        if (!socket.user?.id || !socket.rooms.has('tournament_chat')) return;
+        const member = await pool.query('SELECT id, first_name FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user.id]);
+        if (!member.rows.length) return;
+        socket.to('tournament_chat').emit('tournament-user-typing', {
+            userId: member.rows[0].id,
+            firstName: member.rows[0].first_name || 'User',
+            isTyping: Boolean(data?.isTyping)
+        });
+    } catch (err) { console.error('Tournament typing error:', err); }
+});
+
 // When user joins tournament chat
 socket.on('join-tournament', async (data) => {
     const { userId, firstName } = data;
@@ -1362,7 +1376,9 @@ socket.on('send-tournament-message', async (data) => {
 
     // Tournament Chat - Edit & Delete
 socket.on('edit-tournament-message', async (data) => {
-    const { messageId, newMessage, userId } = data;
+    const { messageId, newMessage } = data || {};
+    const member = await pool.query('SELECT id FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user?.id]);
+    const userId = member.rows[0]?.id;
     if (!newMessage || newMessage.trim().length === 0 || newMessage.length > 500) return;
     try {
         const result = await pool.query(
@@ -1376,7 +1392,9 @@ socket.on('edit-tournament-message', async (data) => {
 });
 
 socket.on('delete-tournament-message', async (data) => {
-    const { messageId, userId } = data;
+    const { messageId } = data || {};
+    const member = await pool.query('SELECT id FROM users WHERE telegram_id = $1 LIMIT 1', [socket.user?.id]);
+    const userId = member.rows[0]?.id;
     try {
         const result = await pool.query(
             'DELETE FROM tournament_messages WHERE id = $1 AND user_id = $2 RETURNING id',
