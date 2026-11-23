@@ -376,12 +376,12 @@ await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at O
     await client.query(`CREATE INDEX IF NOT EXISTS idx_team_messages_created_at ON team_messages(created_at DESC)`);
     await client.query(`ALTER TABLE team_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE`);
     await client.query(`
-      DO $
+      DO $softdelete$
       BEGIN
         IF to_regclass('public.tournament_messages') IS NOT NULL THEN
           ALTER TABLE public.tournament_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
         END IF;
-      END $;
+      END $softdelete$;
     `);
 
     await client.query(`
