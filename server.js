@@ -885,6 +885,7 @@ async function verifyTelegramData(req, res, next) {
 // Store connected users { socketId: { userId, teamId, firstName } }
 const connectedUsers = new Map();
 const userSockets = new Map(); // userId -> socketId (for push notifications)
+const presenceSockets = new Map(); // socketId -> verified { userId, firstName }
 
 io.use(async (socket, next) => {
     const initData = socket.handshake.auth.initData;
@@ -944,47 +945,80 @@ async function getSocketTeamMembership(socket, requestedTeamId) {
 io.on('connection', (socket) => {
     console.log('🟢 User connected:', socket.id);
     
+    // Track each authenticated Telegram socket as online across the whole app.
+    // Run asynchronously so chat event handlers are registered immediately.
+    (async () => {
+        try {
+            const result = await pool.query(
+                'SELECT id, first_name FROM users WHERE telegram_id = $1',
+                [socket.user.id]
+            );
+            if (!io.sockets.sockets.has(socket.id) || !result.rows.length) return;
+
+            const member = result.rows[0];
+            const alreadyOnline = Array.from(presenceSockets.values())
+                .some(item => String(item.userId) === String(member.id));
+            const presence = { userId: member.id, firstName: member.first_name || 'User' };
+            socket.dbUserId = member.id;
+            presenceSockets.set(socket.id, presence);
+            socket.join(`user_${member.id}`);
+            userSockets.set(member.id, socket.id);
+
+            const friends = await pool.query(
+                `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
+                 FROM friends f
+                 WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+                [member.id]
+            );
+            if (!presenceSockets.has(socket.id)) return;
+
+            // Tell this newly connected user which accepted friends are already online.
+            // This makes presence symmetric even when a friend connected earlier.
+            const onlineFriends = new Map();
+            for (const friend of friends.rows) {
+                const onlinePresence = Array.from(presenceSockets.values())
+                    .find(item => String(item.userId) === String(friend.friend_id));
+                if (onlinePresence) {
+                    onlineFriends.set(String(friend.friend_id), onlinePresence);
+                }
+            }
+            onlineFriends.forEach((onlinePresence, friendId) => {
+                socket.emit('friend-online', {
+                    userId: friendId,
+                    firstName: onlinePresence.firstName
+                });
+            });
+
+            // Notify existing friends only when this user transitions from offline to online.
+            if (!alreadyOnline) {
+                friends.rows.forEach(friend => {
+                    io.to(`user_${friend.friend_id}`).emit('friend-online', {
+                        userId: member.id,
+                        firstName: presence.firstName
+                    });
+                });
+            }
+        } catch (err) {
+            console.error('Online presence registration error:', err);
+        }
+    })();
+    
 // ============================================
 // JOIN STATUS ROOM (for online status)
 // ============================================
-socket.on('join-status', async (data) => {
-    const { userId } = data;
-    if (userId) {
-        socket.join(`user_${userId}`);
-        socket.userId = userId;
-        userSockets.set(userId, socket.id);
-        console.log(`👤 User ${userId} joined status room`);
-        
-        // ✅ Broadcast to ACCEPTED FRIENDS only that user is online
-        try {
-            const friends = await pool.query(
-                `SELECT 
-                    CASE 
-                        WHEN f.user_id = $1 THEN f.friend_id 
-                        ELSE f.user_id 
-                    END as friend_id
-                 FROM friends f
-                 WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
-                [userId]
-            );
-            friends.rows.forEach(friend => {
-                const friendSocketId = userSockets.get(friend.friend_id);
-                if (friendSocketId) {
-                    io.to(friendSocketId).emit('friend-online', { 
-                        userId: userId, 
-                        firstName: socket.user?.first_name || 'User' 
-                    });
-                }
-            });
-        } catch (err) {
-            console.error('Friend online broadcast error:', err);
-        }
+socket.on('join-status', () => {
+    // User identity is resolved from the authenticated Telegram session.
+    if (socket.dbUserId) {
+        socket.join(`user_${socket.dbUserId}`);
+        socket.userId = socket.dbUserId;
+        userSockets.set(socket.dbUserId, socket.id);
     }
 });
     
     // ============================================
     // TEAM STATUS (for unread message badges)
     // ============================================
+    
     socket.on('join-team-status', async (data) => {
         const { teamId } = data || {};
         try {
@@ -1025,7 +1059,7 @@ socket.on('join-status', async (data) => {
             connectedUsers.set(socket.id, { userId, teamId, firstName, socketId: socket.id, connectedAt: Date.now() });
             userSockets.set(userId, socket.id);
             socket.join(`team_${teamId}`);
-            socket.broadcast.emit('friend-online', { userId, firstName });
+            // Accepted friends were notified when this authenticated socket connected.
             await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
             const messages = await pool.query(`
                 SELECT tm.*, u.first_name, u.photo_url FROM team_messages tm
@@ -1341,7 +1375,7 @@ socket.on('join-tournament', async (_data, acknowledge) => {
         socket.emit('chat-error', { error });
         reply({ ok: false, error });
     }
-});;
+});
 
 // When tournament page badge socket connects (for unread counts)
 socket.on('join-tournament-status', async () => {
@@ -1445,39 +1479,41 @@ socket.on('delete-tournament-message', async (data) => {
     // ============================================
     socket.on('disconnect', async () => {
         const user = connectedUsers.get(socket.id);
-        if (user) {
-            console.log(`🔴 User ${user.firstName} (${user.userId}) disconnected`);
-            
-            // Update last seen
-            await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [user.userId]);
-            
-           // Broadcast to friends that user went offline
-try {
-    const friends = await pool.query(
-        `SELECT 
-            CASE 
-                WHEN f.user_id = $1 THEN f.friend_id 
-                ELSE f.user_id 
-            END as friend_id
-         FROM friends f
-         WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
-        [user.userId]
-    );
-    friends.rows.forEach(friend => {
-        const friendSocketId = userSockets.get(friend.friend_id);
-        if (friendSocketId) {
-            io.to(friendSocketId).emit('friend-offline', { userId: user.userId });
-        }
-    });
-} catch (err) {
-    console.error('Friend offline broadcast error:', err);
-}
-            
-            connectedUsers.delete(socket.id);
-            
-            const storedSocketId = userSockets.get(user.userId);
+        const presence = presenceSockets.get(socket.id);
+        const userId = presence?.userId || user?.userId || socket.dbUserId;
+        const firstName = presence?.firstName || user?.firstName || 'User';
+
+        connectedUsers.delete(socket.id);
+        presenceSockets.delete(socket.id);
+
+        if (userId) {
+            const stillOnline = Array.from(presenceSockets.values())
+                .some(item => String(item.userId) === String(userId));
+
+            const storedSocketId = userSockets.get(userId);
             if (storedSocketId === socket.id) {
-                userSockets.delete(user.userId);
+                const replacement = Array.from(presenceSockets.entries())
+                    .find(([, item]) => String(item.userId) === String(userId));
+                if (replacement) userSockets.set(userId, replacement[0]);
+                else userSockets.delete(userId);
+            }
+
+            if (!stillOnline) {
+                console.log(`🔴 User ${firstName} (${userId}) disconnected`);
+                try {
+                    await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
+                    const friends = await pool.query(
+                        `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
+                         FROM friends f
+                         WHERE (f.user_id = $1 OR f.friend_id = $1) AND f.status = 'accepted'`,
+                        [userId]
+                    );
+                    friends.rows.forEach(friend => {
+                        io.to(`user_${friend.friend_id}`).emit('friend-offline', { userId });
+                    });
+                } catch (err) {
+                    console.error('Friend offline broadcast error:', err);
+                }
             }
         }
     });
@@ -4798,20 +4834,13 @@ app.post('/api/friends/online-status', verifyTelegramData, async (req, res) => {
         
         const friendIds = friendsResult.rows.map(row => row.id);
         
-        // Get online status from connectedUsers (this is stored in memory)
+        // Presence is tracked for every authenticated Socket.IO connection.
+        const onlineUserIds = new Set(
+            Array.from(presenceSockets.values()).map(presence => String(presence.userId))
+        );
         const onlineStatus = {};
-        
-        // Check each friend if they have an active WebSocket connection
         for (const friendId of friendIds) {
-            // Check if user has an active socket connection
-            let isOnline = false;
-            for (const [socketId, user] of connectedUsers) {
-                if (user.userId === friendId) {
-                    isOnline = true;
-                    break;
-                }
-            }
-            onlineStatus[friendId] = isOnline;
+            onlineStatus[friendId] = onlineUserIds.has(String(friendId));
         }
         
         res.json({ online_status: onlineStatus });

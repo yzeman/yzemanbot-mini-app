@@ -278,6 +278,26 @@
         .last-seen.online {
             color: var(--online);
         }
+        .online-summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 13px;
+            margin: 0 0 12px;
+            border-radius: 12px;
+            background: rgba(76, 175, 80, 0.10);
+            color: #b8e6bd;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .online-summary-dot {
+            width: 8px;
+            height: 8px;
+            flex: 0 0 8px;
+            border-radius: 50%;
+            background: var(--online);
+            box-shadow: 0 0 7px var(--online);
+        }
         
         .request-info, .friend-info {
             flex: 1;
@@ -459,6 +479,10 @@
         </div>
         
         <div class="tab-content active" id="friendsTab">
+            <div class="online-summary" id="onlineFriendsSummary" aria-live="polite">
+                <span class="online-summary-dot"></span>
+                <span>No friends online right now</span>
+            </div>
             <div id="friendsList"></div>
         </div>
         
@@ -547,25 +571,42 @@
             return `${Math.floor(diff / 1440)} days ago`;
         }
         
+        function updateOnlineFriendsSummary() {
+            const summary = document.getElementById('onlineFriendsSummary');
+            if (!summary) return;
+            const count = currentFriends.filter(friend => onlineStatusMap[friend.id]).length;
+            const label = count === 1 ? '1 friend online right now' : `${count} friends online right now`;
+            summary.innerHTML = `<span class="online-summary-dot"></span><span>${label}</span>`;
+        }
+
+        function sortFriendItemsByOnline() {
+            const container = document.getElementById('friendsList');
+            if (!container) return;
+            const items = Array.from(container.querySelectorAll('.friend-item'));
+            items.sort((a, b) => {
+                const aOnline = onlineStatusMap[a.dataset.userId] ? 1 : 0;
+                const bOnline = onlineStatusMap[b.dataset.userId] ? 1 : 0;
+                return bOnline - aOnline;
+            });
+            items.forEach(item => container.appendChild(item));
+        }
+
         function updateFriendOnlineStatus(friendId, isOnline) {
+            onlineStatusMap[String(friendId)] = isOnline;
             const friendElement = document.querySelector(`.friend-item[data-user-id="${friendId}"]`);
             if (friendElement) {
                 const indicator = friendElement.querySelector('.online-indicator');
                 const lastSeenSpan = friendElement.querySelector('.last-seen');
-                if (indicator) {
-                    if (isOnline) {
-                        indicator.classList.add('online');
-                        if (lastSeenSpan) lastSeenSpan.textContent = 'Online now';
-                        lastSeenSpan?.classList.add('online');
-                    } else {
-                        indicator.classList.remove('online');
-                        if (lastSeenSpan) lastSeenSpan.textContent = 'Offline';
-                        lastSeenSpan?.classList.remove('online');
-                    }
+                if (indicator) indicator.classList.toggle('online', isOnline);
+                if (lastSeenSpan) {
+                    lastSeenSpan.textContent = isOnline ? 'Online now' : 'Offline';
+                    lastSeenSpan.classList.toggle('online', isOnline);
                 }
             }
+            updateOnlineFriendsSummary();
+            sortFriendItemsByOnline();
         }
-        
+
         function connectStatusWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const socketUrl = `${protocol}//${window.location.host}`;
@@ -603,24 +644,28 @@
             try {
                 const data = await apiCall('/api/friends/online-status');
                 onlineStatusMap = data.online_status || {};
-                
+
                 document.querySelectorAll('.friend-item').forEach(item => {
-                    const friendId = parseInt(item.dataset.userId);
-                    if (onlineStatusMap[friendId]) {
-                        const indicator = item.querySelector('.online-indicator');
-                        const lastSeenSpan = item.querySelector('.last-seen');
-                        if (indicator) indicator.classList.add('online');
-                        if (lastSeenSpan) {
-                            lastSeenSpan.textContent = 'Online now';
-                            lastSeenSpan.classList.add('online');
-                        }
+                    const friendId = String(item.dataset.userId);
+                    const isOnline = !!onlineStatusMap[friendId];
+                    const friend = currentFriends.find(entry => String(entry.id) === friendId);
+                    const indicator = item.querySelector('.online-indicator');
+                    const lastSeenSpan = item.querySelector('.last-seen');
+                    if (indicator) indicator.classList.toggle('online', isOnline);
+                    if (lastSeenSpan) {
+                        lastSeenSpan.textContent = isOnline
+                            ? 'Online now'
+                            : (friend?.last_seen ? `Last seen ${formatLastSeen(friend.last_seen)}` : 'Offline');
+                        lastSeenSpan.classList.toggle('online', isOnline);
                     }
                 });
+                updateOnlineFriendsSummary();
+                sortFriendItemsByOnline();
             } catch (err) {
                 console.error('Failed to load online status:', err);
             }
         }
-        
+
         async function apiCall(endpoint, data = null) {
             if (!tg?.initData) throw new Error('Not in Telegram');
             const options = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
