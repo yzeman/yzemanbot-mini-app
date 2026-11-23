@@ -204,7 +204,7 @@
         }
         
         function showMessageActions(event, messageId, isOwn) {
-            if (!isOwn) return;
+            if (!isOwn || document.querySelector(`.message[data-message-id="${messageId}"]`)?.classList.contains('message-deleted')) return;
             event.preventDefault();
             const menu = document.getElementById('messageActions');
             selectedMessageId = messageId;
