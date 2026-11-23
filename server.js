@@ -942,16 +942,19 @@ async function getSocketTeamMembership(socket, requestedTeamId) {
     return result.rows[0];
 }
 
-io.on('connection', async (socket) => {
+io.on('connection', (socket) => {
     console.log('🟢 User connected:', socket.id);
 
     // Track every authenticated Telegram socket as online, not only chat sockets.
-    try {
-        const presenceResult = await pool.query(
-            'SELECT id, first_name FROM users WHERE telegram_id = $1',
-            [socket.user.id]
-        );
-        if (presenceResult.rows.length) {
+    // Run asynchronously without delaying registration of the chat event handlers.
+    (async () => {
+        try {
+            const presenceResult = await pool.query(
+                'SELECT id, first_name FROM users WHERE telegram_id = $1',
+                [socket.user.id]
+            );
+            if (!socket.connected || !presenceResult.rows.length) return;
+
             const member = presenceResult.rows[0];
             const presence = { userId: member.id, firstName: member.first_name || 'User' };
             socket.dbUserId = member.id;
@@ -972,10 +975,10 @@ io.on('connection', async (socket) => {
                     firstName: presence.firstName
                 });
             });
+        } catch (err) {
+            console.error('Online presence registration error:', err);
         }
-    } catch (err) {
-        console.error('Online presence registration error:', err);
-    }
+    })();
     
 // ============================================
 // JOIN STATUS ROOM (for online status)
