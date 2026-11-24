@@ -113,23 +113,6 @@
             font-family: monospace;
         }
         
-        .tournament-status {
-            margin-top: 5px;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .35px;
-            color: rgba(255,255,255,.92);
-        }
-        .tournament-status::before {
-            content: '';
-            display: inline-block;
-            width: 7px;
-            height: 7px;
-            margin-right: 6px;
-            border-radius: 50%;
-            background: #00e676;
-            box-shadow: 0 0 8px rgba(0,230,118,.8);
-        }
 
         /* Prize Banner - COLLAPSIBLE */
         .prize-banner {
@@ -449,6 +432,14 @@
             gap: 6px;
             color: var(--gold);
         }
+        .info-box-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+        .info-box-hide, .info-box-show {
+            border:1px solid rgba(255,255,255,.16); border-radius:20px; padding:5px 10px;
+            color:#d7e3f4; background:rgba(255,255,255,.07); font-size:10px; font-weight:600; cursor:pointer;
+        }
+        .info-box-show { display:none; margin:12px 15px; }
+        .info-box.is-hidden { display:none; }
+        .info-box-show.is-visible { display:inline-flex; align-items:center; gap:6px; }
         
         .info-box p {
             color: var(--gray);
@@ -566,7 +557,6 @@
     <div class="timer-banner">
         <h3><i class="fas fa-hourglass-half"></i> Tournament Ends In (UTC)</h3>
         <div class="timer" id="tournamentTimer">--d --h --m</div>
-        <div class="tournament-status" id="tournamentStatus">Checking tournament status…</div>
     </div>
     
     <!-- Prize Banner - COLLAPSIBLE -->
@@ -626,14 +616,15 @@
     </div>
     
     <!-- How It Works - Compact -->
-    <div class="info-box">
-        <h4><i class="fas fa-lightbulb"></i> How to Earn</h4>
+    <div class="info-box" id="howToEarnCard">
+        <div class="info-box-heading"><h4><i class="fas fa-lightbulb"></i> How to Earn</h4><button class="info-box-hide" id="hideHowToEarn" type="button">Hide</button></div>
         <p><i class="fas fa-play-circle"></i> Watch ads — earn COINS</p>
         <p><i class="fas fa-user-plus"></i> Refer friends — bonus COINS</p>
         <p><i class="fas fa-calendar-check"></i> Daily rewards count toward tournament</p>
         <p><i class="fas fa-clock"></i> Runs Monday 00:00 – Sunday 23:59</p>
         <p><i class="fas fa-gift"></i> Prizes awarded at Monday 00:01</p>
     </div>
+    <button class="info-box-show" id="showHowToEarn" type="button"><i class="fas fa-lightbulb"></i> Show How to Earn</button>
     
     <!-- Bottom Navigation -->
     <div class="bottom-nav">
@@ -940,11 +931,9 @@
         const now = Date.now() + serverTimeOffsetMs;
         const diff = tournamentEndsAtMs - now;
         const timerElement = document.getElementById('tournamentTimer');
-        const statusElement = document.getElementById('tournamentStatus');
 
         if (diff <= 0) {
-            if (timerElement) timerElement.textContent = '00d 00h 00m 00s';
-            if (statusElement) statusElement.textContent = 'Tournament week ended • loading the next week…';
+            if (timerElement) timerElement.textContent = '00d 00h 00m';
             if (!tournamentReloadedAfterEnd) {
                 tournamentReloadedAfterEnd = true;
                 setTimeout(() => loadTournamentData(false), 1200);
@@ -955,12 +944,8 @@
         const days = Math.floor(diff / 86400000);
         const hours = Math.floor((diff % 86400000) / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
         if (timerElement) timerElement.textContent =
-            `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-        if (statusElement) statusElement.textContent = hasJoinedTournament
-            ? 'LIVE NOW • You are competing'
-            : 'LIVE NOW • Join to compete';
+            `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
     }
 
     async function loadTournamentData(showSkeletonLoader = true) {
@@ -1046,6 +1031,20 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+        const howToEarnCard = document.getElementById('howToEarnCard');
+        const hideHowToEarnButton = document.getElementById('hideHowToEarn');
+        const showHowToEarnButton = document.getElementById('showHowToEarn');
+        const howToEarnKey = 'tournamentHowToEarnHidden:' + (tg?.initDataUnsafe?.user?.id || 'guest');
+        const setHowToEarnHidden = (hidden) => {
+            howToEarnCard?.classList.toggle('is-hidden', hidden);
+            showHowToEarnButton?.classList.toggle('is-visible', hidden);
+            localStorage.setItem(howToEarnKey, hidden ? 'true' : 'false');
+        };
+        const howToEarnHidden = localStorage.getItem(howToEarnKey) === 'true';
+        howToEarnCard?.classList.toggle('is-hidden', howToEarnHidden);
+        showHowToEarnButton?.classList.toggle('is-visible', howToEarnHidden);
+        hideHowToEarnButton?.addEventListener('click', () => setHowToEarnHidden(true));
+        showHowToEarnButton?.addEventListener('click', () => setHowToEarnHidden(false));
         const prizeToggle = document.getElementById('prizeToggle');
         if (prizeToggle) {
             prizeToggle.addEventListener('click', togglePrizeBanner);
@@ -1061,11 +1060,11 @@
         
         loadTournamentData(true);
 
-        // Near-live standings refresh: update every 15 seconds while this page is visible.
+        // Refresh standings every 10 seconds while this page is visible.
         if (standingsRefreshInterval) clearInterval(standingsRefreshInterval);
         standingsRefreshInterval = setInterval(() => {
             if (document.visibilityState === 'visible' && !isRefreshing) loadTournamentData(false);
-        }, 15000);
+        }, 10000);
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' && !isRefreshing) loadTournamentData(false);
         });
