@@ -118,11 +118,13 @@
             color: var(--gold);
             margin-bottom: 4px;
         }
-        .message-text {
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
+         .message-text { font-size:14px; line-height:1.4; word-wrap:break-word; white-space:pre-wrap; }
+        .message-deleted .message-bubble { opacity:.72; background:rgba(90,90,90,.28); }
+        .message-deleted .message-text { color:#b8b8b8; font-style:italic; }
+        .input-area { align-items:flex-end; }
+        .message-input { min-height:46px; max-height:120px; resize:none; overflow-y:auto; border-radius:22px; font-family:inherit; line-height:1.4; }
+        .cancel-edit-btn { display:none; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.08); color:white; border-radius:18px; padding:0 12px; min-height:42px; font-size:12px; cursor:pointer; }
+        .cancel-edit-btn.visible { display:block; }
         .message-time {
             font-size: 9px;
             color: var(--gray);
@@ -297,8 +299,9 @@
     </div>
     
     <div class="input-area">
-        <input type="text" class="message-input" id="messageInput" placeholder="Type a message...">
-        <button class="send-btn" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+        <textarea class="message-input" id="messageInput" placeholder="Type a message..." rows="1" maxlength="500"></textarea>
+        <button class="cancel-edit-btn" id="cancelEditBtn" type="button">Cancel</button>
+        <button class="send-btn" id="sendBtn" type="button"><i class="fas fa-paper-plane"></i></button>
     </div>
     
     <div class="message-actions-menu" id="messageActionsMenu">
@@ -319,6 +322,9 @@
         let isConnected = false;
         let selectedMessageId = null;
         let selectedMessageElement = null;
+        let editingMessageId = null;
+        let lastSeenRefreshTimer = null;
+        let remoteTypingTimeout = null;
         
         const urlParams = new URLSearchParams(window.location.search);
         const friendUserId = urlParams.get('userId');
@@ -375,7 +381,8 @@
         function showMessageActions(event, messageId, element) {
             event.preventDefault();
             event.stopPropagation();
-            
+            if (!element || element.classList.contains('message-deleted')) return;
+
             const menu = document.getElementById('messageActionsMenu');
             selectedMessageId = messageId;
             selectedMessageElement = element;
@@ -390,18 +397,25 @@
             }, 100);
         }
         
-        async function editMessage() {
-            if (!selectedMessageId) return;
-            const newMessage = prompt('Edit your message:');
-            if (newMessage && newMessage.trim()) {
-                socket.emit('edit-private-message', {
-                    messageId: selectedMessageId,
-                    newMessage: newMessage.trim(),
-                    userId: currentUser.id,
-                    chatId: currentChatId
-                });
-            }
+        function editMessage() {
+            if (!selectedMessageId || !selectedMessageElement) return;
+            editingMessageId = selectedMessageId;
+            const input = document.getElementById('messageInput');
+            input.value = selectedMessageElement.querySelector('.message-text')?.textContent || '';
+            autoResizeComposer();
+            document.getElementById('sendBtn').innerHTML = '<i class="fas fa-save"></i>';
+            document.getElementById('cancelEditBtn').classList.add('visible');
+            input.focus();
             hideMessageActions();
+        }
+
+        function cancelEditingMessage() {
+            editingMessageId = null;
+            const input = document.getElementById('messageInput');
+            input.value = '';
+            autoResizeComposer();
+            document.getElementById('sendBtn').innerHTML = '<i class="fas fa-paper-plane"></i>';
+            document.getElementById('cancelEditBtn').classList.remove('visible');
         }
         
         async function deleteMessage() {
@@ -418,66 +432,47 @@
         
         function addMessageToChat(msg, isOwn = false) {
             const container = document.getElementById('messagesContainer');
-            
-            if (container.querySelector('.loading-messages')) {
-                container.innerHTML = '';
-            }
-            
+            if (container.querySelector('.loading-messages')) container.innerHTML = '';
+            if (msg.id && container.querySelector(`.message[data-message-id="${msg.id}"]`)) return;
             const time = formatTime(msg.created_at);
             const senderName = isOwn ? 'You' : getFirstName(msg.sender_name || friendDisplayName);
             const initial = getInitials(senderName);
-            const isCurrentUser = isOwn || (currentUser && msg.sender_id === currentUser.id);
+            const own = isOwn || (currentUser && String(msg.sender_id) === String(currentUser.id));
+            const deleted = Boolean(msg.is_deleted);
             const editedBadge = msg.is_edited ? '<span class="edited-badge">(edited)</span>' : '';
-            
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isCurrentUser ? 'message-own' : ''}`;
-            messageDiv.dataset.messageId = msg.id;
-            messageDiv.dataset.userId = msg.sender_id;
-            
-            messageDiv.innerHTML = `
-                <div class="message-avatar">${escapeHtml(initial)}</div>
-                <div class="message-bubble">
-                    ${!isCurrentUser ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}
-                    <div class="message-text">${escapeHtml(msg.message)}</div>
-                    <div class="message-time">${time} ${editedBadge}</div>
-                </div>
-            `;
-            
-            // Add long press / right-click menu for own messages
-            if (isCurrentUser) {
-                messageDiv.addEventListener('contextmenu', (e) => {
-                    showMessageActions(e, msg.id, messageDiv);
-                });
-                // For mobile touch
-                let touchTimer;
-                messageDiv.addEventListener('touchstart', (e) => {
-                    touchTimer = setTimeout(() => {
-                        showMessageActions(e, msg.id, messageDiv);
-                    }, 500);
-                });
-                messageDiv.addEventListener('touchend', () => clearTimeout(touchTimer));
-                messageDiv.addEventListener('touchmove', () => clearTimeout(touchTimer));
+            const div = document.createElement('div');
+            div.className = `message ${own ? 'message-own' : ''} ${deleted ? 'message-deleted' : ''}`;
+            div.dataset.messageId = msg.id;
+            div.dataset.userId = msg.sender_id;
+            div.innerHTML = `<div class="message-avatar">${escapeHtml(initial)}</div><div class="message-bubble">${!own ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}<div class="message-text"></div><div class="message-time">${time} ${editedBadge}</div></div>`;
+            div.querySelector('.message-text').textContent = deleted ? 'This message was deleted' : (msg.message || '');
+            if (own && !deleted) {
+                div.addEventListener('contextmenu', e => showMessageActions(e, msg.id, div));
+                let timer;
+                div.addEventListener('touchstart', e => { timer=setTimeout(() => showMessageActions(e,msg.id,div),500); });
+                div.addEventListener('touchend', () => clearTimeout(timer));
+                div.addEventListener('touchmove', () => clearTimeout(timer));
             }
-            
-            container.appendChild(messageDiv);
+            container.appendChild(div);
             scrollToBottom();
         }
         
         function updateMessageInChat(messageId, newMessage) {
-            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
-            if (messageDiv) {
-                const textSpan = messageDiv.querySelector('.message-text');
-                const timeSpan = messageDiv.querySelector('.message-time');
-                if (textSpan) textSpan.textContent = escapeHtml(newMessage);
-                if (timeSpan && !timeSpan.querySelector('.edited-badge')) {
-                    timeSpan.innerHTML += '<span class="edited-badge">(edited)</span>';
-                }
-            }
+            const div = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (!div) return;
+            const text = div.querySelector('.message-text');
+            const time = div.querySelector('.message-time');
+            if (text) text.textContent = newMessage;
+            if (time && !time.querySelector('.edited-badge')) time.insertAdjacentHTML('beforeend','<span class="edited-badge">(edited)</span>');
         }
-        
+
         function removeMessageFromChat(messageId) {
-            const messageDiv = document.querySelector(`.message[data-message-id="${messageId}"]`);
-            if (messageDiv) messageDiv.remove();
+            const div = document.querySelector(`.message[data-message-id="${messageId}"]`);
+            if (!div) return;
+            div.classList.add('message-deleted');
+            const text = div.querySelector('.message-text');
+            if (text) text.textContent = 'This message was deleted';
+            div.oncontextmenu = null;
         }
         
         function renderMessages(messages) {
@@ -503,8 +498,42 @@
         }
         
         function showTypingIndicator(isTyping) {
-            const indicator = document.getElementById('typingIndicator');
-            indicator.style.display = isTyping ? 'flex' : 'none';
+            document.getElementById('typingIndicator').style.display = isTyping ? 'flex' : 'none';
+        }
+
+        function autoResizeComposer() {
+            const input = document.getElementById('messageInput');
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        }
+
+        function formatLastSeen(value) {
+            if (!value) return 'Last seen time unavailable';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return 'Last seen time unavailable';
+            const mins = Math.floor(Math.max(0, Date.now() - date.getTime()) / 60000);
+            const ago = mins >= 1440 ? Math.floor(mins/1440)+'d ago' : mins >= 60 ? Math.floor(mins/60)+'h ago' : mins >= 1 ? mins+'m ago' : 'just now';
+            return 'Last seen ' + ago + ' · ' + date.toLocaleString([], {year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+        }
+
+        async function refreshFriendStatus() {
+            if (!tg?.initData || !friendUserId) return;
+            try {
+                const res = await fetch('/api/private/messages/status', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({initData:tg.initData,friendId:parseInt(friendUserId,10)})
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    updateFriendStatus(data.online, data.last_seen);
+                }
+            } catch (err) { console.log('Friend status refresh failed:',err); }
+        }
+
+        function updateFriendStatus(online,lastSeen) {
+            const el = document.getElementById('friendStatus');
+            el.textContent = online ? 'Online now 🟢' : formatLastSeen(lastSeen);
+            el.classList.toggle('online',Boolean(online));
         }
         
         async function init() {
@@ -540,9 +569,9 @@
                     body: JSON.stringify({ initData: tg.initData, friendId: parseInt(friendUserId) })
                 });
                 const historyData = await historyRes.json();
-                if (historyData.messages) {
-                    renderMessages(historyData.messages);
-                }
+                if (historyData.messages) renderMessages(historyData.messages);
+                await refreshFriendStatus();
+                lastSeenRefreshTimer = setInterval(refreshFriendStatus, 60000);
                 
             } catch (err) {
                 console.error('Init error:', err);
@@ -570,20 +599,18 @@
                 document.getElementById('friendStatus').textContent = 'Connected';
                 isConnected = true;
                 
-                socket.emit('join-private', {
-                    chatId: currentChatId,
-                    userId: currentUser.id,
-                    friendId: parseInt(friendUserId),
-                    firstName: currentUser.first_name || 'User'
+                socket.emit('join-private', { friendId: parseInt(friendUserId,10) }, result => {
+                    if (!result?.success) showNotification(result?.error || 'Could not open this private chat',true);
+                    else refreshFriendStatus();
                 });
             });
             
             socket.on('private-message', (message) => {
                 console.log('Private message received:', message);
-                const isOwn = message.sender_id === currentUser.id;
+                const isOwn = String(message.sender_id) === String(currentUser.id);
                 addMessageToChat(message, isOwn);
-                
                 if (!isOwn) {
+                    showNotification(getFirstName(message.sender_name || friendDisplayName) + ' sent you a message');
                     fetch('/api/private/messages/mark-read', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -596,13 +623,20 @@
                 updateMessageInChat(data.messageId, data.newMessage);
             });
             
-            socket.on('private-message-deleted', (data) => {
-                removeMessageFromChat(data.messageId);
+            socket.on('private-message-deleted', data => removeMessageFromChat(data.messageId));
+            socket.on('friend-online', data => {
+                if (String(data.userId) === String(friendUserId)) updateFriendStatus(true,null);
             });
+            socket.on('friend-offline', data => {
+                if (String(data.userId) === String(friendUserId)) updateFriendStatus(false,data.lastSeenUtc);
+            });
+            socket.on('message-error', data => showNotification(data?.error || 'Message action failed',true));
             
             socket.on('user-typing-private', (data) => {
-                if (data.userId !== currentUser.id) {
+                if (String(data.userId) !== String(currentUser.id)) {
                     showTypingIndicator(data.isTyping);
+                    if (remoteTypingTimeout) clearTimeout(remoteTypingTimeout);
+                    if (data.isTyping) remoteTypingTimeout = setTimeout(() => showTypingIndicator(false), 4000);
                 }
             });
             
@@ -620,31 +654,28 @@
         }
         
         function sendMessage() {
-            if (!isConnected) {
-                showNotification('Not connected. Please wait...', true);
-                return;
-            }
-            
+            if (!isConnected) { showNotification('Not connected. Please wait...',true); return; }
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             if (!message) return;
-            
-            const sendBtn = document.getElementById('sendBtn');
-            sendBtn.disabled = true;
-            
-            socket.emit('send-private-message', {
-                chatId: currentChatId,
-                receiverId: parseInt(friendUserId),
-                message: message,
-                senderId: currentUser.id,
-                senderName: currentUser.first_name || 'User'
+            if (message.length > 500) { showNotification('Messages can be up to 500 characters',true); return; }
+            const button = document.getElementById('sendBtn');
+            button.disabled = true;
+            if (editingMessageId) {
+                socket.emit('edit-private-message',{messageId:editingMessageId,newMessage:message},result => {
+                    button.disabled = false;
+                    if (!result?.success) { showNotification(result?.error || 'Failed to edit message',true); return; }
+                    cancelEditingMessage();
+                });
+                return;
+            }
+            socket.emit('send-private-message',{message},result => {
+                button.disabled = false;
+                if (!result?.success) { showNotification(result?.error || 'Failed to send message',true); return; }
+                input.value = '';
+                autoResizeComposer();
+                socket.emit('typing-private',{isTyping:false});
             });
-            
-            input.value = '';
-            
-            setTimeout(() => {
-                sendBtn.disabled = false;
-            }, 500);
         }
         
         function handleTyping() {
@@ -652,32 +683,35 @@
             
             if (typingTimeout) clearTimeout(typingTimeout);
             
-            socket.emit('typing-private', {
-                chatId: currentChatId,
-                userId: currentUser.id,
-                isTyping: true
-            });
-            
-            typingTimeout = setTimeout(() => {
-                socket.emit('typing-private', {
-                    chatId: currentChatId,
-                    userId: currentUser.id,
-                    isTyping: false
-                });
-            }, 1000);
+            socket.emit('typing-private',{isTyping:true});
+            typingTimeout = setTimeout(() => socket.emit('typing-private',{isTyping:false}),1200);
         }
         
         // Hide menu on scroll
         document.getElementById('messagesContainer').addEventListener('scroll', hideMessageActions);
         
-        document.getElementById('sendBtn').addEventListener('click', sendMessage);
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
+        document.getElementById('sendBtn').addEventListener('click',sendMessage);
+        document.getElementById('cancelEditBtn').addEventListener('click',cancelEditingMessage);
+        document.getElementById('messageInput').addEventListener('keydown',e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                const input=e.currentTarget;
+                input.setRangeText('\n',input.selectionStart,input.selectionEnd,'end');
+                autoResizeComposer();
+                handleTyping();
+            }
         });
-        document.getElementById('messageInput').addEventListener('input', handleTyping);
-        document.getElementById('editMessageBtn').addEventListener('click', editMessage);
-        document.getElementById('deleteMessageBtn').addEventListener('click', deleteMessage);
-        
+        document.getElementById('messageInput').addEventListener('input',() => {autoResizeComposer();handleTyping();});
+        document.getElementById('messageInput').addEventListener('blur',() => {
+            if (typingTimeout) clearTimeout(typingTimeout);
+            if (socket?.connected) socket.emit('typing-private',{isTyping:false});
+        });
+        document.getElementById('editMessageBtn').addEventListener('click',editMessage);
+        document.getElementById('deleteMessageBtn').addEventListener('click',deleteMessage);
+        window.addEventListener('beforeunload',() => {
+            if (lastSeenRefreshTimer) clearInterval(lastSeenRefreshTimer);
+            if (socket?.connected) socket.emit('typing-private',{isTyping:false});
+        });
         init();
     </script>
 </body>

@@ -355,6 +355,7 @@ await client.query(`
 await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_sender_id ON private_messages(sender_id)`);
 await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_receiver_id ON private_messages(receiver_id)`);
 await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at ON private_messages(created_at DESC)`);
+await client.query(`ALTER TABLE private_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE`);
 
     // ============================================
     // TEAM CHAT TABLES - ADD INSIDE initDB()
@@ -1166,150 +1167,79 @@ socket.on('join-status', () => {
     // ============================================
     // PRIVATE CHAT
     // ============================================
-    socket.on('join-private', (data) => {
-        const { chatId, userId, friendId, firstName } = data;
-        
-        connectedUsers.set(socket.id, {
-            userId,
-            friendId,
-            firstName,
-            chatId,
-            socketId: socket.id
-        });
-        
-        userSockets.set(userId, socket.id);
-        socket.join(`private_${chatId}`);
-        console.log(`🔵 User ${firstName} (${userId}) joined private chat ${chatId}`);
-    });
-    
-    socket.on('send-private-message', async (data) => {
-        const { chatId, receiverId, message, senderId, senderName } = data;
-        
-        if (!message || message.trim().length === 0) return;
-        if (message.length > 500) return;
-        
-        try {
-            const result = await pool.query(`
-                INSERT INTO private_messages (sender_id, receiver_id, message)
-                VALUES ($1, $2, $3)
-                RETURNING id, created_at
-            `, [senderId, receiverId, message.trim()]);
-            
-            const senderInfo = await pool.query(
-                'SELECT first_name, photo_url FROM users WHERE id = $1',
-                [senderId]
-            );
-            
-            const messageData = {
-                id: result.rows[0].id,
-                sender_id: senderId,
-                receiver_id: receiverId,
-                sender_name: senderName,
-                message: message.trim(),
-                created_at: result.rows[0].created_at,
-                is_read: false,
-                is_edited: false
-            };
-            
-            io.to(`private_${chatId}`).emit('private-message', messageData);
-            
-            const receiverSocketId = userSockets.get(receiverId);
-            const isReceiverOnline = receiverSocketId && connectedUsers.has(receiverSocketId);
-            
-            if (!isReceiverOnline) {
-                try {
-                    const receiverInfo = await pool.query(
-                        'SELECT telegram_id, first_name FROM users WHERE id = $1',
-                        [receiverId]
-                    );
-                    
-                    if (receiverInfo.rows.length > 0 && process.env.BOT_TOKEN) {
-                        const receiverTelegramId = receiverInfo.rows[0].telegram_id;
-                        const senderFirstName = senderInfo.rows[0]?.first_name || senderName;
-                        const messagePreview = message.length > 50 ? message.substring(0, 50) + '...' : message;
-                        const miniAppUrl = process.env.MINI_APP_URL || 'https://yzemanbot-backend.onrender.com';
-                        
-                        await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                chat_id: receiverTelegramId,
-                                text: `💬 *New Message from ${senderFirstName}*\n\n📝 "${messagePreview}"\n\n🔔 Tap to reply!`,
-                                parse_mode: 'Markdown',
-                                reply_markup: {
-                                    inline_keyboard: [[
-                                        { text: "💬 REPLY", web_app: { url: `${miniAppUrl}/profile.html?userId=${senderId}` } }
-                                    ]]
-                                }
-                            })
-                        });
-                    }
-                } catch (notifyErr) {
-                    console.error('Push notification error:', notifyErr);
-                }
-            }
-            
-        } catch (err) {
-            console.error('Send private message error:', err);
-            socket.emit('message-error', { error: 'Failed to send message' });
-        }
-    });
-    
-    socket.on('edit-private-message', async (data) => {
-        const { messageId, newMessage, userId, chatId } = data;
-        
-        if (!newMessage || newMessage.trim().length === 0) return;
-        if (newMessage.length > 500) return;
-        
-        try {
-            const result = await pool.query(`
-                UPDATE private_messages
-                SET message = $1, is_edited = true, updated_at = NOW()
-                WHERE id = $2 AND sender_id = $3
-                RETURNING id
-            `, [newMessage.trim(), messageId, userId]);
-            
-            if (result.rows.length > 0) {
-                io.to(`private_${chatId}`).emit('private-message-edited', {
-                    messageId,
-                    newMessage: newMessage.trim(),
-                    userId
-                });
-            }
-        } catch (err) {
-            socket.emit('message-error', { error: 'Failed to edit message' });
-        }
-    });
-    
-    socket.on('delete-private-message', async (data) => {
-        const { messageId, userId, chatId } = data;
-        
-        try {
-            const result = await pool.query(`
-                DELETE FROM private_messages
-                WHERE id = $1 AND sender_id = $2
-                RETURNING id
-            `, [messageId, userId]);
-            
-            if (result.rows.length > 0) {
-                io.to(`private_${chatId}`).emit('private-message-deleted', {
-                    messageId
-                });
-            }
-        } catch (err) {
-            socket.emit('message-error', { error: 'Failed to delete message' });
-        }
-    });
-    
-    socket.on('typing-private', (data) => {
-        const { chatId, userId, isTyping } = data;
-        socket.to(`private_${chatId}`).emit('user-typing-private', {
-            userId,
-            isTyping
-        });
-    });
+    socket.on('join-private', async (data, ack) => {
+    try {
+        const friendId=Number(data?.friendId);
+        if(!socket.user?.id||!Number.isInteger(friendId)||friendId<=0){if(typeof ack==='function')ack({success:false,error:'Invalid chat participant'});return;}
+        const me=await pool.query('SELECT id,first_name FROM users WHERE telegram_id=$1 LIMIT 1',[socket.user.id]);
+        if(!me.rows.length||String(me.rows[0].id)===String(friendId)){if(typeof ack==='function')ack({success:false,error:'Invalid chat participant'});return;}
+        const member=me.rows[0];
+        const relation=await pool.query(`SELECT 1 FROM friends WHERE status='accepted' AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1`,[member.id,friendId]);
+        if(!relation.rows.length){if(typeof ack==='function')ack({success:false,error:'You can only message accepted friends'});return;}
+        const chatId=[Number(member.id),friendId].sort((a,b)=>a-b).join('-');
+        socket.dbUserId=member.id;socket.privateChatId=chatId;socket.privateFriendId=friendId;
+        connectedUsers.set(socket.id,{userId:member.id,friendId,firstName:member.first_name||'User',chatId,socketId:socket.id});
+        userSockets.set(member.id,socket.id);socket.join(`private_${chatId}`);
+        if(typeof ack==='function')ack({success:true,chatId});
+    }catch(err){console.error('Join private chat error:',err);if(typeof ack==='function')ack({success:false,error:'Unable to join private chat'});}
+});
 
- // ============================================
+socket.on('send-private-message', async (data, ack) => {
+    const senderId=socket.dbUserId,receiverId=socket.privateFriendId,chatId=socket.privateChatId;
+    const message=typeof data?.message==='string'?data.message.trim():'';
+    if(!senderId||!receiverId||!chatId||!socket.rooms.has(`private_${chatId}`)){if(typeof ack==='function')ack({success:false,error:'Join the private chat first'});return;}
+    if(!message||message.length>500){if(typeof ack==='function')ack({success:false,error:'Message must be between 1 and 500 characters'});return;}
+    try{
+        const relation=await pool.query(`SELECT 1 FROM friends WHERE status='accepted' AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1`,[senderId,receiverId]);
+        if(!relation.rows.length){if(typeof ack==='function')ack({success:false,error:'Friendship is no longer active'});return;}
+        const result=await pool.query(`INSERT INTO private_messages(sender_id,receiver_id,message) VALUES($1,$2,$3) RETURNING id,created_at`,[senderId,receiverId,message]);
+        const sender=await pool.query('SELECT first_name FROM users WHERE id=$1',[senderId]);
+        const item={id:result.rows[0].id,sender_id:senderId,receiver_id:receiverId,sender_name:sender.rows[0]?.first_name||'User',message,created_at:result.rows[0].created_at,is_read:false,is_edited:false,is_deleted:false};
+        io.to(`private_${chatId}`).emit('private-message',item);
+        if(typeof ack==='function')ack({success:true,messageId:item.id});
+        const online=Array.from(presenceSockets.values()).some(p=>String(p.userId)===String(receiverId));
+        if(!online&&process.env.BOT_TOKEN){
+            try{
+                const receiver=await pool.query('SELECT telegram_id FROM users WHERE id=$1',[receiverId]);
+                if(receiver.rows.length){
+                    const preview=message.length>50?message.slice(0,50)+'...':message;
+                    const appUrl=process.env.MINI_APP_URL||'https://yzemanbot-backend.onrender.com';
+                    await fetch(`https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:receiver.rows[0].telegram_id,text:`💬 New Message from ${item.sender_name}\n\n📝 "${preview}"\n\n🔔 Tap to reply!`,reply_markup:{inline_keyboard:[[{text:'💬 REPLY',web_app:{url:`${appUrl}/profile.html?userId=${senderId}`}}]]}})});
+                }
+            }catch(e){console.error('Private message notification error:',e);}
+        }
+    }catch(err){console.error('Send private message error:',err);if(typeof ack==='function')ack({success:false,error:'Failed to send message'});socket.emit('message-error',{error:'Failed to send message'});}
+});
+
+socket.on('edit-private-message', async (data, ack) => {
+    const senderId=socket.dbUserId,receiverId=socket.privateFriendId,chatId=socket.privateChatId;
+    const messageId=Number(data?.messageId),newMessage=typeof data?.newMessage==='string'?data.newMessage.trim():'';
+    if(!senderId||!receiverId||!chatId||!socket.rooms.has(`private_${chatId}`)||!Number.isInteger(messageId)||!newMessage||newMessage.length>500){if(typeof ack==='function')ack({success:false,error:'Invalid edit request'});return;}
+    try{
+        const result=await pool.query(`UPDATE private_messages SET message=$1,is_edited=true,updated_at=NOW() WHERE id=$2 AND sender_id=$3 AND receiver_id=$4 AND is_deleted=FALSE RETURNING id`,[newMessage,messageId,senderId,receiverId]);
+        if(!result.rows.length){if(typeof ack==='function')ack({success:false,error:'Message not found or no longer editable'});return;}
+        io.to(`private_${chatId}`).emit('private-message-edited',{messageId,newMessage,userId:senderId});
+        if(typeof ack==='function')ack({success:true});
+    }catch(err){console.error('Edit private message error:',err);if(typeof ack==='function')ack({success:false,error:'Failed to edit message'});socket.emit('message-error',{error:'Failed to edit message'});}
+});
+
+socket.on('delete-private-message', async (data, ack) => {
+    const senderId=socket.dbUserId,receiverId=socket.privateFriendId,chatId=socket.privateChatId,messageId=Number(data?.messageId);
+    if(!senderId||!receiverId||!chatId||!socket.rooms.has(`private_${chatId}`)||!Number.isInteger(messageId)){if(typeof ack==='function')ack({success:false,error:'Invalid delete request'});return;}
+    try{
+        const result=await pool.query(`UPDATE private_messages SET message='',is_deleted=TRUE,updated_at=NOW() WHERE id=$1 AND sender_id=$2 AND receiver_id=$3 AND is_deleted=FALSE RETURNING id`,[messageId,senderId,receiverId]);
+        if(!result.rows.length){if(typeof ack==='function')ack({success:false,error:'Message not found or already deleted'});return;}
+        io.to(`private_${chatId}`).emit('private-message-deleted',{messageId,isDeleted:true});
+        if(typeof ack==='function')ack({success:true});
+    }catch(err){console.error('Delete private message error:',err);if(typeof ack==='function')ack({success:false,error:'Failed to delete message'});socket.emit('message-error',{error:'Failed to delete message'});}
+});
+
+socket.on('typing-private', data => {
+    const userId=socket.dbUserId,chatId=socket.privateChatId;
+    if(!userId||!chatId||!socket.rooms.has(`private_${chatId}`))return;
+    socket.to(`private_${chatId}`).emit('user-typing-private',{userId,isTyping:Boolean(data?.isTyping)});
+});
+
 // TOURNAMENT CHAT
 // ============================================
 
@@ -4703,7 +4633,7 @@ app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) =>
         const result = await pool.query(`
             SELECT COUNT(*) as count 
             FROM private_messages 
-            WHERE receiver_id = $1 AND is_read = false
+            WHERE receiver_id = $1 AND is_read = false AND is_deleted = FALSE
         `, [userId]);
         
         res.json({ unread_count: parseInt(result.rows[0].count) });
@@ -4726,7 +4656,7 @@ app.post('/api/private/messages/unread-by-friend', verifyTelegramData, async (re
                 sender_id,
                 COUNT(*) as unread_count
             FROM private_messages 
-            WHERE receiver_id = $1 AND is_read = false
+            WHERE receiver_id = $1 AND is_read = false AND is_deleted = FALSE
             GROUP BY sender_id
         `, [userId]);
         
@@ -4748,53 +4678,59 @@ app.post('/api/private/messages/unread-by-friend', verifyTelegramData, async (re
 
 // Get message history between two users
 app.post('/api/private/messages/history', verifyTelegramData, async (req, res) => {
-    const { friendId } = req.body;
+    const friendId=Number(req.body?.friendId);
     try {
-        const telegramId = req.telegramUser.id;
-        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-        if (userResult.rows.length === 0) return res.json({ messages: [] });
-        const userId = userResult.rows[0].id;
-        
-        const messages = await pool.query(`
-            SELECT pm.*, 
-                   u1.first_name as sender_name,
-                   u2.first_name as receiver_name
+        const userResult=await pool.query('SELECT id FROM users WHERE telegram_id=$1',[req.telegramUser.id]);
+        if(!userResult.rows.length)return res.json({messages:[]});
+        if(!Number.isInteger(friendId)||friendId<=0)return res.status(400).json({error:'Invalid friend'});
+        const userId=userResult.rows[0].id;
+        const friendship=await pool.query(`
+            SELECT 1 FROM friends WHERE status='accepted'
+            AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1
+        `,[userId,friendId]);
+        if(!friendship.rows.length)return res.status(403).json({error:'Private chat is only available between accepted friends'});
+        const messages=await pool.query(`
+            SELECT pm.*,u1.first_name AS sender_name,u2.first_name AS receiver_name
             FROM private_messages pm
-            JOIN users u1 ON pm.sender_id = u1.id
-            JOIN users u2 ON pm.receiver_id = u2.id
-            WHERE (pm.sender_id = $1 AND pm.receiver_id = $2) 
-               OR (pm.sender_id = $2 AND pm.receiver_id = $1)
-            ORDER BY pm.created_at ASC
-            LIMIT 100
-        `, [userId, friendId]);
-        
-        // Mark messages as read
+            JOIN users u1 ON pm.sender_id=u1.id
+            JOIN users u2 ON pm.receiver_id=u2.id
+            WHERE (pm.sender_id=$1 AND pm.receiver_id=$2) OR (pm.sender_id=$2 AND pm.receiver_id=$1)
+            ORDER BY pm.created_at ASC LIMIT 100
+        `,[userId,friendId]);
         await pool.query(`
-            UPDATE private_messages 
-            SET is_read = true 
-            WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false
-        `, [userId, friendId]);
-        
-        res.json({ messages: messages.rows });
-    } catch (err) {
-        console.error('Message history error:', err);
-        res.status(500).json({ error: 'Failed to fetch messages' });
+            UPDATE private_messages SET is_read=TRUE
+            WHERE receiver_id=$1 AND sender_id=$2 AND is_read=FALSE AND is_deleted=FALSE
+        `,[userId,friendId]);
+        res.json({messages:messages.rows});
+    }catch(err){
+        console.error('Message history error:',err);
+        res.status(500).json({error:'Failed to fetch messages'});
     }
 });
 
 // Mark message as read
-app.post('/api/private/messages/mark-read', verifyTelegramData, async (req, res) => {
-    const { messageId } = req.body;
+app.post('/api/private/messages/status', verifyTelegramData, async (req, res) => {
     try {
-        await pool.query(`
-            UPDATE private_messages 
-            SET is_read = true 
-            WHERE id = $1
-        `, [messageId]);
-        res.json({ success: true });
-    } catch (err) {
-        res.json({ success: false });
-    }
+        const friendId=Number(req.body?.friendId);
+        const user=await pool.query('SELECT id FROM users WHERE telegram_id=$1',[req.telegramUser.id]);
+        if(!user.rows.length||!Number.isInteger(friendId)||friendId<=0)return res.status(400).json({error:'Invalid friend'});
+        const userId=user.rows[0].id;
+        const relation=await pool.query(`SELECT 1 FROM friends WHERE status='accepted' AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1`,[userId,friendId]);
+        if(!relation.rows.length)return res.status(403).json({error:'Friendship required'});
+        const online=Array.from(presenceSockets.values()).some(p=>String(p.userId)===String(friendId));
+        const last=await pool.query(`SELECT to_char(last_seen,'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS last_seen FROM users WHERE id=$1`,[friendId]);
+        res.json({online,last_seen:online?null:(last.rows[0]?.last_seen||null)});
+    }catch(err){console.error('Private chat status error:',err);res.status(500).json({error:'Failed to fetch friend status'});}
+});
+
+app.post('/api/private/messages/mark-read', verifyTelegramData, async (req, res) => {
+    const messageId=Number(req.body?.messageId);
+    try {
+        const user=await pool.query('SELECT id FROM users WHERE telegram_id=$1',[req.telegramUser.id]);
+        if(!user.rows.length||!Number.isInteger(messageId))return res.status(400).json({success:false});
+        const result=await pool.query('UPDATE private_messages SET is_read=true WHERE id=$1 AND receiver_id=$2 AND is_deleted=FALSE RETURNING id',[messageId,user.rows[0].id]);
+        res.json({success:result.rows.length>0});
+    }catch(err){res.status(500).json({success:false});}
 });
 
 // Get unread message count for notification badge
@@ -4808,7 +4744,7 @@ app.post('/api/private/messages/unread', verifyTelegramData, async (req, res) =>
         const result = await pool.query(`
             SELECT COUNT(*) as count 
             FROM private_messages 
-            WHERE receiver_id = $1 AND is_read = false
+            WHERE receiver_id = $1 AND is_read = false AND is_deleted = FALSE
         `, [userId]);
         
         res.json({ unread_count: parseInt(result.rows[0].count) });
