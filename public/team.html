@@ -918,10 +918,15 @@ fetch('/api/user', {
         try{
             const data=await apiCall('/api/team/info');
             if(data?.has_team&&data.team?.id){
-                const monthly=await apiCall('/api/team/monthly-competition');
-                if(monthly?.my_team&&String(monthly.my_team.id)===String(data.team.id)){
-                    const rank=Number(monthly.my_team.rank);data.team.rank=Number.isFinite(rank)&&rank>0?rank:'--';
-                    data.team.monthly_coins=monthly.my_team.team_coins??data.team.monthly_coins;
+                try {
+                    const monthly=await apiCall('/api/team/monthly-competition');
+                    if(monthly?.my_team&&String(monthly.my_team.id)===String(data.team.id)){
+                        const rank=Number(monthly.my_team.rank);data.team.rank=Number.isFinite(rank)&&rank>0?rank:'--';
+                        data.team.monthly_coins=monthly.my_team.team_coins??data.team.monthly_coins;
+                    }
+                } catch(rankError) {
+                    console.warn('Team rank unavailable:',rankError);
+                    data.team.rank='--';
                 }
             }
             renderMyTeam(data);
