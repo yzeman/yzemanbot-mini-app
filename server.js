@@ -2244,6 +2244,16 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
 });
 
 // ============================================
+// Tournament weeks use UTC on both server and client to avoid host/device timezone drift.
+function getTournamentWeekWindow(now = new Date()) {
+  const daysSinceMonday = (now.getUTCDay() + 6) % 7;
+  const weekStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday));
+  const weekEndExclusive = new Date(weekStart);
+  weekEndExclusive.setUTCDate(weekEndExclusive.getUTCDate() + 7);
+  const weekEnd = new Date(weekEndExclusive.getTime() - 1);
+  return { weekStart, weekStartStr: weekStart.toISOString().slice(0, 10), weekEnd, weekEndStr: weekEnd.toISOString().slice(0, 10), weekEndExclusive };
+}
+
 // TOURNAMENT: Join Current Week's Tournament
 // ============================================
 app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
@@ -2255,21 +2265,8 @@ app.post('/api/tournament/join', verifyTelegramData, async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     
     const userId = userResult.rows[0].id;
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    
-    let daysSinceMonday = dayOfWeek - 1;
-    if (daysSinceMonday < 0) daysSinceMonday += 7;
-    
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - daysSinceMonday);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekStartStr = weekStart.toISOString().split('T')[0];
-    
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
+    const weekWindow = getTournamentWeekWindow();
+    const { weekStart, weekStartStr, weekEnd, weekEndStr } = weekWindow;
     
     let tournament = await client.query(
       'SELECT * FROM weekly_tournaments WHERE week_start = $1 AND is_active = true',
@@ -2336,16 +2333,8 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
     
     const userId = userResult.rows[0].id;
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    
-    let daysSinceMonday = dayOfWeek - 1;
-    if (daysSinceMonday < 0) daysSinceMonday += 7;
-    
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - daysSinceMonday);
-    weekStart.setHours(0, 0, 0, 0);
-    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekWindow = getTournamentWeekWindow();
+    const { weekStart, weekStartStr, weekEndExclusive } = weekWindow;
     
     const tournament = await pool.query(
       'SELECT id FROM weekly_tournaments WHERE week_start = $1 AND is_active = true',
@@ -2353,7 +2342,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
     );
     
     if (tournament.rows.length === 0) {
-      return res.json({ standings: [], my_rank: null, my_coins: 0, has_joined: false });
+      return res.json({ standings: [], my_rank: null, my_coins: 0, has_joined: false, week_start: weekStart.toISOString(), week_end: weekEndExclusive.toISOString(), server_now: new Date().toISOString(), timezone: 'UTC' });
     }
     
     const tournamentId = tournament.rows[0].id;
@@ -2391,7 +2380,7 @@ app.post('/api/tournament/standings', verifyTelegramData, async (req, res) => {
       }
     }
     
-    res.json({ standings: standings.rows, my_rank: myRank, my_coins: myCoins, has_joined: hasJoined });
+    res.json({ standings: standings.rows, my_rank: myRank, my_coins: myCoins, has_joined: hasJoined, week_start: weekStart.toISOString(), week_end: weekEndExclusive.toISOString(), server_now: new Date().toISOString(), timezone: 'UTC' });
     
   } catch (err) {
     console.error('Tournament standings error:', err);
