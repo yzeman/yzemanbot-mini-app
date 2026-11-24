@@ -598,7 +598,26 @@
             .reward-particle { display:none; }
         }
 
-    </style>
+    
+        /* Keep prize numbers crisp and easy to scan; 3D styling stays on the wheel and controls. */
+        .prize-value {
+            color: #ffe08a;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 0;
+            text-shadow: none;
+            filter: none;
+            transform: none;
+        }
+        .reward-amount {
+            color: #ffe08a;
+            text-shadow: 0 2px 12px rgba(255,190,55,.18);
+            -webkit-text-stroke: 0;
+            filter: none;
+            transform: none;
+        }
+
+</style>
 </head>
 <body>
     <!-- Refresh Indicator -->
