@@ -612,7 +612,7 @@ setTimeout(cleanupTournamentChat, 30000);
 // ============================================
 async function trackMonthlyEarnings(client, userId, coinsEarned) {
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
   
   await client.query(`
     INSERT INTO user_monthly_earnings (user_id, month_year, coins_earned)
@@ -2527,7 +2527,7 @@ app.post('/api/team/info', verifyTelegramData, async (req, res) => {
     }
     
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
     
     const teamResult = await pool.query(`
       SELECT t.*, 
@@ -2682,29 +2682,71 @@ app.get('/api/team/leaderboard', async (req, res) => {
   }
 });
 
-app.post('/api/team/monthly-competition', async (req, res) => {
+app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) => {
   try {
+    // Keep month keys consistent with the monthly earnings ledger at UTC boundaries.
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    
-    const result = await pool.query(`
-      SELECT 
-        t.id, t.name,
-        COALESCE(SUM(ume.coins_earned), 0) as team_coins,
-        COUNT(DISTINCT tm.user_id) as member_count,
-        COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') as leader_name
-      FROM teams t
-      JOIN team_members tm ON t.id = tm.team_id
-      JOIN users u ON tm.user_id = u.id
-      LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = $1
-      GROUP BY t.id
-      ORDER BY team_coins DESC
+    const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
+    const telegramId = req.telegramUser?.id;
+
+    const standingsResult = await pool.query(`
+      WITH team_totals AS (
+        SELECT
+          t.id, t.name,
+          COALESCE(SUM(ume.coins_earned), 0) AS team_coins,
+          COUNT(DISTINCT tm.user_id) AS member_count,
+          COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') AS leader_name
+        FROM teams t
+        JOIN team_members tm ON t.id = tm.team_id
+        JOIN users u ON u.id = tm.user_id
+        LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = $1
+        GROUP BY t.id
+      ),
+      ranked AS (
+        SELECT team_totals.*,
+          ROW_NUMBER() OVER (ORDER BY team_coins DESC, id ASC) AS rank
+        FROM team_totals
+      )
+      SELECT id, name, team_coins, member_count, leader_name
+      FROM ranked
+      ORDER BY rank
       LIMIT 10
     `, [firstOfMonth]);
-    
+
+    const myTeamResult = await pool.query(`
+      WITH team_totals AS (
+        SELECT
+          t.id, t.name,
+          COALESCE(SUM(ume.coins_earned), 0) AS team_coins,
+          COUNT(DISTINCT tm.user_id) AS member_count,
+          COALESCE(MAX(CASE WHEN u.id = t.created_by THEN u.first_name END), 'Unknown') AS leader_name
+        FROM teams t
+        JOIN team_members tm ON t.id = tm.team_id
+        JOIN users u ON u.id = tm.user_id
+        LEFT JOIN user_monthly_earnings ume ON u.id = ume.user_id AND ume.month_year = $1
+        GROUP BY t.id
+      ),
+      ranked AS (
+        SELECT team_totals.*,
+          ROW_NUMBER() OVER (ORDER BY team_coins DESC, id ASC) AS rank
+        FROM team_totals
+      ),
+      viewer_team AS (
+        SELECT team_id FROM users WHERE telegram_id = $2
+      )
+      SELECT r.id, r.name, r.team_coins, r.member_count, r.rank,
+        previous.team_coins AS next_team_coins,
+        previous.name AS next_team_name
+      FROM ranked r
+      JOIN viewer_team v ON v.team_id = r.id
+      LEFT JOIN ranked previous ON previous.rank = r.rank - 1
+      LIMIT 1
+    `, [firstOfMonth, telegramId]);
+
     res.json({
       month: firstOfMonth,
-      standings: result.rows
+      standings: standingsResult.rows,
+      my_team: myTeamResult.rows[0] || null
     });
   } catch (err) {
     console.error('Monthly competition error:', err);
@@ -3707,7 +3749,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
     await client.query('BEGIN');
     
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().slice(0, 10);
     
     const topEarners = await client.query(`
       SELECT u.id, u.first_name, u.telegram_id, COALESCE(SUM(ar.reward_amount), 0) as monthly_coins
