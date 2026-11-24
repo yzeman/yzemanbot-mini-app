@@ -461,6 +461,143 @@
             *,*::before,*::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }
         }
 
+    
+        /* 3D wheel finish and reward celebration */
+        .wheel-wrapper { perspective:1100px; }
+        #wheelCanvas {
+            transform:translateZ(0);
+            filter:drop-shadow(0 9px 5px rgba(0,0,0,.34));
+        }
+        #wheelCanvas.spinning {
+            filter:drop-shadow(0 0 15px rgba(255,214,92,.75));
+            animation:wheel-energy .65s ease-in-out infinite alternate;
+        }
+        @keyframes wheel-energy {
+            from { filter:drop-shadow(0 0 8px rgba(255,214,92,.35)); }
+            to { filter:drop-shadow(0 0 22px rgba(255,214,92,.9)); }
+        }
+        .wheel-pointer {
+            color:#fff2bd;
+            background:linear-gradient(100deg,#8c5815 0%,#fff1ad 24%,#d89a27 52%,#fff4c2 76%,#956015 100%);
+            -webkit-background-clip:text;
+            background-clip:text;
+            -webkit-text-fill-color:transparent;
+            filter:drop-shadow(0 3px 0 #70430d) drop-shadow(0 6px 5px rgba(0,0,0,.65)) drop-shadow(0 0 9px rgba(255,215,0,.5));
+            transform:translateX(-50%) perspective(90px) rotateX(12deg);
+            animation:pointer-glint 2.4s ease-in-out infinite;
+        }
+        @keyframes pointer-glint { 50% { filter:drop-shadow(0 3px 0 #70430d) drop-shadow(0 7px 7px rgba(0,0,0,.7)) drop-shadow(0 0 16px rgba(255,230,135,.95)); } }
+        .spin-btn {
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:10px;
+            position:relative;
+            overflow:hidden;
+            transform:translateY(0);
+            box-shadow:0 8px 0 #87500b,0 13px 25px rgba(255,174,35,.25),inset 0 2px 0 rgba(255,255,255,.9),inset 0 -4px 0 rgba(145,79,0,.18);
+            animation:button-float 2.8s ease-in-out infinite;
+        }
+        .spin-btn::before {
+            content:"";
+            position:absolute;
+            top:-60%;
+            left:-45%;
+            width:34%;
+            height:220%;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);
+            transform:rotate(25deg);
+            animation:button-shine 3.6s ease-in-out infinite;
+            pointer-events:none;
+        }
+        .spin-btn-icon {
+            display:inline-grid;
+            place-items:center;
+            width:29px;
+            height:29px;
+            border-radius:50%;
+            color:#fff8d9;
+            font-size:25px;
+            line-height:1;
+            background:linear-gradient(145deg,#76501a,#d18a17 48%,#70420b);
+            box-shadow:inset 0 2px 3px rgba(255,255,255,.5),0 3px 0 #633b09,0 4px 7px rgba(65,36,0,.35);
+            text-shadow:0 2px 2px rgba(0,0,0,.4);
+        }
+        .spin-btn.spinning .spin-btn-icon { animation:spin-icon .7s linear infinite; }
+        .spin-btn:disabled { animation:none; }
+        .spin-btn:disabled::before { display:none; }
+        @keyframes spin-icon { to { transform:rotate(360deg); } }
+        @keyframes button-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-2px); } }
+        @keyframes button-shine { 0%,65% { left:-45%; } 100% { left:130%; } }
+        .prize-color {
+            border:2px solid rgba(255,255,255,.38);
+            box-shadow:inset 0 3px 5px rgba(255,255,255,.65),inset 0 -5px 7px rgba(0,0,0,.32),0 4px 0 rgba(0,0,0,.28),0 7px 12px rgba(0,0,0,.28);
+            transform:translateY(-2px);
+        }
+        .prize-item {
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 0 rgba(0,0,0,.2),0 8px 14px rgba(0,0,0,.15);
+        }
+        .prize-value {
+            color:#fff0a8;
+            font-size:17px;
+            font-weight:900;
+            letter-spacing:.3px;
+            text-shadow:0 1px 0 #98620e,0 2px 0 #68420b,0 4px 7px rgba(0,0,0,.65),0 0 12px rgba(255,211,91,.22);
+        }
+        .reward-celebration {
+            position:fixed;
+            inset:0;
+            z-index:1200;
+            display:grid;
+            place-items:center;
+            padding:24px;
+            pointer-events:none;
+            background:radial-gradient(circle,rgba(255,190,48,.2),rgba(4,9,20,.55) 70%);
+            animation:reward-backdrop .45s ease-out both;
+        }
+        .reward-celebration-card {
+            position:relative;
+            min-width:min(84vw,310px);
+            padding:26px 24px 24px;
+            border:1px solid rgba(255,232,153,.8);
+            border-radius:24px;
+            text-align:center;
+            color:#fff5ce;
+            background:linear-gradient(145deg,#35425b,#111b30 60%,#352447);
+            box-shadow:inset 0 2px 0 rgba(255,255,255,.22),0 8px 0 #080e1a,0 18px 55px rgba(0,0,0,.65),0 0 38px rgba(255,197,61,.38);
+            animation:reward-pop .65s cubic-bezier(.18,.9,.25,1.25) both;
+        }
+        .reward-celebration.jackpot .reward-celebration-card {
+            border-color:#fff0a0;
+            box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 8px 0 #3f2608,0 18px 55px rgba(0,0,0,.7),0 0 55px rgba(255,197,40,.75);
+        }
+        .reward-cup { font-size:48px; line-height:1.2; margin-bottom:8px; filter:drop-shadow(0 5px 4px rgba(0,0,0,.5)); animation:cup-bounce .9s ease-in-out infinite alternate; }
+        .reward-title { font-size:17px; font-weight:900; letter-spacing:2px; color:#ffe58b; text-shadow:0 2px 0 #80510b,0 4px 12px rgba(0,0,0,.65); }
+        .reward-amount { margin:9px 0 4px; font-size:clamp(30px,9vw,42px); line-height:1.1; font-weight:1000; color:#fff5bf; text-shadow:0 2px 0 #a36a12,0 4px 0 #6b4108,0 7px 15px rgba(0,0,0,.7),0 0 22px rgba(255,219,103,.6); }
+        .reward-caption { color:#c9d4e5; font-size:12px; letter-spacing:1.5px; }
+        .reward-particle {
+            position:absolute;
+            left:var(--x);
+            top:var(--y);
+            font-size:var(--size);
+            opacity:0;
+            animation:reward-particle-fly var(--duration) ease-out var(--delay) both;
+            filter:drop-shadow(0 3px 5px rgba(0,0,0,.4));
+        }
+        @keyframes reward-backdrop { from { opacity:0; } to { opacity:1; } }
+        @keyframes reward-pop { from { opacity:0; transform:translateY(30px) scale(.55) rotateX(25deg); } to { opacity:1; transform:translateY(0) scale(1) rotateX(0); } }
+        @keyframes cup-bounce { to { transform:translateY(-7px) rotate(-5deg); } }
+        @keyframes reward-particle-fly {
+            0% { opacity:0; transform:translate3d(0,25px,0) rotate(0) scale(.3); }
+            18% { opacity:1; }
+            100% { opacity:0; transform:translate3d(var(--dx),var(--dy),0) rotate(var(--turn)) scale(1.1); }
+        }
+        @media (prefers-reduced-motion:reduce) {
+            .wheel-pointer,.spin-btn,.spin-btn::before,.spin-btn-icon,.reward-cup { animation:none!important; }
+            .reward-celebration-card { animation:none!important; }
+            .reward-particle { display:none; }
+        }
+
     </style>
 </head>
 <body>
@@ -485,7 +622,7 @@
     
     <!-- Spin Button -->
     <div class="spin-btn-container">
-        <button class="spin-btn" id="spinBtn" disabled>🎡 SPIN NOW</button>
+        <button class="spin-btn" id="spinBtn" disabled><span class="spin-btn-icon" aria-hidden="true">⟳</span><span class="spin-btn-label">SPIN NOW</span></button>
     </div>
     
     <!-- Status Card Container -->
@@ -688,37 +825,114 @@
         const canvas = document.getElementById('wheelCanvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const size = canvas.width, center = size/2, radius = size/2 - 10;
-        const segAngle = (Math.PI*2)/PRIZES.length;
-        ctx.clearRect(0,0,size,size);
-        for(let i=0; i<PRIZES.length; i++){
-            const start = angle + i*segAngle, end = start + segAngle;
+        const size = canvas.width, center = size / 2, radius = size / 2 - 13;
+        const segAngle = (Math.PI * 2) / PRIZES.length;
+        ctx.clearRect(0, 0, size, size);
+
+        // Deep outer rim and beveled inner rim.
+        const rim = ctx.createRadialGradient(center - 35, center - 45, 20, center, center, size / 2);
+        rim.addColorStop(0, '#fff1a8');
+        rim.addColorStop(.28, '#d99a27');
+        rim.addColorStop(.62, '#70420c');
+        rim.addColorStop(.82, '#f6d66e');
+        rim.addColorStop(1, '#5b360b');
+        ctx.beginPath();
+        ctx.arc(center, center, size / 2 - 2, 0, Math.PI * 2);
+        ctx.fillStyle = rim;
+        ctx.shadowColor = 'rgba(0,0,0,.65)';
+        ctx.shadowBlur = 13;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        for (let i = 0; i < PRIZES.length; i++) {
+            const start = angle + i * segAngle, end = start + segAngle;
+            const base = PRIZES[i].color;
+            const grad = ctx.createLinearGradient(center - radius, center - radius, center + radius, center + radius);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(.16, base);
+            grad.addColorStop(.58, base);
+            grad.addColorStop(1, '#25202a');
+
+            // Soft depth under each wedge.
             ctx.beginPath();
-            ctx.fillStyle = PRIZES[i].color;
-            ctx.moveTo(center,center);
-            ctx.arc(center,center,radius,start,end);
+            ctx.moveTo(center, center + 5);
+            ctx.arc(center, center + 5, radius - 2, start, end);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(0,0,0,.42)';
             ctx.fill();
-            ctx.strokeStyle='#1a1a2e'; ctx.lineWidth=2; ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, radius - 5, start, end);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.lineWidth = 2.4;
+            ctx.strokeStyle = 'rgba(24,25,39,.9)';
+            ctx.stroke();
+
+            // Glossy highlight along the upper edge of each colored slice.
+            ctx.beginPath();
+            ctx.arc(center, center, radius - 8, start + .035, end - .035);
+            ctx.strokeStyle = 'rgba(255,255,255,.3)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
             ctx.save();
-            ctx.translate(center,center);
-            ctx.rotate(start + segAngle/2);
-            ctx.fillStyle='white';
-            ctx.font="bold 14px 'Segoe UI'";
-            ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.shadowBlur = 2;
-            ctx.shadowColor = 'black';
+            ctx.translate(center, center);
+            ctx.rotate(start + segAngle / 2);
             let displayLabel = PRIZES[i].label;
-            if (PRIZES[i].value >= 1000) displayLabel = PRIZES[i].value/1000 + 'K';
-            ctx.fillText(displayLabel, radius*0.65, 0);
-            ctx.shadowBlur = 0;
+            if (PRIZES[i].value >= 1000) displayLabel = (PRIZES[i].value / 1000) + 'K';
+            ctx.font = "900 17px 'Segoe UI', sans-serif";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'rgba(35,20,4,.82)';
+            ctx.shadowColor = 'rgba(0,0,0,.75)';
+            ctx.shadowBlur = 7;
+            ctx.shadowOffsetY = 3;
+            ctx.strokeText(displayLabel, radius * .65, 0);
+            const textGrad = ctx.createLinearGradient(0, -12, 0, 12);
+            textGrad.addColorStop(0, '#ffffff');
+            textGrad.addColorStop(.48, '#fff5cf');
+            textGrad.addColorStop(1, '#e8bd55');
+            ctx.fillStyle = textGrad;
+            ctx.fillText(displayLabel, radius * .65, 0);
             ctx.restore();
         }
-        ctx.beginPath(); ctx.fillStyle='#FFD700'; ctx.arc(center,center,18,0,Math.PI*2); ctx.fill();
-        ctx.fillStyle='#1a1a2e'; ctx.font='bold 22px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-        ctx.fillText('🎡', center, center);
+
+        // Layered 3D centre hub with a raised spin emblem.
+        const hub = ctx.createRadialGradient(center - 8, center - 10, 2, center, center, 37);
+        hub.addColorStop(0, '#fff8d7');
+        hub.addColorStop(.25, '#ffdc76');
+        hub.addColorStop(.58, '#c17b13');
+        hub.addColorStop(1, '#603807');
         ctx.beginPath();
-        ctx.arc(center, center, radius+2, 0, Math.PI*2);
-        ctx.strokeStyle = '#FFD700';
+        ctx.arc(center, center, 34, 0, Math.PI * 2);
+        ctx.fillStyle = '#51300a';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(center, center - 2, 29, 0, Math.PI * 2);
+        ctx.fillStyle = hub;
+        ctx.shadowColor = 'rgba(0,0,0,.6)';
+        ctx.shadowBlur = 9;
+        ctx.shadowOffsetY = 4;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.strokeStyle = 'rgba(255,255,255,.75)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#51300a';
+        ctx.font = '900 29px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('↻', center, center - 2);
+
+        ctx.beginPath();
+        ctx.arc(center, center, radius + 1, 0, Math.PI * 2);
+        ctx.strokeStyle = '#fff0a6';
         ctx.lineWidth = 3;
         ctx.stroke();
     }
@@ -814,7 +1028,8 @@
         wheelSpinning = true;
         const spinBtn = document.getElementById('spinBtn');
         spinBtn.disabled = true;
-        spinBtn.textContent = '🎡 SPINNING...';
+        spinBtn.classList.add('spinning');
+        spinBtn.innerHTML = '<span class="spin-btn-icon" aria-hidden="true">⟳</span><span class="spin-btn-label">SPINNING...</span>';
         try {
             const response = await fetch('/api/wheel-spin', {
                 method: 'POST',
@@ -833,6 +1048,7 @@
             if (reward >= 5000) message = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
             else if (reward >= 2000) message = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
             showNotification(message, false);
+            showRewardCelebration(reward);
             if (window.AudioManager) window.AudioManager.playSound('reward');
             await loadWheelStatus(false);
         } catch (err) {
@@ -841,8 +1057,38 @@
         } finally {
             wheelSpinning = false;
             const btn = document.getElementById('spinBtn');
-            if (btn) btn.textContent = '🎡 SPIN NOW';
+            if (btn) {
+                btn.classList.remove('spinning');
+                btn.innerHTML = '<span class="spin-btn-icon" aria-hidden="true">⟳</span><span class="spin-btn-label">SPIN NOW</span>';
+            }
         }
+    }
+
+    function showRewardCelebration(reward) {
+        const jackpot = reward >= 5000;
+        const overlay = document.createElement('div');
+        overlay.className = 'reward-celebration' + (jackpot ? ' jackpot' : '');
+        overlay.setAttribute('role', 'status');
+        overlay.setAttribute('aria-live', 'polite');
+        const particles = Array.from({ length: jackpot ? 30 : 18 }, (_, i) => {
+            const x = 8 + Math.random() * 84;
+            const y = 28 + Math.random() * 48;
+            const dx = (Math.random() - .5) * 230;
+            const dy = -70 - Math.random() * 260;
+            const delay = Math.random() * .28;
+            const size = 15 + Math.random() * 19;
+            const turn = (Math.random() * 540 - 270) + 'deg';
+            return '<span class="reward-particle" style="--x:' + x + '%;--y:' + y + '%;--dx:' + dx + 'px;--dy:' + dy + 'px;--delay:' + delay + 's;--size:' + size + 'px;--turn:' + turn + ';--duration:1.8s">' + (i % 3 === 0 ? '✨' : '🪙') + '</span>';
+        }).join('');
+        overlay.innerHTML = particles +
+            '<div class="reward-celebration-card">' +
+                '<div class="reward-cup">' + (jackpot ? '🏆' : reward >= 2000 ? '🎉' : '🪙') + '</div>' +
+                '<div class="reward-title">' + (jackpot ? 'JACKPOT WIN!' : reward >= 2000 ? 'BIG WIN!' : 'YOU WON!') + '</div>' +
+                '<div class="reward-amount">+' + reward.toLocaleString(undefined, { maximumFractionDigits: 2 }) + '</div>' +
+                '<div class="reward-caption">COINS ADDED TO YOUR REWARD</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        window.setTimeout(() => overlay.remove(), 2600);
     }
 
     // ============================================
