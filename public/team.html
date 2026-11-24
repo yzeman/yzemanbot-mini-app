@@ -521,6 +521,9 @@
         .bottom-nav { background:rgba(10,19,36,.97); }
         .nav-item.active { color:#e8c46c;background:rgba(217,173,78,.1); }
         @media(max-width:360px){.team-stats{gap:6px}.team-stat-value{font-size:14px}.team-actions{gap:7px}.team-btn{font-size:10px;padding:8px 5px}.member-item{padding:9px 8px}.member-avatar{margin-right:8px}.member-coins{font-size:11px}}
+        .competition-you { position:relative; }
+        .team-position-dismiss { position:absolute;top:8px;right:8px;width:30px;height:30px;border:1px solid rgba(255,255,255,.12);border-radius:50%;background:rgba(4,10,20,.35);color:#cbd5e1;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px; }
+        .team-position-dismiss:active { transform:scale(.94); }
     </style>
 </head>
 <body>
@@ -899,12 +902,25 @@ fetch('/api/user', {
         document.getElementById('myTeamContent').innerHTML=`<div class="team-error-card"><i class="fas fa-triangle-exclamation" style="font-size:25px"></i><div style="font-weight:700;margin-top:8px">Couldn't load your team</div><div style="font-size:12px;margin-top:5px">${escapeHtml(message||'Please check your connection and try again.')}</div><button onclick="loadMyTeamOnly(true)">Try Again</button></div>`;
     }
 
-        function renderMonthlyCompetition(data){
+        function getTeamPositionDismissKey() {
+        const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        return 'teamPositionCardDismissed_' + (telegramUserId || 'guest');
+    }
+
+    function dismissTeamPositionCard() {
+        try { localStorage.setItem(getTeamPositionDismissKey(), 'true'); } catch (_) {}
+        const card = document.getElementById('teamPositionCard');
+        if (card) card.remove();
+    }
+
+    function renderMonthlyCompetition(data){
         const container=document.getElementById('monthlyContent'), standings=Array.isArray(data?.standings)?data.standings:[], mine=data?.my_team||null;
         let personal='';
-        if(mine&&Number(mine.rank)>0){
+        let positionDismissed=false;
+        try { positionDismissed=localStorage.getItem(getTeamPositionDismissKey())==='true'; } catch (_) {}
+        if(mine&&Number(mine.rank)>0&&!positionDismissed){
             const rank=Number(mine.rank), coins=Number(mine.team_coins)||0, next=mine.next_team_coins==null?null:Number(mine.next_team_coins), gap=next==null?0:Math.max(0,next-coins), progress=next==null||next<=0?100:Math.max(4,Math.min(100,coins/next*100));
-            personal=`<div class="competition-you"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><div><div style="font-size:11px;color:#b8c2d4">YOUR TEAM POSITION</div><strong style="font-size:21px">${rank<=3?['','🥇','🥈','🥉'][rank]:'#'+rank}</strong></div><div style="text-align:right"><div style="font-size:11px;color:#b8c2d4">MONTHLY TEAM COINS</div><strong>${formatNumberWithCommas(coins)}</strong></div></div>${next==null?'<div style="font-size:11px;margin-top:8px;color:#cbd5e1">Your team is currently at the top.</div>':`<div style="font-size:11px;margin-top:8px;color:#cbd5e1">${formatNumberWithCommas(gap)} COINS to catch ${escapeHtml(mine.next_team_name||'the team above')}.</div><div class="competition-progress"><span style="width:${progress}%"></span></div>`}</div>`;
+            personal=`<div class="competition-you" id="teamPositionCard"><button type="button" class="team-position-dismiss" onclick="dismissTeamPositionCard()" aria-label="Hide your team position" title="Hide this card"><i class="fas fa-xmark"></i></button><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding-right:24px"><div><div style="font-size:11px;color:#b8c2d4">YOUR TEAM POSITION</div><strong style="font-size:21px">${rank<=3?['','🥇','🥈','🥉'][rank]:'#'+rank}</strong></div><div style="text-align:right"><div style="font-size:11px;color:#b8c2d4">MONTHLY TEAM COINS</div><strong>${formatNumberWithCommas(coins)}</strong></div></div>${next==null?'<div style="font-size:11px;margin-top:8px;color:#cbd5e1">Your team is currently at the top.</div>':`<div style="font-size:11px;margin-top:8px;color:#cbd5e1">${formatNumberWithCommas(gap)} COINS to catch ${escapeHtml(mine.next_team_name||'the team above')}.</div><div class="competition-progress"><span style="width:${progress}%"></span></div>`}</div>`;
         }
         if(!standings.length){container.innerHTML=personal+'<div class="empty-state">No teams competing this month yet</div>';return;}
         container.innerHTML=personal+`<div class="members-title"><i class="fas fa-chart-line"></i> ${escapeHtml(data.month||'Monthly')} Standings <span style="color:var(--gray);font-size:11px">· Top 10</span></div><div class="leaderboard-list">`+standings.map((t,i)=>{
@@ -913,7 +929,7 @@ fetch('/api/user', {
         }).join('')+'</div>';
     }
 
-    async function loadMyTeamOnly(showSkeleton=true){
+        async function loadMyTeamOnly(showSkeleton=true){
         if(showSkeleton)showMyTeamSkeleton();
         try{
             const data=await apiCall('/api/team/info');
