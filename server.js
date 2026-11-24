@@ -2438,70 +2438,83 @@ app.post('/api/team/create', verifyTelegramData, async (req, res) => {
 
 app.post('/api/team/join', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
+  let transactionStarted = false;
   try {
     const { teamCode } = req.body;
     const telegramId = req.telegramUser.id;
-    
-    if (!teamCode || teamCode.trim().length < 4) {
+
+    if (!teamCode || typeof teamCode !== 'string' || teamCode.trim().length < 4) {
       return res.status(400).json({ error: 'Invalid team code' });
     }
-    
+
+    // Lock the joining user and target team inside one transaction. The team
+    // row lock serializes all joins for this team, so concurrent requests
+    // cannot both pass the 10-member check.
+    await client.query('BEGIN');
+    transactionStarted = true;
+
     const userResult = await client.query(
-      'SELECT id, team_id, coins FROM users WHERE telegram_id = $1',
+      'SELECT id, team_id, coins FROM users WHERE telegram_id = $1 FOR UPDATE',
       [telegramId]
     );
-    
+
     if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     const userId = userResult.rows[0].id;
     const userCoins = parseFloat(userResult.rows[0].coins) || 0;
-    
+
     if (userResult.rows[0].team_id) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.status(400).json({ error: 'You are already in a team. Leave your current team first.' });
     }
-    
+
     const teamResult = await client.query(
-      'SELECT * FROM teams WHERE code = $1',
+      'SELECT * FROM teams WHERE code = $1 FOR UPDATE',
       [teamCode.trim().toUpperCase()]
     );
-    
+
     if (teamResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.status(404).json({ error: 'Team not found. Check the code and try again.' });
     }
-    
+
     const team = teamResult.rows[0];
-    
-    // ✅ CHECK MEMBER LIMIT (max 10)
     const memberCount = await client.query(
-      'SELECT COUNT(*) as count FROM team_members WHERE team_id = $1',
+      'SELECT COUNT(*)::int AS count FROM team_members WHERE team_id = $1',
       [team.id]
     );
-    
-    if (parseInt(memberCount.rows[0].count) >= 10) {
+
+    if (memberCount.rows[0].count >= 10) {
+      await client.query('ROLLBACK');
+      transactionStarted = false;
       return res.status(400).json({ error: 'Team is full! Maximum 10 members allowed.' });
     }
-    
-    await client.query('BEGIN');
-    
+
     await client.query(
       'INSERT INTO team_members (team_id, user_id, coins_at_join) VALUES ($1, $2, $3)',
       [team.id, userId, userCoins]
     );
-    
+
     await client.query(
       'UPDATE users SET team_id = $1 WHERE id = $2',
       [team.id, userId]
     );
-    
+
     await awardAchievement(userId, 'Team Player', client);
-    
     await client.query('COMMIT');
-    
+    transactionStarted = false;
+
     res.json({ success: true, team });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (transactionStarted) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+    }
     console.error('Join team error:', err);
     res.status(500).json({ error: 'Failed to join team' });
   } finally {
