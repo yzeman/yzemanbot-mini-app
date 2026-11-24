@@ -4678,37 +4678,33 @@ app.post('/api/private/messages/unread-by-friend', verifyTelegramData, async (re
 
 // Get message history between two users
 app.post('/api/private/messages/history', verifyTelegramData, async (req, res) => {
-    const { friendId } = req.body;
+    const friendId=Number(req.body?.friendId);
     try {
-        const telegramId = req.telegramUser.id;
-        const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-        if (userResult.rows.length === 0) return res.json({ messages: [] });
-        const userId = userResult.rows[0].id;
-        
-        const messages = await pool.query(`
-            SELECT pm.*, 
-                   u1.first_name as sender_name,
-                   u2.first_name as receiver_name
+        const userResult=await pool.query('SELECT id FROM users WHERE telegram_id=$1',[req.telegramUser.id]);
+        if(!userResult.rows.length)return res.json({messages:[]});
+        if(!Number.isInteger(friendId)||friendId<=0)return res.status(400).json({error:'Invalid friend'});
+        const userId=userResult.rows[0].id;
+        const friendship=await pool.query(`
+            SELECT 1 FROM friends WHERE status='accepted'
+            AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1
+        `,[userId,friendId]);
+        if(!friendship.rows.length)return res.status(403).json({error:'Private chat is only available between accepted friends'});
+        const messages=await pool.query(`
+            SELECT pm.*,u1.first_name AS sender_name,u2.first_name AS receiver_name
             FROM private_messages pm
-            JOIN users u1 ON pm.sender_id = u1.id
-            JOIN users u2 ON pm.receiver_id = u2.id
-            WHERE (pm.sender_id = $1 AND pm.receiver_id = $2) 
-               OR (pm.sender_id = $2 AND pm.receiver_id = $1)
-            ORDER BY pm.created_at ASC
-            LIMIT 100
-        `, [userId, friendId]);
-        
-        // Mark messages as read
+            JOIN users u1 ON pm.sender_id=u1.id
+            JOIN users u2 ON pm.receiver_id=u2.id
+            WHERE (pm.sender_id=$1 AND pm.receiver_id=$2) OR (pm.sender_id=$2 AND pm.receiver_id=$1)
+            ORDER BY pm.created_at ASC LIMIT 100
+        `,[userId,friendId]);
         await pool.query(`
-            UPDATE private_messages 
-            SET is_read = true 
-            WHERE receiver_id = $1 AND sender_id = $2 AND is_read = false
-        `, [userId, friendId]);
-        
-        res.json({ messages: messages.rows });
-    } catch (err) {
-        console.error('Message history error:', err);
-        res.status(500).json({ error: 'Failed to fetch messages' });
+            UPDATE private_messages SET is_read=TRUE
+            WHERE receiver_id=$1 AND sender_id=$2 AND is_read=FALSE AND is_deleted=FALSE
+        `,[userId,friendId]);
+        res.json({messages:messages.rows});
+    }catch(err){
+        console.error('Message history error:',err);
+        res.status(500).json({error:'Failed to fetch messages'});
     }
 });
 

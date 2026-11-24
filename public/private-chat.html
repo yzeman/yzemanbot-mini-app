@@ -324,6 +324,7 @@
         let selectedMessageElement = null;
         let editingMessageId = null;
         let lastSeenRefreshTimer = null;
+        let remoteTypingTimeout = null;
         
         const urlParams = new URLSearchParams(window.location.search);
         const friendUserId = urlParams.get('userId');
@@ -380,7 +381,8 @@
         function showMessageActions(event, messageId, element) {
             event.preventDefault();
             event.stopPropagation();
-            
+            if (!element || element.classList.contains('message-deleted')) return;
+
             const menu = document.getElementById('messageActionsMenu');
             selectedMessageId = messageId;
             selectedMessageElement = element;
@@ -631,8 +633,10 @@
             socket.on('message-error', data => showNotification(data?.error || 'Message action failed',true));
             
             socket.on('user-typing-private', (data) => {
-                if (data.userId !== currentUser.id) {
+                if (String(data.userId) !== String(currentUser.id)) {
                     showTypingIndicator(data.isTyping);
+                    if (remoteTypingTimeout) clearTimeout(remoteTypingTimeout);
+                    if (data.isTyping) remoteTypingTimeout = setTimeout(() => showTypingIndicator(false), 4000);
                 }
             });
             
