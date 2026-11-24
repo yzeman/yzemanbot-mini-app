@@ -617,6 +617,28 @@
             transform: none;
         }
 
+
+        /* Large, crisp prize amounts — remove all embossed/drop-shadow text effects. */
+        .prize-value {
+            color: #fff4c2 !important;
+            font-size: 19px !important;
+            font-weight: 900 !important;
+            letter-spacing: 0 !important;
+            text-shadow: none !important;
+            -webkit-text-stroke: 0 !important;
+            filter: none !important;
+            transform: none !important;
+        }
+        .reward-amount {
+            color: #fff4c2 !important;
+            font-size: clamp(36px, 10vw, 48px) !important;
+            font-weight: 900 !important;
+            text-shadow: none !important;
+            -webkit-text-stroke: 0 !important;
+            filter: none !important;
+            transform: none !important;
+        }
+
 </style>
 </head>
 <body>
@@ -902,21 +924,18 @@
             ctx.rotate(start + segAngle / 2);
             let displayLabel = PRIZES[i].label;
             if (PRIZES[i].value >= 1000) displayLabel = (PRIZES[i].value / 1000) + 'K';
-            ctx.font = "900 17px 'Segoe UI', sans-serif";
+            ctx.font = "900 20px 'Segoe UI', sans-serif";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = 'rgba(35,20,4,.82)';
-            ctx.shadowColor = 'rgba(0,0,0,.75)';
-            ctx.shadowBlur = 7;
-            ctx.shadowOffsetY = 3;
+            // Clean, high-contrast labels: a thin outline only, no drop shadow or embossed gradient.
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = 'rgba(20, 24, 34, .95)';
             ctx.strokeText(displayLabel, radius * .65, 0);
-            const textGrad = ctx.createLinearGradient(0, -12, 0, 12);
-            textGrad.addColorStop(0, '#ffffff');
-            textGrad.addColorStop(.48, '#fff5cf');
-            textGrad.addColorStop(1, '#e8bd55');
-            ctx.fillStyle = textGrad;
+            ctx.fillStyle = '#ffffff';
             ctx.fillText(displayLabel, radius * .65, 0);
             ctx.restore();
         }
