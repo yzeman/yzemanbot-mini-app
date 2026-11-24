@@ -113,6 +113,24 @@
             font-family: monospace;
         }
         
+        .tournament-status {
+            margin-top: 5px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .35px;
+            color: rgba(255,255,255,.92);
+        }
+        .tournament-status::before {
+            content: '';
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            margin-right: 6px;
+            border-radius: 50%;
+            background: #00e676;
+            box-shadow: 0 0 8px rgba(0,230,118,.8);
+        }
+
         /* Prize Banner - COLLAPSIBLE */
         .prize-banner {
             background: linear-gradient(135deg, rgba(255,215,0,0.12), rgba(255,160,0,0.08));
@@ -548,6 +566,7 @@
     <div class="timer-banner">
         <h3><i class="fas fa-hourglass-half"></i> Tournament Ends In</h3>
         <div class="timer" id="tournamentTimer">--d --h --m</div>
+        <div class="tournament-status" id="tournamentStatus">Checking tournament status…</div>
     </div>
     
     <!-- Prize Banner - COLLAPSIBLE -->
@@ -632,6 +651,10 @@
     if (tg) { tg.ready(); tg.expand(); }
 
     let countdownInterval = null;
+    let standingsRefreshInterval = null;
+    let tournamentEndsAtMs = 0;
+    let serverTimeOffsetMs = 0;
+    let tournamentReloadedAfterEnd = false;
     let isRefreshing = false;
     let touchStartY = 0;
     const refreshIndicator = document.getElementById('refreshIndicator');
@@ -848,12 +871,9 @@
     }
 
     function escapeHtml(str) {
-        if (!str) return 'Anonymous';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
+        if (str === undefined || str === null || str === '') return 'Anonymous';
+        return String(str).replace(/[&<>"']/g, function(m) {
+            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
         });
     }
 
@@ -906,7 +926,7 @@
                                 ${escapeHtml(shortName)}
                                 ${isCurrentUser ? '<span class="tier-badge" style="background:var(--gold); color:var(--dark);">YOU</span>' : ''}
                             </div>
-                            <div class="name" style="font-size:10px; color:var(--gray); font-weight:normal;">${entry.tier || 'Fresher'} Tier</div>
+                            <div class="name" style="font-size:10px; color:var(--gray); font-weight:normal;">${escapeHtml(entry.tier || 'Fresher')} Tier</div>
                         </div>
                         <div class="coins">${formattedCoins}<small> COINS</small></div>
                     </div>
@@ -916,22 +936,31 @@
     }
 
     function updateTournamentTimer() {
-        const now = new Date();
-        const dayOfWeek = now.getDay();
-        let daysUntilMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-        const nextMonday = new Date(now);
-        nextMonday.setDate(now.getDate() + daysUntilMonday);
-        nextMonday.setHours(0, 0, 0, 0);
-        
-        const diff = nextMonday - now;
-        if (diff <= 0) { loadTournamentData(); return; }
-        
+        if (!tournamentEndsAtMs) return;
+        const now = Date.now() + serverTimeOffsetMs;
+        const diff = tournamentEndsAtMs - now;
+        const timerElement = document.getElementById('tournamentTimer');
+        const statusElement = document.getElementById('tournamentStatus');
+
+        if (diff <= 0) {
+            if (timerElement) timerElement.textContent = '00d 00h 00m 00s';
+            if (statusElement) statusElement.textContent = 'Tournament week ended • loading the next week…';
+            if (!tournamentReloadedAfterEnd) {
+                tournamentReloadedAfterEnd = true;
+                setTimeout(() => loadTournamentData(false), 1200);
+            }
+            return;
+        }
+
         const days = Math.floor(diff / 86400000);
         const hours = Math.floor((diff % 86400000) / 3600000);
         const minutes = Math.floor((diff % 3600000) / 60000);
-        
-        const timerElement = document.getElementById('tournamentTimer');
-        if (timerElement) timerElement.innerHTML = `${days}d ${hours}h ${minutes}m`;
+        const seconds = Math.floor((diff % 60000) / 1000);
+        if (timerElement) timerElement.textContent =
+            `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+        if (statusElement) statusElement.textContent = hasJoinedTournament
+            ? 'LIVE NOW • You are competing'
+            : 'LIVE NOW • Join to compete';
     }
 
     async function loadTournamentData(showSkeletonLoader = true) {
@@ -943,13 +972,18 @@
             currentUserId = userData.id;
             const data = await apiCall('/api/tournament/standings', { initData: tg.initData });
             updateTournamentUI(data);
+            if (data.week_end) tournamentEndsAtMs = new Date(data.week_end).getTime();
+            if (data.server_now) serverTimeOffsetMs = new Date(data.server_now).getTime() - Date.now();
+            tournamentReloadedAfterEnd = false;
             if (countdownInterval) clearInterval(countdownInterval);
-            countdownInterval = setInterval(updateTournamentTimer, 60000);
+            countdownInterval = setInterval(updateTournamentTimer, 1000);
             updateTournamentTimer();
+            return true;
         } catch (err) {
             console.error('Failed to load tournament:', err);
             const standingsList = document.getElementById('standingsList');
             if (standingsList) standingsList.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load. Pull to refresh.</p></div>';
+            return false;
         }
     }
 
@@ -982,17 +1016,23 @@
         refreshIndicator.classList.add('show');
         setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
     }
-    
+
     async function refreshData() {
         if (isRefreshing) return;
         isRefreshing = true;
-        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        showRefreshIndicator('Refreshing…');
         try {
-            await loadTournamentData(true);
-            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-            showNotification('Tournament standings refreshed!', false);
+            const refreshed = await loadTournamentData(true);
+            if (refreshed) {
+                showRefreshIndicator('Updated!');
+                showNotification('Tournament standings refreshed!', false);
+            } else {
+                showRefreshIndicator('Failed to refresh', true);
+                showNotification('Could not refresh tournament standings.', true);
+            }
         } catch (err) {
-            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            showRefreshIndicator('Failed to refresh', true);
+            showNotification('Could not refresh tournament standings.', true);
         } finally { isRefreshing = false; }
     }
     
@@ -1020,7 +1060,16 @@
         }
         
         loadTournamentData(true);
-        
+
+        // Near-live standings refresh: update every 15 seconds while this page is visible.
+        if (standingsRefreshInterval) clearInterval(standingsRefreshInterval);
+        standingsRefreshInterval = setInterval(() => {
+            if (document.visibilityState === 'visible' && !isRefreshing) loadTournamentData(false);
+        }, 15000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && !isRefreshing) loadTournamentData(false);
+        });
+
         const joinBtn = document.getElementById('joinBtn');
         if (joinBtn) joinBtn.addEventListener('click', joinTournament);
         
