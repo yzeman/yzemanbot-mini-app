@@ -11,16 +11,18 @@
     
     <style>
         :root {
-            --primary: #4CAF50;
-            --secondary: #2196F3;
-            --warning: #FF9800;
+            --primary: #e8a838;
+            --secondary: #8b78ff;
+            --warning: #ffb547;
             --danger: #f44336;
-            --dark: #1a1a2e;
-            --darker: #16213e;
-            --light: #ffffff;
-            --gray: #888888;
-            --success: #00c853;
-            --gold: #FFD700;
+            --dark: #090d19;
+            --darker: #111a2c;
+            --light: #f7f8fc;
+            --gray: #9aa5bd;
+            --success: #20c997;
+            --gold: #ffd36a;
+            --panel: rgba(20, 30, 51, .92);
+            --line: rgba(255,255,255,.09);
         }
         
         * {
@@ -31,7 +33,7 @@
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--dark);
+            background: radial-gradient(ellipse at 50% -15%, #29314d 0%, #101729 38%, var(--dark) 75%);
             color: var(--light);
             min-height: 100vh;
             padding-bottom: 80px;
@@ -40,16 +42,20 @@
         }
         
         .header {
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
-            padding: 20px 15px 25px;
-            border-radius: 0 0 30px 30px;
+            background: linear-gradient(135deg, rgba(25,36,61,.98), rgba(10,15,29,.96));
+            padding: 28px 18px 30px;
+            border: 1px solid var(--line);
+            border-top: 0;
+            border-radius: 0 0 28px 28px;
             text-align: center;
             position: relative;
             width: 100%;
         }
         
         .header h1 {
-            font-size: 24px;
+            font-size: 25px;
+            font-weight: 800;
+            letter-spacing: -.5px;
             margin-bottom: 8px;
         }
         
@@ -489,7 +495,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: var(--darker);
+            background: rgba(12, 18, 32, .96);
+            backdrop-filter: blur(16px);
             display: flex;
             padding: 8px 15px;
             border-top: 1px solid rgba(255,255,255,0.1);
@@ -539,6 +546,129 @@
         }
         
         .loading { text-align: center; padding: 30px; color: var(--gray); }
+
+        /* Daily page visual refresh */
+        .stats-container {
+            margin: 18px 14px 14px;
+            padding: 10px;
+            gap: 8px;
+            background: rgba(20,30,51,.72);
+            border: 1px solid var(--line);
+            box-shadow: 0 12px 30px rgba(0,0,0,.18);
+        }
+        .stat-item {
+            background: transparent;
+            padding: 10px 4px;
+            min-width: 0;
+        }
+        .stat-value { font-size: clamp(22px, 6vw, 29px); color: var(--gold); }
+        .stat-label { color: #dce2f1; font-size: 10px; font-weight: 700; }
+        .stat-help { font-size: 9px; }
+        .reward-card {
+            margin: 14px;
+            padding: 24px 18px 20px;
+            border: 1px solid rgba(255,211,106,.36);
+            border-radius: 25px;
+            background: radial-gradient(circle at 50% 0%, rgba(255,211,106,.22), transparent 43%),
+                        linear-gradient(145deg, #283653 0%, #17243d 58%, #10192c 100%);
+            box-shadow: 0 18px 42px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.08);
+        }
+        .reward-card::after {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 19px;
+            pointer-events: none;
+        }
+        .reward-card:hover { transform: translateY(-2px); }
+        .reward-card.disabled {
+            background: linear-gradient(145deg, #273044, #171f31);
+            border-color: rgba(255,255,255,.1);
+            opacity: 1;
+        }
+        .reward-kicker {
+            color: var(--gold);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 9px;
+        }
+        .reward-icon {
+            display: inline-grid;
+            place-items: center;
+            width: 68px;
+            height: 68px;
+            margin: 0 auto 12px;
+            border-radius: 22px;
+            font-size: 38px;
+            background: linear-gradient(145deg, rgba(255,211,106,.2), rgba(139,120,255,.14));
+            border: 1px solid rgba(255,211,106,.25);
+            box-shadow: 0 8px 25px rgba(0,0,0,.18);
+        }
+        .reward-title { font-size: 17px; letter-spacing: .1px; }
+        .reward-amount { font-size: clamp(42px, 12vw, 54px); line-height: 1.05; margin: 10px 0 4px; color: #ffe09a; text-shadow: 0 3px 20px rgba(255,190,70,.18); }
+        .reward-coin { color: #d3d9e8; font-size: 11px; font-weight: 800; letter-spacing: 2px; }
+        .claim-hint { margin-top: 14px; color: #e7c77f; font-size: 11px; font-weight: 700; }
+        .reward-breakdown {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 8px;
+            margin-top: 18px;
+            text-align: left;
+        }
+        .breakdown-item {
+            background: rgba(5,10,20,.28);
+            border: 1px solid rgba(255,255,255,.07);
+            border-radius: 12px;
+            padding: 9px 10px;
+            min-width: 0;
+        }
+        .breakdown-item span { display:block; color:#aeb9ce; font-size:10px; margin-bottom:4px; }
+        .breakdown-item strong { color:#fff; font-size:13px; }
+        .streak-info {
+            margin: 14px;
+            padding: 17px;
+            border: 1px solid rgba(139,120,255,.28);
+            background: linear-gradient(145deg, rgba(49,43,86,.42), rgba(22,31,52,.88));
+            box-shadow: 0 12px 28px rgba(0,0,0,.15);
+        }
+        .streak-fire { width:48px; height:48px; display:grid; place-items:center; border-radius:16px; background:rgba(255,181,71,.12); }
+        .streak-info-text h3 { font-size:16px; }
+        .bonus-chip { border-color:rgba(255,211,106,.3); background:rgba(255,211,106,.08); }
+        .milestone-progress { margin-top:16px; padding:12px; border-radius:14px; background:rgba(5,10,20,.25); border:1px solid var(--line); }
+        .milestone-progress-head { display:flex; justify-content:space-between; gap:8px; font-size:11px; margin-bottom:8px; }
+        .milestone-progress-head strong { color:var(--gold); }
+        .milestone-track { height:7px; background:rgba(255,255,255,.1); border-radius:20px; overflow:hidden; }
+        .milestone-fill { height:100%; background:linear-gradient(90deg,#8b78ff,#ffd36a); border-radius:20px; }
+        .calendar-section {
+            margin: 14px;
+            padding: 17px 14px;
+            background: rgba(20,30,51,.78);
+            border: 1px solid var(--line);
+            box-shadow: 0 12px 28px rgba(0,0,0,.16);
+        }
+        .calendar-title { font-size:15px; }
+        .calendar-day { border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.035); min-width:39px; padding:11px 3px; }
+        .calendar-day.claimed { background:linear-gradient(145deg,#167f69,#135c56); border-color:rgba(32,201,151,.38); }
+        .calendar-day.today { border:1px solid var(--gold); box-shadow:0 0 0 2px rgba(255,211,106,.1); }
+        .calendar-day.missed { opacity:.55; }
+        .calendar-day .day-letter { font-size:10px; }
+        .calendar-day .day-number { font-size:14px; }
+        .countdown { border-color:var(--line); }
+        .bottom-nav { border-color:var(--line); }
+        .nav-item.active { color:var(--gold); background:rgba(255,211,106,.09); }
+        @media (max-width: 360px) {
+            .stats-container { gap:3px; padding:7px; }
+            .stat-label { font-size:9px; }
+            .reward-card { padding:21px 13px 17px; }
+            .calendar-day { min-width:36px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .reward-card::before, .daily-celebration span { animation:none !important; }
+            .reward-card, .calendar-day { transition:none; }
+        }
         .daily-celebration { position: fixed; inset: 0; z-index: 2000; pointer-events: none; overflow: hidden; }
         .daily-celebration span { position: absolute; top: -45px; font-size: 32px; animation: daily-fall 1.5s ease-in forwards; }
         @keyframes daily-fall { to { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
@@ -763,13 +893,24 @@
     
     const nextStreak = claimedToday ? displayStreak : (data.current_streak > 0 ? data.current_streak + 1 : 1);
     const reward = calculateReward(nextStreak, data.tier || 'Fresher');
+    const nextMilestone = nextStreak < 30 ? 30 : (nextStreak < 100 ? 100 : 100);
+    const daysToMilestone = Math.max(0, nextMilestone - nextStreak);
+    const milestoneProgress = Math.min(100, Math.round((nextStreak / nextMilestone) * 100));
     document.getElementById('rewardCardContainer').innerHTML = `
-        <div class="reward-card" id="claimBtn">
+        <div class="reward-card" id="claimBtn" role="button" tabindex="0" aria-label="${claimedToday ? 'Daily reward already claimed' : 'Claim daily reward'}">
+            <div class="reward-kicker">${claimedToday ? 'DAILY REWARD COLLECTED' : 'YOUR DAILY BONUS IS READY'}</div>
             <div class="reward-icon" id="rewardIcon">${getRewardIcon(nextStreak)}</div>
             <div class="reward-title" id="claimBtnText">${getRewardTitle(nextStreak, claimedToday)}</div>
             <div class="reward-amount"><span id="todayReward">${reward.totalReward.toFixed(2)}</span></div>
-            <div class="reward-coin">COINS ${claimedToday ? 'earned today' : 'available to claim'}</div>
-            <div class="streak-bonus-badge">Streak +${reward.streakBonus.toFixed(1)} · Weekly +${reward.weeklyBonus} · Milestone +${reward.milestoneBonus} · Tier ${reward.multiplier}x</div>
+            <div class="reward-coin">COINS ${claimedToday ? 'EARNED TODAY' : 'AVAILABLE TO CLAIM'}</div>
+            <div class="claim-hint">${claimedToday ? 'Come back tomorrow to keep your streak alive' : 'TAP ANYWHERE ON THIS CARD TO CLAIM'}</div>
+            <div class="reward-breakdown">
+                <div class="breakdown-item"><span>Base reward</span><strong>+2 coins</strong></div>
+                <div class="breakdown-item"><span>Streak bonus</span><strong>+${reward.streakBonus.toFixed(1)} coins</strong></div>
+                <div class="breakdown-item"><span>Weekly bonus</span><strong>+${reward.weeklyBonus} coins</strong></div>
+                <div class="breakdown-item"><span>Milestone bonus</span><strong>+${reward.milestoneBonus.toLocaleString()} coins</strong></div>
+                <div class="breakdown-item" style="grid-column:1/-1"><span>Your tier multiplier</span><strong>${reward.multiplier}x · Total ${reward.totalReward.toLocaleString(undefined,{maximumFractionDigits:2})} coins</strong></div>
+            </div>
         </div>
     `;
     
@@ -783,10 +924,14 @@
             </div>
         </div>
         <div class="bonus-list">
-            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.5/day</div>
+            <div class="bonus-chip"><i class="fas fa-chart-line"></i> +0.5 per streak day</div>
             <div class="bonus-chip"><i class="fas fa-calendar-week"></i> +10 every 7 days</div>
-            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +1000</div>
-            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +5000</div>
+            <div class="bonus-chip"><i class="fas fa-crown"></i> 30 days: +1,000</div>
+            <div class="bonus-chip"><i class="fas fa-gem"></i> 100 days: +5,000</div>
+        </div>
+        <div class="milestone-progress">
+            <div class="milestone-progress-head"><span>Next milestone</span><strong>${nextMilestone} days · ${daysToMilestone} to go</strong></div>
+            <div class="milestone-track"><div class="milestone-fill" style="width:${milestoneProgress}%"></div></div>
         </div>
     </div>
 `;
@@ -837,6 +982,7 @@
             let checkIcon = '';
             if (isClaimed) checkIcon = '<i class="fas fa-check-circle"></i>';
             else if (isToday && !isClaimed) checkIcon = '<i class="fas fa-gift"></i>';
+            else if (dateStr < todayStr) dayDiv.classList.add('missed');
             dayDiv.innerHTML = `<div class="day-letter">${dayLetter}</div><div class="day-number">${dayNumber}/${month}</div>${checkIcon}`;
             calendar.appendChild(dayDiv);
         }
@@ -903,9 +1049,9 @@
         const data = await apiCall('/api/daily-reward', { initData: tg.initData, localDate });
         const coins = Number(data.reward).toFixed(2);
         const newStreak = data.streak;
-        if (data.milestoneBonus > 0) message += ` Milestone bonus: +${Number(data.milestoneBonus).toFixed(2)} coins!`;
         celebrateDailyReward(newStreak);
         let message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${newStreak} days 🔥`;
+        if (data.milestoneBonus > 0) message += ` Milestone bonus included: +${Number(data.milestoneBonus).toFixed(2)} coins!`;
         if (newStreak >= 100) message = `💎 LEGENDARY! ${newStreak} day streak! +${coins} COINS! 💎`;
         else if (newStreak >= 50) message = `👑 EPIC! ${newStreak} day streak! +${coins} COINS! 👑`;
         else if (newStreak >= 30) message = `⭐ AMAZING! ${newStreak} day streak! +${coins} COINS! ⭐`;
