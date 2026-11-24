@@ -58,6 +58,8 @@
         
         /* Achievements Grid */
         .achievements-container { padding: 0 15px 20px; }
+        .achievement-tools{display:flex;gap:9px;margin:0 0 14px}.achievement-tools input,.achievement-tools select{min-width:0;flex:1;background:#101a31;color:#fff;border:1px solid rgba(255,215,0,.2);border-radius:12px;padding:12px;font-size:13px}
+        .achievement-card{min-height:190px}.achievement-card .achievement-desc{font-size:11px;min-height:29px}.achievement-progress{margin-top:10px;text-align:left}.achievement-progress-label{display:flex;justify-content:space-between;gap:6px;color:#b9c3d6;font-size:10px;margin-bottom:5px}.achievement-progress .progress-bar{height:6px}.achievement-status{color:#aab5c9;font-size:10px;margin-top:8px}.achievement-empty{grid-column:1/-1;text-align:center;color:var(--gray);padding:28px;background:var(--darker);border-radius:14px}
         .section-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
         .section-title i { color: var(--gold); }
         .achievements-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -234,6 +236,7 @@
     
     <div class="achievements-container">
         <div class="section-title"><i class="fas fa-list"></i><span>All Achievements</span></div>
+        <div class="achievement-tools"><input id="achievementSearch" type="search" placeholder="Search achievements..." aria-label="Search achievements"><select id="achievementFilter" aria-label="Filter achievements"><option value="All">All categories</option><option>Daily</option><option>Referrals</option><option>Ads</option><option>Social</option><option>Teams</option><option>Tournaments</option><option>Special</option></select></div>
         <div class="achievements-grid" id="achievementsGrid"></div>
     </div>
     
@@ -257,26 +260,11 @@
             let isRefreshing = false;
             const refreshIndicator = document.getElementById('refreshIndicator');
             
-            // Achievement configuration
-            const ACHIEVEMENT_CONFIG = {
-    'Loyal User': { icon: '🔥', coins: 5000, requirement: '30 day login streak' },
-    'Referral Master': { icon: '👑', coins: 20000, requirement: 'Get 100 referrals' },
-    'Points Millionaire': { icon: '💰', coins: 15000, requirement: 'Earn 1,000,000 POINTS' },
-    'Social Butterfly': { icon: '🦋', coins: 15000, requirement: 'Complete all social tasks' },
-    'Tournament Winner': { icon: '🏆', coins: 10000, requirement: 'Win a weekly tournament' },
-    'Team Player': { icon: '🤝', coins: 2000, requirement: 'Join a team' },
-    'Platinum Elite': { icon: '💎', coins: 50000, requirement: 'Reach Platinum tier' },
-    'Wheel Champion': { icon: '🎡', coins: 10000, requirement: 'Win 5,000 COINS on wheel' },
-    'Daily Streak 7': { icon: '📅', coins: 5000, requirement: '7 day login streak' },
-    'Super Referrer': { icon: '⭐', coins: 50000, requirement: 'Get 500 referrals' },
-    'Ad Master': { icon: '📺', coins: 30000, requirement: 'Watch 5000 ads' },
-    'Team Winner': { icon: '🏅', coins: 25000, requirement: 'Your team wins monthly competition' },
-    'Leaderboard Winner': { icon: '👑', coins: 15000, requirement: 'Finish Top 3 on monthly leaderboard' },
-    'Ad Master Platinum': { icon: '💎', coins: 100000, requirement: 'Watch 10000 ads' },
-    'Referral King': { icon: '👑', coins: 200000, requirement: 'Get 1000 referrals' },
-    'Monthly Top Earner': { icon: '⭐', coins: 25000, requirement: 'Finish #1 on monthly leaderboard' },
-    'Completionist': { icon: '🌟', coins: 200000, requirement: 'Unlock every achievement' }          
-};
+            // Achievement presentation metadata is database-driven.
+            let allAchievements=[], latestStats={};
+            function escapeHTML(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+            function achievementCategory(n){if(/streak|loyal user/i.test(n))return'Daily';if(/referr/i.test(n))return'Referrals';if(/ad master/i.test(n))return'Ads';if(/social/i.test(n))return'Social';if(/team player/i.test(n))return'Teams';if(/team winner|tournament|leaderboard|top earner/i.test(n))return'Tournaments';return'Special';}
+            function achievementProgress(a){const s=latestStats,d={'Referral Master':[s.referrals,100,'referrals'],'Super Referrer':[s.referrals,500,'referrals'],'Referral King':[s.referrals,1000,'referrals'],'Daily Streak 7':[s.max_streak,7,'days'],'Loyal User':[s.max_streak,30,'days'],'Ad Master':[s.total_ads,5000,'ads'],'Ad Master Platinum':[s.total_ads,10000,'ads'],'Points Millionaire':[s.coins,1000000,'COINS balance'],'Social Butterfly':[s.social_tasks_completed,5,'social tasks']};if(a.name==='Platinum Elite')return{status:String(s.tier||'').toLowerCase()==='platinum'?'Platinum tier reached':'Current tier: '+(s.tier||'Unknown')};if(!d[a.name])return null;const [v,t,l]=d[a.name],c=Math.max(0,Number(v)||0);return{current:c,target:t,label:l,percent:Math.min(100,Math.round(c/t*100))};}
             
             function showNotification(msg, isError = false) {
                 const notif = document.getElementById('notification');
@@ -354,73 +342,23 @@
                 `;
             }
             
-            function updateStats(data) {
-                const stats = data.userStats;
-                const achievements = data.achievements;
-                
-                // Build stats HTML
-                document.getElementById('statsContainer').innerHTML = `
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-trophy"></i></div><div class="stat-value" id="achievementsCount">${stats.achievements_count || 0}</div><div class="stat-label">Unlocked</div></div>
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-value" id="totalAchievements">${achievements.length}</div><div class="stat-label">Total</div></div>
-                    <div class="stat-card"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value" id="totalCoinsEarned">0</div><div class="stat-label">COINS Earned</div></div>
-                `;
-                
-                // Calculate total coins earned from achievements
-                let totalCoinsEarned = 0;
-                achievements.forEach(ach => {
-                    if (ach.achieved) {
-                        const config = ACHIEVEMENT_CONFIG[ach.name] || { coins: 0 };
-                        totalCoinsEarned += config.coins;
-                    }
-                });
-                document.getElementById('totalCoinsEarned').textContent = formatCoins(totalCoinsEarned);
-                
-                const totalAchievements = achievements.length;
-                const unlockedCount = achievements.filter(a => a.achieved).length;
-                const overallPercent = Math.round((unlockedCount / totalAchievements) * 100);
-                
-                const referrals = stats.referrals || 0;
-                const referralPercent = Math.min((referrals / 100) * 100, 100);
-                const kingPercent = Math.min((referrals / 500) * 100, 100);
-                const streak = stats.max_streak || 0;
-                const streakPercent = Math.min((streak / 30) * 100, 100);
-                const totalAds = parseInt(localStorage.getItem('totalAdsWatched') || '0');
-                const adPercent = Math.min((totalAds / 1000) * 100, 100);
-                
-                // Build progress HTML
-                document.getElementById('progressSection').innerHTML = `
-                    <div class="progress-title"><i class="fas fa-chart-line"></i><span>Your Progress</span></div>
-                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-medal"></i> Overall Completion</span><span id="overallProgressText">${overallPercent}%</span></div><div class="progress-bar"><div class="progress-fill" id="overallProgressBar" style="width: ${overallPercent}%;"></div></div></div>
-                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-users"></i> Referral Master</span><span id="referralProgressText">${referrals}/100</span></div><div class="progress-bar"><div class="progress-fill" id="referralProgressBar" style="width: ${referralPercent}%;"></div></div></div>
-                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-calendar-check"></i> Daily Streak</span><span id="streakProgressText">${streak}/30</span></div><div class="progress-bar"><div class="progress-fill" id="streakProgressBar" style="width: ${streakPercent}%;"></div></div></div>
-                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-ad"></i> Ad Master</span><span id="adProgressText">${totalAds}/1000</span></div><div class="progress-bar"><div class="progress-fill" id="adProgressBar" style="width: ${adPercent}%;"></div></div></div>
-                    <div class="progress-item"><div class="progress-label"><span><i class="fas fa-fire"></i> Referral King</span><span id="kingProgressText">${referrals}/500</span></div><div class="progress-bar"><div class="progress-fill" id="kingProgressBar" style="width: ${kingPercent}%;"></div></div></div>
-                `;
+            function updateStats(data){
+                const stats=data.userStats||{},achievements=data.achievements||[];latestStats=stats;
+                const earned=achievements.filter(a=>a.achieved).reduce((n,a)=>n+(Number(a.coins_reward)||0),0);
+                document.getElementById('statsContainer').innerHTML=`<div class="stat-card"><div class="stat-icon"><i class="fas fa-trophy"></i></div><div class="stat-value">${Number(stats.achievements_count||0)}</div><div class="stat-label">Unlocked</div></div><div class="stat-card"><div class="stat-icon"><i class="fas fa-star"></i></div><div class="stat-value">${achievements.length}</div><div class="stat-label">Total</div></div><div class="stat-card"><div class="stat-icon"><i class="fas fa-coins"></i></div><div class="stat-value">${formatCoins(earned)}</div><div class="stat-label">Unlocked rewards</div></div>`;
+                const refs=Number(stats.referrals)||0,streak=Number(stats.max_streak)||0,ads=Number(stats.total_ads)||0;
+                const rows=[['Overall Completion',achievements.filter(a=>a.achieved).length,achievements.length,'medal'],['Referral Master',refs,100,'users'],['Daily Streak',streak,30,'calendar-check'],['Ad Master',ads,5000,'ad'],['Referral King',refs,1000,'crown']];
+                document.getElementById('progressSection').innerHTML=`<div class="progress-title"><i class="fas fa-chart-line"></i><span>Your Progress</span></div>${rows.map(([label,c,t,ic])=>{const pct=t?Math.min(100,Math.round(c/t*100)):0;return `<div class="progress-item"><div class="progress-label"><span><i class="fas fa-${ic}"></i> ${label}</span><span>${formatCoins(c)}/${formatCoins(t)} (${pct}%)</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div></div>`;}).join('')}`;
             }
-            
-            function renderAchievements(achievements) {
-                const container = document.getElementById('achievementsGrid');
-                if (!achievements || achievements.length === 0) {
-                    container.innerHTML = '<div class="empty-state">No achievements found</div>';
-                    return;
-                }
-                container.innerHTML = achievements.map(ach => {
-                    const config = ACHIEVEMENT_CONFIG[ach.name] || { icon: '🏅', coins: 0, requirement: ach.description || '' };
-                    const achieved = ach.achieved;
-                    return `
-                        <div class="achievement-card ${achieved ? 'unlocked' : 'locked'}">
-                            <div class="achievement-badge">
-                                ${achieved ? '<span class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</span>' : '<span class="locked-badge"><i class="fas fa-lock"></i> Locked</span>'}
-                            </div>
-                            <div class="achievement-icon">${config.icon}</div>
-                            <div class="achievement-name">${ach.name}</div>
-                            <div class="achievement-desc">${config.requirement || ach.description || ''}</div>
-                            <div class="achievement-reward">+${formatCoins(config.coins)} COINS</div>
-                        </div>
-                    `;
-                }).join('');
+
+            function renderAchievements(achievements){allAchievements=Array.isArray(achievements)?achievements:[];applyAchievementFilters();}
+            function applyAchievementFilters(){
+                const box=document.getElementById('achievementsGrid'),q=(document.getElementById('achievementSearch')?.value||'').trim().toLowerCase(),cat=document.getElementById('achievementFilter')?.value||'All';
+                const list=allAchievements.filter(a=>(cat==='All'||achievementCategory(a.name)===cat)&&(!q||String(a.name||'').toLowerCase().includes(q)||String(a.description||'').toLowerCase().includes(q)));
+                if(!list.length){box.innerHTML='<div class="achievement-empty">No achievements match this search or filter.</div>';return;}
+                box.innerHTML=list.map(a=>{const done=a.achieved===true||a.achieved==='true',pr=achievementProgress(a),coins=Number(a.coins_reward)||0;const progress=pr&&Number.isFinite(pr.percent)?`<div class="achievement-progress"><div class="achievement-progress-label"><span>${escapeHTML(pr.label)}</span><span>${formatCoins(pr.current)}/${formatCoins(pr.target)}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${pr.percent}%"></div></div></div>`:pr?.status?`<div class="achievement-status">${escapeHTML(pr.status)}</div>`:'';const date=done&&a.achieved_at?new Date(a.achieved_at).toLocaleDateString():'';return `<div class="achievement-card ${done?'unlocked':'locked'}"><div class="achievement-badge">${done?'<span class="unlocked-badge"><i class="fas fa-check"></i> Unlocked</span>':'<span class="locked-badge"><i class="fas fa-lock"></i> Locked</span>'}</div><div class="achievement-icon">${escapeHTML(a.badge_icon||'🏅')}</div><div class="achievement-name">${escapeHTML(a.name)}</div><div class="achievement-desc">${escapeHTML(a.description||'Complete this achievement')}</div><div class="achievement-reward">+${formatCoins(coins)} COINS</div>${progress}${date?`<div class="achievement-status">Unlocked ${escapeHTML(date)}</div>`:''}</div>`;}).join('');
             }
-            
+
             async function loadAchievements(showSkeletonLoader = true) {
                 if (showSkeletonLoader) {
                     showSkeleton();
@@ -443,7 +381,9 @@
                         </div>
                     `;
                     showNotification(err.message, true);
+                    return false;
                 }
+                return true;
             }
             
             // ============================================
@@ -465,8 +405,9 @@
                 showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
                 
                 try {
-                    await loadAchievements(false);
-                    showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
+                    const loaded = await loadAchievements(false);
+                    if (!loaded) throw new Error("Refresh failed");
+                    showRefreshIndicator("Updated!");
                     showNotification('Achievements refreshed!', false);
                 } catch (err) {
                     showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
@@ -495,6 +436,8 @@
             
             // Expose loadAchievements globally for retry button
             window.loadAchievements = () => loadAchievements(true);
+            document.getElementById("achievementSearch").addEventListener("input", applyAchievementFilters);
+            document.getElementById("achievementFilter").addEventListener("change", applyAchievementFilters);
             
             document.addEventListener('DOMContentLoaded', () => {
                 console.log('🏆 Achievements page ready');
