@@ -673,6 +673,7 @@
         .daily-celebration span { position: absolute; top: -45px; font-size: 32px; animation: daily-fall 1.5s ease-in forwards; }
         @keyframes daily-fall { to { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
 
+
         /* High-visibility daily claim action */
         .reward-card:not(.disabled) {
             color: #172033;
@@ -776,7 +777,67 @@
             .reward-card:not(.disabled), .reward-card:not(.disabled) .reward-icon,
             .claim-cta, .claim-cta-hand { animation: none !important; }
         }
-    </style>
+    /* Compact, high-visibility claim card */
+        .reward-card:not(.disabled) {
+            padding: 18px 14px 15px;
+            margin: 12px 14px;
+        }
+        .reward-card:not(.disabled) .reward-kicker {
+            padding: 5px 10px;
+            font-size: 9px;
+        }
+        .reward-card:not(.disabled) .reward-icon {
+            width: 52px;
+            height: 52px;
+            margin: 9px auto;
+            font-size: 36px;
+            line-height: 46px;
+            border-width: 2px;
+            box-shadow: 0 0 0 5px rgba(255,255,255,.2), 0 6px 16px rgba(117,69,0,.18);
+        }
+        .reward-card:not(.disabled) .reward-title {
+            font-size: 16px;
+            margin: 5px 0;
+        }
+        .reward-card:not(.disabled) .reward-amount {
+            font-size: clamp(36px, 10vw, 44px);
+            margin: 5px 0 2px;
+        }
+        .reward-card:not(.disabled) .reward-coin { font-size: 10px; }
+        .claim-cta {
+            width: min(100%, 260px);
+            min-height: 48px;
+            gap: 9px;
+            margin: 12px auto 2px;
+            padding: 8px 14px;
+            border-radius: 14px;
+            box-shadow: 0 4px 0 #075b38, 0 8px 16px rgba(0,77,42,.24), inset 0 1px rgba(255,255,255,.35);
+            font-size: 15px;
+            letter-spacing: .8px;
+        }
+        .claim-cta-hand { font-size: 21px; }
+        .claim-cta-arrow { font-size: 17px; }
+        .claim-hint {
+            margin-top: 9px;
+            font-size: 10px;
+            letter-spacing: .5px;
+        }
+        .reward-card:not(.disabled) .reward-breakdown {
+            padding: 7px;
+            margin-top: 12px;
+            gap: 6px;
+        }
+        .reward-card:not(.disabled) .breakdown-item {
+            padding: 7px 8px;
+            font-size: 11px;
+        }
+        @media (max-width: 360px) {
+            .reward-card:not(.disabled) { padding: 16px 11px 13px; }
+            .claim-cta { min-height: 44px; font-size: 14px; }
+        }
+
+        
+</style>
 </head>
 <body>
     <!-- Refresh Indicator -->
