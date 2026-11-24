@@ -673,8 +673,7 @@
                 node.className = 'leaderboard-meta';
                 document.getElementById('leaderboardList').after(node);
             }
-            const updated = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : new Date().toLocaleTimeString();
-            node.textContent = Number(data.total || 0).toLocaleString() + ' players · Updated ' + updated + ' · refreshes every 10 seconds';
+            node.textContent = Number(data.total || 0).toLocaleString() + ' players';
         }
         async function loadBoard(silent = false) {
             const requestId = ++loadSequence;
