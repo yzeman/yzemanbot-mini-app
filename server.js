@@ -612,8 +612,7 @@ setTimeout(cleanupTournamentChat, 30000);
 // ============================================
 async function trackMonthlyEarnings(client, userId, coinsEarned) {
   const now = new Date();
-  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
+  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().split('T')[0];
   
   await client.query(`
     INSERT INTO user_monthly_earnings (user_id, month_year, coins_earned)
@@ -2651,7 +2650,7 @@ app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) =
   try {
     // Keep month keys consistent with the monthly earnings ledger at UTC boundaries.
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString().split('T')[0];
     const telegramId = req.telegramUser?.id;
 
     const standingsResult = await pool.query(`
@@ -2676,7 +2675,7 @@ app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) =
       FROM ranked
       ORDER BY rank
       LIMIT 10
-    `, [firstOfMonth, nextMonth]);
+    `, [firstOfMonth]);
 
     const myTeamResult = await pool.query(`
       WITH team_totals AS (
