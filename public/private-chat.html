@@ -125,6 +125,8 @@
         .message-input { min-height:46px; max-height:120px; resize:none; overflow-y:auto; border-radius:22px; font-family:inherit; line-height:1.4; }
         .cancel-edit-btn { display:none; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.08); color:white; border-radius:18px; padding:0 12px; min-height:42px; font-size:12px; cursor:pointer; }
         .cancel-edit-btn.visible { display:block; }
+        .message-status { margin-left: 4px; font-size: 11px; font-weight: 700; color: #c5c5c5; }
+        .message-status.read { color: #4fc3f7; }
         .message-time {
             font-size: 9px;
             color: var(--gray);
@@ -430,6 +432,26 @@
             hideMessageActions();
         }
         
+        function messageStatusMarkup(msg) {
+            const status = msg.is_read ? 'read' : (msg.delivered_at ? 'delivered' : 'sent');
+            const symbol = status === 'sent' ? '✓' : '✓✓';
+            const label = status === 'read' ? 'Read' : (status === 'delivered' ? 'Delivered' : 'Sent');
+            return `<span class="message-status ${status}" title="${label}" aria-label="${label}">${symbol}</span>`;
+        }
+
+        function updateMessageStatuses(messageIds, status) {
+            (messageIds || []).forEach(messageId => {
+                const div = document.querySelector(`.message[data-message-id="${messageId}"]`);
+                const indicator = div?.querySelector('.message-status');
+                if (!indicator || indicator.classList.contains('read')) return;
+                const nextStatus = status === 'read' ? 'read' : 'delivered';
+                indicator.className = 'message-status ' + nextStatus;
+                indicator.textContent = '✓✓';
+                indicator.title = nextStatus === 'read' ? 'Read' : 'Delivered';
+                indicator.setAttribute('aria-label', indicator.title);
+            });
+        }
+
         function addMessageToChat(msg, isOwn = false) {
             const container = document.getElementById('messagesContainer');
             if (container.querySelector('.loading-messages')) container.innerHTML = '';
@@ -444,7 +466,8 @@
             div.className = `message ${own ? 'message-own' : ''} ${deleted ? 'message-deleted' : ''}`;
             div.dataset.messageId = msg.id;
             div.dataset.userId = msg.sender_id;
-            div.innerHTML = `<div class="message-avatar">${escapeHtml(initial)}</div><div class="message-bubble">${!own ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}<div class="message-text"></div><div class="message-time">${time} ${editedBadge}</div></div>`;
+            const statusMarkup = own && !deleted ? messageStatusMarkup(msg) : '';
+            div.innerHTML = `<div class="message-avatar">${escapeHtml(initial)}</div><div class="message-bubble">${!own ? `<div class="message-sender">${escapeHtml(senderName)}</div>` : ''}<div class="message-text"></div><div class="message-time">${time} ${editedBadge}${statusMarkup}</div></div>`;
             div.querySelector('.message-text').textContent = deleted ? 'This message was deleted' : (msg.message || '');
             if (own && !deleted) {
                 div.addEventListener('contextmenu', e => showMessageActions(e, msg.id, div));
@@ -619,6 +642,10 @@
                 }
             });
             
+            socket.on('private-message-status', data => {
+                updateMessageStatuses(data?.messageIds, data?.status);
+            });
+
             socket.on('private-message-edited', (data) => {
                 updateMessageInChat(data.messageId, data.newMessage);
             });
