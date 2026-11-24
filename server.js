@@ -3714,7 +3714,8 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
     await client.query('BEGIN');
     
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
     
     const topEarners = await client.query(`
       SELECT u.id, u.first_name, u.telegram_id, COALESCE(SUM(ar.reward_amount), 0) as monthly_coins
@@ -3726,7 +3727,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       GROUP BY u.id
       ORDER BY monthly_coins DESC, u.id ASC
       LIMIT 3
-    `, [firstOfMonth]);
+    `, [firstOfMonth, nextMonth]);
     
     const prizes = [20000, 10000, 5000];
     
