@@ -562,7 +562,7 @@
         function parseLastSeenUtc(lastSeen) {
             if (!lastSeen) return null;
             // The API marks timestamps as UTC; JavaScript formats them in this device's local timezone.
-            const normalized = typeof lastSeen === 'string' && !/(Z|[+-]\\d{2}:?\\d{2})$/i.test(lastSeen)
+            const normalized = typeof lastSeen === 'string' && !/(Z|[+-][0-9]{2}:?[0-9]{2})$/i.test(lastSeen)
                 ? lastSeen.replace(' ', 'T') + 'Z'
                 : lastSeen;
             const date = new Date(normalized);
