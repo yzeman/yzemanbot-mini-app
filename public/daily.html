@@ -672,6 +672,110 @@
         .daily-celebration { position: fixed; inset: 0; z-index: 2000; pointer-events: none; overflow: hidden; }
         .daily-celebration span { position: absolute; top: -45px; font-size: 32px; animation: daily-fall 1.5s ease-in forwards; }
         @keyframes daily-fall { to { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
+
+        /* High-visibility daily claim action */
+        .reward-card:not(.disabled) {
+            color: #172033;
+            background:
+                radial-gradient(circle at 50% 12%, rgba(255,255,255,.78), transparent 28%),
+                linear-gradient(145deg, #ffe58a 0%, #ffc247 42%, #ff9b32 100%);
+            border: 2px solid rgba(255,239,180,.95);
+            box-shadow: 0 0 0 5px rgba(255,190,65,.12), 0 18px 42px rgba(255,157,43,.28), inset 0 2px 0 rgba(255,255,255,.75);
+            animation: claim-card-glow 2.2s ease-in-out infinite;
+        }
+        .reward-card:not(.disabled)::after {
+            border-color: rgba(115,72,10,.16);
+        }
+        .reward-card:not(.disabled) .reward-kicker {
+            display: inline-block;
+            padding: 7px 12px;
+            border-radius: 30px;
+            color: #fff;
+            background: #b86a12;
+            letter-spacing: 1.4px;
+            box-shadow: 0 3px 10px rgba(100,55,0,.2);
+        }
+        .reward-card:not(.disabled) .reward-icon {
+            color: #6b3b00;
+            background: radial-gradient(circle, #fff9d8 0%, #ffd65c 68%, #f6a51d 100%);
+            border: 3px solid rgba(255,255,255,.9);
+            border-radius: 50%;
+            box-shadow: 0 0 0 8px rgba(255,255,255,.22), 0 8px 22px rgba(117,69,0,.2);
+            animation: claim-coin-bounce 1.7s ease-in-out infinite;
+        }
+        .reward-card:not(.disabled) .reward-title { color: #593400; font-size: 19px; }
+        .reward-card:not(.disabled) .reward-amount {
+            color: #422700;
+            text-shadow: 0 2px 0 rgba(255,255,255,.3);
+        }
+        .reward-card:not(.disabled) .reward-coin {
+            color: #70450c;
+            font-size: 12px;
+        }
+        .claim-cta {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: min(100%, 330px);
+            min-height: 62px;
+            margin: 18px auto 4px;
+            padding: 12px 18px;
+            border: 2px solid rgba(255,255,255,.88);
+            border-radius: 18px;
+            color: #fff;
+            background: linear-gradient(180deg, #20b86b, #087b49);
+            box-shadow: 0 7px 0 #075b38, 0 12px 22px rgba(0,77,42,.28), inset 0 1px rgba(255,255,255,.35);
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 1.1px;
+            text-shadow: 0 1px 2px rgba(0,0,0,.2);
+            animation: claim-cta-pulse 1.35s ease-in-out infinite;
+        }
+        .claim-cta-hand {
+            display: inline-block;
+            font-size: 27px;
+            line-height: 1;
+            animation: claim-hand-tap .8s ease-in-out infinite;
+        }
+        .claim-cta-arrow { font-size: 22px; }
+        .claim-hint {
+            margin-top: 13px;
+            color: #71450b;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .8px;
+        }
+        .reward-card:not(.disabled) .reward-breakdown {
+            padding: 10px;
+            border-radius: 16px;
+            background: rgba(100,61,7,.12);
+        }
+        .reward-card:not(.disabled) .breakdown-item {
+            background: rgba(255,255,255,.45);
+            border-color: rgba(111,70,9,.12);
+        }
+        .reward-card:not(.disabled) .breakdown-item span { color: #704b17; }
+        .reward-card:not(.disabled) .breakdown-item strong { color: #392400; }
+        .reward-card.disabled .claim-cta {
+            color: #e8edf5;
+            background: #39445a;
+            border-color: rgba(255,255,255,.12);
+            box-shadow: none;
+            animation: none;
+        }
+        .reward-card.disabled .claim-cta-hand { display: none; }
+        @keyframes claim-card-glow {
+            0%,100% { box-shadow: 0 0 0 4px rgba(255,190,65,.10), 0 16px 34px rgba(255,157,43,.22), inset 0 2px 0 rgba(255,255,255,.75); }
+            50% { box-shadow: 0 0 0 8px rgba(255,190,65,.18), 0 20px 42px rgba(255,157,43,.34), inset 0 2px 0 rgba(255,255,255,.8); }
+        }
+        @keyframes claim-coin-bounce { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
+        @keyframes claim-cta-pulse { 0%,100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.035); filter: brightness(1.12); } }
+        @keyframes claim-hand-tap { 0%,100% { transform: translateY(-3px) scale(1); } 50% { transform: translateY(5px) scale(.92); } }
+        @media (prefers-reduced-motion: reduce) {
+            .reward-card:not(.disabled), .reward-card:not(.disabled) .reward-icon,
+            .claim-cta, .claim-cta-hand { animation: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -897,13 +1001,18 @@
     const daysToMilestone = Math.max(0, nextMilestone - nextStreak);
     const milestoneProgress = Math.min(100, Math.round((nextStreak / nextMilestone) * 100));
     document.getElementById('rewardCardContainer').innerHTML = `
-        <div class="reward-card" id="claimBtn" role="button" tabindex="0" aria-label="${claimedToday ? 'Daily reward already claimed' : 'Claim daily reward'}">
-            <div class="reward-kicker">${claimedToday ? 'DAILY REWARD COLLECTED' : 'YOUR DAILY BONUS IS READY'}</div>
+        <div class="reward-card ${claimedToday ? 'disabled' : ''}" id="claimBtn" role="button" tabindex="${claimedToday ? '-1' : '0'}" aria-label="${claimedToday ? 'Daily reward already claimed' : 'Tap to claim daily reward'}">
+            <div class="reward-kicker">${claimedToday ? 'DAILY REWARD COLLECTED' : '👇 YOUR DAILY BONUS IS READY'}</div>
             <div class="reward-icon" id="rewardIcon">${getRewardIcon(nextStreak)}</div>
             <div class="reward-title" id="claimBtnText">${getRewardTitle(nextStreak, claimedToday)}</div>
             <div class="reward-amount"><span id="todayReward">${reward.totalReward.toFixed(2)}</span></div>
-            <div class="reward-coin">COINS ${claimedToday ? 'EARNED TODAY' : 'AVAILABLE TO CLAIM'}</div>
-            <div class="claim-hint">${claimedToday ? 'Come back tomorrow to keep your streak alive' : 'TAP ANYWHERE ON THIS CARD TO CLAIM'}</div>
+            <div class="reward-coin">COINS ${claimedToday ? 'EARNED TODAY' : 'WAITING FOR YOU'}</div>
+            <div class="claim-cta" aria-hidden="true">
+                <span class="claim-cta-hand">${claimedToday ? '✓' : '👆'}</span>
+                <span>${claimedToday ? 'CLAIMED TODAY' : 'TAP TO CLAIM'}</span>
+                <span class="claim-cta-arrow">${claimedToday ? '🎉' : '⬇'}</span>
+            </div>
+            <div class="claim-hint">${claimedToday ? 'Come back tomorrow to earn again' : 'TOUCH THE GREEN BUTTON TO COLLECT YOUR COINS'}</div>
             <div class="reward-breakdown">
                 <div class="breakdown-item"><span>Base reward</span><strong>+2 coins</strong></div>
                 <div class="breakdown-item"><span>Streak bonus</span><strong>+${reward.streakBonus.toFixed(1)} coins</strong></div>
@@ -947,6 +1056,12 @@
         const newBtn = claimBtn.cloneNode(true);
         claimBtn.parentNode.replaceChild(newBtn, claimBtn);
         newBtn.addEventListener('click', claimDailyReward);
+        newBtn.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                claimDailyReward();
+            }
+        });
     }
     
     renderCalendar(data);
