@@ -2221,7 +2221,8 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
     const totalLoginDays = await pool.query('SELECT COUNT(*) as days FROM daily_rewards WHERE user_id = $1', [userId]);
     const maxStreak = await pool.query('SELECT MAX(streak_count) as max_streak FROM daily_rewards WHERE user_id = $1', [userId]);
     const achievementsCount = await pool.query('SELECT COUNT(*) as count FROM user_achievements WHERE user_id = $1', [userId]);
-    
+    const adStats = await pool.query('SELECT COALESCE(total_ads, 0) AS total_ads FROM ad_statistics WHERE user_id = const achievementsCount = await pool.query('SELECT COUNT(*) as count FROM user_achievements WHERE user_id = $1', [userId]);', [userId]);
+    const socialTasks = await pool.query('SELECT COUNT(*) AS completed FROM social_tasks WHERE user_id = const achievementsCount = await pool.query('SELECT COUNT(*) as count FROM user_achievements WHERE user_id = $1', [userId]);', [userId]);
     res.json({
       achievements: achievements.rows,
       userStats: {
@@ -2231,7 +2232,9 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
         total_coins_earned: user.total_coins_earned,
         total_login_days: parseInt(totalLoginDays.rows[0].days),
         max_streak: maxStreak.rows[0].max_streak || 0,
-        achievements_count: parseInt(achievementsCount.rows[0].count)
+        achievements_count: parseInt(achievementsCount.rows[0].count),
+        total_ads: parseInt(adStats.rows[0]?.total_ads || 0),
+        social_tasks_completed: parseInt(socialTasks.rows[0]?.completed || 0)
       }
     });
   } catch (err) {
