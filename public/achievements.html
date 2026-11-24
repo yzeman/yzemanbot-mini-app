@@ -376,7 +376,7 @@
                         <div class="empty-state" style="grid-column: 1/-1;">
                             <i class="fas fa-exclamation-circle"></i>
                             <p>Failed to load achievements</p>
-                            <p style="font-size:12px;margin-top:8px;">${err.message}</p>
+                            <p style="font-size:12px;margin-top:8px;">${escapeHTML(err.message)}</p>
                             <button class="retry-btn" onclick="window.loadAchievements()">Retry</button>
                         </div>
                     `;
@@ -402,7 +402,7 @@
             async function refreshData() {
                 if (isRefreshing) return;
                 isRefreshing = true;
-                showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+                showRefreshIndicator('Refreshing...');
                 
                 try {
                     const loaded = await loadAchievements(false);
@@ -410,7 +410,7 @@
                     showRefreshIndicator("Updated!");
                     showNotification('Achievements refreshed!', false);
                 } catch (err) {
-                    showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+                    showRefreshIndicator('Refresh failed', true);
                 } finally {
                     isRefreshing = false;
                 }
