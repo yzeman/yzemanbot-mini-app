@@ -559,16 +559,37 @@
             return n.toFixed(0);
         }
         
+        function parseLastSeenUtc(lastSeen) {
+            if (!lastSeen) return null;
+            // The API marks timestamps as UTC; JavaScript formats them in this device's local timezone.
+            const normalized = typeof lastSeen === 'string' && !/(Z|[+-]\\d{2}:?\\d{2})$/i.test(lastSeen)
+                ? lastSeen.replace(' ', 'T') + 'Z'
+                : lastSeen;
+            const date = new Date(normalized);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
         function formatLastSeen(lastSeen) {
-            if (!lastSeen) return 'recently';
-            const last = new Date(lastSeen);
+            const last = parseLastSeenUtc(lastSeen);
+            if (!last) return 'time unavailable';
             const now = new Date();
-            const diff = Math.floor((now - last) / 1000 / 60);
-            
-            if (diff < 1) return 'just now';
-            if (diff < 60) return `${diff} min ago`;
-            if (diff < 1440) return `${Math.floor(diff / 60)} hours ago`;
-            return `${Math.floor(diff / 1440)} days ago`;
+            const diffMinutes = Math.max(0, Math.floor((now - last) / 60000));
+            let relative;
+            if (diffMinutes < 1) relative = 'just now';
+            else if (diffMinutes < 60) relative = `${diffMinutes} min ago`;
+            else if (diffMinutes < 1440) relative = `${Math.floor(diffMinutes / 60)} hr ago`;
+            else if (diffMinutes < 2880) relative = 'yesterday';
+            else relative = `${Math.floor(diffMinutes / 1440)} days ago`;
+
+            const time = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(last);
+            const sameDay = last.toDateString() === now.toDateString();
+            const yesterday = new Date(now);
+            yesterday.setDate(now.getDate() - 1);
+            const isYesterday = last.toDateString() === yesterday.toDateString();
+            const date = sameDay ? '' : (isYesterday ? 'Yesterday' : new Intl.DateTimeFormat(undefined, {
+                day: 'numeric', month: 'short', year: last.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+            }).format(last));
+            return date ? `${relative} · ${date}, ${time}` : `${relative} · ${time}`;
         }
         
         function updateOnlineFriendsSummary() {
@@ -591,15 +612,18 @@
             items.forEach(item => container.appendChild(item));
         }
 
-        function updateFriendOnlineStatus(friendId, isOnline) {
+        function updateFriendOnlineStatus(friendId, isOnline, lastSeen = null) {
             onlineStatusMap[String(friendId)] = isOnline;
+            const friend = currentFriends.find(entry => String(entry.id) === String(friendId));
+            if (friend && lastSeen) friend.last_seen = lastSeen;
             const friendElement = document.querySelector(`.friend-item[data-user-id="${friendId}"]`);
             if (friendElement) {
                 const indicator = friendElement.querySelector('.online-indicator');
                 const lastSeenSpan = friendElement.querySelector('.last-seen');
                 if (indicator) indicator.classList.toggle('online', isOnline);
                 if (lastSeenSpan) {
-                    lastSeenSpan.textContent = isOnline ? 'Online now' : 'Offline';
+                    const timestamp = lastSeen || friend?.last_seen;
+                    lastSeenSpan.textContent = isOnline ? 'Online now' : (timestamp ? `Last seen ${formatLastSeen(timestamp)}` : 'Offline');
                     lastSeenSpan.classList.toggle('online', isOnline);
                 }
             }
@@ -631,7 +655,7 @@
             statusSocket.on('friend-offline', (data) => {
                 console.log('Friend offline:', data);
                 onlineStatusMap[data.userId] = false;
-                updateFriendOnlineStatus(data.userId, false);
+                updateFriendOnlineStatus(data.userId, false, data.lastSeenUtc || null);
             });
             
             statusSocket.on('disconnect', () => {
