@@ -2115,89 +2115,51 @@ app.post('/api/check-task', verifyTelegramData, async (req, res) => {
   }
 });
 
+
 app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) => {
   try {
-    // Use the month start sent from user's local timezone
-    const monthStart = req.body.localMonthStart || new Date().toISOString().split('T')[0];
-    
-    console.log(`📊 Fetching monthly leaderboard for month starting: ${monthStart}`);
-    
-    const result = await pool.query(`
-      SELECT 
-        u.id, u.username, u.first_name, u.photo_url,
-        COALESCE(SUM(ar.reward_amount), 0) as monthly_coins,
-        u.tier, u.referrals, u.telegram_id,
-        u.coins as total_coins
-      FROM users u
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
-        AND ar.created_at::date >= $1::date
-        AND ar.ad_type IN (
-          'ad', 'daily', 'wheel', 'achievement', 'task',
-          'referral_commission', 'bonus', 'admin_add'
-        )
-      GROUP BY u.id
-      ORDER BY monthly_coins DESC
-      LIMIT 50
-    `, [monthStart]);
-    
-    res.json(result.rows || []);
-  } catch (err) {
-    console.error('❌ Top earners error:', err);
-    res.status(500).json({ error: 'Failed to fetch top earners' });
-  }
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const startIso = start.toISOString(), endIso = end.toISOString();
+    const page = Math.max(1, parseInt(req.body.page, 10) || 1);
+    const pageSize = Math.max(1, Math.min(50, parseInt(req.body.pageSize, 10) || 25));
+    const offset = (page - 1) * pageSize;
+    const search = String(req.body.search || '').trim().slice(0, 50);
+    const t = String(req.body.tier || 'all');
+    const tier = ['Fresher','Brute','Silver','Gold','Platinum'].includes(t) ? t : 'all';
+    const telegramId = req.telegramUser.id;
+    const types = ['ad','daily','wheel','achievement','task','referral_commission','bonus','admin_add'];
+    const base = "WITH totals AS (SELECT u.id,u.username,u.first_name,u.photo_url,u.tier,u.referrals,u.telegram_id,u.coins AS total_coins,COALESCE(SUM(ar.reward_amount),0) AS monthly_coins FROM users u LEFT JOIN ad_rewards ar ON ar.user_id=u.id AND ar.created_at >= $1::timestamptz AND ar.created_at < $2::timestamptz AND ar.ad_type=ANY($3::text[]) GROUP BY u.id), scoped AS (SELECT * FROM totals WHERE ($4='all' OR tier=$4)), ranked AS (SELECT scoped.*,RANK() OVER(ORDER BY monthly_coins DESC) AS rank FROM scoped)";
+    const rows = await pool.query(base+" SELECT * FROM ranked WHERE ($5='' OR COALESCE(first_name,'') ILIKE '%'||$5||'%' OR COALESCE(username,'') ILIKE '%'||$5||'%') ORDER BY monthly_coins DESC,id ASC LIMIT $6 OFFSET $7",[startIso,endIso,types,tier,search,pageSize,offset]);
+    const count = await pool.query(base+" SELECT COUNT(*)::int AS total FROM ranked WHERE ($5='' OR COALESCE(first_name,'') ILIKE '%'||$5||'%' OR COALESCE(username,'') ILIKE '%'||$5||'%')",[startIso,endIso,types,tier,search]);
+    const me = await pool.query(base+" SELECT * FROM ranked WHERE telegram_id=$5 LIMIT 1",[startIso,endIso,types,tier,telegramId]);
+    res.set('Cache-Control','no-store');
+    res.json({rows:rows.rows,total:Number(count.rows[0]?.total||0),page,pageSize,myRank:me.rows[0]||null,periodStart:startIso,periodEnd:endIso,updatedAt:new Date().toISOString()});
+  } catch(err) { console.error('Monthly leaderboard error:',err); res.status(500).json({error:'Failed to fetch monthly leaderboard'}); }
 });
 
-// ============================================
-// LEADERBOARD: Weekly Top Referrals (RESETS EVERY SUNDAY)
-// ============================================
+// Shared global window: Sunday 00:00 UTC through the following Sunday 00:00 UTC.
 app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, res) => {
   try {
     const now = new Date();
-    const dayOfWeek = now.getDay();
-    const daysSinceSunday = dayOfWeek;
-    
-    const lastSunday = new Date(now);
-    lastSunday.setDate(now.getDate() - daysSinceSunday);
-    lastSunday.setHours(0, 0, 0, 0);
-    const lastSundayStr = lastSunday.toISOString();
-    
-    const result = await pool.query(`
-      SELECT 
-        u.id, u.username, u.first_name, u.photo_url,
-        COUNT(r.id) as referral_count, u.tier, u.coins, u.referrals
-      FROM users u
-      LEFT JOIN referrals r ON u.id = r.referrer_id 
-        AND r.created_at >= $1
-      GROUP BY u.id
-      ORDER BY referral_count DESC
-      LIMIT 50
-    `, [lastSundayStr]);
-    
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Weekly referrers error:', err);
-    res.status(500).json({ error: 'Failed to fetch referrers' });
-  }
-});
-
-app.post('/api/leaderboard/weekly-earnings', verifyTelegramData, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT 
-        u.id, u.username, u.first_name, u.photo_url,
-        COALESCE(SUM(ar.reward_amount), 0) as weekly_coins, u.tier, u.coins
-      FROM users u
-      LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
-        AND ar.created_at > NOW() - INTERVAL '7 days'
-      GROUP BY u.id
-      ORDER BY weekly_coins DESC
-      LIMIT 50
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Weekly earnings error:', err);
-    res.status(500).json({ error: 'Failed to fetch weekly earnings' });
-  }
+    const start = new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()-now.getUTCDay()));
+    const end = new Date(start.getTime()+7*24*60*60*1000);
+    const startIso=start.toISOString(), endIso=end.toISOString();
+    const page=Math.max(1,parseInt(req.body.page,10)||1);
+    const pageSize=Math.max(1,Math.min(50,parseInt(req.body.pageSize,10)||25));
+    const offset=(page-1)*pageSize;
+    const search=String(req.body.search||'').trim().slice(0,50);
+    const t=String(req.body.tier||'all');
+    const tier=['Fresher','Brute','Silver','Gold','Platinum'].includes(t)?t:'all';
+    const telegramId=req.telegramUser.id;
+    const base="WITH totals AS (SELECT u.id,u.username,u.first_name,u.photo_url,u.tier,u.coins,u.referrals,u.telegram_id,COUNT(r.id)::int AS referral_count FROM users u LEFT JOIN referrals r ON r.referrer_id=u.id AND r.created_at >= $1::timestamptz AND r.created_at < $2::timestamptz GROUP BY u.id), scoped AS (SELECT * FROM totals WHERE ($3='all' OR tier=$3)), ranked AS (SELECT scoped.*,RANK() OVER(ORDER BY referral_count DESC) AS rank FROM scoped)";
+    const rows=await pool.query(base+" SELECT * FROM ranked WHERE ($4='' OR COALESCE(first_name,'') ILIKE '%'||$4||'%' OR COALESCE(username,'') ILIKE '%'||$4||'%') ORDER BY referral_count DESC,id ASC LIMIT $5 OFFSET $6",[startIso,endIso,tier,search,pageSize,offset]);
+    const count=await pool.query(base+" SELECT COUNT(*)::int AS total FROM ranked WHERE ($4='' OR COALESCE(first_name,'') ILIKE '%'||$4||'%' OR COALESCE(username,'') ILIKE '%'||$4||'%')",[startIso,endIso,tier,search]);
+    const me=await pool.query(base+" SELECT * FROM ranked WHERE telegram_id=$4 LIMIT 1",[startIso,endIso,tier,telegramId]);
+    res.set('Cache-Control','no-store');
+    res.json({rows:rows.rows,total:Number(count.rows[0]?.total||0),page,pageSize,myRank:me.rows[0]||null,periodStart:startIso,periodEnd:endIso,updatedAt:new Date().toISOString()});
+  } catch(err) { console.error('Weekly referrer leaderboard error:',err); res.status(500).json({error:'Failed to fetch weekly leaderboard'}); }
 });
 
 // ============================================
