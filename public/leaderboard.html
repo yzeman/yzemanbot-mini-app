@@ -542,10 +542,9 @@
         let currentTier = 'all';
         let prizeBannerCollapsed = false;
         let refreshTimer = null;
-        let isLoading = false;
+        let loadSequence = 0;
         let previousRanks = new Map();
         let previousMyRank = new Map();
-        let latestData = null;
 
         try { prizeBannerCollapsed = localStorage.getItem('leaderboardBannerCollapsed') === 'true'; } catch (_) {}
 
@@ -678,18 +677,20 @@
             node.textContent = Number(data.total || 0).toLocaleString() + ' players · Updated ' + updated + ' · refreshes every 10 seconds';
         }
         async function loadBoard(silent = false) {
-            if (isLoading) return;
-            isLoading = true;
+            const requestId = ++loadSequence;
+            const view = currentView;
+            const tier = view === 'tier' ? currentTier : 'all';
             const list = document.getElementById('leaderboardList');
+            const endpoint = view === 'referrals' ? '/api/leaderboard/weekly-referrers' : '/api/leaderboard/top-earners';
             if (!silent) list.innerHTML = '<div class="loading">Loading rankings...</div>';
-            const endpoint = currentView === 'referrals' ? '/api/leaderboard/weekly-referrers' : '/api/leaderboard/top-earners';
             try {
-                const data = await apiCall(endpoint, {tier: currentView === 'tier' ? currentTier : 'all'});
-                latestData = data;
+                const data = await apiCall(endpoint, {tier});
+                if (requestId !== loadSequence) return;
                 renderLeaderboard(data.rows || []);
                 renderMyRank(data.myRank || null);
                 renderMeta(data);
             } catch (error) {
+                if (requestId !== loadSequence) return;
                 console.error('Leaderboard loading error:', error);
                 if (!silent || !list.children.length) {
                     list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>' + escapeHtml(error.message || 'Failed to load leaderboard') + '</p><button class="retry-btn" id="retryLeaderboard" type="button">Retry</button></div>';
@@ -697,8 +698,6 @@
                 } else {
                     showNotification('Could not refresh. Showing previous results.', true);
                 }
-            } finally {
-                isLoading = false;
             }
         }
         function switchView(view) {
