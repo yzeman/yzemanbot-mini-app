@@ -356,6 +356,7 @@ await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_sender_id ON
 await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_receiver_id ON private_messages(receiver_id)`);
 await client.query(`CREATE INDEX IF NOT EXISTS idx_private_messages_created_at ON private_messages(created_at DESC)`);
 await client.query(`ALTER TABLE private_messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE`);
+await client.query(`ALTER TABLE private_messages ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP`);
 
     // ============================================
     // TEAM CHAT TABLES - ADD INSIDE initDB()
@@ -1180,6 +1181,15 @@ socket.on('join-status', () => {
         socket.dbUserId=member.id;socket.privateChatId=chatId;socket.privateFriendId=friendId;
         connectedUsers.set(socket.id,{userId:member.id,friendId,firstName:member.first_name||'User',chatId,socketId:socket.id});
         userSockets.set(member.id,socket.id);socket.join(`private_${chatId}`);
+        const newlyRead = await pool.query(`
+            UPDATE private_messages
+            SET delivered_at=COALESCE(delivered_at,NOW()), is_read=TRUE
+            WHERE sender_id=$1 AND receiver_id=$2 AND is_deleted=FALSE
+            RETURNING id
+        `,[friendId,member.id]);
+        if(newlyRead.rows.length) io.to(`private_${chatId}`).emit('private-message-status',{
+            messageIds:newlyRead.rows.map(row=>row.id),status:'read',recipientId:member.id
+        });
         if(typeof ack==='function')ack({success:true,chatId});
     }catch(err){console.error('Join private chat error:',err);if(typeof ack==='function')ack({success:false,error:'Unable to join private chat'});}
 });
@@ -1193,9 +1203,17 @@ socket.on('send-private-message', async (data, ack) => {
         const relation=await pool.query(`SELECT 1 FROM friends WHERE status='accepted' AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1`,[senderId,receiverId]);
         if(!relation.rows.length){if(typeof ack==='function')ack({success:false,error:'Friendship is no longer active'});return;}
         const result=await pool.query(`INSERT INTO private_messages(sender_id,receiver_id,message) VALUES($1,$2,$3) RETURNING id,created_at`,[senderId,receiverId,message]);
+        const roomSockets=await io.in(`private_${chatId}`).fetchSockets();
+        const recipientInChat=roomSockets.some(activeSocket=>String(connectedUsers.get(activeSocket.id)?.userId)===String(receiverId));
+        let deliveredAt=null;
+        if(recipientInChat){
+            const delivered=await pool.query('UPDATE private_messages SET delivered_at=COALESCE(delivered_at,NOW()) WHERE id=$1 RETURNING delivered_at',[result.rows[0].id]);
+            deliveredAt=delivered.rows[0]?.delivered_at||null;
+        }
         const sender=await pool.query('SELECT first_name FROM users WHERE id=$1',[senderId]);
-        const item={id:result.rows[0].id,sender_id:senderId,receiver_id:receiverId,sender_name:sender.rows[0]?.first_name||'User',message,created_at:result.rows[0].created_at,is_read:false,is_edited:false,is_deleted:false};
+        const item={id:result.rows[0].id,sender_id:senderId,receiver_id:receiverId,sender_name:sender.rows[0]?.first_name||'User',message,created_at:result.rows[0].created_at,delivered_at:deliveredAt,is_read:false,is_edited:false,is_deleted:false};
         io.to(`private_${chatId}`).emit('private-message',item);
+        if(deliveredAt) io.to(`private_${chatId}`).emit('private-message-status',{messageIds:[item.id],status:'delivered',recipientId:receiverId});
         if(typeof ack==='function')ack({success:true,messageId:item.id});
         const online=Array.from(presenceSockets.values()).some(p=>String(p.userId)===String(receiverId));
         if(!online&&process.env.BOT_TOKEN){
@@ -4689,6 +4707,16 @@ app.post('/api/private/messages/history', verifyTelegramData, async (req, res) =
             AND ((user_id=$1 AND friend_id=$2) OR (user_id=$2 AND friend_id=$1)) LIMIT 1
         `,[userId,friendId]);
         if(!friendship.rows.length)return res.status(403).json({error:'Private chat is only available between accepted friends'});
+        const newlyRead = await pool.query(`
+            UPDATE private_messages
+            SET delivered_at=COALESCE(delivered_at,NOW()), is_read=TRUE
+            WHERE receiver_id=$1 AND sender_id=$2 AND is_read=FALSE AND is_deleted=FALSE
+            RETURNING id
+        `,[userId,friendId]);
+        const chatId=[Number(userId),Number(friendId)].sort((a,b)=>a-b).join('-');
+        if(newlyRead.rows.length) io.to(`private_${chatId}`).emit('private-message-status',{
+            messageIds:newlyRead.rows.map(row=>row.id),status:'read',recipientId:userId
+        });
         const messages=await pool.query(`
             SELECT pm.*,u1.first_name AS sender_name,u2.first_name AS receiver_name
             FROM private_messages pm
@@ -4696,10 +4724,6 @@ app.post('/api/private/messages/history', verifyTelegramData, async (req, res) =
             JOIN users u2 ON pm.receiver_id=u2.id
             WHERE (pm.sender_id=$1 AND pm.receiver_id=$2) OR (pm.sender_id=$2 AND pm.receiver_id=$1)
             ORDER BY pm.created_at ASC LIMIT 100
-        `,[userId,friendId]);
-        await pool.query(`
-            UPDATE private_messages SET is_read=TRUE
-            WHERE receiver_id=$1 AND sender_id=$2 AND is_read=FALSE AND is_deleted=FALSE
         `,[userId,friendId]);
         res.json({messages:messages.rows});
     }catch(err){
@@ -4728,7 +4752,12 @@ app.post('/api/private/messages/mark-read', verifyTelegramData, async (req, res)
     try {
         const user=await pool.query('SELECT id FROM users WHERE telegram_id=$1',[req.telegramUser.id]);
         if(!user.rows.length||!Number.isInteger(messageId))return res.status(400).json({success:false});
-        const result=await pool.query('UPDATE private_messages SET is_read=true WHERE id=$1 AND receiver_id=$2 AND is_deleted=FALSE RETURNING id',[messageId,user.rows[0].id]);
+        const result=await pool.query('UPDATE private_messages SET delivered_at=COALESCE(delivered_at,NOW()),is_read=true WHERE id=$1 AND receiver_id=$2 AND is_deleted=FALSE RETURNING id,sender_id,receiver_id',[messageId,user.rows[0].id]);
+        if(result.rows.length){
+            const row=result.rows[0];
+            const chatId=[Number(row.sender_id),Number(row.receiver_id)].sort((a,b)=>a-b).join('-');
+            io.to(`private_${chatId}`).emit('private-message-status',{messageIds:[row.id],status:'read',recipientId:row.receiver_id});
+        }
         res.json({success:result.rows.length>0});
     }catch(err){res.status(500).json({success:false});}
 });
