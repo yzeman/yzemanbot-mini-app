@@ -2057,6 +2057,7 @@ app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
 
 // ============================================
 // TASK COMPLETION ENDPOINT (WITH TRACKING)
+// ============================================
 app.post('/api/complete-task', verifyTelegramData, async (req, res) => {
   const { taskName, coins } = req.body;
   const telegramId = req.telegramUser.id;
