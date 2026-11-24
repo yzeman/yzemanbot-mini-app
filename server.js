@@ -2221,8 +2221,8 @@ app.post('/api/achievements', verifyTelegramData, async (req, res) => {
     const totalLoginDays = await pool.query('SELECT COUNT(*) as days FROM daily_rewards WHERE user_id = $1', [userId]);
     const maxStreak = await pool.query('SELECT MAX(streak_count) as max_streak FROM daily_rewards WHERE user_id = $1', [userId]);
     const achievementsCount = await pool.query('SELECT COUNT(*) as count FROM user_achievements WHERE user_id = $1', [userId]);
-    const adStats = await pool.query('SELECT COALESCE(total_ads, 0) AS total_ads FROM ad_statistics WHERE user_id = const achievementsCount = await pool.query('SELECT COUNT(*) as count FROM user_achievements WHERE user_id = $1', [userId]);', [userId]);
-    const socialTasks = await pool.query('SELECT COUNT(*) AS completed FROM social_tasks WHERE user_id = const achievementsCount = await pool.query('SELECT COUNT(*) as count FROM user_achievements WHERE user_id = $1', [userId]);', [userId]);
+    const adStats = await pool.query('SELECT COALESCE(total_ads, 0) AS total_ads FROM ad_statistics WHERE user_id = $1', [userId]);
+    const socialTasks = await pool.query('SELECT COUNT(*) AS completed FROM social_tasks WHERE user_id = $1', [userId]);
     res.json({
       achievements: achievements.rows,
       userStats: {
