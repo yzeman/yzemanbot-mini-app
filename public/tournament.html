@@ -294,53 +294,6 @@
             .chat-room-btn { padding: 9px 7px; font-size: 11px; }
         }
         
-        /* My Rank Card - STICKY */
-        .sticky-rank-container {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            margin: 0 15px 12px;
-        }
-        
-        .my-rank-card {
-            background: linear-gradient(135deg, var(--secondary), #0D47A1);
-            border-radius: 16px;
-            padding: 12px 16px;
-            box-shadow: 0 4px 15px rgba(33,150,243,0.3);
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        
-        .my-rank-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        
-        .my-rank-title {
-            font-size: 11px;
-            color: rgba(255,255,255,0.8);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .my-rank-value {
-            font-size: 28px;
-            font-weight: bold;
-            background: linear-gradient(135deg, var(--gold), #FFA000);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .my-rank-stats {
-            display: flex;
-            justify-content: space-between;
-            font-size: 11px;
-            color: rgba(255,255,255,0.8);
-        }
-        
         /* Standings Section */
         .standings-section {
             padding: 0 15px 20px;
@@ -506,12 +459,6 @@
             100% { background-position: -200% 0; }
         }
         
-        .skeleton-my-rank-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 12px 16px;
-        }
-        
         .skeleton-standings-item {
             display: flex;
             align-items: center;
@@ -646,11 +593,6 @@
                 <span class="chat-badge hidden" id="tournamentChatBadge">0</span>
             </button>
         </div>
-    </div>
-    
-    <!-- My Rank Container - STICKY, stays visible while scrolling -->
-    <div class="sticky-rank-container" id="stickyRankContainer">
-        <div id="myRankContainer"></div>
     </div>
     
     <!-- Standings Section -->
@@ -869,19 +811,6 @@
     }
 
     function showSkeleton() {
-        const myRankContainer = document.getElementById('myRankContainer');
-        if (myRankContainer) {
-            myRankContainer.innerHTML = `
-                <div class="skeleton-my-rank-card">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <div class="skeleton-name" style="width: 30%;"></div>
-                        <div class="skeleton-coins" style="width: 50px;"></div>
-                    </div>
-                    <div class="skeleton-username" style="width: 40%; margin-top: 8px;"></div>
-                </div>
-            `;
-        }
-        
         const standingsList = document.getElementById('standingsList');
         if (standingsList) {
             let skeletonItems = '';
@@ -946,38 +875,6 @@
         const chatSection = document.getElementById('chatSection');
         if (chatSection) {
             chatSection.style.display = hasJoinedTournament ? 'flex' : 'none';
-        }
-
-        const myRankContainer = document.getElementById('myRankContainer');
-        if (myRankContainer) {
-            if (data.my_rank && hasJoinedTournament) {
-                const rankEmoji = getRankEmoji(data.my_rank);
-                const formattedCoins = formatNumberWithCommas(data.my_coins);
-                myRankContainer.innerHTML = `
-                    <div class="my-rank-card">
-                        <div class="my-rank-header">
-                            <div class="my-rank-title"><i class="fas fa-crown"></i> YOUR RANK</div>
-                            <div class="my-rank-value">${rankEmoji}</div>
-                        </div>
-                        <div class="my-rank-stats">
-                            <span><i class="fas fa-coins"></i> ${formattedCoins} COINS</span>
-                            <span><i class="fas fa-chart-line"></i> This week</span>
-                        </div>
-                    </div>
-                `;
-            } else if (hasJoinedTournament) {
-                myRankContainer.innerHTML = `
-                    <div class="my-rank-card">
-                        <div class="my-rank-header">
-                            <div class="my-rank-title"><i class="fas fa-chart-line"></i> YOUR RANK</div>
-                            <div class="my-rank-value">📊</div>
-                        </div>
-                        <div class="my-rank-stats"><span>⭐ Watch ads to earn COINS!</span></div>
-                    </div>
-                `;
-            } else {
-                myRankContainer.innerHTML = '';
-            }
         }
 
         const standingsList = document.getElementById('standingsList');
