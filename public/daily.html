@@ -538,11 +538,10 @@
             background: var(--danger);
         }
         
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: var(--gray);
-        }
+        .loading { text-align: center; padding: 30px; color: var(--gray); }
+        .daily-celebration { position: fixed; inset: 0; z-index: 2000; pointer-events: none; overflow: hidden; }
+        .daily-celebration span { position: absolute; top: -45px; font-size: 32px; animation: daily-fall 1.5s ease-in forwards; }
+        @keyframes daily-fall { to { transform: translateY(110vh) rotate(360deg); opacity: 0; } }
     </style>
 </head>
 <body>
@@ -648,18 +647,18 @@
         return response.json();
     }
     
-    function getLocalDate() {
-        return new Date().toISOString().split('T')[0];
+    function getLocalDate(date = new Date()) {
+        return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
     }
     
-    function calculateReward(streak) {
-    const baseReward = 2.0;           // Was 0.2
-    const streakBonus = (streak || 0) * 0.5;  // Was 0.1
-    let totalReward = baseReward + streakBonus;
-    if ((streak || 0) > 0 && (streak % 7 === 0)) {
-        totalReward += 10.0;          // Was 1.0
-    }
-    return { baseReward, streakBonus, totalReward };
+    function calculateReward(streak, tier = 'Fresher') {
+        const baseReward = 2, streakBonus = Math.max(0, streak || 0) * 0.5;
+        const weeklyBonus = streak > 0 && streak % 7 === 0 ? 10 : 0;
+        const milestoneBonus = streak === 30 ? 1000 : (streak === 100 ? 5000 : 0);
+        const multipliers = { Fresher: 1, Brute: 1.5, Silver: 2, Gold: 2.5, Platinum: 3 };
+        const multiplier = multipliers[tier] || 1;
+        return { baseReward, streakBonus, weeklyBonus, milestoneBonus, multiplier,
+            totalReward: (baseReward + streakBonus + weeklyBonus + milestoneBonus) * multiplier };
 }
     
     function getRewardIcon(streak) {
@@ -743,10 +742,7 @@
     let displayStreak = data.current_streak || 0;
     const claimedToday = data.claimed_today || false;
     
-    if (displayStreak === 0 && !claimedToday && data.last_7_days && data.last_7_days.length > 0) {
-        displayStreak = data.last_7_days[0].streak_count || 0;
-    }
-    
+
     document.getElementById('statsContainer').innerHTML = `
         <div class="stat-item">
             <div class="stat-value" id="streakCount">${displayStreak}</div>
@@ -765,14 +761,15 @@
         </div>
     `;
     
-    const { streakBonus, totalReward } = calculateReward(displayStreak);
+    const nextStreak = claimedToday ? displayStreak : (data.current_streak > 0 ? data.current_streak + 1 : 1);
+    const reward = calculateReward(nextStreak, data.tier || 'Fresher');
     document.getElementById('rewardCardContainer').innerHTML = `
         <div class="reward-card" id="claimBtn">
-            <div class="reward-icon" id="rewardIcon">${getRewardIcon(displayStreak)}</div>
-            <div class="reward-title" id="claimBtnText">${getRewardTitle(displayStreak, claimedToday)}</div>
-            <div class="reward-amount"><span id="todayReward">${totalReward.toFixed(2)}</span></div>
-            <div class="reward-coin">COINS</div>
-            <div class="streak-bonus-badge" id="streakBonusBadge">${streakBonus > 0 ? `+${streakBonus.toFixed(1)} Streak Bonus` : '+0 Streak Bonus'}</div>
+            <div class="reward-icon" id="rewardIcon">${getRewardIcon(nextStreak)}</div>
+            <div class="reward-title" id="claimBtnText">${getRewardTitle(nextStreak, claimedToday)}</div>
+            <div class="reward-amount"><span id="todayReward">${reward.totalReward.toFixed(2)}</span></div>
+            <div class="reward-coin">COINS ${claimedToday ? 'earned today' : 'available to claim'}</div>
+            <div class="streak-bonus-badge">Streak +${reward.streakBonus.toFixed(1)} · Weekly +${reward.weeklyBonus} · Milestone +${reward.milestoneBonus} · Tier ${reward.multiplier}x</div>
         </div>
     `;
     
@@ -819,6 +816,7 @@
         const claimedDates = new Set(claimedDays.map(d => d.reward_date));
         
         const startDate = new Date();
+        startDate.setHours(12, 0, 0, 0);
         startDate.setDate(startDate.getDate() - 6);
         
         calendar.innerHTML = '';
@@ -827,7 +825,7 @@
         for (let i = 0; i < 7; i++) {
             const date = new Date(startDate);
             date.setDate(startDate.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = getLocalDate(date);
             const dayLetter = dayNames[date.getDay()];
             const dayNumber = date.getDate();
             const month = date.getMonth() + 1;
@@ -877,9 +875,11 @@
             const data = await apiCall('/api/daily-stats', { initData: tg.initData, localDate });
             updateDailyUI(data);
             startCountdown();
+            return true;
         } catch (err) {
             console.error('Failed to load daily stats:', err);
             document.getElementById('statsContainer').innerHTML = '<div class="loading">Failed to load stats</div>';
+            return false;
         }
     }
     
@@ -901,8 +901,10 @@
     try {
         const localDate = getLocalDate();
         const data = await apiCall('/api/daily-reward', { initData: tg.initData, localDate });
-        const coins = data.reward.toFixed(2);
-        const newStreak = data.streak; // ✅ Server returns the NEW streak
+        const coins = Number(data.reward).toFixed(2);
+        const newStreak = data.streak;
+        if (data.milestoneBonus > 0) message += ` Milestone bonus: +${Number(data.milestoneBonus).toFixed(2)} coins!`;
+        celebrateDailyReward(newStreak);
         let message = `🎁 Daily reward claimed! +${coins} COINS! Streak: ${newStreak} days 🔥`;
         if (newStreak >= 100) message = `💎 LEGENDARY! ${newStreak} day streak! +${coins} COINS! 💎`;
         else if (newStreak >= 50) message = `👑 EPIC! ${newStreak} day streak! +${coins} COINS! 👑`;
@@ -926,9 +928,16 @@
     }
 }
     
+    function celebrateDailyReward(streak) {
+        const layer = document.createElement('div'); layer.className = 'daily-celebration';
+        const symbols = streak === 100 ? ['💎','✨','🏆'] : streak === 30 ? ['⭐','🎉','🏆'] : streak % 7 === 0 ? ['🔥','✨','🎉'] : ['🎉','✨','🪙'];
+        symbols.forEach((symbol, index) => { const piece = document.createElement('span'); piece.textContent = symbol; piece.style.left = (15 + index * 30) + '%'; piece.style.animationDelay = (index * 100) + 'ms'; layer.appendChild(piece); });
+        document.body.appendChild(layer); setTimeout(() => layer.remove(), 1800);
+    }
+
     // Pull to refresh
     function showRefreshIndicator(text, isError = false) {
-        refreshIndicator.textContent = text;
+        refreshIndicator.innerHTML = text;
         refreshIndicator.style.background = isError ? 'var(--danger)' : 'var(--primary)';
         refreshIndicator.classList.add('show');
         setTimeout(() => refreshIndicator.classList.remove('show'), 1500);
@@ -938,7 +947,8 @@
         isRefreshing = true;
         showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
         try {
-            await loadDailyStats(false);
+            const loaded = await loadDailyStats(false);
+            if (!loaded) throw new Error('Refresh failed');
             showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
             showNotification('Daily stats refreshed!', false);
         } catch (err) {
