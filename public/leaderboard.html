@@ -431,6 +431,11 @@
             font-size: 12px;
         }
         .notification.error { background: var(--danger); }
+        .rank-movement { display:inline-flex; align-items:center; margin-left:5px; font-size:10px; font-weight:700; }
+        .rank-movement.up { color:#00e676; }
+        .rank-movement.down { color:#ff6b6b; }
+        .rank-movement.same { color:rgba(255,255,255,.45); }
+        .leaderboard-meta { text-align:center; color:var(--gray); font-size:10px; padding:8px 4px 12px; }
         
         /* Tier border colors */
         .leaderboard-item.tier-Fresher { border-left: 3px solid #888; }
@@ -535,376 +540,208 @@
 
         let currentView = 'earnings';
         let currentTier = 'all';
-        let topEarnersData = [];
-        let topReferrersData = [];
-        
-        let prizeBannerCollapsed = localStorage.getItem('leaderboardBannerCollapsed') === 'true';
+        let prizeBannerCollapsed = false;
+        let refreshTimer = null;
+        let loadSequence = 0;
+        let previousRanks = new Map();
+        let previousMyRank = new Map();
 
-        function getLocalDate() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
+        try { prizeBannerCollapsed = localStorage.getItem('leaderboardBannerCollapsed') === 'true'; } catch (_) {}
+
+        function showNotification(message, isError = false) {
+            const node = document.getElementById('notification');
+            node.textContent = message;
+            node.className = 'notification' + (isError ? ' error' : '');
+            node.style.display = 'block';
+            window.setTimeout(() => { node.style.display = 'none'; }, 3000);
         }
-
-        function getLocalMonthStart() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            return `${year}-${month}-01`;
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         }
-
-        function showNotification(msg, isError = false) {
-            const notif = document.getElementById('notification');
-            notif.textContent = msg;
-            notif.className = 'notification' + (isError ? ' error' : '');
-            notif.style.display = 'block';
-            setTimeout(() => notif.style.display = 'none', 3000);
+        function safePhotoUrl(value) {
+            if (typeof value !== 'string' || !value.trim()) return '';
+            try { const url = new URL(value); return url.protocol === 'https:' ? url.href : ''; } catch (_) { return ''; }
         }
-
-        function formatNumberWithCommas(num) {
-    if (num === undefined || num === null) return '0.00';
-    const number = parseFloat(num);
-    if (isNaN(number)) return '0.00';
-    if (number >= 1000000) return (number / 1000000).toFixed(2) + 'M';
-    if (number >= 1000) return (number / 1000).toFixed(2) + 'K';
-    // ✅ Changed from toFixed(0) to toFixed(2)
-    return number.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-        function formatCoinsDetailed(num) {
-            if (num === undefined || num === null) return '0.00';
-            const number = parseFloat(num);
-            if (isNaN(number)) return '0.00';
-            const parts = number.toFixed(2).split('.');
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            return parts.join('.');
+        function validTier(value) {
+            return ['Fresher','Brute','Silver','Gold','Platinum'].includes(value) ? value : 'Fresher';
         }
-
-        async function apiCall(endpoint, extraData = null) {
-            if (!tg?.initData) throw new Error('Not in Telegram');
-            const body = {
-                initData: tg.initData,
-                localDate: getLocalDate(),
-                localMonthStart: getLocalMonthStart(),
-                ...extraData
-            };
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
+        function formatNumber(value) {
+            const number = Number(value || 0);
+            return Number.isFinite(number) ? number.toLocaleString(undefined, {maximumFractionDigits:2}) : '0';
+        }
+        function rankDisplay(rank) {
+            return rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+        }
+        async function apiCall(endpoint, extraData = {}) {
+            if (!tg?.initData) throw new Error('Open this page inside Telegram to view the leaderboard.');
+            const response = await fetch(endpoint, {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({initData:tg.initData, ...extraData}),
+                cache:'no-store'
             });
-            if (!res.ok) throw new Error(await res.text());
-            return res.json();
+            let data;
+            try { data = await response.json(); } catch (_) { throw new Error('The server returned an unreadable response.'); }
+            if (!response.ok) throw new Error(data.error || 'Could not load leaderboard.');
+            return data;
         }
-
         function togglePrizeBanner() {
             prizeBannerCollapsed = !prizeBannerCollapsed;
-            localStorage.setItem('leaderboardBannerCollapsed', prizeBannerCollapsed);
-            
-            const prizeContent = document.getElementById('prizeContent');
-            const prizeHeader = document.getElementById('prizeToggle');
-            const toggleIcon = document.getElementById('toggleIcon');
-            
-            if (prizeBannerCollapsed) {
-                prizeContent.classList.add('collapsed');
-                prizeHeader.classList.add('collapsed');
-                toggleIcon.classList.remove('fa-chevron-up');
-                toggleIcon.classList.add('fa-chevron-down');
+            try { localStorage.setItem('leaderboardBannerCollapsed', String(prizeBannerCollapsed)); } catch (_) {}
+            document.getElementById('prizeContent').classList.toggle('collapsed', prizeBannerCollapsed);
+            document.getElementById('prizeToggle').classList.toggle('collapsed', prizeBannerCollapsed);
+            document.getElementById('toggleIcon').className = 'fas ' + (prizeBannerCollapsed ? 'fa-chevron-down' : 'fa-chevron-up') + ' toggle-icon';
+        }
+        function updatePrizeDisplay() {
+            const title = document.getElementById('prizeTitle');
+            const grid = document.getElementById('prizeGrid');
+            const info = document.getElementById('rewardInfoText');
+            if (currentView === 'earnings') {
+                title.textContent = '👑 Monthly Prizes';
+                grid.innerHTML = '<div class="prize-card"><div class="prize-position">🥇</div><div class="prize-amount">20,000</div><div class="prize-label">COINS</div></div><div class="prize-card"><div class="prize-position">🥈</div><div class="prize-amount">10,000</div><div class="prize-label">COINS</div></div><div class="prize-card"><div class="prize-position">🥉</div><div class="prize-amount">5,000</div><div class="prize-label">COINS</div></div>';
+                info.textContent = 'Distributed on the 1st of every month to top 3 earners';
+            } else if (currentView === 'referrals') {
+                title.textContent = '👑 Weekly Prizes';
+                grid.innerHTML = '<div class="prize-card"><div class="prize-position">🥇</div><div class="prize-amount">10,000</div><div class="prize-label">COINS</div></div><div class="prize-card"><div class="prize-position">🥈</div><div class="prize-amount">5,000</div><div class="prize-label">COINS</div></div><div class="prize-card"><div class="prize-position">🥉</div><div class="prize-amount">2,500</div><div class="prize-label">COINS</div></div>';
+                info.textContent = 'Distributed every Sunday to top 3 referrers';
             } else {
-                prizeContent.classList.remove('collapsed');
-                prizeHeader.classList.remove('collapsed');
-                toggleIcon.classList.remove('fa-chevron-down');
-                toggleIcon.classList.add('fa-chevron-up');
+                title.textContent = '🏆 Tier Rankings';
+                grid.innerHTML = '<div class="prize-card"><div class="prize-position">🏆</div><div class="prize-amount">Top 3</div><div class="prize-label">Per Tier</div></div><div class="prize-card"><div class="prize-position">📊</div><div class="prize-amount">Rankings</div><div class="prize-label">By Tier</div></div><div class="prize-card"><div class="prize-position">🎯</div><div class="prize-amount">Compete</div><div class="prize-label">Within Tier</div></div>';
+                info.textContent = 'See how you rank within your selected tier';
             }
         }
-
-        function updatePrizeDisplay() {
-    const prizeTitle = document.getElementById('prizeTitle');
-    const prizeGrid = document.getElementById('prizeGrid');
-    const rewardInfoText = document.getElementById('rewardInfoText');
-    
-    if (currentView === 'earnings') {
-        prizeTitle.innerHTML = '<i class="fas fa-crown"></i> Monthly Prizes';
-        prizeGrid.innerHTML = `
-            <div class="prize-card"><div class="prize-position">🥇</div><div class="prize-amount">20,000</div><div class="prize-label">COINS</div></div>
-            <div class="prize-card"><div class="prize-position">🥈</div><div class="prize-amount">10,000</div><div class="prize-label">COINS</div></div>
-            <div class="prize-card"><div class="prize-position">🥉</div><div class="prize-amount">5,000</div><div class="prize-label">COINS</div></div>
-        `;
-        rewardInfoText.innerHTML = 'Distributed on the 1st of every month to top 3 earners';
-    } else if (currentView === 'referrals') {
-        prizeTitle.innerHTML = '<i class="fas fa-crown"></i> Weekly Prizes';
-        prizeGrid.innerHTML = `
-            <div class="prize-card"><div class="prize-position">🥇</div><div class="prize-amount">10,000</div><div class="prize-label">COINS</div></div>
-            <div class="prize-card"><div class="prize-position">🥈</div><div class="prize-amount">5,000</div><div class="prize-label">COINS</div></div>
-            <div class="prize-card"><div class="prize-position">🥉</div><div class="prize-amount">2,500</div><div class="prize-label">COINS</div></div>
-        `;
-        rewardInfoText.innerHTML = 'Distributed every Sunday to top 3 referrers';
-    } else {
-        prizeTitle.innerHTML = '<i class="fas fa-layer-group"></i> Tier Rankings';
-        prizeGrid.innerHTML = `
-            <div class="prize-card"><div class="prize-position">🏆</div><div class="prize-amount">Top 3</div><div class="prize-label">Per Tier</div></div>
-            <div class="prize-card"><div class="prize-position">📊</div><div class="prize-amount">Rankings</div><div class="prize-label">By Tier</div></div>
-            <div class="prize-card"><div class="prize-position">🎯</div><div class="prize-amount">Compete</div><div class="prize-label">Within Tier</div></div>
-        `;
-        rewardInfoText.innerHTML = 'See how you rank within your tier. Climb the leaderboard!';
-    }
-}
-
-        function filterByTier(data, tier) {
-            return tier === 'all' ? data : data.filter(u => (u.tier || 'Fresher') === tier);
+        function movementFor(user, view, tier) {
+            const key = view + ':' + tier + ':' + String(user.telegram_id);
+            const rank = Number(user.rank);
+            const previous = previousRanks.get(key);
+            previousRanks.set(key, rank);
+            if (!previous || previous === rank) return '<span class="rank-movement same">—</span>';
+            const change = previous - rank;
+            return change > 0
+                ? '<span class="rank-movement up">↑ ' + change + '</span>'
+                : '<span class="rank-movement down">↓ ' + Math.abs(change) + '</span>';
         }
-
-        function getRankDisplay(rank) {
-            if (rank === 1) return '🥇';
-            if (rank === 2) return '🥈';
-            if (rank === 3) return '🥉';
-            return `#${rank}`;
-        }
-
-        function getAvatarInitials(name) {
-            if (!name) return '👤';
-            return name.charAt(0).toUpperCase();
-        }
-
-        function escapeHtml(str) {
-            if (!str) return 'User';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-
-        function renderLeaderboard(data, type) {
+        function renderLeaderboard(rows) {
             const container = document.getElementById('leaderboardList');
-            const currentUserId = tg?.initDataUnsafe?.user?.id;
-            
-            if (!data || data.length === 0) {
+            if (!Array.isArray(rows) || rows.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-users"></i><p>No users yet.</p></div>';
                 return;
             }
-            
-            const filtered = filterByTier(data, currentTier);
-            if (!filtered.length) {
-                container.innerHTML = `<div class="empty-state"><p>No users in ${currentTier} tier</p></div>`;
-                return;
-            }
-            
-            let sorted = [...filtered];
-            if (type === 'referrals') {
-                sorted.sort((a, b) => (b.referral_count || 0) - (a.referral_count || 0));
-            } else {
-                sorted.sort((a, b) => (parseFloat(b.monthly_coins) || 0) - (parseFloat(a.monthly_coins) || 0));
-            }
-
-            container.innerHTML = sorted.map((user, idx) => {
-                const rank = idx + 1;
-                const rankDisplay = getRankDisplay(rank);
-                const tierClass = 'tier-' + (user.tier || 'Fresher');
-                const displayName = user.first_name || 'Anonymous User';
-                const shortName = displayName.length > 18 ? displayName.substring(0, 15) + '...' : displayName;
-                const avatarInitial = getAvatarInitials(displayName);
-                const isCurrentUser = currentUserId && user.telegram_id == currentUserId;
-                const currentUserClass = isCurrentUser ? 'current-user' : '';
-                
-                let score, scoreLabel;
-                if (type === 'referrals') {
-                    score = (user.referral_count || 0).toLocaleString();
-                    scoreLabel = 'refs';
-                } else {
-                    const monthlyCoins = parseFloat(user.monthly_coins) || 0;
-                    score = formatNumberWithCommas(monthlyCoins);
-                    scoreLabel = 'COINS';
-                }
-                
-                const totalCoins = parseFloat(user.coins) || parseFloat(user.total_coins) || 0;
-                
-                return `
-    <div class="leaderboard-item ${tierClass} ${currentUserClass}">
-        <div class="${rank <= 3 ? 'medal-badge' : 'rank-badge'}">${rankDisplay}</div>
-        <div class="avatar">
-            ${user.photo_url ? `<img src="${user.photo_url}" alt="${escapeHtml(shortName)}">` : avatarInitial}
-        </div>
-        <div class="info">
-            <div class="name-row">
-                <span class="name">${escapeHtml(shortName)}</span>
-                <span class="tier-badge">${user.tier || 'Fresher'}</span>
-                ${isCurrentUser ? '<span class="you-badge">YOU</span>' : ''}
-            </div>
-        </div>
-        <div class="score">${score} <small>${scoreLabel}</small></div>
-    </div>
-`;
+            container.innerHTML = rows.map(user => {
+                const tier = validTier(user.tier);
+                const name = String(user.first_name || 'Anonymous User');
+                const shortName = name.length > 18 ? name.slice(0,15) + '...' : name;
+                const photo = safePhotoUrl(user.photo_url);
+                const rank = Number(user.rank) || 0;
+                const userId = tg?.initDataUnsafe?.user?.id;
+                const isMe = userId != null && String(user.telegram_id) === String(userId);
+                const score = currentView === 'referrals'
+                    ? formatNumber(user.referral_count) + ' <small>refs</small>'
+                    : formatNumber(user.monthly_coins) + ' <small>COINS</small>';
+                const avatar = photo
+                    ? '<img src="' + escapeHtml(photo) + '" alt="' + escapeHtml(shortName) + '" loading="lazy" referrerpolicy="no-referrer">'
+                    : escapeHtml(shortName.charAt(0).toUpperCase() || '👤');
+                return '<div class="leaderboard-item tier-' + tier + (isMe ? ' current-user' : '') + '">' +
+                    '<div class="' + (rank <= 3 ? 'medal-badge' : 'rank-badge') + '">' + rankDisplay(rank) + '</div>' +
+                    '<div class="avatar">' + avatar + '</div><div class="info"><div class="name-row">' +
+                    '<span class="name">' + escapeHtml(shortName) + '</span><span class="tier-badge">' + tier + '</span>' +
+                    (isMe ? '<span class="you-badge">YOU</span>' : '') + movementFor(user, currentView, currentTier) +
+                    '</div></div><div class="score">' + score + '</div></div>';
             }).join('');
         }
-
-        function updateMyRankCard(data, type) {
-            const userId = tg?.initDataUnsafe?.user?.id;
-            const myRankContainer = document.getElementById('myRankContainer');
-            
-            if (!userId || !myRankContainer) return;
-            
-            const filtered = filterByTier(data, currentTier);
-            let sorted = [...filtered];
-            if (type === 'referrals') {
-                sorted.sort((a, b) => (b.referral_count || 0) - (a.referral_count || 0));
-            } else {
-                sorted.sort((a, b) => (parseFloat(b.monthly_coins) || 0) - (parseFloat(a.monthly_coins) || 0));
+        function renderMyRank(user) {
+            const container = document.getElementById('myRankContainer');
+            if (!user) {
+                container.innerHTML = '<div class="my-rank-card"><div class="my-rank-left"><div class="my-rank-icon"><i class="fas fa-user"></i></div><div class="my-rank-info"><h4>YOUR ACTUAL RANK</h4><div class="my-rank-value">—</div></div></div><div class="my-rank-right"><div class="my-rank-coins">Not ranked</div><div class="my-rank-label">No matching tier</div></div></div>';
+                return;
             }
-            
-            const myIndex = sorted.findIndex(u => u.telegram_id == userId);
-            
-            if (myIndex !== -1) {
-                const myData = sorted[myIndex];
-                const rank = myIndex + 1;
-                const rankDisplay = getRankDisplay(rank);
-                
-                let score, scoreLabel;
-                if (type === 'referrals') {
-                    score = (myData.referral_count || 0).toLocaleString();
-                    scoreLabel = 'REFERRALS';
+            const key = currentView + ':' + currentTier;
+            const rank = Number(user.rank) || 0;
+            const oldRank = previousMyRank.get(key);
+            previousMyRank.set(key, rank);
+            const delta = oldRank ? oldRank - rank : 0;
+            const movement = delta > 0 ? '<span class="rank-movement up">↑ ' + delta + '</span>' : delta < 0 ? '<span class="rank-movement down">↓ ' + Math.abs(delta) + '</span>' : '<span class="rank-movement same">—</span>';
+            const score = currentView === 'referrals' ? formatNumber(user.referral_count) : formatNumber(user.monthly_coins);
+            const label = currentView === 'referrals' ? 'WEEKLY REFERRALS' : 'MONTHLY COINS';
+            container.innerHTML = '<div class="my-rank-card"><div class="my-rank-left"><div class="my-rank-icon"><i class="fas fa-user"></i></div><div class="my-rank-info"><h4>YOUR ACTUAL RANK ' + movement + '</h4><div class="my-rank-value">' + rankDisplay(rank) + '</div></div></div><div class="my-rank-right"><div class="my-rank-coins">' + score + '</div><div class="my-rank-label">' + label + '</div></div></div>';
+        }
+        function renderMeta(data) {
+            let node = document.getElementById('leaderboardMeta');
+            if (!node) {
+                node = document.createElement('div');
+                node.id = 'leaderboardMeta';
+                node.className = 'leaderboard-meta';
+                document.getElementById('leaderboardList').after(node);
+            }
+            const updated = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString() : new Date().toLocaleTimeString();
+            node.textContent = Number(data.total || 0).toLocaleString() + ' players · Updated ' + updated + ' · refreshes every 10 seconds';
+        }
+        async function loadBoard(silent = false) {
+            const requestId = ++loadSequence;
+            const view = currentView;
+            const tier = view === 'tier' ? currentTier : 'all';
+            const list = document.getElementById('leaderboardList');
+            const endpoint = view === 'referrals' ? '/api/leaderboard/weekly-referrers' : '/api/leaderboard/top-earners';
+            if (!silent) list.innerHTML = '<div class="loading">Loading rankings...</div>';
+            try {
+                const data = await apiCall(endpoint, {tier});
+                if (requestId !== loadSequence) return;
+                renderLeaderboard(data.rows || []);
+                renderMyRank(data.myRank || null);
+                renderMeta(data);
+            } catch (error) {
+                if (requestId !== loadSequence) return;
+                console.error('Leaderboard loading error:', error);
+                if (!silent || !list.children.length) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>' + escapeHtml(error.message || 'Failed to load leaderboard') + '</p><button class="retry-btn" id="retryLeaderboard" type="button">Retry</button></div>';
+                    document.getElementById('retryLeaderboard').addEventListener('click', () => loadBoard(false));
                 } else {
-                    const monthlyCoins = parseFloat(myData.monthly_coins) || 0;
-                    score = formatCoinsDetailed(monthlyCoins);
-                    scoreLabel = 'COINS (This Month)';
-                }
-                
-                myRankContainer.innerHTML = `
-                    <div class="my-rank-card">
-                        <div class="my-rank-left">
-                            <div class="my-rank-icon"><i class="fas fa-user"></i></div>
-                            <div class="my-rank-info">
-                                <h4>YOUR RANK</h4>
-                                <div class="my-rank-value">${rankDisplay}</div>
-                            </div>
-                        </div>
-                        <div class="my-rank-right">
-                            <div class="my-rank-coins">${score}</div>
-                            <div class="my-rank-label">${scoreLabel}</div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                myRankContainer.innerHTML = '';
-            }
-        }
-
-        function refreshDisplay() {
-            const tierSelector = document.getElementById('tierSelector');
-            const listTitle = document.getElementById('listTitle');
-            
-            updatePrizeDisplay();
-            
-            if (currentView === 'earnings') {
-                listTitle.innerHTML = '<i class="fas fa-list-ol"></i> Monthly Rankings';
-                tierSelector.classList.remove('show');
-                if (topEarnersData.length) {
-                    renderLeaderboard(topEarnersData, 'earnings');
-                    updateMyRankCard(topEarnersData, 'earnings');
-                }
-            } else if (currentView === 'referrals') {
-                listTitle.innerHTML = '<i class="fas fa-list-ol"></i> Weekly Referral Rankings';
-                tierSelector.classList.remove('show');
-                if (topReferrersData.length) {
-                    renderLeaderboard(topReferrersData, 'referrals');
-                    updateMyRankCard(topReferrersData, 'referrals');
-                }
-            } else {
-                listTitle.innerHTML = '<i class="fas fa-list-ol"></i> Rankings by Tier';
-                tierSelector.classList.add('show');
-                if (topEarnersData.length) {
-                    renderLeaderboard(topEarnersData, 'earnings');
-                    updateMyRankCard(topEarnersData, 'earnings');
+                    showNotification('Could not refresh. Showing previous results.', true);
                 }
             }
         }
-
-        async function loadTopEarners() {
-            try {
-                const data = await apiCall('/api/leaderboard/top-earners');
-                topEarnersData = data || [];
-                if (currentView === 'earnings' || currentView === 'tier') refreshDisplay();
-            } catch (err) {
-                console.error('Top earners error:', err);
-                if (currentView === 'earnings') {
-                    document.getElementById('leaderboardList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load</p><button class="retry-btn" onclick="location.reload()">Retry</button></div>`;
-                }
-            }
-        }
-
-        async function loadTopReferrers() {
-            try {
-                const data = await apiCall('/api/leaderboard/weekly-referrers');
-                topReferrersData = data || [];
-                if (currentView === 'referrals') refreshDisplay();
-            } catch (err) {
-                console.error('Top referrers error:', err);
-                if (currentView === 'referrals') {
-                    document.getElementById('leaderboardList').innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load</p><button class="retry-btn" onclick="location.reload()">Retry</button></div>`;
-                }
-            }
-        }
-
         function switchView(view) {
             currentView = view;
-            document.querySelectorAll('.action-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.view === view) btn.classList.add('active');
-            });
-            refreshDisplay();
+            document.querySelectorAll('.action-btn').forEach(button => button.classList.toggle('active', button.dataset.view === view));
+            document.getElementById('tierSelector').classList.toggle('show', view === 'tier');
+            document.getElementById('listTitle').innerHTML = view === 'referrals'
+                ? '<i class="fas fa-list-ol"></i> Weekly Referral Rankings'
+                : view === 'tier' ? '<i class="fas fa-list-ol"></i> Rankings by Tier' : '<i class="fas fa-list-ol"></i> Monthly Rankings';
+            updatePrizeDisplay();
+            loadBoard(false);
         }
-
         function switchTier(tier) {
             currentTier = tier;
-            document.querySelectorAll('.tier-option').forEach(opt => {
-                opt.classList.remove('active');
-                if (opt.dataset.tier === tier) opt.classList.add('active');
-            });
+            document.querySelectorAll('.tier-option').forEach(option => option.classList.toggle('active', option.dataset.tier === tier));
             document.getElementById('selectedTierText').textContent = tier === 'all' ? 'All Tiers' : tier;
             document.getElementById('tierDropdown').classList.remove('show');
-            refreshDisplay();
+            loadBoard(false);
+        }
+        function startAutoRefresh() {
+            if (refreshTimer) window.clearInterval(refreshTimer);
+            refreshTimer = window.setInterval(() => {
+                if (!document.hidden) loadBoard(true);
+            }, 10000);
         }
 
-        document.querySelectorAll('.action-btn').forEach(btn => {
-            btn.addEventListener('click', () => switchView(btn.dataset.view));
-        });
-        
-        document.getElementById('tierSelectBtn').addEventListener('click', (e) => {
-            e.stopPropagation();
+        document.querySelectorAll('.action-btn').forEach(button => button.addEventListener('click', () => switchView(button.dataset.view)));
+        document.getElementById('tierSelectBtn').addEventListener('click', event => {
+            event.stopPropagation();
             document.getElementById('tierDropdown').classList.toggle('show');
         });
-        
-        document.querySelectorAll('.tier-option').forEach(opt => {
-            opt.addEventListener('click', (e) => {
-                e.stopPropagation();
-                switchTier(opt.dataset.tier);
-            });
-        });
-        
-        document.addEventListener('click', () => {
-            document.getElementById('tierDropdown').classList.remove('show');
-        });
-        
-        const prizeToggle = document.getElementById('prizeToggle');
-        if (prizeToggle) {
-            prizeToggle.addEventListener('click', togglePrizeBanner);
-            if (prizeBannerCollapsed) {
-                const prizeContent = document.getElementById('prizeContent');
-                const toggleIcon = document.getElementById('toggleIcon');
-                prizeContent.classList.add('collapsed');
-                prizeToggle.classList.add('collapsed');
-                toggleIcon.classList.remove('fa-chevron-up');
-                toggleIcon.classList.add('fa-chevron-down');
-            }
+        document.querySelectorAll('.tier-option').forEach(option => option.addEventListener('click', event => {
+            event.stopPropagation();
+            switchTier(option.dataset.tier);
+        }));
+        document.addEventListener('click', () => document.getElementById('tierDropdown').classList.remove('show'));
+        document.getElementById('prizeToggle').addEventListener('click', togglePrizeBanner);
+        if (prizeBannerCollapsed) {
+            document.getElementById('prizeContent').classList.add('collapsed');
+            document.getElementById('prizeToggle').classList.add('collapsed');
+            document.getElementById('toggleIcon').className = 'fas fa-chevron-down toggle-icon';
         }
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🏆 Leaderboard loading...');
-            await Promise.all([loadTopEarners(), loadTopReferrers()]);
-        });
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBoard(true); });
+        document.addEventListener('DOMContentLoaded', () => { updatePrizeDisplay(); loadBoard(false); startAutoRefresh(); });
     </script>
 </body>
 </html>
