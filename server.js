@@ -1501,7 +1501,14 @@ socket.on('delete-tournament-message', async (data) => {
             if (!stillOnline) {
                 console.log(`🔴 User ${firstName} (${userId}) disconnected`);
                 try {
-                    await pool.query('UPDATE users SET last_seen = NOW() WHERE id = $1', [userId]);
+                    const offlineResult = await pool.query(
+                        `UPDATE users
+                         SET last_seen = timezone('UTC', NOW())
+                         WHERE id = $1
+                         RETURNING to_char(last_seen, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS last_seen_utc`,
+                        [userId]
+                    );
+                    const lastSeenUtc = offlineResult.rows[0]?.last_seen_utc || null;
                     const friends = await pool.query(
                         `SELECT CASE WHEN f.user_id = $1 THEN f.friend_id ELSE f.user_id END AS friend_id
                          FROM friends f
@@ -1509,7 +1516,7 @@ socket.on('delete-tournament-message', async (data) => {
                         [userId]
                     );
                     friends.rows.forEach(friend => {
-                        io.to(`user_${friend.friend_id}`).emit('friend-offline', { userId });
+                        io.to(`user_${friend.friend_id}`).emit('friend-offline', { userId, lastSeenUtc });
                     });
                 } catch (err) {
                     console.error('Friend offline broadcast error:', err);
@@ -4367,6 +4374,7 @@ app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
         const friends = await pool.query(`
             SELECT 
                 u.id, u.first_name, u.username, u.photo_url, u.tier, u.coins,
+                to_char(u.last_seen, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS last_seen,
                 COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
                 50 - COALESCE(ubs.total_blocks_received, 0) * 5 as trust_score
             FROM friends f
@@ -4376,6 +4384,7 @@ app.post('/api/friends/list', verifyTelegramData, async (req, res) => {
             UNION
             SELECT 
                 u.id, u.first_name, u.username, u.photo_url, u.tier, u.coins,
+                to_char(u.last_seen, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS last_seen,
                 COALESCE(ubs.total_blocks_received, 0) as total_blocks_received,
                 50 - COALESCE(ubs.total_blocks_received, 0) * 5 as trust_score
             FROM friends f
