@@ -615,7 +615,7 @@
             const rank = Number(user.rank);
             const previous = previousRanks.get(key);
             previousRanks.set(key, rank);
-            if (!previous || previous === rank) return '<span class="rank-movement same">—</span>';
+            if (!previous || previous === rank) return '';
             const change = previous - rank;
             return change > 0
                 ? '<span class="rank-movement up">↑ ' + change + '</span>'
