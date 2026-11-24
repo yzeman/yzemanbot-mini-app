@@ -1981,120 +1981,77 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
 // ============================================
 app.post('/api/wheel-spin', verifyTelegramData, async (req, res) => {
   const client = await pool.connect();
+  let transactionStarted = false;
   try {
     const { localDate } = req.body;
-    if (!localDate) {
-      return res.status(400).json({ error: 'Missing localDate' });
-    }
-
+    if (!isValidDailyLocalDate(localDate)) return res.status(400).json({ error: 'Invalid localDate. Use YYYY-MM-DD.' });
+    await client.query('BEGIN'); transactionStarted = true;
     const telegramId = req.telegramUser.id;
-    const userResult = await client.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    const userId = userResult.rows[0].id;
-
-    // Get last spin date (stored in UTC, but we compare dates as strings)
-    const lastSpin = await client.query(
-      "SELECT spin_date FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
-      [userId]
-    );
-
-    if (lastSpin.rows.length > 0) {
-      const lastSpinDate = lastSpin.rows[0].spin_date; // stored as DATE in DB (no timezone)
-      const lastSpinStr = lastSpinDate instanceof Date
-        ? lastSpinDate.toISOString().split('T')[0]
-        : lastSpinDate;
-      // Calculate difference in local calendar days
-      const lastDate = new Date(lastSpinStr);
-      const currentDate = new Date(localDate);
-      const diffTime = currentDate - lastDate;
-      const daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    // Serialize spins for this user so concurrent requests cannot award twice.
+    const userResult = await client.query('SELECT id, tier FROM users WHERE telegram_id = $1 FOR UPDATE', [telegramId]);
+    if (!userResult.rows.length) {
+      await client.query('ROLLBACK'); transactionStarted = false;
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const user = userResult.rows[0], userId = user.id;
+    const lastSpin = await client.query('SELECT spin_date FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1', [userId]);
+    if (lastSpin.rows.length) {
+      const lastDate = databaseDateString(lastSpin.rows[0].spin_date);
+      const lastMs = Date.parse(lastDate + 'T00:00:00.000Z');
+      const currentMs = Date.parse(localDate + 'T00:00:00.000Z');
+      const daysDiff = Math.round((currentMs - lastMs) / 86400000);
       if (daysDiff < 3) {
-        return res.status(400).json({
-          error: `Next spin in ${3 - daysDiff} day(s)`,
-          daysLeft: 3 - daysDiff
-        });
+        await client.query('ROLLBACK'); transactionStarted = false;
+        const daysLeft = Math.max(1, 3 - daysDiff);
+        return res.status(400).json({ error: `Next spin in ${daysLeft} day(s)`, daysLeft });
       }
     }
-
-    // Prizes (same as before)
     const prizes = [200, 300, 500, 1000, 2000, 5000, 200, 300, 500, 1000, 2000, 500];
-    const rewardCoins = prizes[Math.floor(Math.random() * prizes.length)];
-
-    const userTier = await client.query('SELECT tier FROM users WHERE id = $1', [userId]);
+    const prizeIndex = Math.floor(Math.random() * prizes.length);
+    const baseReward = prizes[prizeIndex];
     const multipliers = { Fresher: 1.0, Brute: 1.5, Silver: 2.0, Gold: 2.5, Platinum: 3.0 };
-    const finalReward = rewardCoins * (multipliers[userTier.rows[0]?.tier] || 1.0);
-
-    await client.query('BEGIN');
-    await client.query(
-      'INSERT INTO wheel_spins (user_id, spin_date, reward_coins) VALUES ($1, $2, $3)',
-      [userId, localDate, finalReward]
-    );
-    await client.query(
-      'UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2',
-      [finalReward, userId]
-    );
-    await client.query(
-      'INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)',
-      [userId, finalReward, 'wheel']
-    );
+    const finalReward = baseReward * (multipliers[user.tier] || 1.0);
+    await client.query('INSERT INTO wheel_spins (user_id, spin_date, reward_coins) VALUES ($1, $2, $3)', [userId, localDate, finalReward]);
+    await client.query('UPDATE users SET coins = coins + $1, total_coins_earned = total_coins_earned + $1 WHERE id = $2', [finalReward, userId]);
+    await client.query('INSERT INTO ad_rewards (user_id, reward_amount, ad_type) VALUES ($1, $2, $3)', [userId, finalReward, 'wheel']);
     await awardReferralCommission(client, userId, finalReward);
     await trackMonthlyEarnings(client, userId, finalReward);
-    if (rewardCoins >= 5000) await awardAchievement(userId, 'Wheel Champion', client);
-    await client.query('COMMIT');
-
-    res.json({ success: true, reward: finalReward });
+    if (baseReward >= 5000) await awardAchievement(userId, 'Wheel Champion', client);
+    await client.query('COMMIT'); transactionStarted = false;
+    res.json({ success: true, reward: finalReward, prize_index: prizeIndex });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (transactionStarted) {
+      try { await client.query('ROLLBACK'); } catch (rollbackErr) { console.error('Wheel spin rollback failed:', rollbackErr); }
+    }
     console.error('Wheel spin error:', err);
     res.status(500).json({ error: 'Failed to process wheel spin' });
-  } finally {
-    client.release();
-  }
+  } finally { client.release(); }
 });
 
 // ============================================
-// WHEEL STATUS ENDPOINT - USES USER'S LOCAL DATE
+// WHEEL STATUS ENDPOINT - VIEWER LOCAL DATE
 // ============================================
 app.post('/api/wheel-status', verifyTelegramData, async (req, res) => {
   try {
     const { localDate } = req.body;
-    if (!localDate) {
-      return res.status(400).json({ error: 'Missing localDate' });
-    }
-
+    if (!isValidDailyLocalDate(localDate)) return res.status(400).json({ error: 'Invalid localDate. Use YYYY-MM-DD.' });
     const telegramId = req.telegramUser.id;
     const userResult = await pool.query('SELECT id FROM users WHERE telegram_id = $1', [telegramId]);
-    if (userResult.rows.length === 0) {
-      return res.json({ can_spin: true, days_left: 0, last_reward: 0 });
-    }
-    const userId = userResult.rows[0].id;
-
-    const lastSpin = await pool.query(
-      "SELECT spin_date, reward_coins FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1",
-      [userId]
-    );
-
+    if (!userResult.rows.length) return res.json({ can_spin: true, days_left: 0, last_reward: 0 });
+    const lastSpin = await pool.query('SELECT spin_date, reward_coins FROM wheel_spins WHERE user_id = $1 ORDER BY spin_date DESC LIMIT 1', [userResult.rows[0].id]);
     let canSpin = true, daysLeft = 0, lastReward = 0;
-    if (lastSpin.rows.length > 0) {
-      const lastSpinDate = lastSpin.rows[0].spin_date;
+    if (lastSpin.rows.length) {
       lastReward = lastSpin.rows[0].reward_coins;
-      const lastSpinStr = lastSpinDate instanceof Date
-        ? lastSpinDate.toISOString().split('T')[0]
-        : lastSpinDate;
-      const lastDate = new Date(lastSpinStr);
-      const currentDate = new Date(localDate);
-      const diffTime = currentDate - lastDate;
-      const daysDiff = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      if (daysDiff < 3) {
-        canSpin = false;
-        daysLeft = 3 - daysDiff;
-      }
+      const lastDate = databaseDateString(lastSpin.rows[0].spin_date);
+      const lastMs = Date.parse(lastDate + 'T00:00:00.000Z');
+      const currentMs = Date.parse(localDate + 'T00:00:00.000Z');
+      const daysDiff = Math.round((currentMs - lastMs) / 86400000);
+      if (daysDiff < 3) { canSpin = false; daysLeft = Math.max(1, 3 - daysDiff); }
     }
-
     res.json({ can_spin: canSpin, days_left: daysLeft, last_reward: lastReward });
   } catch (err) {
     console.error('Wheel status error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to fetch wheel status' });
   }
 });
 

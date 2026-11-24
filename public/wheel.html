@@ -434,7 +434,7 @@
         <p><i class="fas fa-info-circle"></i> <strong>How it works:</strong></p>
         <p>• Spin every 3 days for free!</p>
         <p>• More referrals = Higher tier = Bigger multipliers!</p>
-        <p>• Invite friends to increase your chances of bigger wins!</p>
+        <p>• Your tier increases your winnings; prize chances stay the same.</p>
     </div>
     
     <div class="bottom-nav">
@@ -480,7 +480,11 @@
 
     // Helper: get user's local date (YYYY-MM-DD)
     function getLocalDate() {
-        return new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
     }
 
     function showNotification(msg, isError = false) {
@@ -628,7 +632,7 @@
             `;
             const retryBtn = document.getElementById('retryBtn');
             if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
-            return;
+            return false;
         }
         if (showSkeletonLoader) showSkeleton();
 
@@ -654,6 +658,7 @@
             if (spinBtn) spinBtn.disabled = !data.can_spin;
             drawWheel(wheelCurrentAngle);
             renderPrizesGrid();
+            return true;
         } catch (err) {
             console.error('Status error:', err);
             document.getElementById('statusCardContainer').innerHTML = `
@@ -665,7 +670,39 @@
             const retryBtn = document.getElementById('retryBtn');
             if (retryBtn) retryBtn.addEventListener('click', () => loadWheelStatus(true));
             showNotification('Could not load wheel status', true);
+            return false;
         }
+    }
+
+    function animateWheelToSegment(segmentIndex) {
+        return new Promise(resolve => {
+            const canvas = document.getElementById('wheelCanvas');
+            const segmentAngle = (Math.PI * 2) / PRIZES.length;
+            const fullTurn = Math.PI * 2;
+            const targetAngleAtPointer = -Math.PI / 2 - (segmentIndex + 0.5) * segmentAngle;
+            const delta = ((targetAngleAtPointer - wheelCurrentAngle) % fullTurn + fullTurn) % fullTurn;
+            const startAngle = wheelCurrentAngle;
+            const targetAngle = startAngle + fullTurn * 7 + delta;
+            const startTime = performance.now();
+            const duration = 4200;
+            if (canvas) canvas.classList.add('spinning');
+            function animate(now) {
+                const progress = Math.min(1, (now - startTime) / duration);
+                const eased = 1 - Math.pow(1 - progress, 4);
+                wheelCurrentAngle = startAngle + (targetAngle - startAngle) * eased;
+                drawWheel(wheelCurrentAngle);
+                if (progress < 1) wheelAnimationFrame = requestAnimationFrame(animate);
+                else {
+                    wheelAnimationFrame = null;
+                    wheelCurrentAngle = targetAngle % fullTurn;
+                    drawWheel(wheelCurrentAngle);
+                    if (canvas) canvas.classList.remove('spinning');
+                    resolve();
+                }
+            }
+            if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
+            wheelAnimationFrame = requestAnimationFrame(animate);
+        });
     }
 
     async function spinWheel() {
@@ -674,71 +711,33 @@
         const spinBtn = document.getElementById('spinBtn');
         spinBtn.disabled = true;
         spinBtn.textContent = '🎡 SPINNING...';
-
-        const canvas = document.getElementById('wheelCanvas');
-        if (canvas) canvas.classList.add('spinning');
-
-        const spinAngle = Math.random() * (Math.PI*2*8) + (Math.PI*2*4);
-        const startTime = performance.now();
-        const duration = 3500;
-
-        function animateSpin(now) {
-            const elapsed = now - startTime;
-            const progress = Math.min(1, elapsed / duration);
-            const easeOut = 1 - Math.pow(1 - progress, 4);
-            wheelCurrentAngle = (wheelCurrentAngle + spinAngle * easeOut) % (Math.PI*2);
-            drawWheel(wheelCurrentAngle);
-            if (progress < 1) {
-                wheelAnimationFrame = requestAnimationFrame(animateSpin);
-            } else {
-                wheelAnimationFrame = null;
-                if (canvas) canvas.classList.remove('spinning');
-
-                // Calculate segment where pointer (top = -PI/2) points
-                const pointerAngle = -Math.PI / 2;
-                let finalAngle = wheelCurrentAngle % (Math.PI*2);
-                let angleDiff = (pointerAngle - finalAngle + Math.PI*2) % (Math.PI*2);
-                const segIdx = Math.floor(angleDiff / ((Math.PI*2)/PRIZES.length)) % PRIZES.length;
-                const prizeValue = PRIZES[segIdx].value;
-
-                console.log(`Wheel landed on segment ${segIdx}, prize: ${prizeValue}`);
-                wheelSpinning = false;
-                submitSpin(prizeValue);
-            }
-        }
-        if (wheelAnimationFrame) cancelAnimationFrame(wheelAnimationFrame);
-        wheelAnimationFrame = requestAnimationFrame(animateSpin);
-    }
-
-    async function submitSpin(prize) {
         try {
             const response = await fetch('/api/wheel-spin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    initData: tg.initData,
-                    localDate: getLocalDate()
-                })
+                body: JSON.stringify({ initData: tg.initData, localDate: getLocalDate() })
             });
-            const data = await response.json();
-            if (response.ok) {
-                const reward = parseFloat(data.reward);
-                let celebrationMsg = `🎡 You won ${reward.toFixed(2)} COINS!`;
-                if (reward >= 5000) celebrationMsg = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
-                else if (reward >= 2000) celebrationMsg = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
-                showNotification(celebrationMsg, false);
-                if (window.AudioManager) window.AudioManager.playSound('reward');
-                await loadWheelStatus(false);
-            } else {
-                showNotification(data.error || 'Spin failed', true);
-                await loadWheelStatus(false);
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'Spin failed');
+            const segmentIndex = Number(data.prize_index);
+            const reward = Number(data.reward);
+            if (!Number.isInteger(segmentIndex) || segmentIndex < 0 || segmentIndex >= PRIZES.length || !Number.isFinite(reward)) {
+                throw new Error('The server returned an invalid result. Refresh and check your balance.');
             }
+            await animateWheelToSegment(segmentIndex);
+            let message = `🎡 You won ${reward.toFixed(2)} COINS!`;
+            if (reward >= 5000) message = `🎉 JACKPOT! ${reward.toFixed(2)} COINS! 🎉`;
+            else if (reward >= 2000) message = `✨ AMAZING! ${reward.toFixed(2)} COINS! ✨`;
+            showNotification(message, false);
+            if (window.AudioManager) window.AudioManager.playSound('reward');
+            await loadWheelStatus(false);
         } catch (err) {
-            showNotification('Network error', true);
+            showNotification(err.message || 'Spin failed. Please try again.', true);
             await loadWheelStatus(false);
         } finally {
-            const spinBtn = document.getElementById('spinBtn');
-            if (spinBtn) spinBtn.textContent = '🎡 SPIN NOW';
+            wheelSpinning = false;
+            const btn = document.getElementById('spinBtn');
+            if (btn) btn.textContent = '🎡 SPIN NOW';
         }
     }
 
@@ -755,13 +754,17 @@
     async function refreshData() {
         if (isRefreshing) return;
         isRefreshing = true;
-        showRefreshIndicator('<i class="fas fa-spinner fa-spin"></i> Refreshing...');
+        showRefreshIndicator('Refreshing...');
         try {
-            await loadWheelStatus(true);
-            showRefreshIndicator('<i class="fas fa-check-circle"></i> Updated!');
-            showNotification('Wheel status refreshed!', false);
+            const refreshed = await loadWheelStatus(true);
+            if (refreshed) {
+                showRefreshIndicator('Updated!');
+                showNotification('Wheel status refreshed!', false);
+            } else {
+                showRefreshIndicator('Failed to refresh', true);
+            }
         } catch (err) {
-            showRefreshIndicator('<i class="fas fa-exclamation-circle"></i> Failed to refresh', true);
+            showRefreshIndicator('Failed to refresh', true);
         } finally {
             isRefreshing = false;
         }
