@@ -1969,7 +1969,8 @@ app.post('/api/daily-stats', verifyTelegramData, async (req, res) => {
     let currentStreak = 0;
     if (claimedToday.rows.length) currentStreak = claimedToday.rows[0].streak_count;
     else if (last7Days.rows.length && databaseDateString(last7Days.rows[0].reward_date) === yesterdayStr) currentStreak = last7Days.rows[0].streak_count;
-    res.json({ claimed_today: claimedToday.rows.length > 0, last_7_days: last7Days.rows,
+    const normalizedLast7Days = last7Days.rows.map(row => ({ ...row, reward_date: databaseDateString(row.reward_date) }));
+    res.json({ claimed_today: claimedToday.rows.length > 0, last_7_days: normalizedLast7Days,
       max_streak: parseInt(maxStreak.rows[0].max_streak, 10) || 0, current_streak: currentStreak,
       total_claims: parseInt(totalClaims.rows[0].total, 10) || 0, tier: userResult.rows[0].tier || 'Fresher' });
   } catch (err) { console.error('Daily stats error:', err); res.status(500).json({ error: 'Failed to fetch daily stats' }); }
