@@ -495,6 +495,32 @@
             vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        /* Team page refinement */
+        body { background: radial-gradient(circle at 50% -10%,rgba(212,166,65,.13),transparent 34%),linear-gradient(160deg,#080f20,#101b32 52%,#080f1d); }
+        .header { background:linear-gradient(145deg,rgba(24,38,65,.98),rgba(9,17,33,.98));border-bottom-color:rgba(235,190,82,.28); }
+        .header p { color:#b8c2d4;font-size:12px; }
+        .tabs { background:rgba(17,29,51,.92);border:1px solid rgba(255,255,255,.07); }
+        .tab.active { background:linear-gradient(135deg,#d9ad4e,#9d7127);color:#151a26;box-shadow:0 5px 16px rgba(217,173,78,.18); }
+        .team-card,.no-team-card,.leaderboard-item { background:linear-gradient(145deg,rgba(26,42,70,.96),rgba(15,26,47,.96));border:1px solid rgba(226,184,86,.13);box-shadow:0 12px 28px rgba(0,0,0,.16); }
+        .team-avatar,.member-avatar,.team-avatar-small { background:linear-gradient(145deg,#d9ad4e,#936b29);color:#111827; }
+        .team-code { color:#f3d78f;border:1px solid rgba(226,184,86,.2);letter-spacing:.7px; }
+        .team-rank { background:linear-gradient(135deg,#f5d77e,#b8842d);white-space:nowrap; }
+        .team-stat { background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.045); }
+        .team-stat-value,.member-coins,.team-score { color:#f1cf78; }
+        .team-btn.copy { background:rgba(217,173,78,.09);border-color:rgba(217,173,78,.55);color:#f1cf78; }
+        .member-item { background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.045); }
+        .member-role { color:#aab6c9; }
+        .member-coins { white-space:nowrap; }
+        .leader-badge { background:linear-gradient(135deg,#f5d77e,#b8842d); }
+        .competition-you { background:linear-gradient(135deg,rgba(217,173,78,.13),rgba(217,173,78,.045));border:1px solid rgba(217,173,78,.28);border-radius:16px;padding:13px 14px;margin:0 0 14px; }
+        .competition-you strong { color:#f1cf78; }
+        .competition-progress { height:7px;border-radius:20px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:9px; }
+        .competition-progress>span { display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#b8842d,#f5d77e); }
+        .team-error-card { background:rgba(244,67,54,.08);border:1px solid rgba(244,67,54,.28);border-radius:16px;padding:22px 16px;text-align:center;color:#f3c2bf; }
+        .team-error-card button { margin-top:12px;border:0;border-radius:22px;padding:10px 18px;color:#172033;font-weight:700;background:linear-gradient(135deg,#f5d77e,#b8842d); }
+        .bottom-nav { background:rgba(10,19,36,.97); }
+        .nav-item.active { color:#e8c46c;background:rgba(217,173,78,.1); }
+        @media(max-width:360px){.team-stats{gap:6px}.team-stat-value{font-size:14px}.team-actions{gap:7px}.team-btn{font-size:10px;padding:8px 5px}.member-item{padding:9px 8px}.member-avatar{margin-right:8px}.member-coins{font-size:11px}}
     </style>
 </head>
 <body>
@@ -625,13 +651,13 @@
     }
     
     function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        });
+        return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function safePhotoUrl(value) {
+        try {
+            const url = new URL(String(value || ''), window.location.origin);
+            return url.protocol === 'https:' || url.origin === window.location.origin ? url.href : '';
+        } catch (_) { return ''; }
     }
     
     function getFirstNameOnly(fullName) {
@@ -645,13 +671,11 @@
         options.body = JSON.stringify(data ? { ...data, initData: tg.initData } : { initData: tg.initData });
         const response = await fetch(endpoint, options);
         const text = await response.text();
-        try { 
-            const json = JSON.parse(text);
-            if (!response.ok) throw new Error(json.error || 'Request failed');
-            return json;
-        } catch (e) {
-            throw new Error('Invalid server response');
-        }
+        let json;
+        try { json = JSON.parse(text); }
+        catch (_) { throw new Error('The server returned an unreadable response. Please try again.'); }
+        if (!response.ok) throw new Error(json?.error || 'Request failed. Please try again.');
+        return json;
     }
     
     function formatNumberWithCommas(num) {
@@ -854,160 +878,62 @@ fetch('/api/user', {
     }
     
     function renderMyTeam(data) {
-        const container = document.getElementById('myTeamContent');
-        currentTeamData = data;
-        
-        if (!data || !data.has_team) {
-            container.innerHTML = `
-                <div class="no-team-card">
-                    <div class="no-team-icon"><i class="fas fa-users-slash"></i></div>
-                    <div class="no-team-title">No team yet</div>
-                    <div class="no-team-text">Join or create a team to start competing!</div>
-                    <div class="action-buttons">
-                        <button class="action-btn secondary" onclick="openJoinModal()"><i class="fas fa-sign-in-alt"></i> Join Team</button>
-                        <button class="action-btn" onclick="openCreateModal()"><i class="fas fa-plus"></i> Create Team</button>
-                    </div>
-                </div>
-            `;
-            
-            // Disconnect socket if no team
-            if (teamSocket) {
-                teamSocket.disconnect();
-                teamSocket = null;
-            }
-            return;
+        const container=document.getElementById('myTeamContent'); currentTeamData=data;
+        if(!data||!data.has_team){
+            container.innerHTML=`<div class="no-team-card"><div class="no-team-icon"><i class="fas fa-users-slash"></i></div><div class="no-team-title">Your team journey starts here</div><div class="no-team-text">Join friends with a team code or create a team and compete together in the monthly leaderboard.</div><div class="action-buttons"><button class="action-btn secondary" onclick="openJoinModal()"><i class="fas fa-sign-in-alt"></i> Join Team</button><button class="action-btn" onclick="openCreateModal()"><i class="fas fa-plus"></i> Create Team</button></div></div>`;
+            if(teamSocket){teamSocket.disconnect();teamSocket=null;} return;
         }
-        
-        const team = data.team;
-        const members = data.members || [];
-        const monthlyCoins = parseFloat(team.monthly_coins) || 0;
-        const teamRank = team.rank || '--';
-        
-        container.innerHTML = `
-            <div class="team-card">
-                <div class="team-header">
-                    <div class="team-avatar"><i class="fas fa-users"></i></div>
-                    <div class="team-info">
-                        <h3>${escapeHtml(team.name)}</h3>
-                        <span class="team-code"><i class="fas fa-key"></i> ${team.code}</span>
-                    </div>
-                    <div class="team-rank">${teamRank}</div>
-                </div>
-                <div class="team-stats">
-                    <div class="team-stat">
-                        <div class="team-stat-value">${team.member_count || 0}</div>
-                        <div class="team-stat-label">Members</div>
-                    </div>
-                    <div class="team-stat">
-                        <div class="team-stat-value">${formatCoinsFull(monthlyCoins)}</div>
-                        <div class="team-stat-label">This Month</div>
-                    </div>
-                    <div class="team-stat">
-                        <div class="team-stat-value">${team.total_referrals || 0}</div>
-                        <div class="team-stat-label">Refs</div>
-                    </div>
-                </div>
-                <div class="team-actions">
-                    <button class="team-btn copy" onclick="copyTeamCode('${team.code}')"><i class="fas fa-copy"></i> Copy Code</button>
-                    <button class="team-btn chat" onclick="openTeamChat()">
-                        <i class="fas fa-comment-dots"></i> Team Chat
-                        <span class="chat-badge hidden" id="teamChatBadge">0</span>
-                    </button>
-                    <button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave Team</button>
-                </div>
-            </div>
-            <div class="members-title"><i class="fas fa-user-friends"></i> Members (${members.length})</div>
-            ${members.map(m => {
-                const monthlyCoinsMember = parseFloat(m.monthly_coins) || 0;
-                const firstName = m.first_name ? getFirstNameOnly(m.first_name) : (m.username || 'User');
-                const initial = firstName.charAt(0).toUpperCase();
-                const photoUrl = m.photo_url || '';
-                return `
-                    <div class="member-item">
-                        <div class="member-avatar">
-                            ${photoUrl ? `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : escapeHtml(initial)}
-                        </div>
-                        <div class="member-info">
-                            <div class="member-name">
-                                ${escapeHtml(firstName)}
-                                ${m.is_leader ? '<span class="leader-badge"><i class="fas fa-crown"></i> Leader</span>' : ''}
-                            </div>
-                            <div class="member-role">${m.tier || 'Fresher'} • ${m.referrals || 0} referrals</div>
-                        </div>
-                        <div class="member-coins">${formatNumberWithCommas(monthlyCoinsMember)} COINS</div>
-                        ${data.viewer_is_leader && !m.is_leader ? `<button class="team-btn remove-member" title="Remove member" aria-label="Remove team member" onclick="removeTeamMember(${Number(m.id)})"><i class="fas fa-user-minus"></i></button>` : ''}
-                    </div>
-                `;
-            }).join('')}
-        `;
-        
-        // ✅ Load badge and connect socket after rendering
-        loadSavedUnreadCount();
-        setTimeout(connectTeamSocket, 500);
+        const t=data.team||{}, members=Array.isArray(data.members)?data.members:[], monthlyCoins=Number(t.monthly_coins)||0, rank=Number(t.rank);
+        const rankLabel=Number.isFinite(rank)&&rank>0?(rank===1?'🥇 #1':rank===2?'🥈 #2':rank===3?'🥉 #3':'#'+rank):'--';
+        const code=String(t.code||'').replace(/[^a-z0-9]/gi,'').slice(0,12);
+        container.innerHTML=`
+          <div class="team-card"><div class="team-header"><div class="team-avatar"><i class="fas fa-users"></i></div><div class="team-info"><h3>${escapeHtml(t.name||'Your Team')}</h3><span class="team-code"><i class="fas fa-key"></i> ${escapeHtml(code)}</span></div><div class="team-rank">${rankLabel}</div></div>
+          <div class="team-stats"><div class="team-stat"><div class="team-stat-value">${Number(t.member_count)||members.length}</div><div class="team-stat-label">Members</div></div><div class="team-stat"><div class="team-stat-value">${formatCoinsFull(monthlyCoins)}</div><div class="team-stat-label">This Month</div></div><div class="team-stat"><div class="team-stat-value">${Number(t.total_referrals)||0}</div><div class="team-stat-label">Referrals</div></div></div>
+          <div class="team-actions"><button class="team-btn copy" onclick="copyTeamCode('${escapeHtml(code)}')"><i class="fas fa-copy"></i> Copy Invite Code</button><button class="team-btn chat" onclick="openTeamChat()"><i class="fas fa-comment-dots"></i> Team Chat <span class="chat-badge hidden" id="teamChatBadge">0</span></button><button class="team-btn leave" onclick="openLeaveModal()"><i class="fas fa-sign-out-alt"></i> Leave</button></div></div>
+          <div class="members-title"><i class="fas fa-user-friends"></i> Team Members <span style="color:var(--gray);font-size:11px">(${members.length})</span></div>
+          ${members.map(m=>{const coins=Number(m.monthly_coins)||0, name=m.first_name?getFirstNameOnly(String(m.first_name)):(m.username||'User'), initial=name.charAt(0).toUpperCase(), photo=safePhotoUrl(m.photo_url);return `
+            <div class="member-item"><div class="member-avatar">${photo?`<img src="${escapeHtml(photo)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`:escapeHtml(initial)}</div><div class="member-info"><div class="member-name">${escapeHtml(name)} ${m.is_leader?'<span class="leader-badge"><i class="fas fa-crown"></i> Leader</span>':''}</div><div class="member-role">${escapeHtml(m.tier||'Fresher')} • ${Number(m.referrals)||0} referrals</div></div><div class="member-coins">${formatNumberWithCommas(coins)} COINS</div>${data.viewer_is_leader&&!m.is_leader?`<button class="team-btn remove-member" title="Remove member" aria-label="Remove team member" onclick="removeTeamMember(${Number(m.id)})"><i class="fas fa-user-minus"></i></button>`:''}</div>`;}).join('')}`;
+        loadSavedUnreadCount(); setTimeout(connectTeamSocket,500);
     }
-    
-    function renderMonthlyCompetition(data) {
-        const container = document.getElementById('monthlyContent');
-        if (!data || !data.standings || data.standings.length === 0) {
-            container.innerHTML = '<div class="empty-state">No teams competing this month</div>';
-            return;
+    function renderTeamLoadError(message){
+        document.getElementById('myTeamContent').innerHTML=`<div class="team-error-card"><i class="fas fa-triangle-exclamation" style="font-size:25px"></i><div style="font-weight:700;margin-top:8px">Couldn't load your team</div><div style="font-size:12px;margin-top:5px">${escapeHtml(message||'Please check your connection and try again.')}</div><button onclick="loadMyTeamOnly(true)">Try Again</button></div>`;
+    }
+
+        function renderMonthlyCompetition(data){
+        const container=document.getElementById('monthlyContent'), standings=Array.isArray(data?.standings)?data.standings:[], mine=data?.my_team||null;
+        let personal='';
+        if(mine&&Number(mine.rank)>0){
+            const rank=Number(mine.rank), coins=Number(mine.team_coins)||0, next=mine.next_team_coins==null?null:Number(mine.next_team_coins), gap=next==null?0:Math.max(0,next-coins), progress=next==null||next<=0?100:Math.max(4,Math.min(100,coins/next*100));
+            personal=`<div class="competition-you"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><div><div style="font-size:11px;color:#b8c2d4">YOUR TEAM POSITION</div><strong style="font-size:21px">${rank<=3?['','🥇','🥈','🥉'][rank]:'#'+rank}</strong></div><div style="text-align:right"><div style="font-size:11px;color:#b8c2d4">MONTHLY TEAM COINS</div><strong>${formatNumberWithCommas(coins)}</strong></div></div>${next==null?'<div style="font-size:11px;margin-top:8px;color:#cbd5e1">Your team is currently at the top.</div>':`<div style="font-size:11px;margin-top:8px;color:#cbd5e1">${formatNumberWithCommas(gap)} COINS to catch ${escapeHtml(mine.next_team_name||'the team above')}.</div><div class="competition-progress"><span style="width:${progress}%"></span></div>`}</div>`;
         }
-        
-        container.innerHTML = `<div class="members-title"><i class="fas fa-chart-line"></i> ${data.month || 'Monthly'} Standings</div>
-        <div class="leaderboard-list">` +
-            data.standings.map((team, idx) => {
-                const rank = idx + 1;
-                const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
-                const rankDisplay = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
-                const teamCoins = parseFloat(team.team_coins) || 0;
-                const teamInitial = (team.name || 'T')[0].toUpperCase();
-                const prize = MONTHLY_PRIZES[rank];
-                const prizeHtml = prize ? `<span class="prize-badge">🏆 ${prize.toLocaleString()}</span>` : '';
-                
-                return `
-                    <div class="leaderboard-item">
-                        <div class="rank ${rankClass}">${rankDisplay}</div>
-                        <div class="team-avatar-small">${escapeHtml(teamInitial)}</div>
-                        <div class="team-info-compact">
-                            <div class="team-name">${escapeHtml(team.name)} ${prizeHtml}</div>
-                            <div class="team-meta">
-                                <span class="team-leader"><i class="fas fa-crown"></i> ${escapeHtml(team.leader_name || '?')}</span>
-                                <span class="team-members-count"><i class="fas fa-users"></i> ${team.member_count || 0}</span>
-                            </div>
-                        </div>
-                        <div class="team-score">${formatNumberWithCommas(teamCoins)}<small> COINS</small></div>
-                    </div>
-                `;
-            }).join('') + `</div>`;
+        if(!standings.length){container.innerHTML=personal+'<div class="empty-state">No teams competing this month yet</div>';return;}
+        container.innerHTML=personal+`<div class="members-title"><i class="fas fa-chart-line"></i> ${escapeHtml(data.month||'Monthly')} Standings <span style="color:var(--gray);font-size:11px">· Top 10</span></div><div class="leaderboard-list">`+standings.map((t,i)=>{
+            const rank=i+1, cls=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'', display=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank, coins=Number(t.team_coins)||0, initial=(t.name||'T')[0].toUpperCase(), prize=MONTHLY_PRIZES[rank], mineRow=mine&&String(t.id)===String(mine.id), prizeHtml=prize?`<span class="prize-badge">🏆 ${prize.toLocaleString()}</span>`:'';
+            return `<div class="leaderboard-item" ${mineRow?'style="border-color:rgba(241,207,120,.65);background:rgba(217,173,78,.1)"':''}><div class="rank ${cls}">${display}</div><div class="team-avatar-small">${escapeHtml(initial)}</div><div class="team-info-compact"><div class="team-name">${escapeHtml(t.name)} ${mineRow?'<span class="prize-badge">YOUR TEAM</span>':prizeHtml}</div><div class="team-meta"><span class="team-leader"><i class="fas fa-crown"></i> ${escapeHtml(t.leader_name||'?')}</span><span class="team-members-count"><i class="fas fa-users"></i> ${Number(t.member_count)||0}</span></div></div><div class="team-score">${formatNumberWithCommas(coins)}<small> COINS</small></div></div>`;
+        }).join('')+'</div>';
     }
-    
-    async function loadMyTeamOnly(showSkeleton = true) {
-        if (showSkeleton) showMyTeamSkeleton();
-        try {
-            const data = await apiCall('/api/team/info');
-            
-            if (data && data.has_team && data.team && data.team.id) {
+
+    async function loadMyTeamOnly(showSkeleton=true){
+        if(showSkeleton)showMyTeamSkeleton();
+        try{
+            const data=await apiCall('/api/team/info');
+            if(data?.has_team&&data.team?.id){
                 try {
-                    const monthlyData = await apiCall('/api/team/monthly-competition');
-                    if (monthlyData && monthlyData.standings) {
-                        const rankIndex = monthlyData.standings.findIndex(t => t.id == data.team.id);
-                        if (rankIndex >= 0) {
-                            data.team.rank = rankIndex === 0 ? '🥇' : rankIndex === 1 ? '🥈' : rankIndex === 2 ? '🥉' : `#${rankIndex + 1}`;
-                        }
+                    const monthly=await apiCall('/api/team/monthly-competition');
+                    if(monthly?.my_team&&String(monthly.my_team.id)===String(data.team.id)){
+                        const rank=Number(monthly.my_team.rank);data.team.rank=Number.isFinite(rank)&&rank>0?rank:'--';
+                        data.team.monthly_coins=monthly.my_team.team_coins??data.team.monthly_coins;
                     }
-                } catch (err) {
-                    data.team.rank = '--';
+                } catch(rankError) {
+                    console.warn('Team rank unavailable:',rankError);
+                    data.team.rank='--';
                 }
             }
             renderMyTeam(data);
-        } catch (err) {
-            console.error('Load team error:', err);
-            renderMyTeam({ has_team: false });
-            showNotification('Failed to load team data', true);
-        }
+        }catch(err){console.error('Load team error:',err);renderTeamLoadError(err.message);showNotification(err.message||'Failed to load team data',true);}
     }
-    
-    async function loadMonthlyCompetition(force = false, showSkeleton = true) {
+
+        async function loadMonthlyCompetition(force = false, showSkeleton = true) {
         const now = Date.now();
         if (!force && monthlyCache && (now - monthlyLastFetch) < CACHE_TTL) {
             renderMonthlyCompetition(monthlyCache);
