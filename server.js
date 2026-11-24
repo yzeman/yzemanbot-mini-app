@@ -612,7 +612,8 @@ setTimeout(cleanupTournamentChat, 30000);
 // ============================================
 async function trackMonthlyEarnings(client, userId, coinsEarned) {
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const firstOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString();
   
   await client.query(`
     INSERT INTO user_monthly_earnings (user_id, month_year, coins_earned)
@@ -2130,7 +2131,7 @@ app.post('/api/leaderboard/top-earners', verifyTelegramData, async (req, res) =>
     const tier = ['Fresher','Brute','Silver','Gold','Platinum'].includes(t) ? t : 'all';
     const telegramId = req.telegramUser.id;
     const types = ['ad','daily','wheel','achievement','task','referral_commission','bonus','admin_add'];
-    const base = "WITH totals AS (SELECT u.id,u.username,u.first_name,u.photo_url,u.tier,u.referrals,u.telegram_id,u.coins AS total_coins,COALESCE(SUM(ar.reward_amount),0) AS monthly_coins FROM users u LEFT JOIN ad_rewards ar ON ar.user_id=u.id AND ar.created_at >= $1::timestamptz AND ar.created_at < $2::timestamptz AND ar.ad_type=ANY($3::text[]) GROUP BY u.id), scoped AS (SELECT * FROM totals WHERE ($4='all' OR tier=$4)), ranked AS (SELECT scoped.*,RANK() OVER(ORDER BY monthly_coins DESC) AS rank FROM scoped)";
+    const base = "WITH totals AS (SELECT u.id,u.username,u.first_name,u.photo_url,u.tier,u.referrals,u.telegram_id,u.coins AS total_coins,COALESCE(SUM(ar.reward_amount),0) AS monthly_coins FROM users u LEFT JOIN ad_rewards ar ON ar.user_id=u.id AND ar.created_at >= $1::timestamptz AND ar.created_at < $2::timestamptz AND ar.ad_type=ANY($3::text[]) GROUP BY u.id), scoped AS (SELECT * FROM totals WHERE ($4='all' OR tier=$4)), ranked AS (SELECT scoped.*,ROW_NUMBER() OVER(ORDER BY monthly_coins DESC, id ASC) AS rank FROM scoped)";
     const rows = await pool.query(base+" SELECT * FROM ranked WHERE ($5='' OR COALESCE(first_name,'') ILIKE '%'||$5||'%' OR COALESCE(username,'') ILIKE '%'||$5||'%') ORDER BY monthly_coins DESC,id ASC LIMIT $6 OFFSET $7",[startIso,endIso,types,tier,search,pageSize,offset]);
     const count = await pool.query(base+" SELECT COUNT(*)::int AS total FROM ranked WHERE ($5='' OR COALESCE(first_name,'') ILIKE '%'||$5||'%' OR COALESCE(username,'') ILIKE '%'||$5||'%')",[startIso,endIso,types,tier,search]);
     const me = await pool.query(base+" SELECT * FROM ranked WHERE telegram_id=$5 LIMIT 1",[startIso,endIso,types,tier,telegramId]);
@@ -2153,7 +2154,7 @@ app.post('/api/leaderboard/weekly-referrers', verifyTelegramData, async (req, re
     const t=String(req.body.tier||'all');
     const tier=['Fresher','Brute','Silver','Gold','Platinum'].includes(t)?t:'all';
     const telegramId=req.telegramUser.id;
-    const base="WITH totals AS (SELECT u.id,u.username,u.first_name,u.photo_url,u.tier,u.coins,u.referrals,u.telegram_id,COUNT(r.id)::int AS referral_count FROM users u LEFT JOIN referrals r ON r.referrer_id=u.id AND r.created_at >= $1::timestamptz AND r.created_at < $2::timestamptz GROUP BY u.id), scoped AS (SELECT * FROM totals WHERE ($3='all' OR tier=$3)), ranked AS (SELECT scoped.*,RANK() OVER(ORDER BY referral_count DESC) AS rank FROM scoped)";
+    const base="WITH totals AS (SELECT u.id,u.username,u.first_name,u.photo_url,u.tier,u.coins,u.referrals,u.telegram_id,COUNT(r.id)::int AS referral_count FROM users u LEFT JOIN referrals r ON r.referrer_id=u.id AND r.created_at >= $1::timestamptz AND r.created_at < $2::timestamptz GROUP BY u.id), scoped AS (SELECT * FROM totals WHERE ($3='all' OR tier=$3)), ranked AS (SELECT scoped.*,ROW_NUMBER() OVER(ORDER BY referral_count DESC, id ASC) AS rank FROM scoped)";
     const rows=await pool.query(base+" SELECT * FROM ranked WHERE ($4='' OR COALESCE(first_name,'') ILIKE '%'||$4||'%' OR COALESCE(username,'') ILIKE '%'||$4||'%') ORDER BY referral_count DESC,id ASC LIMIT $5 OFFSET $6",[startIso,endIso,tier,search,pageSize,offset]);
     const count=await pool.query(base+" SELECT COUNT(*)::int AS total FROM ranked WHERE ($4='' OR COALESCE(first_name,'') ILIKE '%'||$4||'%' OR COALESCE(username,'') ILIKE '%'||$4||'%')",[startIso,endIso,tier,search]);
     const me=await pool.query(base+" SELECT * FROM ranked WHERE telegram_id=$4 LIMIT 1",[startIso,endIso,tier,telegramId]);
@@ -2675,7 +2676,7 @@ app.post('/api/team/monthly-competition', verifyTelegramData, async (req, res) =
       FROM ranked
       ORDER BY rank
       LIMIT 10
-    `, [firstOfMonth]);
+    `, [firstOfMonth, nextMonth]);
 
     const myTeamResult = await pool.query(`
       WITH team_totals AS (
@@ -3720,6 +3721,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
       FROM users u
       LEFT JOIN ad_rewards ar ON u.id = ar.user_id 
         AND ar.created_at >= $1
+        AND ar.created_at < $2
         AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task', 'referral_commission', 'bonus', 'admin_add')
       GROUP BY u.id
       ORDER BY monthly_coins DESC
