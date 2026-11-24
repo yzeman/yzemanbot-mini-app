@@ -3724,7 +3724,7 @@ app.post('/api/admin/award-monthly-prizes', verifyAdmin, async (req, res) => {
         AND ar.created_at < $2
         AND ar.ad_type IN ('ad', 'daily', 'wheel', 'achievement', 'task', 'referral_commission', 'bonus', 'admin_add')
       GROUP BY u.id
-      ORDER BY monthly_coins DESC
+      ORDER BY monthly_coins DESC, u.id ASC
       LIMIT 3
     `, [firstOfMonth]);
     
